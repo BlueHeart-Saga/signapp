@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
     libreoffice-writer \
     libreoffice-calc \
     libreoffice-impress \
-    unoconv \
     fonts-dejavu \
     curl \
     && apt-get clean
