@@ -1,0 +1,38 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  background: #f4f6fa;
+  font-family: "Inter", sans-serif;
+  width: 100%;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.3s ease;
+  margin-left: 230px;
+}
+
+.main.collapsed {
+  margin-left: 70px;
+}
+
+.content {
+  flex: 1;
+  /* padding: 20px; */
+  overflow-y: auto;
+}
+
+
+@media (max-width: 768px) {
+
+  .main {
+    margin-left: 70px !important;
+  }
+
+  .main.collapsed {
+    margin-left: 70px !important;
+  }
+
+}

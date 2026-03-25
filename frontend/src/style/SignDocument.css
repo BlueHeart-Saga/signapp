@@ -1,0 +1,206 @@
+/* src/style/SignDocument.css */
+.sign-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.sign-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.sign-header h1 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.error-banner {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+.success-banner {
+  background: #efe;
+  border: 1px solid #cfc;
+  color: #3c3;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.document-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  background: #f9f9f9;
+}
+
+.document-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.document-icon {
+  font-size: 2em;
+  color: #007bff;
+}
+
+.recipient-info h4 {
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.verification-section,
+.signature-section {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  background: white;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.section-icon {
+  color: #007bff;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.otp-input,
+.signature-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.verify-btn,
+.sign-btn {
+  padding: 12px 30px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.verify-btn:disabled,
+.sign-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.signature-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.btn-outline {
+  padding: 12px 30px;
+  background: white;
+  color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 50px;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-state {
+  text-align: center;
+  padding: 50px;
+}
+
+.error-icon {
+  font-size: 3em;
+  color: #dc3545;
+  margin-bottom: 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  border: none;
+}
+
+.document-preview-section {
+  margin-top: 30px;
+}
+
+.document-preview {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+}
+
+.preview-placeholder {
+  color: #666;
+}
+
+.preview-icon {
+  font-size: 3em;
+  color: #ccc;
+  margin-bottom: 15px;
+}

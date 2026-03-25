@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- Default description (can be overridden dynamically) -->
+    <meta name="description" content="Secure Digital Document Signing" />
+
+    <!-- PWA / Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
+    <!-- 🔥 IMPORTANT: Dynamic favicon placeholder -->
+    <link id="dynamic-favicon" rel="icon" />
+
+    <!-- 🔥 IMPORTANT: Empty title (JS will set it) -->
+    <title>SafeSign</title>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Google Picker API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
+    <!-- Dropbox -->
+    <script
+      src="https://www.dropbox.com/static/api/2/dropins.js"
+      id="dropboxjs"
+      data-app-key="yiof9wdjg58mkol"
+    ></script>
+
+    <!-- OneDrive -->
+    <script src="https://js.live.net/v7.2/OneDrive.js"></script>
+
+    <!-- Box -->
+    <script src="https://cdn01.boxcdn.net/platform/elements/18.0.0/en-US/picker.js"></script>
+    <link
+      href="https://cdn01.boxcdn.net/platform/elements/18.0.0/en-US/picker.css"
+      rel="stylesheet"
+    />
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  </head>
+
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

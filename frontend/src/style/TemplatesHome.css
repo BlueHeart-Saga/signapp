@@ -1,0 +1,145 @@
+.tmh-container {
+  max-width: 1150px;
+  margin: auto;
+  padding: 40px 20px;
+  font-family: Inter, Segoe UI, Arial;
+}
+
+/* ---------------- HERO ---------------- */
+
+.tmh-hero {
+  min-height: 70vh; 
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.tmh-hero-left {
+  flex: 1;
+}
+
+.tmh-hero-right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.tmh-hero-title {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.tmh-hero-subtext {
+  color: #555;
+  margin-top: 8px;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.tmh-hero-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.tmh-btn-primary {
+  background: #10a37f;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tmh-btn-outline {
+  background: none;
+  border: 1px solid black;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tmh-hero-img {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 14px;
+}
+
+/* ---------------- FEATURES ---------------- */
+
+.tmh-feature {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  margin-top: 70px;
+}
+
+/* .tmh-feature-reverse {
+  flex-direction: row-reverse;
+} */
+
+.tmh-feature-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.tmh-feature-description {
+  color: #555;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.tmh-feature-image img {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 14px;
+}
+
+
+/* =========================
+   RESPONSIVE BEHAVIOR
+========================= */
+
+/* TABLETS */
+@media (max-width: 992px) {
+
+  .tmh-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .tmh-hero-buttons {
+    justify-content: center;
+  }
+
+  .tmh-feature {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .tmh-feature-reverse {
+    flex-direction: column;
+  }
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+
+  .tmh-hero-title {
+    font-size: 26px;
+  }
+
+  .tmh-feature-title {
+    font-size: 20px;
+  }
+
+  .tmh-container {
+    padding: 24px 14px;
+  }
+
+  .tmh-hero-img,
+  .tmh-feature-image img {
+    max-width: 100%;
+  }
+}

@@ -1,0 +1,118 @@
+/* src/styles/ai-templates.css */
+.ai-template-builder {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+}
+
+/* Animation classes */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(45deg, #2196f3 30%, #21cbf3 90%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Template card hover effects */
+.template-card {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+  border-color: rgba(33, 150, 243, 0.3);
+}
+
+/* Upload area drag & drop */
+.upload-area {
+  transition: all 0.3s ease;
+}
+
+.upload-area.drag-over {
+  border-color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.05);
+  transform: scale(1.02);
+}
+
+/* Progress animation */
+@keyframes progress-glow {
+  0% { box-shadow: 0 0 5px rgba(33, 150, 243, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(33, 150, 243, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(33, 150, 243, 0.5); }
+}
+
+.progress-glow {
+  animation: progress-glow 2s ease-in-out infinite;
+}
+
+/* Field placeholder styles */
+.field-placeholder {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border: 2px solid #2196f3;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 4px 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.field-placeholder:hover {
+  background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+  border-color: #1976d2;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+}
+
+/* Modal animations */
+.modal-enter {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.modal-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.modal-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.modal-exit-active {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Responsive iframe container */
+.iframe-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading spinner overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}

@@ -1,0 +1,206 @@
+/* ===============================
+   ROOT VARIABLES (THEME)
+================================ */
+:root {
+  --primary: #2563eb;          /* Blue */
+  --primary-dark: #1e40af;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --bg-light: #f8fafc;
+  --border: #e5e7eb;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --radius: 12px;
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===============================
+   PAGE WRAPPER
+================================ */
+.complaint-wrapper {
+  background: linear-gradient(to bottom, #f8fafc, #eef2ff);
+  padding: 60px 20px;
+  display: flex;
+  justify-content: center;
+  font-family: var(--font);
+}
+
+/* ===============================
+   MAIN CARD
+================================ */
+.complaint-card {
+  width: 100%;
+  max-width: 900px;
+  background: #ffffff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 40px 48px;
+  border: 1px solid var(--border);
+}
+
+/* ===============================
+   HEADER
+================================ */
+.complaint-card h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.complaint-card .intro {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+/* ===============================
+   SECTION BLOCKS
+================================ */
+.complaint-card section {
+  margin-bottom: 36px;
+}
+
+.complaint-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 16px;
+}
+
+/* ===============================
+   LABELS & INPUTS
+================================ */
+.complaint-card label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-main);
+  margin-bottom: 14px;
+}
+
+.complaint-card label span {
+  color: var(--danger);
+  margin-left: 4px;
+}
+
+/* Inputs */
+.complaint-card input,
+.complaint-card textarea,
+.complaint-card select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  margin-top: 6px;
+  background: #fff;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.complaint-card textarea {
+  resize: vertical;
+}
+
+.complaint-card input:focus,
+.complaint-card textarea:focus,
+.complaint-card select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ===============================
+   FILE UPLOAD
+================================ */
+.file-upload input[type="file"] {
+  padding: 10px;
+  border: 1px dashed var(--border);
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.file-upload small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===============================
+   DECLARATION
+================================ */
+.declaration {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 10px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===============================
+   SUBMIT BUTTON
+================================ */
+
+
+/* ===============================
+   FOOTER NOTE
+================================ */
+.footer-note {
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ===============================
+   STATUS MESSAGES
+================================ */
+.success-box {
+  margin-top: 20px;
+  padding: 14px;
+  background: #ecfdf5;
+  color: var(--success);
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.error-box {
+  margin-top: 20px;
+  padding: 14px;
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 768px) {
+  .complaint-card {
+    padding: 28px 22px;
+  }
+
+  .complaint-card h1 {
+    font-size: 24px;
+  }
+}

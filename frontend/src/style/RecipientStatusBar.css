@@ -1,0 +1,108 @@
+/* ===== CARD ===== */
+.zds-recipient-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #ffffff;
+  margin: 20px auto;
+  border-left: 5px solid green;
+}
+
+/* ===== LEFT INFO ===== */
+.zds-recipient-info {
+  max-width: 45%;
+}
+
+.zds-recipient-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.zds-recipient-email {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.zds-recipient-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.zds-pill {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.zds-recipient-access {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+/* ===== STATUS BAR ===== */
+.zds-statusbar-wrapper {
+  position: relative;
+  width: 35%;
+  padding-top: 20px;
+}
+
+/* Solid background bar */
+.zds-statusbar-track {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 2px;
+}
+
+/* Steps */
+.zds-statusbar-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.zds-statusbar-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+/* Dots */
+.zds-statusbar-dot {
+  width: 30px;
+  height: 30px;
+  background: #d1d5db;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+}
+
+/* Completed dot */
+.zds-statusbar-dot.zds-completed {
+  background: #1f8f6b;
+}
+
+/* Labels below dots */
+.zds-statusbar-label {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.zds-statusbar-label.zds-completed {
+  color: #111827;
+  font-weight: 600;
+}

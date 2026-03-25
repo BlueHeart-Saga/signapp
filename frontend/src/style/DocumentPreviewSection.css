@@ -1,0 +1,124 @@
+/* ================= DOCUMENT PREVIEW ================= */
+
+.doc-preview-section {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 28px;
+}
+
+.doc-preview-header {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+/* LEFT */
+.doc-preview-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.doc-preview-view-btn {
+  width: 100%;
+  padding: 6px 0;
+  font-size: 14px;
+  font-weight: 600;
+  background: #0f766e;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.doc-preview-view-btn:hover {
+  background: #115e59;
+}
+
+/* CENTER */
+/* ================= ZOHO DOCUMENT DETAILS ================= */
+
+.doc-preview-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Title */
+.doc-preview-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+/* Owner */
+.doc-preview-owner {
+  font-size: 14px;
+  color: #374151;
+}
+
+/* Description */
+.doc-preview-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 6px 0;
+}
+
+/* Details block */
+.doc-preview-details {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: #374151;
+}
+
+/* Individual row */
+.doc-preview-detail-row {
+  line-height: 1.4;
+}
+
+/* Status text */
+.doc-preview-status-text {
+  font-weight: 600;
+}
+
+
+/* RIGHT STATUS */
+.doc-preview-status-panel {
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-preview-status-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-preview-status-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .doc-preview-header {
+    flex-direction: column;
+  }
+
+  .doc-preview-status-panel {
+    align-items: flex-start;
+  }
+}

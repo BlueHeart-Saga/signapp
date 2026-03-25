@@ -1,0 +1,769 @@
+/* ============================================
+   SAFESIGN NAVBAR STYLES
+   Professional design system for main navigation
+   =========================================== */
+
+/* --------------------------------------------
+   CSS VARIABLES
+   Centralized design tokens for consistency
+   -------------------------------------------- */
+:root {
+  /* Colors - Primary */
+  --signapp-primary: #0d9488;
+  --signapp-primary-dark: #0f766e;
+  --signapp-primary-light: #14b8a6;
+  --signapp-primary-bg: #f0fdfa;
+
+  /* Colors - Neutral */
+  --signapp-white: #ffffff;
+  --signapp-gray-50: #f9fafb;
+  --signapp-gray-100: #f3f4f6;
+  --signapp-gray-200: #e5e7eb;
+  --signapp-gray-300: #d1d5db;
+  --signapp-gray-400: #9ca3af;
+  --signapp-gray-500: #6b7280;
+  --signapp-gray-600: #4b5563;
+  --signapp-gray-700: #374151;
+  --signapp-gray-800: #1f2937;
+  --signapp-gray-900: #111827;
+
+  /* Colors - Status */
+  --signapp-success: #10b981;
+  --signapp-success-bg: #d1fae5;
+  --signapp-success-dark: #059669;
+  --signapp-warning: #f59e0b;
+  --signapp-warning-bg: #fed7aa;
+  --signapp-warning-dark: #d97706;
+  --signapp-error: #ef4444;
+  --signapp-error-bg: #fee2e2;
+  --signapp-error-dark: #dc2626;
+  --signapp-info: #3b82f6;
+  --signapp-info-bg: #dbeafe;
+  --signapp-info-dark: #2563eb;
+
+  /* Typography */
+  --signapp-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --signapp-font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+
+  /* Spacing */
+  --signapp-space-1: 0.25rem;
+  --signapp-space-2: 0.5rem;
+  --signapp-space-3: 0.75rem;
+  --signapp-space-4: 1rem;
+  --signapp-space-5: 1.25rem;
+  --signapp-space-6: 1.5rem;
+  --signapp-space-8: 2rem;
+
+  /* Layout */
+  --signapp-navbar-height: 4rem;
+  --signapp-navbar-max-width: 1440px;
+  --signapp-border-radius-sm: 0.375rem;
+  --signapp-border-radius-md: 0.5rem;
+  --signapp-border-radius-lg: 0.75rem;
+  --signapp-border-radius-xl: 1rem;
+  --signapp-border-radius-full: 9999px;
+
+  /* Shadows */
+  --signapp-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --signapp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --signapp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --signapp-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+  /* Transitions */
+  --signapp-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --signapp-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --signapp-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --------------------------------------------
+   BASE NAVBAR
+   Main navigation container
+   -------------------------------------------- */
+.signapp-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  height: var(--signapp-navbar-height);
+  background-color: var(--signapp-white);
+  border-bottom: 1px solid var(--signapp-gray-200);
+  box-shadow: var(--signapp-shadow-sm);
+}
+
+.signapp-navbar-container {
+  max-width: var(--signapp-navbar-max-width);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--signapp-space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* --------------------------------------------
+   NAVBAR SECTIONS
+   Left, center, and right layout containers
+   -------------------------------------------- */
+.signapp-navbar-left,
+.signapp-navbar-center,
+.signapp-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--signapp-space-4);
+}
+
+.signapp-navbar-left {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.signapp-navbar-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.signapp-navbar-right {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* --------------------------------------------
+   MENU BUTTON
+   Hamburger menu for mobile
+   -------------------------------------------- */
+.signapp-navbar-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--signapp-space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--signapp-border-radius-md);
+  color: var(--signapp-gray-500);
+  cursor: pointer;
+  transition: all var(--signapp-transition-fast);
+}
+
+.signapp-navbar-menu-btn:hover {
+  background-color: var(--signapp-gray-100);
+  color: var(--signapp-gray-700);
+}
+
+.signapp-navbar-menu-btn:active {
+  transform: scale(0.95);
+}
+
+.signapp-navbar-menu-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --------------------------------------------
+   LOGO
+   Brand identity
+   -------------------------------------------- */
+.signapp-navbar-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--signapp-gray-900);
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: color var(--signapp-transition-fast);
+}
+
+.signapp-navbar-logo:hover {
+  color: var(--signapp-primary);
+}
+
+/* --------------------------------------------
+   WELCOME TEXT
+   Personalized greeting
+   -------------------------------------------- */
+.signapp-navbar-welcome {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--signapp-gray-700);
+  margin: 0;
+}
+
+/* --------------------------------------------
+   SEARCH COMPONENT
+   Advanced search with dropdown results
+   -------------------------------------------- */
+.signapp-navbar-search-wrapper {
+  position: relative;
+  width: 320px;
+}
+
+.signapp-navbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background-color: var(--signapp-gray-100);
+  border: 1px solid transparent;
+  border-radius: var(--signapp-border-radius-full);
+  transition: all var(--signapp-transition-base);
+}
+
+.signapp-navbar-search:hover {
+  background-color: var(--signapp-gray-200);
+}
+
+.signapp-navbar-search:focus-within {
+  background-color: var(--signapp-white);
+  border-color: var(--signapp-primary);
+  box-shadow: 0 0 0 4px var(--signapp-primary-bg);
+}
+
+.signapp-navbar-search-icon {
+  position: absolute;
+  left: var(--signapp-space-3);
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--signapp-gray-400);
+  pointer-events: none;
+}
+
+.signapp-navbar-search-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--signapp-space-3) 0 calc(var(--signapp-space-8) + var(--signapp-space-2));
+  background: transparent;
+  border: none;
+  border-radius: var(--signapp-border-radius-full);
+  color: var(--signapp-gray-900);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.signapp-navbar-search-input::placeholder {
+  color: var(--signapp-gray-400);
+}
+
+.signapp-navbar-search-clear {
+  position: absolute;
+  right: var(--signapp-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--signapp-border-radius-full);
+  color: var(--signapp-gray-400);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all var(--signapp-transition-fast);
+}
+
+.signapp-navbar-search-clear:hover {
+  background-color: var(--signapp-gray-200);
+  color: var(--signapp-error);
+}
+
+.signapp-navbar-search-spinner {
+  position: absolute;
+  right: var(--signapp-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--signapp-primary);
+}
+
+/* --------------------------------------------
+   SEARCH RESULTS DROPDOWN
+   Professional dropdown for search results
+   -------------------------------------------- */
+.signapp-search-results {
+  position: absolute;
+  top: calc(100% + var(--signapp-space-2));
+  left: 0;
+  right: 0;
+  background: var(--signapp-white);
+  border: 1px solid var(--signapp-gray-200);
+  border-radius: var(--signapp-border-radius-lg);
+  box-shadow: var(--signapp-shadow-lg);
+  overflow: hidden;
+  z-index: 1000;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.signapp-search-header {
+  padding: var(--signapp-space-3) var(--signapp-space-4);
+  background: var(--signapp-gray-50);
+  border-bottom: 1px solid var(--signapp-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signapp-search-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--signapp-space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--signapp-gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.signapp-search-header-count {
+  padding: 0.125rem 0.5rem;
+  background: var(--signapp-gray-200);
+  border-radius: var(--signapp-border-radius-full);
+  font-size: 0.75rem;
+  color: var(--signapp-gray-600);
+}
+
+/* Search Result Items */
+.signapp-search-item {
+  padding: var(--signapp-space-3) var(--signapp-space-4);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--signapp-space-3);
+  cursor: pointer;
+  transition: background var(--signapp-transition-fast);
+  border-bottom: 1px solid var(--signapp-gray-100);
+}
+
+.signapp-search-item:last-child {
+  border-bottom: none;
+}
+
+.signapp-search-item:hover {
+  background: var(--signapp-gray-50);
+}
+
+.signapp-search-item-icon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--signapp-gray-100);
+  border-radius: var(--signapp-border-radius-md);
+  color: var(--signapp-gray-500);
+}
+
+.signapp-search-item-icon.recent {
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--signapp-gray-200);
+}
+
+.signapp-search-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.signapp-search-item-title {
+  display: flex;
+  align-items: center;
+  gap: var(--signapp-space-2);
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--signapp-gray-900);
+}
+
+.signapp-search-item-status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--signapp-border-radius-full);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.completed {
+  background: var(--signapp-success-bg);
+  color: var(--signapp-success-dark);
+}
+
+.status-badge.in-progress {
+  background: var(--signapp-warning-bg);
+  color: var(--signapp-warning-dark);
+}
+
+.status-badge.sent {
+  background: var(--signapp-info-bg);
+  color: var(--signapp-info-dark);
+}
+
+.status-badge.draft {
+  background: var(--signapp-gray-200);
+  color: var(--signapp-gray-700);
+}
+
+.status-badge.voided,
+.status-badge.declined {
+  background: var(--signapp-error-bg);
+  color: var(--signapp-error-dark);
+}
+
+/* Metadata */
+.signapp-search-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--signapp-space-3);
+  font-size: 0.6875rem;
+  color: var(--signapp-gray-500);
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.meta-item.envelope {
+  padding: 0.125rem 0.375rem;
+  background: var(--signapp-gray-100);
+  border-radius: var(--signapp-border-radius-sm);
+  font-family: var(--signapp-font-mono);
+}
+
+/* View All Link */
+.signapp-search-view-all {
+  padding: var(--signapp-space-3) var(--signapp-space-4);
+  background: var(--signapp-gray-50);
+  border-top: 1px solid var(--signapp-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--signapp-primary);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background var(--signapp-transition-fast);
+}
+
+.signapp-search-view-all:hover {
+  background: var(--signapp-gray-100);
+}
+
+/* Empty States */
+.signapp-search-empty {
+  padding: var(--signapp-space-8) var(--signapp-space-4);
+  text-align: center;
+  color: var(--signapp-gray-500);
+}
+
+.signapp-search-empty svg {
+  margin-bottom: var(--signapp-space-3);
+  color: var(--signapp-gray-300);
+}
+
+.signapp-search-empty p {
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.signapp-search-empty span {
+  font-size: 0.75rem;
+}
+
+/* Loading State */
+.signapp-search-loading {
+  padding: var(--signapp-space-8) var(--signapp-space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--signapp-space-3);
+  color: var(--signapp-gray-500);
+}
+
+/* Search Tips */
+.signapp-search-tips {
+  padding: var(--signapp-space-3) var(--signapp-space-4);
+  background: var(--signapp-gray-50);
+  border-top: 1px solid var(--signapp-gray-200);
+  font-size: 0.75rem;
+  color: var(--signapp-gray-500);
+}
+
+.tips-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--signapp-gray-600);
+}
+
+.tip {
+  display: block;
+  padding-left: var(--signapp-space-3);
+  margin-bottom: 0.125rem;
+  font-family: var(--signapp-font-mono);
+}
+
+/* --------------------------------------------
+   ICON BUTTONS
+   Unified styling for all icon buttons
+   -------------------------------------------- */
+.signapp-navbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--signapp-space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--signapp-border-radius-md);
+  color: var(--signapp-gray-500);
+  cursor: pointer;
+  transition: all var(--signapp-transition-fast);
+  position: relative;
+}
+
+.signapp-navbar-icon-btn:hover {
+  background-color: var(--signapp-gray-100);
+  color: var(--signapp-gray-700);
+}
+
+.signapp-navbar-icon-btn:active {
+  transform: scale(0.95);
+}
+
+.signapp-navbar-icon {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+/* Notification Badge */
+.signapp-navbar-badge {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.375rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--signapp-error);
+  border: 2px solid var(--signapp-white);
+  border-radius: 50%;
+}
+
+/* Profile Avatar */
+.signapp-navbar-avatar {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--signapp-primary);
+  border-radius: 50%;
+  color: var(--signapp-white);
+  transition: transform var(--signapp-transition-fast);
+}
+
+.signapp-navbar-icon-btn:hover .signapp-navbar-avatar {
+  transform: scale(1.05);
+}
+
+/* --------------------------------------------
+   SUBSCRIPTION BADGE
+   Professional subscription indicator
+   -------------------------------------------- */
+.signapp-subscription-badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--signapp-primary-bg);
+  border: 1px solid var(--signapp-primary-light);
+  border-radius: var(--signapp-border-radius-full);
+  color: var(--signapp-primary-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--signapp-transition-fast);
+}
+
+.signapp-subscription-badge:hover {
+  background: var(--signapp-primary);
+  border-color: var(--signapp-primary);
+  color: var(--signapp-white);
+}
+
+.signapp-subscription-badge.warning {
+  background: var(--signapp-warning-bg);
+  border-color: var(--signapp-warning);
+  color: var(--signapp-warning-dark);
+}
+
+.signapp-subscription-badge.warning:hover {
+  background: var(--signapp-warning);
+  color: var(--signapp-white);
+}
+
+/* --------------------------------------------
+   ANIMATIONS
+   Smooth transitions and effects
+   -------------------------------------------- */
+@keyframes signapp-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes signapp-pulse {
+  0% { box-shadow: 0 0 0 0 var(--signapp-primary-light); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.spinning {
+  animation: signapp-spin 1s linear infinite;
+}
+
+.pulse {
+  animation: signapp-pulse 1.5s ease-in-out infinite;
+}
+
+/* --------------------------------------------
+   RESPONSIVE DESIGN
+   Mobile and tablet adaptations
+   -------------------------------------------- */
+@media (max-width: 1024px) {
+  .signapp-navbar-search-wrapper {
+    width: 240px;
+  }
+}
+
+@media (max-width: 768px) {
+  .signapp-navbar-container {
+    padding: 0 var(--signapp-space-3);
+  }
+
+  .signapp-navbar-center {
+    display: none;
+  }
+
+  .signapp-navbar-search-wrapper {
+    display: none;
+  }
+
+  .signapp-navbar-left,
+  .signapp-navbar-right {
+    flex: 0 1 auto;
+  }
+
+  .signapp-navbar-logo {
+    font-size: 1.25rem;
+  }
+
+  .signapp-search-results {
+    width: 320px;
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .signapp-navbar-container {
+    padding: 0 var(--signapp-space-2);
+  }
+
+  .signapp-navbar-icon-btn {
+    padding: var(--signapp-space-1);
+  }
+
+  .signapp-navbar-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .signapp-navbar-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .signapp-subscription-badge {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+  }
+}
+
+/* --------------------------------------------
+   ACCESSIBILITY
+   Focus states and reduced motion
+   -------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.signapp-navbar-icon-btn:focus-visible,
+.signapp-navbar-search:focus-within {
+  outline: 2px solid var(--signapp-primary);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------
+   DARK MODE SUPPORT
+   Optional dark theme adaptation
+   -------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --signapp-white: #1f2937;
+    --signapp-gray-50: #111827;
+    --signapp-gray-100: #1f2937;
+    --signapp-gray-200: #374151;
+    --signapp-gray-300: #4b5563;
+    --signapp-gray-400: #6b7280;
+    --signapp-gray-500: #9ca3af;
+    --signapp-gray-600: #d1d5db;
+    --signapp-gray-700: #e5e7eb;
+    --signapp-gray-800: #f3f4f6;
+    --signapp-gray-900: #f9fafb;
+  }
+}
+
+.signapp-navbar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.signapp-navbar-profile:hover {
+  background: #f1f5f9;
+}
+
+.signapp-navbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.signapp-navbar-avatar-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.signapp-navbar-username {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  max-width: 120px;      /* limit width */
+  white-space: nowrap;   /* prevent wrap */
+  overflow: hidden;      /* hide overflow */
+  text-overflow: ellipsis; /* show ... */
+}

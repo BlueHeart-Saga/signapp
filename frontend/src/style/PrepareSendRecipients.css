@@ -1,0 +1,3195 @@
+/* PrepareSendRecipients.css */
+.docusign-container {
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  
+  background-color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Header Styles */
+.docusign-header {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.docusign-back-btn {
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.docusign-back-btn:hover {
+  background: #f3f4f6;
+}
+
+.docusign-document-info {
+  flex: 1;
+}
+
+.docusign-document-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.docusign-document-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.docusign-view-doc-btn {
+  background: #0d9488;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.docusign-view-doc-btn:hover {
+  background: #0d9488;
+}
+
+.docusign-document-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.docusign-doc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.docusign-doc-title svg {
+  color: #EF4444;
+}
+
+.docusign-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.docusign-doc-status {
+  display: flex;
+  align-items: center;
+}
+
+.docusign-doc-date {
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Status Badges */
+.docusign-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.docusign-status-draft {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FBBF24;
+}
+
+.docusign-status-sent {
+  background: #DBEAFE;
+  color: #1E40AF;
+  border: 1px solid #60A5FA;
+}
+
+.docusign-status-in-progress {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FBBF24;
+}
+
+.docusign-status-completed {
+  background: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #34D399;
+}
+
+.docusign-status-viewed {
+  background: #E0E7FF;
+  color: #3730A3;
+  border: 1px solid #818CF8;
+}
+
+.docusign-status-signed {
+  background: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #34D399;
+}
+
+.docusign-status-approved {
+  background: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #34D399;
+}
+
+/* Main Content */
+.docusign-main-content {
+  /* max-width: 1200px; */
+  margin: 2rem auto;
+  padding: 0 2rem;
+  display: flex;
+  gap: 2rem;
+}
+
+.docusign-recipients-section {
+  flex: 1;
+  /* background: white; */
+  border-radius: 8px;
+  /* box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); */
+  /* padding: 1.5rem; */
+}
+
+/* Section Header */
+.docusign-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.docusign-section-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-recipient-count {
+  background: #0d9488;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.docusign-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.docusign-search {
+  position: relative;
+}
+
+.docusign-search svg {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9CA3AF;
+}
+
+.docusign-search input {
+  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  width: 200px;
+  transition: border-color 0.2s;
+}
+
+.docusign-search input:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Recipient Cards */
+.docusign-recipients-list {
+  margin-bottom: 2rem;
+}
+
+.docusign-recipient-card {
+  background: rgba(255, 255, 255, 0);
+  /* border: 1px solid #E5E7EB; */
+  /* border-left: 4px solid #4F46E5; */
+  
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* .docusign-recipient-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+} */
+
+.docusign-recipient-card.docusign-active {
+  background: #f5f3ff00;
+  /* border-color: #4F46E5; */
+}
+
+.docusign-recipient-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.docusign-recipient-avatar {
+  flex-shrink: 0;
+}
+
+.docusign-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.docusign-recipient-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.docusign-recipient-name {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-recipient-role {
+  background: #EEF2FF;
+  color: #0d9488;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.docusign-recipient-email {
+  color: #6B7280;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.docusign-recipient-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.docusign-order-badge {
+  background: #F3F4F6;
+  color: #374151;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.docusign-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.docusign-action-btn {
+  background: none;
+  border: 1px solid #D1D5DB;
+  color: #6B7280;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.docusign-action-btn:hover {
+  background: #F9FAFB;
+  color: #374151;
+}
+
+.docusign-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.docusign-delete-btn:hover {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FCA5A5;
+}
+
+.docusign-witness-info {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #F0F9FF;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #0369A1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Add Recipients Section */
+.docusign-add-recipients {
+  margin-top: 3rem;
+}
+
+.docusign-add-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-recipient-forms {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.docusign-recipient-form-card {
+  /* background: rgba(255, 255, 255, 0); */
+  /* border: 2px solid #E5E7EB; */
+  /* border-left: 4px solid #4F46E5; */
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: border-color 0.2s;
+}
+
+/* .docusign-recipient-form-card:hover {
+  border-color: #D1D5DB;
+} */
+
+.docusign-form-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.docusign-form-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.docusign-form-title {
+  font-weight: 600;
+  color: #111827;
+  flex: 1;
+}
+
+.docusign-remove-form-btn {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.docusign-remove-form-btn:hover {
+  color: #DC2626;
+  background: #FEF2F2;
+}
+
+/* Form Fields */
+.docusign-form-fields {
+  margin-bottom: 1.5rem;
+}
+
+.docusign-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.docusign-form-group {
+  margin-bottom: 1rem;
+}
+
+.docusign-form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.docusign-error {
+  color: #DC2626;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.docusign-form-group input,
+.docusign-form-group select,
+.docusign-form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.docusign-form-group input:focus,
+.docusign-form-group select:focus,
+.docusign-form-group textarea:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.docusign-input-error {
+  border-color: #DC2626 !important;
+}
+
+.docusign-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.docusign-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Form Actions */
+.docusign-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Add More Button */
+.docusign-add-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.docusign-add-more-btn {
+  background: none;
+  border: 2px dashed #D1D5DB;
+  color: #6B7280;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.docusign-add-more-btn:hover {
+  border-color: #0d9488;
+  color: #0d9488;
+  background: #F5F3FF;
+}
+
+/* Buttons */
+.docusign-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.docusign-btn-primary {
+  background: #0d9488;
+  color: white;
+  border-color: #0d9488;
+}
+
+.docusign-btn-primary:hover:not(:disabled) {
+  background: #0d9488;
+  border-color: #0d9488;
+}
+
+.docusign-btn-outline {
+  background: white;
+  color: #374151;
+  border-color: #D1D5DB;
+}
+
+.docusign-btn-outline:hover:not(:disabled) {
+  background: #F9FAFB;
+  border-color: #9CA3AF;
+}
+
+.docusign-btn-large {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.docusign-btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+.docusign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.btn-icon {
+  font-size: 13px;
+}
+
+
+/* Recipient Sidebar */
+.docusign-recipient-sidebar {
+  width: 320px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  align-self: flex-start;
+  position: sticky;
+  top: 2rem;
+}
+
+.docusign-sidebar-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.docusign-sidebar-header h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.docusign-close-btn {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.docusign-close-btn:hover {
+  color: #374151;
+  background: #F3F4F6;
+}
+
+.docusign-sidebar-content {
+  padding: 1.5rem;
+}
+
+.docusign-sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.docusign-sidebar-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.docusign-sidebar-profile-info h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.docusign-sidebar-email {
+  color: #6B7280;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.docusign-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.docusign-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.docusign-detail-label {
+  font-size: 0.75rem;
+  color: #6B7280;
+  margin-bottom: 0.25rem;
+}
+
+.docusign-detail-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.docusign-message-card,
+.docusign-document-info-card {
+  background: #F9FAFB;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.docusign-message-card h6,
+.docusign-document-info-card h6 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-message-card p {
+  font-size: 0.875rem;
+  color: #6B7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.docusign-info-item {
+  margin-bottom: 0.75rem;
+}
+
+.docusign-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.docusign-info-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6B7280;
+  margin-bottom: 0.25rem;
+}
+
+.docusign-info-value {
+  font-size: 0.875rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.docusign-info-text {
+  font-size: 0.875rem;
+  color: #6B7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.docusign-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Footer */
+.docusign-footer {
+  background: white;
+  border-top: 1px solid #E5E7EB;
+  padding: 1.5rem 2rem;
+  margin-top: 3rem;
+}
+
+.docusign-summary {
+  /* max-width: 1200px;
+  margin: 0 auto; */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.docusign-summary-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.docusign-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.docusign-stat-label {
+  font-size: 0.875rem;
+  color: #6B7280;
+  margin-bottom: 0.25rem;
+}
+
+.docusign-stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.docusign-continue-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+/* Empty States */
+.docusign-empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.docusign-empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.docusign-empty-state p {
+  color: #6B7280;
+  margin-bottom: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .docusign-main-content {
+    flex-direction: column;
+  }
+  
+  .docusign-recipient-sidebar {
+    width: 100%;
+    position: static;
+  }
+  
+  .docusign-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .docusign-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .docusign-document-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .docusign-document-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .docusign-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .docusign-summary {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .docusign-summary-stats {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
+/* Common Message Styles */
+/* Container */
+.zoho-common-message {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+/* Header */
+.zoho-common-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.zoho-common-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Edit button */
+.zoho-common-edit-btn {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoho-common-edit-btn:hover {
+  background: #f3f4f6;
+}
+
+/* Hint text */
+.zoho-common-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 8px 0 14px;
+}
+
+/* Textarea */
+.zoho-common-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.zoho-common-textarea:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+}
+
+/* Actions */
+.zoho-common-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Buttons */
+.zoho-btn-primary {
+  background: #0d9488;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoho-btn-primary:hover {
+  background: #0f766e;
+}
+
+.zoho-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.zoho-btn-secondary {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zoho-btn-secondary:hover {
+  background: #f9fafb;
+}
+
+/* Display mode */
+.zoho-common-display {
+  /* background: #f9fafb; */
+  border-radius: 8px;
+  padding: 12px 0 14px;
+}
+
+.zoho-common-content {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.zoho-common-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+      justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Empty state */
+.zoho-common-empty {
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+
+/* Messages Summary Section */
+.docusign-messages-summary-section {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.docusign-messages-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin: 15px 0;
+}
+
+.docusign-message-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.docusign-message-stat svg {
+  color: #0d6efd;
+}
+
+.docusign-personal-messages-grid {
+  margin-top: 20px;
+}
+
+.docusign-recipient-message-item {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.docusign-recipient-message-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.docusign-message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.docusign-message-recipient-info {
+  flex: 1;
+}
+
+.docusign-message-recipient-info strong {
+  display: block;
+  font-size: 14px;
+}
+
+.docusign-message-recipient-info small {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.docusign-message-role {
+  background: #e9ecef;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #495057;
+}
+
+.docusign-personal-message-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.docusign-message-length {
+  text-align: right;
+  font-size: 11px;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+/* Recipient form message textarea */
+.docusign-form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Success/Error messages */
+.docusign-success-message {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.docusign-error-message {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+/* ================================
+   CONTACT DROPDOWN
+================================ */
+
+.docusign-email-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.docusign-contact-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 18px;
+}
+
+.docusign-contact-btn:hover {
+  color: #0f766e;
+}
+
+/* Dropdown container */
+.docusign-contact-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  width: 340px;
+  margin-top: 6px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+/* Search input */
+.docusign-contact-search {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  outline: none;
+  font-size: 14px;
+}
+
+.docusign-contact-search::placeholder {
+  color: #9ca3af;
+}
+
+/* Contact list */
+.docusign-contact-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Individual contact item */
+.docusign-contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.docusign-contact-item:hover {
+  background: #f8fafc;
+}
+
+/* Left clickable area */
+.docusign-contact-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Avatar */
+.docusign-contact-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Contact name */
+.docusign-contact-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Favorite star near name */
+.favorite-star {
+  color: #f59e0b;
+  font-size: 14px;
+}
+
+/* Email */
+.docusign-contact-email {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Favorite button */
+.docusign-favorite-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.docusign-favorite-btn:hover {
+  transform: scale(1.15);
+  color: #f59e0b;
+}
+
+.docusign-favorite-btn.active {
+  color: #f59e0b;
+}
+
+/* Empty state */
+.docusign-contact-empty {
+  padding: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Scrollbar (subtle) */
+.docusign-contact-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.docusign-contact-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 6px;
+}
+
+.docusign-contact-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ================================
+   INLINE RECIPIENT FORM STYLES
+   (DocuSign-style single line)
+================================ */
+
+.docusign-inline-form {
+  background: rgba(255, 255, 255, 0);
+ 
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-left: 4px solid;
+}
+
+.docusign-inline-form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.docusign-inline-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.docusign-inline-field {
+  flex: 1;
+  min-width: 120px;
+}
+
+.docusign-email-field {
+  min-width: 200px;
+  flex: 2;
+}
+
+.docusign-role-field,
+.docusign-order-field {
+  min-width: 140px;
+}
+
+.docusign-full-width {
+  min-width: 100%;
+  margin-top: 0.75rem;
+}
+
+.docusign-inline-field input,
+.docusign-inline-field select,
+.docusign-inline-field textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.docusign-inline-field input:focus,
+.docusign-inline-field select:focus,
+.docusign-inline-field textarea:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.docusign-inline-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.docusign-inline-error {
+  color: #DC2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
+.docusign-inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.docusign-btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docusign-btn-danger {
+  color: #DC2626;
+  border-color: #DC2626;
+}
+
+.docusign-btn-danger:hover {
+  background: #FEF2F2;
+}
+
+.docusign-witness-row,
+.docusign-message-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #E5E7EB;
+}
+
+.docusign-witness-row label,
+.docusign-message-row label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.docusign-message-length {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #6B7280;
+  margin-top: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .docusign-inline-form-row {
+    flex-wrap: wrap;
+  }
+  
+  .docusign-inline-field {
+    min-width: calc(50% - 0.75rem);
+  }
+  
+  .docusign-email-field {
+    min-width: calc(100% - 0.75rem);
+    order: 3;
+  }
+  
+  .docusign-inline-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .docusign-inline-field {
+    min-width: 100%;
+  }
+  
+  .docusign-inline-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ================================
+   INLINE RECIPIENT FORM STYLES
+   (DocuSign-style single line)
+================================ */
+
+.docusign-inline-form {
+  background: rgba(255, 255, 255, 0);
+  border-radius: 3px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-left: 4px solid;
+}
+
+.docusign-inline-form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.docusign-inline-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.docusign-inline-field {
+  flex: 1;
+  min-width: 120px;
+}
+
+.docusign-email-field {
+  min-width: 200px;
+  flex: 2;
+}
+
+.docusign-role-field,
+.docusign-order-field {
+  min-width: 140px;
+}
+
+.docusign-full-width {
+  min-width: 100%;
+  margin-top: 0.75rem;
+}
+
+.docusign-inline-field input,
+.docusign-inline-field select,
+.docusign-inline-field textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.docusign-inline-field input:focus,
+.docusign-inline-field select:focus,
+.docusign-inline-field textarea:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.docusign-inline-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.docusign-inline-error {
+  color: #DC2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
+.docusign-inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.docusign-btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docusign-btn-danger {
+  color: #DC2626;
+  border-color: #DC2626;
+}
+
+.docusign-btn-danger:hover {
+  background: #FEF2F2;
+}
+
+.docusign-witness-row,
+.docusign-message-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #E5E7EB;
+}
+
+.docusign-witness-row label,
+.docusign-message-row label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+/* ================================
+   PERSONAL MESSAGE TOGGLE STYLES
+================================ */
+
+.docusign-message-toggle {
+  flex-shrink: 0;
+}
+
+.docusign-message-toggle-btn {
+  background: transparent;
+  border: 1px solid #D1D5DB;
+  color: #6B7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.docusign-message-toggle-btn:hover {
+  background: #F3F4F6;
+  border-color: #0d9488;
+  color: #0d9488;
+}
+
+.docusign-message-icon {
+  font-size: 1rem;
+}
+
+.docusign-message-indicator {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background: #0d9488;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+/* Message row - initially hidden */
+.docusign-message-row {
+  display: none;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #E5E7EB;
+  animation: slideDown 0.3s ease-out;
+}
+
+.docusign-message-row.docusign-message-open {
+  display: block;
+}
+
+.docusign-message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.docusign-message-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.docusign-close-message-btn {
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.docusign-close-message-btn:hover {
+  color: #374151;
+  background: #F3F4F6;
+}
+
+.docusign-message-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  resize: vertical;
+  min-height: 80px;
+  transition: all 0.2s;
+}
+
+.docusign-message-textarea:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.docusign-message-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.docusign-message-length {
+  color: #6B7280;
+}
+
+.docusign-message-preview {
+  color: #0d9488;
+  font-style: italic;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .docusign-inline-form-row {
+    flex-wrap: wrap;
+  }
+  
+  .docusign-inline-field {
+    min-width: calc(50% - 0.75rem);
+  }
+  
+  .docusign-email-field {
+    min-width: calc(100% - 0.75rem);
+    order: 3;
+  }
+  
+  .docusign-inline-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .docusign-inline-field {
+    min-width: 100%;
+  }
+  
+  .docusign-inline-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.docusign-recipient-card.dragging {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+
+.docusign-recipient-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: grab;
+}
+
+.docusign-recipient-card:active {
+  cursor: grabbing;
+}
+
+.docusign-dragging {
+  background: #f9fafb;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+}
+
+.docusign-recipient-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Wrapper */
+.zoho-preview-wrapper {
+  max-width: 1200px;
+  margin: 16px auto 32px;
+  padding: 0 24px;
+}
+
+/* Preview box */
+.zoho-doc-preview-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  padding: 14px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: background 0.2s ease, border 0.2s ease;
+}
+
+.zoho-doc-preview-box:hover {
+  background: #ffffff;
+  border-color: #0d9488;
+}
+
+/* Text */
+.zoho-doc-preview-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.zoho-doc-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.zoho-doc-hint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.zoho-merge-btn {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+}
+
+.zoho-merge-btn:hover {
+  text-decoration: underline;
+}
+
+.zoho-rename-btn {
+  /* margin-top: 6px; */
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.rename-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.rename-dialog {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 360px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.rename-dialog h3 {
+  margin-bottom: 12px;
+}
+
+.rename-dialog input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+}
+.rename-dialog input:focus {
+border-color: transparent;
+}
+
+.rename-dialog input:active {
+border-color: transparent;
+}
+.rename-dialog input:hover {
+border-color: transparent;
+}
+
+.rename-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rename-btn-primary {
+  background: #0d9488;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 4px;
+      border: 1px solid #ccc;
+}
+
+.rename-btn-cancel {
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 8px 14px;
+  border-radius: 4px;
+}
+
+.rename-input-wrapper {
+  position: relative;
+}
+
+.rename-input-wrapper input {
+  width: 100%;
+  padding-right: 48px;
+}
+
+.rename-input-wrapper input {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px 36px 10px 12px;
+  font-size: 15px;
+  outline: none;                 /* ✅ removes ugly default outline */
+  transition: border 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rename-input-wrapper input:focus {
+  border-color: rgb(46, 125, 50); /* ✅ SafeSign green */
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
+}
+
+
+.rename-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+
+/* ===== Header ===== */
+.ds-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.ds-back-btn {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #374151;
+}
+
+.ds-header-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.ds-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* ===== Add Documents Section ===== */
+
+
+.ds-add-documents {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 2px;
+}
+
+/* ===== Document Card ===== */
+.ds-doc-card {
+  width: 260px;
+  height: 260px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ds-doc-card:hover {
+  border-color: #0d9488;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== PDF Preview Area ===== */
+.ds-doc-preview {
+  flex: 1;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Footer (Zoho style) ===== */
+.ds-doc-footer {
+  height: 44px;
+  padding: 0 10px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+}
+
+/* ===== File name ===== */
+.ds-doc-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+
+/* .ds-doc-card {
+  width: 260px;
+  height: 260px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ds-doc-name {
+  font-size: 13px;
+  margin-top: 8px;
+  color: #111827;
+  max-width: 160px;   
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+} */
+
+/* ===== Upload Box ===== */
+.ds-upload-box {
+  flex: 1;
+  border: 2px dashed #e5e7eb;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #6b7280;
+  padding: 24px;
+  max-width: 300px;
+}
+
+.ds-upload-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: #9ca3af;
+}
+
+.ds-add-doc-btn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: #0d9488;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ds-add-doc-btn:hover {
+  background: #0f766e;
+}
+
+/* ===== Zoho-style form row ===== */
+.ds-form-row {
+  padding: 20px 24px;
+}
+
+/* Inline layout */
+.ds-form-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Label */
+.ds-form-inline label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #374151;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+/* Input */
+.ds-form-inline input {
+  width: 320px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  background: #ffffff;
+  color: #111827;
+}
+
+/* Disabled / readonly look (Zoho-like) */
+.ds-form-inline input[readonly] {
+  background: #f9fafb;
+  cursor: default;
+}
+
+/* Rename button */
+.ds-form-inline .zoho-rename-btn {
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+/* Hover effect */
+.ds-form-inline .zoho-rename-btn:hover {
+  text-decoration: underline;
+}
+
+.zoho-file-block {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.zoho-file-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.zoho-page-thumbs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.zoho-thumb {
+  position: relative;
+  width: 90px;
+  cursor: pointer;
+}
+
+.zoho-thumb img {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.zoho-page-number {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+
+.zoho-add-documents {
+  margin: 16px;
+}
+
+.zoho-section-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 25px;
+}
+
+.zoho-doc-grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+
+  overflow-x: auto;        /* ✅ horizontal scroll */
+  overflow-y: hidden;
+  padding-bottom: 8px;
+
+  max-width: 100%;         /* ✅ prevent page expansion */
+  box-sizing: border-box;
+}
+.zoho-doc-card,
+.zoho-add-card {
+  flex: 0 0 auto;          /* ✅ stop flex from resizing cards */
+}
+.zoho-doc-grid {
+  scroll-behavior: smooth;
+}
+
+/* Clean scrollbar */
+.zoho-doc-grid::-webkit-scrollbar {
+  height: 1px;
+}
+
+.zoho-doc-grid::-webkit-scrollbar-thumb {
+  background: #d1d5db00;
+  border-radius: 1px;
+}
+
+.zoho-doc-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zoho-doc-grid {
+  max-width: calc(300px * 4 + 16px * 3);
+}
+
+/* ===== File card ===== */
+.zoho-doc-card {
+  width: 300px;
+  height: 300px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+}
+
+.zoho-doc-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Hide drag icon & checkbox by default */
+.zoho-doc-card .zoho-drag-icon,
+.zoho-doc-card .zoho-checkbox {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+}
+
+/* Show on hover */
+.zoho-doc-card:hover .zoho-drag-icon,
+.zoho-doc-card:hover .zoho-checkbox {
+  opacity: 1;
+  visibility: visible;
+}
+
+.zoho-doc-card.selected .zoho-drag-icon,
+.zoho-doc-card.selected .zoho-checkbox {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Drag icon (top-left, slightly inside) */
+.zoho-drag-icon {
+  position: absolute;
+  top: 8px;
+  left: 36px;
+  color: #6b7280;
+  cursor: grab;
+}
+
+/* Checkbox (top-left) */
+.zoho-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+}
+/* Always hide drag icon */
+.zoho-drag-icon {
+  display: none !important;
+}
+/* Menu wrapper */
+.zoho-doc-menu {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 10;
+}
+
+/* 3-dot trigger */
+.zoho-menu-trigger {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoho-menu-trigger:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* Dropdown */
+.zoho-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 160px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: zohoMenuFade 0.15s ease-out;
+}
+
+/* Menu items */
+.zoho-menu-dropdown button {
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.zoho-menu-dropdown button:hover {
+  background: #f9fafb;
+}
+
+/* Danger action */
+.zoho-menu-dropdown button.danger {
+  color: #dc2626;
+}
+
+.zoho-menu-dropdown button.danger:hover {
+  background: #fef2f2;
+}
+
+/* Animation */
+@keyframes zohoMenuFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.zoho-menu-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Icon */
+.zoho-menu-icon {
+  font-size: 14px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+/* Icon color on hover */
+.zoho-menu-dropdown button:hover .zoho-menu-icon {
+  color: #111827;
+}
+
+/* Danger icon */
+.zoho-menu-dropdown button.danger .zoho-menu-icon {
+  color: #dc2626;
+}
+
+
+/* Menu */
+.zoho-doc-menu {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Preview */
+.zoho-doc-preview {
+  height: 250px;
+  width: 290px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.zoho-doc-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Footer */
+.zoho-doc-footer {
+  padding: 10px;
+  font-size: 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+  text-align: left;
+}
+
+/* ===== Add document card ===== */
+
+/* Square Add Document Box */
+.zoho-add-card {
+  width: 300px;          /* same width & height */
+  height: 300px;
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;   /* Zoho-like */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover effect */
+.zoho-add-card:hover {
+  border-color: #10b981;      /* Zoho green */
+  background: #f0fdf4;
+}
+
+/* Icon */
+.zoho-add-card svg {
+  font-size: 36px;
+  color: #374151;
+}
+
+/* Text */
+.zoho-add-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.zoho-add-or {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Button */
+.zoho-add-btn {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zoho-add-btn:hover {
+  background: #059669;
+}
+
+
+.zoho-add-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+
+.zoho-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+}
+
+.zoho-merge-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px;
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.zoho-merge-action-btn {
+  background: #2563eb;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+}
+
+.zoho-clear-btn {
+  background: transparent;
+  color: #475569;
+}
+
+.zoho-merge-dialog {
+  width: 520px;
+}
+
+.merge-file-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 12px 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.merge-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+}
+
+.merge-file-row:last-child {
+  border-bottom: none;
+}
+
+.merge-drag {
+  cursor: grab;
+  color: #6b7280;
+}
+
+.merge-thumb {
+  width: 36px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.merge-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.merge-pages {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.merge-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+
+/* ===== Zoho Input Row ===== */
+.zoho-recipient-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zoho-recipient-input-row {
+  display: grid;
+  grid-template-columns: 24px 36px 60px 1.3fr 1.6fr 140px 60px;
+  align-items: center;
+  gap: 10px;
+  padding: 29px 19px 25px 9px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+}
+
+.zoho-drag-handle {
+  color: #9ca3af;
+  cursor: grab;
+}
+
+.zoho-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoho-input,
+.zoho-select,
+.zoho-order-input {
+     width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box; /* IMPORTANT */
+}
+
+/* Hover */
+.zoho-input:hover,
+.zoho-select:hover,
+.zoho-order-input:hover {
+  border-color: rgb(13, 148, 136); /* light green */
+}
+
+/* Focus (Zoho-like) */
+.zoho-input:focus,
+.zoho-select:focus,
+.zoho-order-input:focus {
+  outline: none;
+  border-color: rgb(13, 148, 136); /* SAME SIZE, no layout shift */
+}
+
+.zoho-order-input {
+  width: 55px;
+  text-align: center;
+  margin-right: 2px;
+}
+
+.zoho-contact-btn {
+  height: 38px;
+  width: 38px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  
+  color: #6b7280;
+}
+
+.zoho-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.zoho-row-actions button {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.zoho-row-actions button:hover {
+  background: #f3f4f6;
+}
+
+.zoho-row-actions .danger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Merge action bar */
+.zoho-merge-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #374151;
+}
+
+/* Selected count text */
+.zoho-merge-bar span {
+  font-weight: 500;
+  margin-right: auto; /* push buttons to right */
+}
+
+/* Primary action (Merge) */
+.zoho-merge-action-btn {
+  background: #0d9488; /* Zoho green */
+  color: #ffffff;
+  border: 1px solid #0d9488;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zoho-merge-action-btn:hover {
+  background: #0f766e;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.35);
+}
+
+/* Secondary action (Clear) */
+.zoho-clear-btn {
+  background: transparent;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.zoho-clear-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+/* Backdrop */
+.zoho-merge-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+/* Drag highlight */
+.zoho-doc-grid.drag-active {
+  border: 2px dashed #0d9488;
+  background: #f0fdfa;
+  border-radius: 12px;
+}
+
+/* Optional overlay text */
+.zoho-doc-grid.drag-active::after {
+  content: "Drop files to upload";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #0d9488;
+  background: rgba(240, 253, 250, 0.85);
+  pointer-events: none;
+}
+
+/* Dialog */
+.zoho-merge-dialog {
+  background: #ffffff;
+  width: 420px;
+  border-radius: 12px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: zohoDialogIn 0.2s ease-out;
+}
+.merge-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.merge-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: grab;
+}
+
+.merge-file-row.dragging {
+  background: #f0fdfa;
+  border-color: #0d9488;
+}
+
+.merge-drag {
+  color: #6b7280;
+  cursor: grab;
+}
+
+.merge-thumb {
+  width: 40px;
+  height: auto;
+  border-radius: 4px;
+}
+
+.merge-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.merge-pages {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Header */
+.zoho-merge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.zoho-merge-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+.zoho-merge-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.zoho-merge-close:hover {
+  color: #111827;
+}
+
+/* Info text */
+.zoho-merge-info {
+  font-size: 13px;
+  color: #374151;
+  margin: 12px 0 16px;
+}
+
+/* Upload */
+.zoho-merge-upload input {
+  display: none;
+}
+
+.zoho-upload-box {
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.zoho-upload-box:hover {
+  border-color: #0d9488;
+  background: #f0fdfa;
+}
+
+.zoho-upload-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.zoho-upload-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* Progress */
+.zoho-merge-progress {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.zoho-merge-progress-bar {
+  height: 100%;
+  background: #0d9488;
+  transition: width 0.2s ease;
+}
+
+/* Actions */
+.zoho-merge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* Buttons */
+.zoho-btn-primary {
+  background: #0d9488;
+  color: #ffffff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zoho-btn-primary:hover {
+  background: #0f766e;
+}
+
+.zoho-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.zoho-btn-secondary {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zoho-btn-secondary:hover {
+  background: #f9fafb;
+}
+
+/* Animation */
+@keyframes zohoDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.document-merge-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.document-merge-card {
+  background: #ffffff;
+  width: 360px;
+  padding: 28px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+}
+
+.document-merge-gif {
+  width: 120px;
+  margin-bottom: 16px;
+}
+
+.document-merge-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.document-merge-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.document-merge-progress-text {
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 16px;
+}
+
+.document-merge-progress-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.document-merge-progress-fill {
+  height: 100%;
+  background: #0d9488;
+  transition: width 0.3s ease;
+}
+
+.document-merge-cancel-btn {
+  margin-top: 20px;
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+
+@keyframes shakeError {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+.shake-error {
+  animation: shakeError 0.35s ease;
+}
+
+/* Optional: subtle red flash */
+.shake-error {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+@keyframes shakeError {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+.docusign-shake {
+  animation: shakeError 0.35s ease;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+.contact-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  margin-top: 6px;
+  z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.contact-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.contact-option:hover {
+  background: #f3f4f6;
+}
+
+.contact-name {
+  font-weight: 500;
+}
+
+.contact-email {
+  font-size: 12px;
+  color: #6b7280;
+}
+.docusign-inline-field {
+  position: relative;
+}
+
+.edit-recipient-card {
+  transition: all 0.25s ease;
+}
+
+/* SafeSign-style glow pulse */
+.edit-highlight {
+  animation: safesignPulse 1.2s ease;
+}
+
+@keyframes safesignPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(13, 148, 136, 0);
+    background: transparent;
+  }
+  30% {
+    transform: scale(1.01);
+    box-shadow: 0 10px 30px rgba(13, 148, 136, 0.25);
+    background: rgba(13, 148, 136, 0.05);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(13, 148, 136, 0);
+    background: transparent;
+  }
+}
+
+.docusign-btn-large:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.docusign-btn-large:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  background: #ea580c;
+}

@@ -1,0 +1,445 @@
+/* RecipientSigning.css */
+.signing-flow-container {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Signature Canvas */
+.signature-canvas {
+  touch-action: none;
+  background: white;
+  border-radius: 8px;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse {
+  0% { 
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); 
+  }
+  70% { 
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); 
+  }
+  100% { 
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); 
+  }
+}
+
+@keyframes progress {
+  0% { 
+    width: 0%; 
+  }
+  100% { 
+    width: 100%; 
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+.animate-progress {
+  animation: progress 1.5s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Step indicators */
+.step-complete {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.step-active {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.step-pending {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.1);
+}
+
+/* Field highlight */
+.field-highlight {
+  transition: all 0.2s ease;
+}
+
+.field-highlight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
+}
+
+/* Document viewer */
+.document-container {
+  transition: all 0.3s ease;
+  scroll-behavior: smooth;
+}
+
+.document-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.document-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.document-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.document-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* OTP Input */
+.otp-input {
+  transition: all 0.2s ease;
+}
+
+.otp-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Button animations */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    transparent 20%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 80%
+  );
+  transform: rotate(30deg);
+  transition: transform 0.6s;
+}
+
+.btn-glow:hover::after {
+  transform: rotate(30deg) translateX(100%);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .signature-container {
+    flex-direction: column;
+  }
+  
+  .field-list {
+    max-height: 300px;
+  }
+  
+  .document-viewer {
+    height: 50vh;
+  }
+  
+  .otp-input {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+  
+  .stepper-container {
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  .stepper-container > div {
+    min-width: 120px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .document-content {
+    box-shadow: none !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+  
+  .signature-container {
+    break-inside: avoid;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .document-content {
+    background: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+}
+
+/* Loading animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Smooth transitions */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: inherit;
+}
+
+/* RecipientSigning.css */
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* PDF Container */
+.pdf-container {
+  position: relative;
+  overflow: auto;
+  background-color: #f5f5f5;
+}
+
+/* Signature field hover effects */
+.signature-field {
+  transition: all 0.2s ease-in-out;
+}
+
+.signature-field:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Signature field completed state */
+.signature-field.completed {
+  border-color: #4caf50 !important;
+  background-color: rgba(76, 175, 80, 0.05) !important;
+}
+
+/* Signature field pending state */
+.signature-field.pending {
+  border-color: #1976d2 !important;
+  background-color: rgba(25, 118, 210, 0.05) !important;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(25, 118, 210, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* PDF page styling */
+.react-pdf__Page {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+}
+
+.react-pdf__Page canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+/* Loading overlay */
+.pdf-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .pdf-container {
+    padding: 8px;
+  }
+  
+  .react-pdf__Page {
+    margin: 8px 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Touch-friendly signature fields */
+  .signature-field {
+    min-width: 80px;
+    min-height: 40px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .pdf-container {
+    overflow: visible;
+    padding: 0;
+  }
+  
+  .react-pdf__Page {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .signature-field {
+    border-width: 3px;
+  }
+  
+  .signature-field.pending {
+    border-style: solid;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .signature-field {
+    transition: none;
+  }
+  
+  .signature-field:hover {
+    transform: none;
+  }
+}
+
+/* Signature preview in fields */
+.signature-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Text signature preview */
+.text-signature-preview {
+  font-family: 'Dancing Script', cursive;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Field label styling */
+.field-label {
+  background-color: #1976d2;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

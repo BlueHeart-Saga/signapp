@@ -1,0 +1,203 @@
+/* ================================
+   SAFESIGN FOOTER – UNIQUE CLASSES
+   ================================ */
+
+.safesign-footer {
+  background: #000;
+  color: #fff;
+  padding: 60px 0 30px;
+}
+
+/* MAIN GRID */
+.safesign-footer-container {
+  max-width: 1150px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  gap: 40px;
+}
+
+/* BRAND */
+.safesign-footer-brand {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+/* BRAND WITH LOGO WRAPPER */
+.safesign-footer-brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* BRAND LOGO IMAGE */
+.safesign-footer-logo-img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  /* filter: brightness(0) invert(1); keeps white look on dark footer */
+}
+
+
+.safesign-footer-tagline {
+  color: #d1d5db;
+  font-size: 13px;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+/* SOCIAL ICONS */
+/* Social icons wrapper */
+.safesign-footer-socials {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* Remove default button styling */
+.safesign-footer-socials button {
+  background: transparent;   /* 🔥 key fix */
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Icon styling */
+.safesign-footer-socials svg {
+  width: 22px;
+  height: 22px;
+  color: #ffffff;            /* white icons */
+  opacity: 0.85;
+  transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Hover effect (Zoho / SaaS style) */
+.safesign-footer-socials button:hover svg {
+  color: #0d9488;            /* brand teal */
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+
+/* COLUMN TITLES */
+.safesign-footer-title {
+  margin-bottom: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* LISTS */
+.safesign-footer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.safesign-footer-list li {
+  margin: 8px 0;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: color .2s ease, padding-left .2s ease;
+}
+
+.safesign-footer-list li:hover {
+  color: #fff;
+  padding-left: 3px;
+}
+
+/* CONTACT ROW ITEMS */
+.safesign-footer-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d1d5db;
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+/* BOTTOM ROW */
+.safesign-footer-bottom {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 12px;
+}
+
+.safesign-footer-policies {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  color: #d1d5db;
+}
+
+.safesign-footer-policies span {
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.safesign-footer-policies span:hover {
+  color: #fff;
+}
+
+/* =======================================
+   RESPONSIVE DESIGN
+   ======================================= */
+
+/* LARGE TABLETS / SMALL LAPTOPS */
+@media (max-width: 1100px) {
+  .safesign-footer-container {
+    padding: 0 16px;
+  }
+}
+
+/* TABLETS */
+@media (max-width: 992px) {
+  .safesign-footer-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .safesign-footer {
+    padding: 50px 0 25px;
+  }
+}
+
+/* BIG MOBILE */
+@media (max-width: 768px) {
+  .safesign-footer-brand {
+    font-size: 22px;
+  }
+
+  .safesign-footer-title {
+    font-size: 14px;
+  }
+
+  .safesign-footer-list li {
+    font-size: 14px;
+  }
+}
+
+/* SMALL MOBILE */
+@media (max-width: 600px) {
+  .safesign-footer {
+    padding: 36px 14px 22px;
+  }
+
+  .safesign-footer-container {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .safesign-footer-policies {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .safesign-footer-contact {
+    font-size: 14px;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Dynamic",
+  "short_name": "Dynamic",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
+

@@ -1,0 +1,471 @@
+.esignature-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.esignature-header {
+  text-align: center;
+  margin-bottom: 30px;
+  color: white;
+}
+
+.esignature-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.esignature-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.mode-selector {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  padding: 15px 25px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.mode-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.mode-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.esignature-body {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-section {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.canvas-container {
+  border: 3px dashed #e1e8ed;
+  border-radius: 15px;
+  background: #f8f9fa;
+  overflow: hidden;
+  position: relative;
+  min-height: 400px;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 400px;
+  display: block;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.signature-canvas.draw-mode {
+  cursor: crosshair;
+}
+
+.controls-panel,
+.type-controls,
+.upload-controls {
+  background: #f8f9fa;
+  padding: 25px;
+  border-radius: 15px;
+  border: 2px solid #e1e8ed;
+}
+
+.controls-panel h3,
+.type-controls h3,
+.upload-controls h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 1.3rem;
+}
+
+.control-group {
+  margin-bottom: 20px;
+}
+
+.control-label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.color-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.color-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 3px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-option.active {
+  border-color: #4299e1;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.color-option:hover {
+  transform: scale(1.05);
+}
+
+.width-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  outline: none;
+}
+
+.width-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4299e1;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.width-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4299e1;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.text-input,
+.font-select,
+.name-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.text-input:focus,
+.font-select:focus,
+.name-input:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.file-input {
+  display: none;
+}
+
+.btn {
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-clear {
+  background: #e53e3e;
+  color: white;
+}
+
+.btn-clear:hover:not(:disabled) {
+  background: #c53030;
+  transform: translateY(-2px);
+}
+
+.btn-download {
+  background: #3182ce;
+  color: white;
+}
+
+.btn-download:hover:not(:disabled) {
+  background: #2b6cb0;
+  transform: translateY(-2px);
+}
+
+.btn-save {
+  background: #38a169;
+  color: white;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #2f855a;
+  transform: translateY(-2px);
+}
+
+.btn-apply,
+.btn-upload {
+  background: #805ad5;
+  color: white;
+  width: 100%;
+}
+
+.btn-apply:hover:not(:disabled),
+.btn-upload:hover {
+  background: #6b46c1;
+  transform: translateY(-2px);
+}
+
+.action-section {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  border: 2px solid #e2e8f0;
+}
+
+.signature-name-input {
+  margin-bottom: 20px;
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.preview-section {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  border: 2px solid #e2e8f0;
+}
+
+.preview-section h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.preview-container {
+  display: flex;
+  justify-content: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 200px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.saved-signatures {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 15px;
+  border: 2px solid #e2e8f0;
+}
+
+.saved-signatures h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.signatures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.signature-item {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.signature-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: #4299e1;
+}
+
+.signature-thumbnail {
+  width: 100%;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+
+.signature-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.signature-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 14px;
+}
+
+.signature-date {
+  font-size: 12px;
+  color: #718096;
+}
+
+.upload-hint {
+  text-align: center;
+  color: #718096;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .canvas-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .color-options {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .esignature-container {
+    padding: 10px;
+  }
+  
+  .esignature-body {
+    padding: 20px;
+  }
+  
+  .mode-selector {
+    flex-direction: column;
+  }
+  
+  .mode-btn {
+    width: 100%;
+  }
+  
+  .signatures-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+.canvas-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.8);
+  color: #666;
+  pointer-events: none;
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.signature-thumbnail-container {
+  position: relative;
+}
+
+.signature-actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.signature-item:hover .signature-actions {
+  opacity: 1;
+}
+
+.btn-action {
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.signature-item.active {
+  border-color: #3498db;
+  background: #f8f9fa;
+}
+
+.signature-type {
+  font-size: 12px;
+  color: #666;
+  text-transform: capitalize;
+}

@@ -1,0 +1,300 @@
+/* style/EmailSender.css */
+.send-document-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.send-document-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.email-sender-modal {
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+.document-info-card {
+  background: #f0f9ff;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #0ea5e9;
+}
+
+.document-info-card h4 {
+  margin: 0 0 8px 0;
+  color: #0369a1;
+}
+
+.document-info-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.email-settings {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.email-settings h4 {
+  margin: 0 0 16px 0;
+  color: #1e293b;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.recipients-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header h4 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.empty-recipients {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.recipients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recipient-form-row {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.recipient-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 80px;
+  gap: 12px;
+}
+
+.recipient-fields input,
+.recipient-fields select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.recipient-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.existing-recipients {
+  background: #fffbeb;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #fef3c7;
+}
+
+.existing-recipients h4 {
+  margin: 0 0 16px 0;
+  color: #92400e;
+}
+
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #fef3c7;
+}
+
+.recipient-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.recipient-info .name {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.recipient-info .email {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-sent {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-viewed {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-signed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .email-sender-modal {
+    margin: 20px;
+    max-height: calc(100vh - 40px);
+  }
+  
+  .settings-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .recipient-form-row {
+    flex-direction: column;
+  }
+  
+  .recipient-fields {
+    grid-template-columns: 1fr;
+  }
+  
+  .recipient-actions {
+    align-self: flex-end;
+  }
+  
+  .status-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .recipient-info {
+    flex-wrap: wrap;
+  }
+}
