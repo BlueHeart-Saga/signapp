@@ -1,0 +1,6402 @@
+from fastapi import APIRouter, UploadFile, File, Form,Depends, HTTPException, Query, BackgroundTasks, Body
+from fastapi.responses import StreamingResponse
+from bson import ObjectId
+from datetime import datetime
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+
+import io
+import base64
+from typing import List
+from PIL import Image
+import logging
+from fastapi import Request
+from jose import jwt, JWTError
+from config import JWT_SECRET as SECRET_KEY, JWT_ALGORITHM as ALGORITHM
+import fitz  # PyMuPDF
+from datetime import timedelta
+from .pdf_engine import PDFEngine 
+from .fields import serialize_field_with_recipient
+from .converter import convert_to_pdf, get_pdf_page_count
+from database import db
+from .auth import get_current_user
+from .fields import normalize_field_value
+from .email_service import send_completed_document_to_recipients
+
+from reportlab.lib import colors
+from reportlab.platypus import PageBreak, KeepTogether
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, KeepTogether
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.units import inch, mm
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+# from reportlab.pdfgen import canvas
+# from reportlab.pdfbase import pdfmetrics
+# from reportlab.pdfbase.ttfonts import TTFont
+# from reportlab.graphics.shapes import Drawing, Line
+# from reportlab.graphics.widgets import signs
+from PIL import Image
+import io
+import fitz
+import uuid
+import re
+from datetime import datetime
+
+# Import storage provider
+from storage import storage
+from storage.base import StorageProvider
+
+router = APIRouter(prefix="/documents", tags=["Documents"])
+
+
+# fs = gridfs.GridFS(db)
+
+# ✅ MongoDB Collections
+templates_collection = db["document_templates"]
+
+
+EVENT_TITLES = {
+    "recipient_viewed": "Document Viewed",
+    "otp_verified": "OTP Verified",
+    "accept_terms": "Terms Accepted",
+    "decline_terms": "Terms Declined",
+    "field_completed": "Field Completed",
+    "recipient_completed": "Recipient Completed Signing",
+    "viewer_completed": "Viewer Completed Review",
+    "document_downloaded": "Document Downloaded",
+    "view_live_document": "Live Document Viewed",
+    "recipient_signed_preview": "Signed Preview Viewed",
+    "document_finalized": "Document Finalized",
+    "document_voided": "Document Voided"
+}
+
+EVENT_DESCRIPTIONS = {
+    "otp_verified": "Recipient successfully verified OTP",
+    "accept_terms": "Recipient accepted terms and conditions",
+    "field_completed": "Recipient completed a field",
+    "recipient_completed": "Recipient completed all assigned fields",
+    "viewer_completed": "Viewer finished reviewing the document",
+    "decline_terms": "Recipient declined terms",
+}
+
+IMAGE_FIELDS = {
+    "signature",
+    "initials",
+    "witness_signature",
+    "stamp"
+}
+
+TEXT_FIELDS = {
+    "textbox",
+    "date",
+    "mail",
+    "dropdown",
+    "radio"
+}
+
+BOOLEAN_FIELDS = {
+    "checkbox",
+    "approval"  # approval can be boolean
+}
+
+# Add attachment field type if needed
+ATTACHMENT_FIELDS = {
+    "attachment"
+}
+
+# -------------------------------
+# DOCUMENT & RECIPIENT STATUSES
+# -------------------------------
+
+DOCUMENT_STATUSES = {
+    "draft",
+    "sent",
+    "in_progress",
+    "completed",
+    "declined",
+    "expired",
+    "voided",
+    "deleted",
+}
+
+TERMINAL_DOCUMENT_STATUSES = {
+    "declined",
+    "expired",
+    "voided",
+    "deleted",
+}
+
+RECIPIENT_STATUSES = {
+    "created",
+    "invited",
+    "viewed",
+    "in_progress",
+    "completed",
+    "declined",
+    "expired",
+}
+
+class DeclinePayload(BaseModel):
+    reason: Optional[str] = ""
+    
+class UploadDocumentPayload(BaseModel):
+    envelope_id: Optional[str] = None
+    auto_generate_envelope: Optional[bool] = True  # NEW
+    envelope_prefix: Optional[str] = "ENV"  # NEW   
+    
+class CreateFromTemplateRequest(BaseModel):
+    template_id: str
+    title: str
+
+class FileOrderItem(BaseModel):
+    file_id: str
+    order: int
+    
+    
+    
+
+class ProfessionalCertificateEngine:
+    """
+    Professional Certificate of Completion with DocuSign-quality design
+    Green theme with black & white professional layout
+    """
+    
+    # Brand colors - Professional green theme
+    BRAND_PRIMARY = "#00A3A3"      # Teal green - primary brand
+    BRAND_SECONDARY = "#2C3E50"    # Dark blue-gray - secondary
+    BRAND_ACCENT = "#357C7C"       # Darker teal - accent
+    BRAND_LIGHT = "#E0F2F2"        # Light teal - backgrounds
+    
+    # Status colors
+    SUCCESS = "#2E7D32"            # Forest green - completed
+    SUCCESS_LIGHT = "#E8F5E9"      # Light green - background
+    WARNING = "#ED6C02"            # Orange - pending
+    WARNING_LIGHT = "#FFF4E5"      # Light orange - background
+    INFO = "#0288D1"               # Blue - info
+    INFO_LIGHT = "#E1F5FE"         # Light blue - background
+    
+    # Neutral colors - professional black & white scale
+    GRAY_50 = "#FAFAFA"
+    GRAY_100 = "#F5F5F5"
+    GRAY_200 = "#EEEEEE"
+    GRAY_300 = "#E0E0E0"
+    GRAY_400 = "#BDBDBD"
+    GRAY_600 = "#757575"
+    GRAY_700 = "#616161"
+    GRAY_800 = "#424242"
+    GRAY_900 = "#212121"
+    BLACK = "#000000"
+    WHITE = "#FFFFFF"
+    
+    @staticmethod
+    def create_header(canvas, doc, envelope_id=None, title="CERTIFICATE OF COMPLETION"):
+        """Professional header with SafeSign branding and green accent"""
+        canvas.saveState()
+        
+        HEADER_LIFT = 20
+        
+        # White header background
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.WHITE))
+        canvas.rect(0, doc.height + 40 + HEADER_LIFT, doc.width + 80, 70, fill=1, stroke=0)
+        
+        # Green accent bar
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
+        canvas.rect(0, doc.height + 110 + HEADER_LIFT, doc.width + 80, 4, fill=1, stroke=0)
+        
+        # Subtle green line
+        canvas.setStrokeColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
+        canvas.setLineWidth(1)
+        canvas.line(40, doc.height + 40 + HEADER_LIFT, doc.width + 40, doc.height + 40 + HEADER_LIFT)
+        
+        # SafeSign logo/title
+        canvas.setFont("Helvetica-Bold", 24)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
+        canvas.drawString(40, doc.height + 80 + HEADER_LIFT, "SafeSign")
+        
+        # Tagline
+        canvas.setFont("Helvetica", 9)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
+        canvas.drawString(40, doc.height + 60 + HEADER_LIFT, "Secure Digital Signatures")
+        
+        # Certificate title
+        canvas.setFont("Helvetica-Bold", 16)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
+        canvas.drawRightString(doc.width + 40, doc.height + 85 + HEADER_LIFT, title)
+        
+        # Envelope ID
+        if envelope_id:
+            canvas.setFont("Helvetica", 8)
+            canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
+            canvas.drawRightString(doc.width + 40, doc.height + 65 + HEADER_LIFT, f"Envelope: {envelope_id}")
+        
+        canvas.restoreState()
+    
+    @staticmethod
+    def create_footer(canvas, doc, certificate_id=None):
+        """Professional footer with green verification seal"""
+        canvas.saveState()
+        
+        # Light gray separator line
+        canvas.setStrokeColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_300))
+        canvas.setLineWidth(0.5)
+        canvas.line(40, 35, doc.width + 40, 35)
+        
+        # Footer text - Gray
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
+        timestamp = datetime.utcnow().strftime("%B %d, %Y at %I:%M:%S %p UTC")
+        canvas.drawString(40, 20, f"Generated: {timestamp}")
+        
+        if certificate_id:
+            canvas.drawString(40, 10, f"Certificate ID: {certificate_id}")
+        
+        # Green verification seal
+        canvas.setFont("Helvetica-Bold", 7)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
+        canvas.drawRightString(doc.width + 40, 20, "✓ Verified by SafeSign")
+        
+        # Page number
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
+        canvas.drawRightString(doc.width + 40, 10, f"Page {doc.page}")
+        
+        canvas.restoreState()
+    
+    @staticmethod
+    def create_status_badge(text, status="completed"):
+        """Create a professional status badge"""
+        if status == "completed":
+            color = ProfessionalCertificateEngine.SUCCESS
+            bg_color = ProfessionalCertificateEngine.SUCCESS_LIGHT
+        elif status == "pending":
+            color = ProfessionalCertificateEngine.WARNING
+            bg_color = ProfessionalCertificateEngine.WARNING_LIGHT
+        elif status == "voided":
+            color = ProfessionalCertificateEngine.GRAY_600
+            bg_color = ProfessionalCertificateEngine.GRAY_100
+        else:
+            color = ProfessionalCertificateEngine.GRAY_600
+            bg_color = ProfessionalCertificateEngine.GRAY_100
+        
+        return f"<font name='Helvetica-Bold' size='9' color='{color}'><back color='{bg_color}'>  {text}  </back></font>"
+    
+    @staticmethod
+    def create_certificate_pdf(certificate_data):
+        """
+        Generate a professional Certificate of Completion PDF
+        Green theme with black & white professional layout
+        """
+        buffer = io.BytesIO()
+        
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=45,
+            leftMargin=45,
+            topMargin=100,
+            bottomMargin=60,
+            title=f"SafeSign Certificate - {certificate_data.get('envelope_id', 'Document')}",
+            author="SafeSign",
+            subject="Certificate of Completion"
+        )
+        
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # ========== CUSTOM STYLES ==========
+        
+        # Main title - Black
+        styles.add(ParagraphStyle(
+            name='CertificateTitle',
+            parent=styles['Heading1'],
+            fontSize=22,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
+            alignment=TA_CENTER,
+            spaceAfter=5,
+            spaceBefore=0,
+            fontName='Helvetica-Bold',
+            leading=26
+        ))
+        
+        # Subtitle - Gray
+        styles.add(ParagraphStyle(
+            name='CertificateSubTitle',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_600),
+            alignment=TA_CENTER,
+            spaceAfter=25,
+            fontName='Helvetica',
+            leading=16
+        ))
+        
+        # Section headers - Black, bold
+        styles.add(ParagraphStyle(
+            name='CertificateSection',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
+            alignment=TA_LEFT,
+            spaceBefore=20,
+            spaceAfter=10,
+            fontName='Helvetica-Bold',
+            leading=18,
+            keepWithNext=True
+        ))
+        
+        # Sub-section headers - Dark gray
+        styles.add(ParagraphStyle(
+            name='CertificateSubSection',
+            parent=styles['Heading3'],
+            fontSize=12,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_700),
+            alignment=TA_LEFT,
+            spaceBefore=15,
+            spaceAfter=8,
+            fontName='Helvetica-Bold',
+            leading=16,
+            keepWithNext=True
+        ))
+        
+        # Table header style
+        styles.add(ParagraphStyle(
+            name='TableHeader',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.WHITE),
+            alignment=TA_LEFT,
+            fontName='Helvetica-Bold',
+            leading=12
+        ))
+        
+        # Table cell style
+        styles.add(ParagraphStyle(
+            name='TableCell',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_800),
+            alignment=TA_LEFT,
+            fontName='Helvetica',
+            leading=11,
+            wordWrap='CJK'
+        ))
+        
+        # Label style
+        styles.add(ParagraphStyle(
+            name='Label',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_600),
+            alignment=TA_LEFT,
+            fontName='Helvetica',
+            leading=12
+        ))
+        
+        # Value style
+        styles.add(ParagraphStyle(
+            name='Value',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
+            alignment=TA_LEFT,
+            fontName='Helvetica',
+            leading=14
+        ))
+        
+        # ========== TITLE SECTION ==========
+        story.append(Spacer(1, 5))
+        story.append(Paragraph("CERTIFICATE OF COMPLETION", styles['CertificateTitle']))
+        
+        # Green accent line
+        story.append(Spacer(1, 2))
+        
+        envelope_id = certificate_data.get('envelope_id', 'N/A')
+        document_name = certificate_data.get('document_name', 'Untitled Document')
+        
+        story.append(Paragraph(
+            f"<font name='Helvetica' size='11' color='{ProfessionalCertificateEngine.GRAY_700}'>This certifies that the following document has been executed electronically</font>",
+            styles['CertificateSubTitle']
+        ))
+        
+        # ========== ENVELOPE INFO BAR ==========
+        envelope_data = [
+            [f"Envelope ID: {envelope_id}",
+             f"Status: {certificate_data.get('status', 'COMPLETED').upper()}",
+             f"Completed: {certificate_data.get('completed_date', 'N/A')}"]
+        ]
+        
+        envelope_bar = Table(envelope_data, colWidths=[200, 150, 200], hAlign='CENTER')
+        envelope_bar.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        story.append(envelope_bar)
+        story.append(Spacer(1, 20))
+        
+        # ========== DOCUMENT INFORMATION ==========
+        story.append(Paragraph("Document Information", styles['CertificateSection']))
+        
+        doc_info_data = [
+            ["Document Name:", certificate_data.get('document_name', 'N/A')],
+            ["Document ID:", certificate_data.get('document_id', 'N/A')],
+            ["Created:", certificate_data.get('created_date', 'N/A')],
+            ["Completed:", certificate_data.get('completed_date', 'N/A')],
+            ["Page Count:", str(certificate_data.get('page_count', 0))],
+            ["Owner:", certificate_data.get('owner_name', certificate_data.get('owner_email', 'N/A'))],
+        ]
+        
+        doc_info_table = Table(doc_info_data, colWidths=[120, 380], hAlign='LEFT')
+        doc_info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(ProfessionalCertificateEngine.BLACK)),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+        ]))
+        
+        story.append(doc_info_table)
+        story.append(Spacer(1, 20))
+        
+        # ========== DOCUMENT METRICS DASHBOARD ==========
+        story.append(Paragraph("Document Summary", styles['CertificateSection']))
+        
+        stats = certificate_data.get('statistics', {})
+        
+        # Create metrics cards
+        metrics_data = [
+            ["Total Pages", "Total Fields", "Total Signatures", "Total Recipients"],
+            [
+                str(certificate_data.get('page_count', 0)),
+                str(stats.get('total_fields', 0)),
+                str(stats.get('total_signatures', 0)),
+                str(stats.get('total_recipients', 0))
+            ],
+            [
+                "document pages",
+                f"{stats.get('completed_fields', 0)} completed",
+                f"{stats.get('signatures_completed', 0)} signed",
+                f"{stats.get('completed_recipients', 0)} completed"
+            ]
+        ]
+        
+        metrics_table = Table(metrics_data, colWidths=[120, 120, 120, 120], hAlign='LEFT')
+        metrics_table.setStyle(TableStyle([
+            # Header row
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            
+            # Metrics values
+            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (-1, 1), 16),
+            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
+            ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+            
+            # Descriptions
+            ('FONTNAME', (0, 2), (-1, 2), 'Helvetica'),
+            ('FONTSIZE', (0, 2), (-1, 2), 8),
+            ('TEXTCOLOR', (0, 2), (-1, 2), colors.HexColor(ProfessionalCertificateEngine.GRAY_600)),
+            ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
+            
+            ('GRID', (0, 0), (-1, 1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(ProfessionalCertificateEngine.GRAY_300)),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
+            ('TOPPADDING', (0, 1), (-1, 1), 8),
+        ]))
+        
+        story.append(metrics_table)
+        story.append(Spacer(1, 25))
+        
+        # ========== FIELD COMPLETION DETAILS ==========
+        story.append(Paragraph("Field Completion Details", styles['CertificateSubSection']))
+        
+        field_stats_data = [
+            ["Field Type", "Total", "Completed", "Completion %"],
+            [
+                "Signatures",
+                str(stats.get('total_signatures', 0)),
+                str(stats.get('signatures_completed', 0)),
+                f"{stats.get('signatures_percentage', 0)}%"
+            ],
+            [
+                "Initials",
+                str(stats.get('total_initials', 0)),
+                str(stats.get('initials_completed', 0)),
+                f"{stats.get('initials_percentage', 0)}%"
+            ],
+            [
+                "Form Fields",
+                str(stats.get('total_form_fields', 0)),
+                str(stats.get('form_fields_completed', 0)),
+                f"{stats.get('form_fields_percentage', 0)}%"
+            ],
+            [
+                "Checkboxes",
+                str(stats.get('total_checkboxes', 0)),
+                str(stats.get('checkboxes_completed', 0)),
+                f"{stats.get('checkboxes_percentage', 0)}%"
+            ],
+        ]
+        
+        field_stats_table = Table(field_stats_data, colWidths=[120, 80, 80, 80], hAlign='LEFT')
+        field_stats_table.setStyle(TableStyle([
+            # Header
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
+            
+            # Data rows
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
+            ('FONTNAME', (1, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+             [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
+              colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        story.append(field_stats_table)
+        story.append(Spacer(1, 20))
+        
+        # ========== SIGNER EVENTS TABLE ==========
+        story.append(Paragraph("Signer Events", styles['CertificateSection']))
+        
+        recipients = certificate_data.get('recipients', [])
+        if recipients:
+            # Prepare table data
+            signer_data = [
+                ["Signer", "Email", "Role", "Status", "Signed/Action", "IP Address"]
+            ]
+            
+            for recipient in recipients:
+                status = recipient.get('status', '').upper()
+                status_display = ProfessionalCertificateEngine.create_status_badge(
+                    status, 
+                    'completed' if status == 'COMPLETED' else 'pending'
+                )
+                
+                completed_date = recipient.get('completed_at', '')
+                if completed_date and len(completed_date) > 16:
+                    completed_date = completed_date[:16].replace('T', ' ')
+                
+                signer_data.append([
+                    Paragraph(f"<font name='Helvetica-Bold' size='8'>{recipient.get('name', 'N/A')}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('email', 'N/A')}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('role', 'signer').replace('_', ' ').title()}</font>", styles['TableCell']),
+                    Paragraph(status_display, styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{completed_date}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('ip_address', 'Unknown')}</font>", styles['TableCell']),
+                ])
+            
+            # Split into multiple pages if needed
+            MAX_ROWS_PER_TABLE = 15
+            if len(signer_data) > MAX_ROWS_PER_TABLE + 1:  # +1 for header
+                # Split into chunks
+                chunks = []
+                for i in range(1, len(signer_data), MAX_ROWS_PER_TABLE):
+                    chunk = [signer_data[0]] + signer_data[i:i + MAX_ROWS_PER_TABLE]
+                    chunks.append(chunk)
+                
+                for idx, chunk in enumerate(chunks):
+                    if idx > 0:
+                        story.append(PageBreak())
+                        story.append(Paragraph(
+                            f"<font name='Helvetica-Bold' size='11' color='{ProfessionalCertificateEngine.BRAND_PRIMARY}'>Signer Events (continued)</font>",
+                            styles['Normal']
+                        ))
+                        story.append(Spacer(1, 5))
+                    
+                    signer_table = Table(chunk, colWidths=[90, 110, 70, 80, 100, 90], hAlign='CENTER', repeatRows=1)
+                    signer_table.setStyle(TableStyle([
+                        # Header
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_SECONDARY)),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 8),
+                        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                        
+                        # Data rows
+                        ('FONTSIZE', (0, 1), (-1, -1), 8),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                         [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
+                          colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                        ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ]))
+                    
+                    story.append(signer_table)
+                    story.append(Spacer(1, 10))
+            else:
+                signer_table = Table(signer_data, colWidths=[90, 110, 70, 80, 100, 90], hAlign='CENTER', repeatRows=1)
+                signer_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_SECONDARY)),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                     [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
+                      colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ]))
+                
+                story.append(signer_table)
+        else:
+            story.append(Paragraph(
+                f"<font name='Helvetica' size='10' color='{ProfessionalCertificateEngine.GRAY_600}'>No signer events recorded.</font>",
+                styles['Normal']
+            ))
+        
+        story.append(Spacer(1, 20))
+        
+        # ========== ENVELOPE ORIGINATOR ==========
+        story.append(Paragraph("Envelope Originator", styles['CertificateSection']))
+        
+        owner_data = [
+            ["Name:", certificate_data.get('owner_name', 'Document Owner')],
+            ["Email:", certificate_data.get('owner_email', 'N/A')],
+            ["IP Address:", certificate_data.get('owner_ip', 'Unknown')],
+            ["Sent:", certificate_data.get('sent_date', certificate_data.get('created_date', 'N/A'))],
+        ]
+        
+        owner_table = Table(owner_data, colWidths=[100, 400], hAlign='LEFT')
+        owner_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_900)),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+        ]))
+        
+        story.append(owner_table)
+        
+        # ========== FIELD HISTORY (if available) ==========
+        field_history = certificate_data.get('field_history', [])
+        if field_history:
+            story.append(PageBreak())
+            story.append(Paragraph("Field Completion History", styles['CertificateSection']))
+            
+            field_history_data = [
+                ["Field Type", "Signer", "Page", "Completed At", "IP Address"]
+            ]
+            
+            for field in field_history[:20]:  # Limit to 20 most recent
+                field_history_data.append([
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('type', '').replace('_', ' ').title()}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('signer_name', 'Unknown')}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('page', 1)}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('completed_at', '')[:16] if field.get('completed_at') else '—'}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('ip_address', 'Unknown')}</font>", styles['TableCell']),
+                ])
+            
+            history_table = Table(field_history_data, colWidths=[100, 120, 50, 120, 100], hAlign='LEFT', repeatRows=1)
+            history_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                 [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
+                  colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (2, 1), (2, -1), 'CENTER'),
+            ]))
+            
+            story.append(history_table)
+            story.append(Spacer(1, 20))
+        
+        # ========== ELECTRONIC RECORD DISCLOSURE ==========
+        story.append(PageBreak())
+        story.append(Paragraph("Electronic Record and Signature Disclosure", styles['CertificateSection']))
+        
+        disclosure_text = """
+        <para>
+        <font name='Helvetica' size='9' color='#424242'>
+        By executing this document, each signatory acknowledges that they have read and agree to the 
+        terms and conditions of the electronic record and signature disclosure. Each signature 
+        appearing in this document is an electronic signature that is legally binding and enforceable 
+        under the ESIGN Act and applicable laws.
+        <br/><br/>
+        This Certificate of Completion serves as evidence that the document was executed electronically 
+        through the SafeSign platform. The signatures, initials, and form field entries contained herein 
+        were applied by the identified recipients and have been cryptographically bound to the document 
+        at the time of execution.
+        </font>
+        </para>
+        """
+        
+        story.append(Paragraph(disclosure_text, styles['Normal']))
+        story.append(Spacer(1, 15))
+        
+        # List recipients who accepted terms
+        terms_accepted = [r for r in recipients if r.get('terms_accepted', False)]
+        if terms_accepted:
+            story.append(Paragraph("Recipients Who Accepted Terms", styles['CertificateSubSection']))
+            
+            terms_data = [["Recipient", "Email", "Date Accepted"]]
+            
+            for r in terms_accepted[:10]:
+                terms_data.append([
+                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('name', 'N/A')}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('email', 'N/A')}</font>", styles['TableCell']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('terms_accepted_date', '—')[:10] if r.get('terms_accepted_date') else '—'}</font>", styles['TableCell']),
+                ])
+            
+            terms_table = Table(terms_data, colWidths=[150, 200, 150], hAlign='LEFT', repeatRows=1)
+            terms_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ]))
+            
+            story.append(terms_table)
+        
+        # ========== CERTIFICATE SEAL AND VERIFICATION ==========
+        story.append(Spacer(1, 30))
+        
+        # Certificate ID and verification
+        seal_data = [
+            ["", ""],
+            ["Certificate ID:", certificate_data.get('certificate_id', 'N/A')],
+            ["Generated:", datetime.utcnow().strftime("%B %d, %Y at %I:%M:%S %p UTC")],
+            ["Validation:", "This certificate authenticates the electronic signatures in this document"],
+            ["", ""],
+        ]
+        
+        seal_table = Table(seal_data, colWidths=[100, 400], hAlign='LEFT')
+        seal_table.setStyle(TableStyle([
+            ('SPAN', (0, 0), (-1, 0)),
+            ('SPAN', (0, -1), (-1, -1)),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (0, -1), (-1, -1), 'CENTER'),
+            ('TEXTCOLOR', (0, 1), (0, 1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (1, 1), (1, 1), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
+            ('FONTNAME', (1, 1), (1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (1, 1), 9),
+            ('FONTSIZE', (0, 2), (1, 2), 8),
+            ('FONTSIZE', (0, 3), (1, 3), 8),
+            ('TEXTCOLOR', (0, 2), (1, 3), colors.HexColor(ProfessionalCertificateEngine.GRAY_600)),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        story.append(seal_table)
+        
+        # ========== BUILD PDF ==========
+        def first_page(canvas, doc):
+            ProfessionalCertificateEngine.create_header(
+                canvas,
+                doc,
+                envelope_id=envelope_id,
+                title="CERTIFICATE OF COMPLETION"
+            )
+            ProfessionalCertificateEngine.create_footer(
+                canvas,
+                doc,
+                certificate_id=certificate_data.get('certificate_id')
+            )
+        
+        def later_pages(canvas, doc):
+            ProfessionalCertificateEngine.create_header(
+                canvas,
+                doc,
+                envelope_id=envelope_id,
+                title="CERTIFICATE OF COMPLETION (continued)"
+            )
+            ProfessionalCertificateEngine.create_footer(
+                canvas,
+                doc,
+                certificate_id=certificate_data.get('certificate_id')
+            )
+        
+        try:
+            doc.build(story, onFirstPage=first_page, onLaterPages=later_pages)
+        except Exception as e:
+            print(f"Error building certificate PDF: {e}")
+            import traceback
+            traceback.print_exc()
+            return ProfessionalCertificateEngine._create_fallback_certificate(certificate_data)
+        
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    @staticmethod
+    def _create_fallback_certificate(certificate_data):
+        """Create a simple fallback certificate"""
+        buffer = io.BytesIO()
+        from reportlab.pdfgen import canvas
+        
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        
+        # White header with green bar
+        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.WHITE))
+        c.rect(0, height - 60, width, 60, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
+        c.rect(0, height - 5, width, 5, fill=1, stroke=0)
+        
+        # Title
+        c.setFont("Helvetica-Bold", 20)
+        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
+        c.drawString(50, height - 40, "SafeSign")
+        c.drawString(width - 200, height - 40, "Certificate of Completion")
+        
+        # Content
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, height - 100, f"Document: {certificate_data.get('document_name', 'Unknown')}")
+        
+        c.setFont("Helvetica", 10)
+        c.drawString(50, height - 130, f"Envelope ID: {certificate_data.get('envelope_id', 'N/A')}")
+        c.drawString(50, height - 150, f"Completed: {certificate_data.get('completed_date', 'N/A')}")
+        c.drawString(50, height - 170, f"Total Signers: {certificate_data.get('statistics', {}).get('total_recipients', 0)}")
+        c.drawString(50, height - 190, f"Certificate ID: {certificate_data.get('certificate_id', 'N/A')}")
+        c.drawString(50, height - 210, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+      
+# Add this near the top of your file, after the imports
+def generate_envelope_id(prefix: str = "ENV", user_id: str = None) -> str:
+    """
+    Generate a unique envelope ID.
+    Format: ENV-{date}-{random}-{user_initials}
+    Example: ENV-20240115-ABC123-JS
+    """
+    # Get current date
+    date_str = datetime.utcnow().strftime("%Y%m%d")
+    
+    # Generate random string (6 characters)
+    random_str = uuid.uuid4().hex[:6].upper()
+    
+    # Get user initials if user_id provided
+    initials = ""
+    if user_id:
+        try:
+            user = db.users.find_one({"_id": ObjectId(user_id)})
+            if user:
+                full_name = user.get("full_name") or user.get("name") or user.get("email", "")
+                # Extract initials from name
+                if full_name:
+                    name_parts = full_name.split()
+                    if len(name_parts) >= 2:
+                        initials = f"{name_parts[0][0]}{name_parts[-1][0]}".upper()
+                    else:
+                        initials = full_name[:2].upper()
+        except:
+            initials = "US"
+    else:
+        initials = "UK"  # Unknown
+    
+    # Clean initials (only letters)
+    initials = re.sub(r'[^A-Z]', '', initials)
+    if not initials:
+        initials = "US"
+    
+    # Construct envelope ID
+    envelope_id = f"{prefix}-{date_str}-{random_str}-{initials}"
+    
+    # Check if it already exists
+    existing = db.documents.find_one({"envelope_id": envelope_id})
+    if existing:
+        # If exists, generate another one with different random string
+        return generate_envelope_id(prefix, user_id)
+    
+    return envelope_id
+
+
+def generate_short_envelope_id() -> str:
+    """
+    Generate a shorter envelope ID (for users who prefer simpler IDs).
+    Format: ENV-{date}{sequence}
+    Example: ENV-20240115001
+    """
+    today = datetime.utcnow().strftime("%Y%m%d")
+    
+    # Find the highest sequence number for today
+    pattern = f"^{re.escape(today)}"
+    today_envelopes = list(db.documents.find(
+        {"envelope_id": {"$regex": f"^ENV-{today}"}}
+    ).sort("uploaded_at", -1).limit(1))
+    
+    if today_envelopes:
+        # Extract sequence number from last envelope ID
+        last_id = today_envelopes[0].get("envelope_id", "")
+        match = re.search(rf"ENV-{today}(\d{{3}})", last_id)
+        if match:
+            sequence = int(match.group(1)) + 1
+        else:
+            sequence = 1
+    else:
+        sequence = 1
+    
+    # Format with leading zeros
+    sequence_str = f"{sequence:03d}"
+    
+    return f"ENV-{today}{sequence_str}"
+
+def validate_envelope_id(envelope_id: str, current_document_id: str = None) -> bool:
+    """
+    Validate that an envelope ID is unique.
+    Returns True if valid, False if duplicate.
+    """
+    if not envelope_id:
+        return True
+    
+    query = {"envelope_id": envelope_id}
+    if current_document_id:
+        query["_id"] = {"$ne": ObjectId(current_document_id)}
+    
+    existing = db.documents.find_one(query)
+    return existing is None
+
+
+async def auto_generate_missing_envelope_ids():
+    """
+    Background task to generate envelope IDs for existing documents.
+    """
+    try:
+        # Find all documents without envelope ID
+        docs_without_envelope = db.documents.find({
+            "$or": [
+                {"envelope_id": {"$exists": False}},
+                {"envelope_id": None},
+                {"envelope_id": ""}
+            ],
+            "status": {"$ne": "deleted"}
+        })
+        
+        for doc in docs_without_envelope:
+            try:
+                # Get owner info
+                owner_id = doc.get("owner_id")
+                if not owner_id:
+                    continue
+                
+                # Generate envelope ID
+                new_envelope_id = generate_envelope_id(
+                    prefix="ENV",
+                    user_id=str(owner_id)
+                )
+                
+                # Update document
+                db.documents.update_one(
+                    {"_id": doc["_id"]},
+                    {"$set": {
+                        "envelope_id": new_envelope_id,
+                        "envelope_auto_generated": True,
+                        "envelope_generated_at": datetime.utcnow()
+                    }}
+                )
+                
+                print(f"Generated envelope ID {new_envelope_id} for document {doc.get('filename')}")
+                
+            except Exception as e:
+                print(f"Error generating envelope ID for document {doc.get('filename')}: {e}")
+                
+    except Exception as e:
+        print(f"Error in auto_generate_missing_envelope_ids: {e}")
+
+async def get_user_from_request(request: Request):
+    auth = request.headers.get("Authorization")
+    token = None
+
+    if auth and auth.startswith("Bearer "):
+        token = auth.split(" ")[1]
+
+    if not token:
+        token = request.query_params.get("token")
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = {
+        "id": payload.get("id") or payload.get("_id"),
+        "email": payload.get("email") or payload.get("sub"),
+        "role": payload.get("role", "user")
+    }
+
+    if not user["id"] or not user["email"]:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    return user
+
+
+# -----------------------------
+# SERIALIZER
+# -----------------------------
+
+def serialize_document(doc):
+    doc_id = doc["_id"]
+
+    # Existing counts code...
+    total_recipients = db.recipients.count_documents({"document_id": doc_id})
+    signed_recipients = db.recipients.count_documents({
+        "document_id": doc_id,
+        "status": "completed"
+    })
+
+    # Role counts...
+    def role_count(role):
+        return db.recipients.count_documents({
+            "document_id": doc_id,
+            "role": role,
+            "status": "completed"
+        })
+
+    signer_count = role_count("signer")
+    in_person_signer_count = role_count("in_person_signer")
+    approver_count = role_count("approver")
+    witness_count = role_count("witness")
+    form_filler_count = role_count("form_filler")
+    viewer_count = role_count("viewer")
+
+    # Get storage URLs
+    preview_url = None
+    if doc.get("preview_thumbnail_path"):
+        try:
+            preview_url = storage.get_url(doc["preview_thumbnail_path"])
+        except:
+            preview_url = f"/documents/{doc_id}/preview"
+
+    return {
+        "id": str(doc["_id"]),
+        "filename": doc.get("filename"),
+        "uploaded_at": doc.get("uploaded_at").isoformat() if doc.get("uploaded_at") else None,
+        "deleted_at": doc.get("deleted_at").isoformat() if doc.get("deleted_at") else None,
+        "voided_at": doc.get("voided_at").isoformat() if doc.get("voided_at") else None,
+        "restored_at": doc.get("restored_at").isoformat() if doc.get("restored_at") else None,
+        
+        # Preview URL
+        "preview_url": preview_url or f"/documents/{doc_id}/preview",
+        "has_preview": doc.get("has_preview", False),
+        "preview_thumbnail_path": doc.get("preview_thumbnail_path"),
+        
+        # Owner info
+        "owner_id": str(doc.get("owner_id")) if doc.get("owner_id") else None,
+        "owner_email": doc.get("owner_email"),
+        
+        # Page count
+        "page_count": doc.get("page_count", 0),
+
+        "size": doc.get("size"),
+        "mime_type": doc.get("mime_type"),
+        "status": doc.get("status"),
+        
+        "common_message": doc.get("common_message", ""), 
+
+        # Recipient counts
+        "recipient_count": doc.get("recipient_count", 0),
+        "signed_count": doc.get("signed_count", 0),
+
+        "source": doc.get("source", "local"),
+        "is_converted": doc.get("is_converted", False),
+
+        # Storage paths instead of file IDs
+        "original_file_path": doc.get("original_file_path"),
+        "pdf_file_path": doc.get("pdf_file_path"),
+        "signed_pdf_path": doc.get("signed_pdf_path"),
+
+        # Envelope ID fields
+        "envelope_id": doc.get("envelope_id"),
+        "envelope_auto_generated": doc.get("envelope_auto_generated", False),
+        "envelope_regenerated_at": doc.get("envelope_regenerated_at").isoformat() if doc.get("envelope_regenerated_at") else None,
+        "envelope_generated_at": doc.get("envelope_generated_at").isoformat() if doc.get("envelope_generated_at") else None,
+
+        # Signing progress
+        "total_recipients": total_recipients,
+        "signed_recipients": signed_recipients,
+        "signing_progress": {
+            "signed": signed_recipients,
+            "total": total_recipients,
+            "percentage": (signed_recipients / total_recipients * 100) if total_recipients > 0 else 0
+        },
+
+        # Role counts
+        "role_counts": {
+            "signer": signer_count,
+            "in_person_signer": in_person_signer_count,
+            "approver": approver_count,
+            "witness": witness_count,
+            "form_filler": form_filler_count,
+            "viewer": viewer_count
+        }
+    }
+    
+def log_activity(document_id, user, action):
+    try:
+        db.document_activity.insert_one({
+            "document_id": str(document_id),
+            "user_id": str(user["id"]),
+            "user_email": user["email"],
+            "action": action, 
+            "timestamp": datetime.utcnow(),
+            "ip_address": None
+        })
+    except Exception as e:
+        logging.error(f"Activity Log Failed: {str(e)}")
+
+def _log_event(
+    document_id: str,
+    actor: dict | None,
+    event_type: str,
+    metadata: dict = None,
+    request: Request = None
+):
+    event = {
+        "document_id": ObjectId(document_id),
+        "timestamp": datetime.utcnow(),
+        "type": event_type,
+        "title": EVENT_TITLES.get(event_type, event_type.replace("_", " ").title()),
+        "description": EVENT_DESCRIPTIONS.get(event_type, ""),
+        "metadata": metadata or {}
+    }
+
+    if actor:
+        event["actor"] = {
+            "id": str(actor.get("_id") or actor.get("id")),
+            "email": actor.get("email"),
+            "role": actor.get("role", "owner"),
+            "name": actor.get("name")
+        }
+
+    if request:
+        event["metadata"].update({
+            "ip": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent")
+        })
+
+    db.document_timeline.insert_one(event)
+
+def generate_pdf_thumbnails(
+    pdf_bytes: bytes,
+    dpi: int = 120
+) -> list[bytes]:
+    """
+    Returns list of PNG thumbnails (one per page)
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    thumbnails = []
+
+    zoom = dpi / 72  # 72 = PDF base DPI
+    matrix = fitz.Matrix(zoom, zoom)
+
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        pix = page.get_pixmap(matrix=matrix)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        thumbnails.append(buf.getvalue())
+
+    doc.close()
+    return thumbnails
+
+def generate_file_thumbnail(pdf_bytes: bytes, page_number: int = 0) -> bytes:
+    """
+    Generate thumbnail for specific page (defaults to first page)
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+    if page_number >= len(doc):
+        page_number = 0
+
+    page = doc[page_number]
+
+    zoom = 150 / 72  # 150 DPI
+    matrix = fitz.Matrix(zoom, zoom)
+
+    pix = page.get_pixmap(matrix=matrix)
+
+    img = Image.frombytes(
+        "RGB",
+        (pix.width, pix.height),
+        pix.samples
+    )
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+
+    doc.close()
+
+    return buf.getvalue()
+
+def generate_all_page_thumbnails(pdf_bytes: bytes) -> Dict[int, bytes]:
+    """
+    Generate thumbnails for all pages in a PDF.
+    Returns dictionary of {page_number: thumbnail_bytes}
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    thumbnails = {}
+    
+    zoom = 150 / 72  # 150 DPI
+    matrix = fitz.Matrix(zoom, zoom)
+    
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        pix = page.get_pixmap(matrix=matrix)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        thumbnails[page_num + 1] = buf.getvalue()  # 1-based page numbers
+    
+    doc.close()
+    return thumbnails
+
+def merge_pdfs(pdf_bytes_list: list[bytes]) -> bytes:
+    merged = fitz.open()
+
+    for idx, pdf_bytes in enumerate(pdf_bytes_list):
+        if not pdf_bytes or len(pdf_bytes) < 100:
+            # Skip empty or invalid content
+            continue
+
+        try:
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                if doc.page_count == 0:
+                    continue
+                merged.insert_pdf(doc)
+        except Exception as e:
+            # ❗ DO NOT CRASH VIEW
+            print(f"[merge_pdfs] Skipping invalid PDF at index {idx}: {e}")
+            continue
+
+    if merged.page_count == 0:
+        raise HTTPException(500, "No valid PDF pages to display")
+
+    return merged.tobytes()
+
+
+def get_merged_pdf(document_id: str) -> bytes:
+    files = list(
+        db.document_files
+        .find({"document_id": ObjectId(document_id)})
+        .sort("order", 1)
+    )
+
+    pdfs = []
+
+    for f in files:
+        try:
+            # Fix: Use storage.download instead of fs.get
+            data = storage.download(f["file_path"])
+            if data and len(data) > 100:
+                pdfs.append(data)
+        except Exception as e:
+            print(f"[get_merged_pdf] Skipping file {f.get('filename')}: {e}")
+            continue
+
+    if not pdfs:
+        raise HTTPException(500, "No valid PDF files found for document")
+
+    return merge_pdfs(pdfs)
+
+
+
+def merge_files(files: list[tuple[bytes, str]]) -> bytes | None:
+    pdfs = []
+
+    for content, filename in files:
+        pdf = convert_to_pdf(content, filename)
+        if not pdf:
+            return None
+        pdfs.append(pdf)
+
+    return merge_pdfs(pdfs)
+
+
+def load_document_pdf(doc: dict, document_id: str) -> bytes:
+    """
+    Load PDF from Azure Blob Storage.
+    1) If document has multiple files → merge from document_files
+    2) Else fallback to pdf_file_path
+    """
+    # 1️⃣ Multi-file support
+    files = list(
+        db.document_files
+        .find({"document_id": ObjectId(document_id)})
+        .sort("order", 1)
+    )
+
+    if files:
+        try:
+            pdfs = []
+            for f in files:
+                data = storage.download(f["file_path"])
+                if data and len(data) > 100:
+                    pdfs.append(data)
+            
+            if pdfs:
+                return merge_pdfs(pdfs)
+        except Exception as e:
+            print(f"[load_document_pdf] merge failed: {e}")
+            # fallback to single PDF
+
+    # 2️⃣ Legacy single-PDF fallback
+    pdf_path = doc.get("signed_pdf_path") or doc.get("pdf_file_path")
+    if not pdf_path:
+        raise HTTPException(500, "Base PDF missing")
+
+    try:
+        return storage.download(pdf_path)
+    except Exception as e:
+        raise HTTPException(500, f"Cannot read base PDF: {str(e)}")
+
+def calculate_file_page_ranges(files):
+    """
+    Input: ordered document_files
+    Output: same files with start_page & end_page
+    """
+    current_page = 1
+    result = []
+
+    for f in files:
+        start_page = current_page
+        end_page = current_page + f["page_count"] - 1
+
+        result.append({
+            **f,
+            "start_page": start_page,
+            "end_page": end_page
+        })
+
+        current_page = end_page + 1
+
+    return result
+
+
+
+def append_file_to_document(existing_pdf_bytes: bytes, new_file_bytes: bytes, filename: str) -> bytes | None:
+    new_pdf = convert_to_pdf(new_file_bytes, filename)
+    if not new_pdf:
+        return None
+
+    return merge_pdfs([existing_pdf_bytes, new_pdf])
+
+def guard_document_active(doc):
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    if doc["status"] in TERMINAL_DOCUMENT_STATUSES:
+        raise HTTPException(
+            400,
+            f"Document is {doc['status']}. No further actions allowed."
+        )
+
+def apply_status_watermark(pdf_bytes: bytes, status: str) -> bytes:
+    watermark_text = {
+        "draft": "DRAFT",
+        "expired": "EXPIRED",
+        "declined": "DECLINED",
+        "voided": "VOID"
+    }.get(status)
+    
+    if watermark_text:
+        return PDFEngine.apply_watermark(pdf_bytes, watermark_text)
+    return pdf_bytes
+
+
+def update_document_role_counts(doc_id):
+    def count(role):
+        return db.recipients.count_documents({
+            "document_id": ObjectId(doc_id),
+            "role": role,
+            "status": "completed"
+        })
+
+    signer_count = count("signer")
+    in_person_signer_count = count("in_person_signer")
+    approver_count = count("approver")
+    witness_count = count("witness")
+    form_filler_count = count("form_filler")
+    viewer_count = count("viewer")
+
+    signed_count = (
+        signer_count
+        + in_person_signer_count
+        + approver_count
+        + witness_count
+        + form_filler_count
+        + viewer_count
+    )
+
+    db.documents.update_one(
+        {"_id": ObjectId(doc_id)},
+        {"$set": {
+            "signer_count": signer_count,
+            "in_person_signer_count": in_person_signer_count,
+            "approver_count": approver_count,
+            "witness_count": witness_count,
+            "form_filler_count": form_filler_count,
+            "viewer_count": viewer_count,
+            "signed_count": signed_count
+        }}
+    )
+
+    return signed_count
+
+def serialize_log(log):
+    return {
+        "id": str(log.get("_id")),
+        "document_id": str(log.get("document_id")) if log.get("document_id") else None,
+        "user_id": str(log.get("user_id")) if log.get("user_id") else None,
+        "email": log.get("email"),
+        "action": log.get("action"),
+        "metadata": log.get("metadata", {}),
+        "timestamp": log.get("timestamp")
+    }
+
+
+
+def convert_objectids(value):
+    if isinstance(value, ObjectId):
+        return str(value)
+
+    if isinstance(value, list):
+        return [convert_objectids(v) for v in value]
+
+    if isinstance(value, dict):
+        return {k: convert_objectids(v) for k, v in value.items()}
+
+    return value
+
+
+def serialize_recipient(r):
+    r = convert_objectids(r)
+    # add canonical id alias
+    r["id"] = r.get("_id")
+    return r
+
+
+# Add this function to handle field type-specific rendering
+def get_field_render_data(field: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Prepare field data for PDF rendering based on field type.
+    """
+    field_type = field.get("type", "")
+    value = field.get("display_value") or field.get("value")
+    
+    base_data = {
+        "id": field.get("id", str(field.get("_id", ""))),
+        "type": field_type,
+        "page": field.get("page", 0),
+        "x": field.get("x", field.get("pdf_x", 0)),
+        "y": field.get("y", field.get("pdf_y", 0)),
+        "width": field.get("width", field.get("pdf_width", 100)),
+        "height": field.get("height", field.get("pdf_height", 30)),
+        "label": field.get("label", ""),
+        "placeholder": field.get("placeholder", ""),
+        "font_size": field.get("font_size", 12),
+        "value": value,
+        "required": field.get("required", True),
+        "is_completed": field.get("is_completed", False),
+        # ✅ CRITICAL: Pass through the rendering flag
+        "_render_completed": field.get("_render_completed", field.get("is_completed", False))
+    }
+    
+    # Add type-specific data
+    if field_type == "dropdown":
+        base_data["options"] = field.get("dropdown_options", [])
+    
+    elif field_type == "checkbox":
+        base_data["checked"] = bool(value)
+        
+    elif field_type == "radio":
+        base_data["group_name"] = field.get("group_name", "")
+        base_data["options"] = field.get("dropdown_options", [])
+    
+    elif field_type == "mail":
+        base_data["email_validation"] = field.get("email_validation", True)
+    
+    return base_data
+
+def serialize_timeline_event(log, document):
+    action = log.get("action", "")
+    metadata = log.get("metadata", {}) or {}
+
+    # Human-readable titles & descriptions
+    ACTION_MAP = {
+        # ------------------------
+        # DOCUMENT LEVEL ACTIONS
+        # ------------------------
+        "upload_document": (
+            "Document Uploaded",
+            f"Document '{metadata.get('filename', document.get('filename'))}' was uploaded"
+        ),
+        "create_document_from_template": (
+            "Created From Template",
+            f"Document created from template (ID: {metadata.get('template_id')})"
+        ),
+        "rename_document": (
+            "Document Renamed",
+            f"Renamed from '{metadata.get('old_filename')}' to '{metadata.get('new_filename')}'"
+        ),
+        "set_envelope_id": (
+            "Envelope ID Set",
+            f"Envelope ID assigned: {metadata.get('envelope_id')}"
+        ),
+        "update_common_message": (
+            "Message Updated",
+            "Common message was updated"
+        ),
+
+        # ------------------------
+        # FILE (ZOHO-STYLE) ACTIONS
+        # ------------------------
+        "file_added": (
+            "File Added",
+            f"'{metadata.get('filename')}' was added to the document"
+        ),
+        "file_deleted": (
+            "File Deleted",
+            f"'{metadata.get('filename')}' was removed from the document"
+        ),
+        "file_replaced": (
+            "File Replaced",
+            f"'{metadata.get('filename')}' was replaced with a new version"
+        ),
+        "reorder_files": (
+            "Files Reordered",
+            "The order of documents was changed"
+        ),
+
+        # ------------------------
+        # VIEW & DOWNLOAD
+        # ------------------------
+        "download_original": (
+            "Original Downloaded",
+            f"Downloaded file '{metadata.get('filename')}'"
+        ),
+        "view_document": (
+            "Document Viewed",
+            f"Viewed document ({metadata.get('preview_type', 'standard')} preview)"
+        ),
+        "view_signed_preview": (
+            "Signed Preview Viewed",
+            "Viewed signed document preview"
+        ),
+        "download_signed_or_current_pdf": (
+            "PDF Downloaded",
+            "Downloaded signed/current PDF"
+        ),
+
+        # ------------------------
+        # STATUS CHANGES
+        # ------------------------
+        "void_document": (
+            "Document Voided",
+            "Document was voided"
+        ),
+        "restore_document": (
+            "Document Restored",
+            "Document restored from trash"
+        ),
+        "recipient_declined": (
+            "Recipient Declined",
+            f"Decline reason: {metadata.get('reason', 'Not specified')}"
+        ),
+    }
+
+
+    title, description = ACTION_MAP.get(
+        action,
+        ("Activity", action.replace("_", " ").title())
+    )
+
+    return {
+        "id": str(log["_id"]),
+        "type": action,
+        "title": title,
+        "description": description,
+        "user": log.get("email"),
+        "timestamp": log.get("timestamp"),
+        "metadata": metadata,
+        "document_status": document.get("status"),
+        "envelope_id": document.get("envelope_id"),
+    }
+
+
+def apply_completed_fields_only(pdf_bytes: bytes, completed_fields: list, image_field_types: set) -> bytes:
+    """Apply ONLY completed fields to PDF."""
+    if not completed_fields:
+        return pdf_bytes
+    
+    signatures = []
+    form_fields = []
+    
+    for field in completed_fields:
+        field_type = field.get("type", "")
+        field_value = field.get("display_value") or field.get("value")
+        
+        if field_type in image_field_types:
+            # Handle image-based fields
+            image_data = extract_image_data(field_value)
+            if image_data:
+                signatures.append({
+                    "field_id": field["id"],
+                    "image": image_data,
+                    "page": field.get("page", 0),
+                    "x": field.get("pdf_x") or field.get("x", 0),
+                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "width": field.get("pdf_width") or field.get("width", 100),
+                    "height": field.get("pdf_height") or field.get("height", 30),
+                    "opacity": 1.0,
+                    "is_completed": True
+                })
+        else:
+            # Handle form fields
+            printable_value = extract_printable_value(field_value)
+            if printable_value not in [None, ""]:
+                form_field = create_form_field_data(field, printable_value)
+                form_fields.append(form_field)
+    
+    # Apply form fields first
+    if form_fields:
+        pdf_bytes = PDFEngine.apply_form_fields_with_values(pdf_bytes, form_fields)
+    
+    # Apply signatures
+    if signatures:
+        pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
+            pdf_bytes,
+            signatures,
+            completed_fields  # Pass field data for coordinate context
+        )
+    
+    return pdf_bytes
+
+def apply_all_completed_fields(pdf_bytes: bytes, completed_fields: list, image_field_types: set) -> bytes:
+    """Apply all completed fields with proper handling."""
+    return apply_completed_fields_only(pdf_bytes, completed_fields, image_field_types)
+
+def apply_field_placeholders_only(
+    pdf_bytes: bytes, 
+    fields: list, 
+    use_recipient_colors: bool = True,
+    show_values: bool = False
+) -> bytes:
+    """Apply field placeholders only (for incomplete fields)."""
+    if not fields:
+        return pdf_bytes
+    
+    # Mark all fields as placeholders
+    for field in fields:
+        field["show_placeholder"] = True
+        field["is_placeholder"] = True
+        field["_render_completed"] = False
+    
+    return PDFEngine.apply_field_placeholders(
+        pdf_bytes, 
+        fields,
+        show_values=show_values,
+        use_recipient_colors=use_recipient_colors
+    )
+
+def extract_image_data(field_value) -> Optional[str]:
+    """Extract base64 image data from field value."""
+    if not field_value:
+        return None
+    
+    # Handle different value formats
+    if isinstance(field_value, dict):
+        # Format 1: {"image": "data:image/png;base64,..."}
+        if "image" in field_value:
+            return field_value["image"]
+        # Format 2: {"data": "data:image/png;base64,...", "type": "image"}
+        elif field_value.get("type") == "image" and "data" in field_value:
+            return field_value["data"]
+        # Format 3: Nested value structure
+        elif "value" in field_value and isinstance(field_value["value"], dict):
+            nested = field_value["value"]
+            if "image" in nested:
+                return nested["image"]
+    elif isinstance(field_value, str) and field_value.startswith("data:image"):
+        # Direct base64 string
+        return field_value
+    
+    return None
+
+def extract_printable_value(field_value):
+    """Extract printable value from field value."""
+    if isinstance(field_value, dict):
+        # Check for nested value structure
+        if "value" in field_value:
+            nested = field_value["value"]
+            if isinstance(nested, dict):
+                return nested.get("value") or nested.get("text")
+            else:
+                return nested
+        elif "text" in field_value:
+            return field_value["text"]
+        elif "selected" in field_value:
+            return field_value["selected"]
+    return field_value
+
+def create_form_field_data(field: dict, printable_value) -> dict:
+    """Create form field data for PDF rendering."""
+    form_field = {
+        "field_id": field["id"],
+        "type": field.get("type", "textbox"),
+        "value": printable_value,
+        "page": field.get("page", 0),
+        "x": field.get("pdf_x") or field.get("x", 0),
+        "y": field.get("pdf_y") or field.get("y", 0),
+        "width": field.get("pdf_width") or field.get("width", 100),
+        "height": field.get("pdf_height") or field.get("height", 30),
+        "font_size": field.get("font_size", 12),
+        "color": "#000000",
+        "opacity": 1.0,
+        "is_completed": True
+    }
+    
+    # Add type-specific properties
+    field_type = field.get("type", "")
+    if field_type == "checkbox":
+        form_field["checked"] = bool(printable_value)
+    elif field_type == "radio":
+        form_field["checked"] = True
+    elif field_type == "dropdown":
+        form_field["options"] = field.get("dropdown_options", [])
+    
+    return form_field
+
+def apply_status_watermark(pdf_bytes: bytes, status: str) -> bytes:
+    """Apply status-based watermark."""
+    watermark_text = {
+        "draft": "DRAFT",
+        "expired": "EXPIRED",
+        "declined": "DECLINED",
+        "voided": "VOIDED",
+        "sent": "IN PROGRESS",
+        "in_progress": "IN PROGRESS",
+        "completed": "COMPLETED"
+    }.get(status)
+    
+    if watermark_text:
+        return PDFEngine.apply_watermark(pdf_bytes, watermark_text)
+    return pdf_bytes
+
+
+def process_fields_for_rendering(fields: list) -> tuple:
+    """
+    Process fields for PDF rendering and separate them by type.
+    Returns (signatures, form_fields, all_fields)
+    """
+    signatures = []
+    form_fields = []
+    all_fields_data = []
+    
+    for field in fields:
+        field_type = field.get("type", "")
+        field_value = field.get("display_value") or field.get("value")
+        
+        # Get field render data for all fields
+        render_data = get_field_render_data(field)
+        
+        # Add to all fields list
+        all_fields_data.append(render_data)
+        
+        # Handle image-based fields (signatures)
+        if field_type in IMAGE_FIELDS:
+            image_data = extract_image_data(field_value)
+            if image_data:
+                signatures.append({
+                    "field_id": field.get("id", str(field.get("_id", ""))),
+                    "image": image_data,
+                    "page": field.get("page", 0),
+                    "x": field.get("x", field.get("pdf_x", 0)),
+                    "y": field.get("y", field.get("pdf_y", 0)),
+                    "width": field.get("width", field.get("pdf_width", 100)),
+                    "height": field.get("height", field.get("pdf_height", 30)),
+                    "opacity": 1.0,
+                    "is_completed": True
+                })
+        
+        # Handle form fields (text, checkbox, etc.)
+        elif field_type in TEXT_FIELDS.union(BOOLEAN_FIELDS):
+            printable_value = extract_printable_value(field_value)
+            if printable_value not in [None, ""]:
+                form_field = {
+                    "field_id": field.get("id", str(field.get("_id", ""))),
+                    "type": field_type,
+                    "value": printable_value,
+                    "page": field.get("page", 0),
+                    "x": field.get("x", field.get("pdf_x", 0)),
+                    "y": field.get("y", field.get("pdf_y", 0)),
+                    "width": field.get("width", field.get("pdf_width", 100)),
+                    "height": field.get("height", field.get("pdf_height", 30)),
+                    "font_size": field.get("font_size", 12),
+                    "is_completed": True
+                }
+                if field_type == "checkbox":
+                    form_field["checked"] = bool(printable_value)
+                elif field_type == "dropdown":
+                    form_field["options"] = field.get("dropdown_options", [])
+                
+                form_fields.append(form_field)
+    
+    return signatures, form_fields, all_fields_data
+
+# Add this function to your documents.py if it's not already there
+def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, doc: dict = None) -> bytes:
+    """
+    Apply ALL completed fields (including signatures) to PDF.
+    Unified function used by all endpoints.
+    
+    Args:
+        pdf_bytes: Original PDF bytes
+        document_id: Document ID
+        doc: Document object (optional, for coordinate conversion)
+    """
+    if not doc:
+        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    
+    # Get all completed fields
+    completed_fields = list(db.signature_fields.find({
+        "document_id": ObjectId(document_id),
+        "completed_at": {"$exists": True}
+    }))
+    
+    if not completed_fields:
+        return pdf_bytes
+    
+    # Enrich fields
+    enriched_fields = []
+    for field in completed_fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = True
+        enriched["display_value"] = normalize_field_value(field)
+        enriched["value"] = field.get("value")  # Keep original value too
+        enriched["_render_completed"] = True
+        enriched_fields.append(enriched)
+    
+    # Process all field types
+    signatures = []
+    form_fields = []
+    
+    for field in enriched_fields:
+        field_type = field.get("type", "")
+        field_value = field.get("display_value") or field.get("value")
+        
+        if field_type in IMAGE_FIELDS:
+            # Handle image-based fields
+            image_data = None
+            if isinstance(field_value, dict):
+                if "image" in field_value:
+                    image_data = field_value["image"]
+                elif "data" in field_value and field_value.get("type") == "image":
+                    image_data = field_value["data"]
+            elif isinstance(field_value, str) and field_value.startswith("data:image"):
+                image_data = field_value
+            
+            if image_data:
+                signatures.append({
+                    "field_id": field["id"],
+                    "image": image_data,
+                    "page": field.get("page", 0),
+                    "x": field.get("pdf_x", field.get("x", 0)),
+                    "y": field.get("pdf_y", field.get("y", 0)),
+                    "width": field.get("pdf_width", field.get("width", 100)),
+                    "height": field.get("pdf_height", field.get("height", 30)),
+                    "opacity": 1.0,
+                    "is_completed": True,
+                    "_render_completed": True
+                })
+        else:
+            # Handle form fields
+            printable_value = None
+            if isinstance(field_value, dict):
+                printable_value = field_value.get("value")
+            else:
+                printable_value = field_value
+            
+            if printable_value not in [None, ""]:
+                form_fields.append({
+                    "field_id": field["id"],
+                    "type": field_type,
+                    "value": printable_value,
+                    "page": field.get("page", 0),
+                    "x": field.get("pdf_x", field.get("x", 0)),
+                    "y": field.get("pdf_y", field.get("y", 0)),
+                    "width": field.get("pdf_width", field.get("width", 100)),
+                    "height": field.get("pdf_height", field.get("height", 30)),
+                    "font_size": field.get("font_size", 12),
+                    "color": "#000000",
+                    "opacity": 1.0,
+                    "is_completed": True,
+                    "_render_completed": True
+                })
+    
+    # Apply form fields first (text appears under signatures)
+    if form_fields:
+        field_data = []
+        for field in form_fields:
+            render_data = {
+                "id": field["field_id"],
+                "type": field["type"],
+                "value": field["value"],
+                "page": field["page"],
+                "pdf_x": field["x"],
+                "pdf_y": field["y"],
+                "pdf_width": field["width"],
+                "pdf_height": field["height"],
+                "font_size": field.get("font_size", 12),
+                "is_completed": True,
+                "_render_completed": True
+            }
+            field_data.append(render_data)
+        
+        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, field_data)
+    
+    # Apply signatures on top
+    if signatures:
+        pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
+            pdf_bytes,
+            signatures,
+            enriched_fields  # Pass field data for coordinate context
+        )
+    
+    return pdf_bytes
+
+
+# Add this near the top with other helper functions
+async def get_active_subscription(email: str) -> Optional[Dict]:
+    """
+    Get active subscription for a user.
+    Returns None if no active subscription.
+    """
+    try:
+        # First try to find user by email
+        user = db.users.find_one({"email": email})
+        if not user:
+            return None
+        
+        # Find active subscription
+        subscription = db.subscriptions.find_one({
+            "user_id": user["_id"],
+            "status": "active",
+            "expiry_date": {"$gte": datetime.utcnow()}
+        })
+        
+        return subscription
+    except Exception as e:
+        print(f"Error getting subscription: {e}")
+        return None
+
+# Add PLAN_CONFIG if it's used
+PLAN_CONFIG = {
+    "free": {"name": "Free Plan", "price": 0},
+    "basic": {"name": "Basic Plan", "price": 9.99},
+    "pro": {"name": "Professional Plan", "price": 29.99},
+    "enterprise": {"name": "Enterprise Plan", "price": 99.99},
+    "free_trial": {"name": "Free Trial", "price": 0}
+}
+
+
+
+# -----------------------------
+# UPLOAD DOCUMENT
+# -----------------------------
+@router.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    payload: UploadDocumentPayload = None,  # For JSON body
+    envelope_id: Optional[str] = Form(None),  # For form data
+    auto_generate_envelope: bool = Form(True),
+    envelope_prefix: str = Form("ENV"),
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    # Validate file type
+    ext = file.filename.split(".")[-1].lower()
+    allowed = [
+        "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx",
+        "png", "jpg", "jpeg", "bmp", "webp", "tiff", "tif",
+        "txt", "md", "csv", "json", "log", "html", "htm"
+    ]
+    
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Upload PDF, Office documents, or images."
+        )
+
+    # Get envelope_id from either JSON payload or form data
+    envelope_id_value = None
+    if payload and payload.envelope_id:
+        envelope_id_value = payload.envelope_id
+    elif envelope_id:
+        envelope_id_value = envelope_id
+    elif auto_generate_envelope:
+        envelope_id_value = generate_envelope_id(
+            prefix=envelope_prefix,
+            user_id=current_user["id"]
+        )
+
+    # Check if envelope_id already exists (if provided)
+    if envelope_id_value:
+        existing_doc = db.documents.find_one({"envelope_id": envelope_id_value})
+        if existing_doc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Document with envelope ID '{envelope_id_value}' already exists"
+            )
+
+    content = await file.read()
+    converted_pdf_bytes = convert_to_pdf(content, file.filename)
+
+    if not converted_pdf_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="File cannot be converted to PDF. The format may not be supported."
+        )
+
+    page_count = get_pdf_page_count(converted_pdf_bytes)
+    
+    # ============================================
+    # NEW: Upload to Azure Blob Storage
+    # ============================================
+    
+    # Upload original file
+    original_file_path = storage.upload(
+        content, 
+        file.filename,
+        folder=f"users/{current_user['id']}/originals"
+    )
+
+    # Upload converted PDF
+    pdf_filename = file.filename.rsplit(".", 1)[0] + ".pdf"
+    pdf_file_path = storage.upload(
+        converted_pdf_bytes,
+        pdf_filename,
+        folder=f"users/{current_user['id']}/pdfs"
+    )
+
+    is_converted = (ext != "pdf")
+    
+    # Generate PREVIEW thumbnail (first page as preview)
+    preview_thumb_bytes = generate_file_thumbnail(converted_pdf_bytes, 0)
+
+    # Upload preview thumbnail
+    preview_thumb_path = storage.upload(
+        preview_thumb_bytes,
+        f"{file.filename}_preview.png",
+        folder=f"users/{current_user['id']}/thumbnails/previews"
+    )
+
+    # Generate page thumbnails for navigation
+    page_thumbnail_refs = []
+    all_page_thumbnails = generate_all_page_thumbnails(converted_pdf_bytes)
+        
+    for page_num, thumb_bytes in all_page_thumbnails.items():
+        page_thumb_path = storage.upload(
+            thumb_bytes,
+            f"{file.filename}_page_{page_num}_thumb.png",
+            folder=f"users/{current_user['id']}/thumbnails/pages"
+        )
+        page_thumbnail_refs.append({
+            "page": page_num,
+            "thumbnail_path": page_thumb_path,
+            "is_preview": False
+        })
+
+    # Save document metadata
+    doc_data = {
+        "filename": file.filename,
+        "uploaded_at": datetime.utcnow(),
+        "owner_id": ObjectId(current_user["id"]),
+        "owner_email": current_user.get("email"),
+        "mime_type": file.content_type,
+        "size": len(content),
+        "page_count": page_count,
+        "status": "draft",
+        "common_message": "Please review and sign this document at your earliest convenience.",
+        
+        # Storage paths instead of GridFS IDs
+        "original_file_path": original_file_path,
+        "pdf_file_path": pdf_file_path,
+        "signed_pdf_path": None,
+        
+        "recipient_count": 0,
+        "signed_count": 0,
+        "source": "local",
+        "is_converted": is_converted,
+        "envelope_id": envelope_id_value,
+        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id,
+        "preview_thumbnail_path": preview_thumb_path,
+        "page_thumbnails": page_thumbnail_refs,
+        "has_preview": True
+    }
+
+    result = db.documents.insert_one(doc_data)
+    doc_data["_id"] = result.inserted_id
+    
+    # Register original PDF as first file
+    db.document_files.insert_one({
+        "document_id": result.inserted_id,
+        "file_path": pdf_file_path,  # Changed from file_id
+        "thumbnail_path": preview_thumb_path,  # Changed from thumbnail_file_id
+        "page_thumbnails": page_thumbnail_refs,
+        "filename": file.filename,
+        "page_count": page_count,
+        "order": 1,
+        "uploaded_at": datetime.utcnow(),
+        "source": "original"
+    })
+
+    # Log event
+    log_metadata = {
+        "filename": file.filename,
+        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id
+    }
+    if envelope_id_value:
+        log_metadata["envelope_id"] = envelope_id_value
+        
+    _log_event(str(doc_data["_id"]), current_user, "upload_document", log_metadata, request)
+    
+    return {
+        "message": "Document uploaded successfully", 
+        "document": serialize_document(doc_data),
+        "envelope_id": envelope_id_value,
+        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id
+    }
+
+
+@router.post("/{document_id}/add-file")
+async def add_file_to_document(
+    document_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    if doc["status"] != "draft":
+        raise HTTPException(400, "Cannot add files after sending")
+
+    content = await file.read()
+    pdf_bytes = convert_to_pdf(content, file.filename)
+
+    if not pdf_bytes:
+        raise HTTPException(400, "File cannot be converted")
+
+    page_count = get_pdf_page_count(pdf_bytes)
+
+    # ============================================
+    # Upload to Azure Blob Storage
+    # ============================================
+    pdf_file_path = storage.upload(
+        pdf_bytes,
+        file.filename,
+        folder=f"users/{current_user['id']}/documents/{document_id}/files"
+    )
+
+    # Calculate correct order
+    last = db.document_files.find_one(
+        {"document_id": ObjectId(document_id)},
+        sort=[("order", -1)]
+    )
+    next_order = (last["order"] + 1) if last else 1
+    
+    # Generate preview thumbnail (first page)
+    preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
+
+    preview_thumb_path = storage.upload(
+        preview_thumb_bytes,
+        f"{file.filename}_preview.png",
+        folder=f"users/{current_user['id']}/thumbnails/{document_id}"
+    )
+
+    db.document_files.insert_one({
+        "document_id": ObjectId(document_id),
+        "file_path": pdf_file_path,
+        "thumbnail_path": preview_thumb_path,
+        "filename": file.filename,
+        "page_count": page_count,
+        "order": next_order,
+        "uploaded_at": datetime.utcnow(),
+        "source": "added",
+        "has_preview": True
+    })
+
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$inc": {"page_count": page_count}}
+    )
+    
+    _log_event(
+        document_id,
+        current_user,
+        "file_added",
+        {
+            "filename": file.filename,
+            "pages": page_count,
+            "file_path": pdf_file_path
+        },
+        request
+    )
+
+    return {"message": "File added successfully"}
+
+
+@router.get("/{document_id}/files")
+async def list_files(document_id: str, current_user: dict = Depends(get_current_user)):
+    files = list(
+        db.document_files
+        .find({"document_id": ObjectId(document_id)})
+        .sort("order", 1)
+    )
+
+    current_page = 1
+    response = []
+
+    for f in files:
+        start_page = current_page
+        end_page = current_page + f["page_count"] - 1
+
+        response.append({
+            "id": str(f["_id"]),
+            "filename": f["filename"],
+            "pages": f["page_count"],
+            "order": f["order"],
+            "source": f.get("source", "added"),
+
+            # ✅ NEW (Zoho-style)
+            "start_page": start_page,
+            "end_page": end_page,
+            "page_range": (
+                f"Page {start_page}"
+                if start_page == end_page
+                else f"Pages {start_page}–{end_page}"
+            ),
+            "thumbnail_url": f"/documents/{document_id}/files/{f['_id']}/thumbnail"
+        })
+
+        current_page = end_page + 1
+
+    return response
+
+
+
+@router.get("/{document_id}/files/{file_id}/thumbnails")
+async def get_file_thumbnails(
+    document_id: str,
+    file_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    file = db.document_files.find_one({
+        "_id": ObjectId(file_id),
+        "document_id": ObjectId(document_id)
+    })
+    if not file:
+        raise HTTPException(404, "File not found")
+
+    # Calculate combined start_page
+    files = list(
+        db.document_files
+        .find({"document_id": ObjectId(document_id)})
+        .sort("order", 1)
+    )
+
+    current_page = 1
+    start_page = 1
+    for f in files:
+        if f["_id"] == file["_id"]:
+            start_page = current_page
+            break
+        current_page += f["page_count"]
+
+    # Get PDF from Azure Storage
+    pdf_bytes = storage.download(file["file_path"])
+    thumbs = generate_pdf_thumbnails(pdf_bytes)
+
+    return {
+        "file_id": file_id,
+        "filename": file["filename"],
+        "start_page": start_page,
+        "end_page": start_page + file["page_count"] - 1,
+        "pages": [
+            {
+                "page_number": start_page + idx,
+                "thumbnail": base64.b64encode(img).decode("utf-8")
+            }
+            for idx, img in enumerate(thumbs)
+        ]
+    }
+
+@router.get("/{document_id}/files/{file_id}/thumbnail")
+async def view_file_preview(
+    document_id: str,
+    file_id: str,
+    request: Request,
+    width: int = Query(400, ge=100, le=1200),
+    height: int = Query(300, ge=100, le=800)
+):
+    """
+    Get PREVIEW image for a file (first page as preview).
+    """
+    # 🔐 Token from query (img-safe)
+    token = request.query_params.get("token")
+    if not token:
+        raise HTTPException(401, "Missing token")
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("id") or payload.get("_id")
+    except JWTError:
+        raise HTTPException(401, "Invalid token")
+
+    file = db.document_files.find_one({
+        "_id": ObjectId(file_id),
+        "document_id": ObjectId(document_id)
+    })
+
+    if not file:
+        raise HTTPException(404, "File not found")
+
+    # ============================================
+    # Get thumbnail from Azure Blob Storage
+    # ============================================
+    if file.get("thumbnail_path"):
+        try:
+            img_bytes = storage.download(file["thumbnail_path"])
+        except Exception as e:
+            print(f"Error loading thumbnail: {e}")
+            # Generate from first page as fallback
+            pdf_bytes = storage.download(file["file_path"])
+            img_bytes = generate_file_thumbnail(pdf_bytes, 0)
+    else:
+        # Generate from first page
+        pdf_bytes = storage.download(file["file_path"])
+        img_bytes = generate_file_thumbnail(pdf_bytes, 0)
+    
+    # Resize if needed
+    if width != 400 or height != 300:
+        img = Image.open(io.BytesIO(img_bytes))
+        img.thumbnail((width, height), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG', optimize=True)
+        img_bytes = buffer.getvalue()
+
+    return StreamingResponse(
+        io.BytesIO(img_bytes),
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private, max-age=86400",
+            "Content-Disposition": f'inline; filename="{file.get("filename", "file")}_preview.png"'
+        }
+    )
+
+@router.get("/{document_id}/pages/{page_number}/thumbnail")
+async def get_page_thumbnail(
+    document_id: str,
+    page_number: int,
+    width: int = Query(200, ge=50, le=1000),
+    height: int = Query(300, ge=50, le=1000),
+    token: Optional[str] = Query(None),
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """
+    Get thumbnail for a specific page.
+    Works for both owners and recipients (with token).
+    """
+    try:
+        doc_id = ObjectId(document_id)
+    except:
+        raise HTTPException(400, "Invalid document ID")
+    
+    # Check permissions (same as before)
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("id") or payload.get("_id")
+        except JWTError:
+            raise HTTPException(401, "Invalid token")
+            
+        recipient = db.recipients.find_one({
+            "document_id": doc_id,
+            "$or": [
+                {"email": payload.get("email")},
+                {"_id": ObjectId(user_id) if user_id else None}
+            ]
+        })
+        if not recipient:
+            raise HTTPException(403, "Not authorized")
+    elif current_user:
+        doc = db.documents.find_one({
+            "_id": doc_id,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(403, "Not authorized")
+    else:
+        raise HTTPException(401, "Authentication required")
+    
+    # Get document
+    doc = db.documents.find_one({"_id": doc_id})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    
+    # Validate page number
+    if page_number < 1 or page_number > doc.get("page_count", 0):
+        raise HTTPException(400, f"Invalid page number. Must be between 1 and {doc.get('page_count', 0)}")
+    
+    # Try to get pre-generated thumbnail
+    thumbnails = doc.get("page_thumbnails", [])
+    page_thumbnail = next((t for t in thumbnails if t.get("page") == page_number), None)
+    
+    if page_thumbnail and page_thumbnail.get("thumbnail_path"):
+        try:
+            thumb_bytes = storage.download(page_thumbnail["thumbnail_path"])
+            return StreamingResponse(
+                io.BytesIO(thumb_bytes),
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                    "Content-Disposition": f'inline; filename="page_{page_number}_thumb.png"'
+                }
+            )
+        except Exception as e:
+            print(f"Error loading stored thumbnail: {e}")
+            # Fall through to generate on the fly
+    
+    # Generate thumbnail on the fly
+    pdf_path = doc.get("pdf_file_path")
+    if not pdf_path:
+        raise HTTPException(404, "PDF not found")
+    
+    try:
+        pdf_bytes = storage.download(pdf_path)
+        thumb_bytes = generate_file_thumbnail(pdf_bytes, page_number - 1)  # 0-based index
+        
+        return StreamingResponse(
+            io.BytesIO(thumb_bytes),
+            media_type="image/png",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Disposition": f'inline; filename="page_{page_number}_thumb.png"'
+            }
+        )
+    except Exception as e:
+        print(f"Error generating thumbnail: {e}")
+        raise HTTPException(500, "Error generating thumbnail")
+    
+    
+
+@router.delete("/{document_id}/files/{file_id}")
+async def delete_document_file(
+    document_id: str,
+    file_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    try:
+        doc_id = ObjectId(document_id)
+        file_oid = ObjectId(file_id)
+    except Exception:
+        raise HTTPException(400, "Invalid ID")
+
+    # Owner only
+    doc = db.documents.find_one({
+        "_id": doc_id,
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Draft only
+    if doc["status"] != "draft":
+        raise HTTPException(400, "Cannot delete files after document is sent")
+
+    # Fetch file
+    file = db.document_files.find_one({
+        "_id": file_oid,
+        "document_id": doc_id
+    })
+    if not file:
+        raise HTTPException(404, "File not found")
+
+    # Prevent deleting last file
+    total_files = db.document_files.count_documents({"document_id": doc_id})
+    if total_files <= 1:
+        raise HTTPException(400, "At least one file must remain")
+
+    # ============================================
+    # Delete from Azure Blob Storage
+    # ============================================
+    try:
+        # Delete main file
+        if file.get("file_path"):
+            storage.delete(file["file_path"])
+        
+        # Delete thumbnail if exists
+        if file.get("thumbnail_path"):
+            storage.delete(file["thumbnail_path"])
+    except Exception as e:
+        print(f"Error deleting from storage: {e}")
+
+    # Remove DB record
+    db.document_files.delete_one({"_id": file_oid})
+
+    # Reduce document page count
+    db.documents.update_one(
+        {"_id": doc_id},
+        {"$inc": {"page_count": -file["page_count"]}}
+    )
+
+    # Reorder remaining files
+    remaining = list(
+        db.document_files.find({"document_id": doc_id}).sort("order", 1)
+    )
+    for idx, f in enumerate(remaining, start=1):
+        db.document_files.update_one(
+            {"_id": f["_id"]},
+            {"$set": {"order": idx}}
+        )
+
+    # Audit log
+    _log_event(
+        document_id,
+        current_user,
+        "file_deleted",
+        {
+            "filename": file.get("filename"),
+            "pages": file.get("page_count")
+        },
+        request
+    )
+
+    return {"message": "File deleted successfully"}
+
+
+
+@router.get("/{document_id}/files/{file_id}/history")
+async def get_file_history(
+    document_id: str,
+    file_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    # owner only
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    logs = list(
+        db.document_timeline.find({
+            "document_id": ObjectId(document_id),
+            "metadata.file_id": file_id
+        }).sort("timestamp", 1)
+    )
+
+    return [
+        {
+            "title": log.get("title"),
+            "description": log.get("description"),
+            "actor": log.get("actor", {}),
+            "timestamp": log.get("timestamp")
+        }
+        for log in logs
+    ]
+
+
+
+
+@router.put("/{document_id}/files/reorder")
+async def reorder_files(
+    document_id: str,
+    items: List[FileOrderItem],
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    for item in items:
+        db.document_files.update_one(
+            {
+                "_id": ObjectId(item.file_id),
+                "document_id": ObjectId(document_id)
+            },
+            {"$set": {"order": item.order}}
+        )
+        
+    _log_event(
+        document_id,
+        current_user,
+        "files_reordered",
+        {
+            "new_order": [item.file_id for item in items]
+        },
+        request
+    )
+
+    return {"status": "ok"}
+
+
+
+@router.put("/{document_id}/files/{file_id}/replace")
+async def replace_document_file(
+    document_id: str,
+    file_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    try:
+        doc_oid = ObjectId(document_id)
+        file_oid = ObjectId(file_id)
+    except Exception:
+        raise HTTPException(400, "Invalid document or file ID")
+
+    # Owner + draft only
+    doc = db.documents.find_one({
+        "_id": doc_oid,
+        "owner_id": ObjectId(current_user["id"]),
+        "status": "draft"
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found or not editable")
+
+    # Fetch existing file
+    existing = db.document_files.find_one({
+        "_id": file_oid,
+        "document_id": doc_oid
+    })
+    if not existing:
+        raise HTTPException(404, "File not found")
+
+    old_pages = existing["page_count"]
+    old_filename = existing["filename"]
+
+    # Convert new file to PDF
+    content = await file.read()
+    pdf_bytes = convert_to_pdf(content, file.filename)
+    if not pdf_bytes:
+        raise HTTPException(400, "File cannot be converted to PDF")
+
+    new_pages = get_pdf_page_count(pdf_bytes)
+
+    # ============================================
+    # Upload to Azure Blob Storage
+    # ============================================
+    new_pdf_path = storage.upload(
+        pdf_bytes,
+        file.filename,
+        folder=f"users/{current_user['id']}/documents/{document_id}/files"
+    )
+
+    # Generate preview thumbnail
+    preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
+    preview_thumb_path = storage.upload(
+        preview_thumb_bytes,
+        f"{file.filename}_preview.png",
+        folder=f"users/{current_user['id']}/thumbnails/{document_id}"
+    )
+
+    # Delete old files
+    try:
+        if existing.get("file_path"):
+            storage.delete(existing["file_path"])
+        if existing.get("thumbnail_path"):
+            storage.delete(existing["thumbnail_path"])
+    except Exception as e:
+        print(f"Error deleting old files: {e}")
+
+    # Update document_files
+    db.document_files.update_one(
+        {"_id": file_oid},
+        {"$set": {
+            "file_path": new_pdf_path,
+            "thumbnail_path": preview_thumb_path,
+            "filename": file.filename,
+            "page_count": new_pages,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # Update document page count
+    diff = new_pages - old_pages
+    if diff != 0:
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$inc": {"page_count": diff}}
+        )
+
+    # Timeline log
+    _log_event(
+        document_id,
+        current_user,
+        "file_replaced",
+        {
+            "old_filename": old_filename,
+            "new_filename": file.filename,
+            "old_pages": old_pages,
+            "new_pages": new_pages
+        },
+        request
+    )
+
+    return {
+        "message": "File replaced successfully",
+        "filename": file.filename,
+        "pages": new_pages
+    }
+
+
+
+@router.put("/{document_id}/files/{file_id}/rename")
+async def rename_document_file(
+    document_id: str,
+    file_id: str,
+    payload: dict,  # { "filename": "New File Name.pdf" }
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    # -------------------------
+    # Validate IDs
+    # -------------------------
+    try:
+        doc_oid = ObjectId(document_id)
+        file_oid = ObjectId(file_id)
+    except Exception:
+        raise HTTPException(400, "Invalid document or file ID")
+
+    # -------------------------
+    # Owner + draft check
+    # -------------------------
+    doc = db.documents.find_one({
+        "_id": doc_oid,
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    if doc["status"] != "draft":
+        raise HTTPException(400, "Cannot rename files after sending")
+
+    # -------------------------
+    # Fetch file
+    # -------------------------
+    file = db.document_files.find_one({
+        "_id": file_oid,
+        "document_id": doc_oid
+    })
+    if not file:
+        raise HTTPException(404, "File not found")
+
+    new_name = payload.get("filename", "").strip()
+    if not new_name:
+        raise HTTPException(400, "filename is required")
+
+    old_name = file.get("filename")
+
+    # -------------------------
+    # Preserve extension
+    # -------------------------
+    if "." not in new_name and "." in old_name:
+        ext = old_name.rsplit(".", 1)[-1]
+        new_name = f"{new_name}.{ext}"
+
+    # -------------------------
+    # Update filename
+    # -------------------------
+    db.document_files.update_one(
+        {"_id": file_oid},
+        {"$set": {
+            "filename": new_name,
+            "renamed_at": datetime.utcnow()
+        }}
+    )
+
+    # -------------------------
+    # Timeline log
+    # -------------------------
+    _log_event(
+        document_id,
+        current_user,
+        "file_renamed",
+        {
+            "file_id": str(file_oid),
+            "old_filename": old_name,
+            "new_filename": new_name
+        },
+        request
+    )
+
+    return {
+        "message": "File renamed successfully",
+        "file_id": str(file_oid),
+        "filename": new_name
+    }
+
+
+@router.post("/{document_id}/files/merge")
+async def merge_selected_files(
+    document_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    file_ids = payload.get("file_ids", [])
+    merged_filename = payload.get("merged_filename", "").strip()
+
+    if len(file_ids) < 2:
+        raise HTTPException(400, "Select at least 2 files to merge")
+
+    if not merged_filename:
+        raise HTTPException(400, "merged_filename is required")
+
+    # Preserve extension
+    if "." not in merged_filename:
+        merged_filename += ".pdf"
+
+    doc_oid = ObjectId(document_id)
+
+    # Owner + draft check
+    doc = db.documents.find_one({
+        "_id": doc_oid,
+        "owner_id": ObjectId(current_user["id"]),
+        "status": "draft"
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found or not editable")
+
+    # Fetch selected files IN USER ORDER
+    selected_files = []
+    for fid in file_ids:
+        f = db.document_files.find_one({
+            "_id": ObjectId(fid),
+            "document_id": doc_oid
+        })
+        if not f:
+            raise HTTPException(400, "Invalid file selection")
+        selected_files.append(f)
+
+    # Validate & load PDFs from Azure
+    pdfs = []
+    for f in selected_files:
+        try:
+            data = storage.download(f["file_path"])
+            # Quick validation
+            fitz.open(stream=data, filetype="pdf").close()
+            pdfs.append(data)
+        except Exception as e:
+            raise HTTPException(
+                400,
+                f"File '{f['filename']}' is corrupted: {str(e)}"
+            )
+
+    # Merge PDFs
+    merged_pdf = merge_pdfs(pdfs)
+    total_pages = sum(f["page_count"] for f in selected_files)
+
+    # Upload merged PDF to Azure
+    merged_pdf_path = storage.upload(
+        merged_pdf,
+        merged_filename,
+        folder=f"users/{current_user['id']}/documents/{document_id}/merged"
+    )
+
+    preview_thumb_bytes = generate_file_thumbnail(merged_pdf, 0)
+    preview_thumb_path = storage.upload(
+        preview_thumb_bytes,
+        f"{merged_filename}_preview.png",
+        folder=f"users/{current_user['id']}/thumbnails/{document_id}"
+    )
+
+    # Base file = FIRST selected
+    base_file = selected_files[0]
+
+    # Replace base file
+    db.document_files.update_one(
+        {"_id": base_file["_id"]},
+        {"$set": {
+            "file_path": merged_pdf_path,
+            "thumbnail_path": preview_thumb_path,
+            "filename": merged_filename,
+            "page_count": total_pages,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # Delete other merged files from Azure and DB
+    for f in selected_files[1:]:
+        try:
+            if f.get("file_path"):
+                storage.delete(f["file_path"])
+            if f.get("thumbnail_path"):
+                storage.delete(f["thumbnail_path"])
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+        
+        db.document_files.delete_one({"_id": f["_id"]})
+
+    # Reorder remaining files
+    remaining = list(
+        db.document_files
+        .find({"document_id": doc_oid})
+        .sort("order", 1)
+    )
+
+    for idx, f in enumerate(remaining, start=1):
+        db.document_files.update_one(
+            {"_id": f["_id"]},
+            {"$set": {"order": idx}}
+        )
+
+    # Update document page count
+    db.documents.update_one(
+        {"_id": doc_oid},
+        {"$set": {
+            "page_count": sum(f["page_count"] for f in remaining)
+        }}
+    )
+
+    # Timeline log
+    _log_event(
+        document_id,
+        current_user,
+        "files_merged",
+        {
+            "merged_files": [f["filename"] for f in selected_files],
+            "result_filename": merged_filename
+        },
+        request
+    )
+
+    return {
+        "message": "Files merged successfully",
+        "filename": merged_filename,
+        "pages": total_pages
+    }
+
+
+
+
+@router.post("/from-template")
+async def create_document_from_template(
+    payload: CreateFromTemplateRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    # 1️⃣ Validate template ID
+    try:
+        template_oid = ObjectId(payload.template_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid template ID")
+
+    # 2️⃣ Fetch ACTIVE template (admin uploaded)
+    template = db.document_templates.find_one({
+        "_id": template_oid,
+        "is_active": True
+    })
+
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    # 3️⃣ Load PDF from template storage path
+    template_file_path = template.get("file_path")
+    if not template_file_path:
+        raise HTTPException(status_code=404, detail="Template file missing")
+
+    try:
+        pdf_bytes = storage.download(template_file_path)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Template PDF not found in storage: {str(e)}")
+
+    # 4️⃣ Store PDF as a NEW document in user's storage
+    pdf_file_path = storage.upload(
+        pdf_bytes,
+        f"{payload.title}.pdf",
+        folder=f"users/{current_user['id']}/documents/from_template"
+    )
+
+    # 5️⃣ Generate envelope ID
+    envelope_id = generate_envelope_id(
+        prefix="ENV",
+        user_id=current_user["id"]
+    )
+
+    # 6️⃣ Create document
+    document = {
+        "filename": f"{payload.title}.pdf",
+        "uploaded_at": datetime.utcnow(),
+        "owner_id": ObjectId(current_user["id"]),
+        "owner_email": current_user.get("email"),
+        "mime_type": "application/pdf",
+        "size": len(pdf_bytes),
+        "status": "draft",
+        "source": "template",
+        "template_id": template_oid,
+        "pdf_file_path": pdf_file_path,
+        "original_file_path": None,
+        "signed_pdf_path": None,
+        "envelope_id": envelope_id,
+        "envelope_auto_generated": True,
+        "recipient_count": 0,
+        "signed_count": 0,
+        "page_count": template.get("page_count", 1),
+        "is_converted": False,
+        "common_message": "Please review and sign this document."
+    }
+
+    result = db.documents.insert_one(document)
+    
+    db.document_files.insert_one({
+        "document_id": result.inserted_id,
+        "file_path": pdf_file_path,
+        "filename": f"{payload.title}.pdf",
+        "page_count": template.get("page_count", 1),
+        "order": 1,
+        "uploaded_at": datetime.utcnow(),
+        "source": "template"
+    })
+
+    _log_event(
+        str(result.inserted_id),
+        current_user,
+        "create_document_from_template",
+        {
+            "template_id": payload.template_id,
+            "envelope_id": envelope_id
+        },
+        request
+    )
+
+    return {
+        "success": True,
+        "document_id": str(result.inserted_id),
+        "envelope_id": envelope_id
+    }
+
+
+
+@router.put("/{document_id}/rename")
+async def rename_document(
+    document_id: str,
+    payload: dict,  # { "filename": "New Name.pdf" }
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Rename a document.
+    Owner only.
+    """
+
+    # Validate ObjectId
+    try:
+        oid = ObjectId(document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid document ID")
+
+    doc = db.documents.find_one({
+        "_id": oid,
+        "owner_id": ObjectId(current_user["id"])
+    })
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") == "deleted":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot rename a deleted document"
+        )
+
+    new_name = payload.get("filename", "").strip()
+
+    if not new_name:
+        raise HTTPException(
+            status_code=400,
+            detail="filename is required"
+        )
+
+    # Preserve extension if missing
+    old_name = doc.get("filename", "")
+    if "." in old_name and "." not in new_name:
+        ext = old_name.rsplit(".", 1)[-1]
+        new_name = f"{new_name}.{ext}"
+
+    # Update document
+    db.documents.update_one(
+        {"_id": oid},
+        {"$set": {
+            "filename": new_name,
+            "renamed_at": datetime.utcnow()
+        }}
+    )
+
+    # Audit log
+    _log_event(
+        document_id,
+        current_user,
+        "rename_document",
+        {
+            "old_filename": old_name,
+            "new_filename": new_name
+        },
+        request
+    )
+
+    return {
+        "message": "Document renamed successfully",
+        "document_id": document_id,
+        "filename": new_name
+    }
+
+
+# -----------------------------
+# LIST DOCUMENTS
+# -----------------------------
+@router.get("")
+@router.get("/")
+async def list_documents(
+    current_user: dict = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    status: str | None = Query(None),
+    include_deleted: bool = Query(False),
+    envelope_id: str | None = Query(None)  # Add envelope_id filter
+):
+    """
+    List documents owned by the current user.
+    Filter by envelope_id if provided.
+    """
+    query = {"owner_id": ObjectId(current_user["id"])}
+
+    if status:
+        query["status"] = status
+    elif not include_deleted:
+        query["status"] = {"$ne": "deleted"}
+        
+    # Add envelope_id filter if provided
+    if envelope_id:
+        query["envelope_id"] = envelope_id
+
+    docs = db.documents.find(query).sort("uploaded_at", -1).skip(skip).limit(limit)
+    return [serialize_document(d) for d in docs]
+
+@router.get("/paged")
+async def list_documents_paged(
+    current_user: dict = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    include_deleted: bool = Query(False)
+):
+    owner_id = ObjectId(current_user["id"])
+
+    query = {"owner_id": owner_id}
+
+    if status:
+        query["status"] = status
+    elif not include_deleted:
+        query["status"] = {"$ne": "deleted"}
+
+    total = db.documents.count_documents(query)
+
+    skip = (page - 1) * page_size
+
+    docs = list(
+        db.documents.find(query)
+        .sort("uploaded_at", -1)
+        .skip(skip)
+        .limit(page_size)
+    )
+
+    return {
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": (total + page_size - 1) // page_size,
+        "documents": [serialize_document(d) for d in docs]
+    }
+
+
+@router.get("/stats")
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    owner_id = ObjectId(current_user["id"])
+
+    stats = {}
+
+    for status in DOCUMENT_STATUSES:
+        stats[status] = db.documents.count_documents({
+            "owner_id": owner_id,
+            "status": status
+        })
+
+    stats["total"] = sum(stats.values())
+
+    return stats
+
+
+
+@router.get("/recipients/active")
+async def get_active_signers(current_user: dict = Depends(get_current_user)):
+
+    owner_id = ObjectId(current_user["id"])
+
+    # documents owned by user AND still active
+    active_docs = list(db.documents.find({
+        "owner_id": owner_id,
+        "status": {"$in": ["sent", "in_progress"]}
+    }, {"_id": 1}))
+
+    doc_ids = [d["_id"] for d in active_docs]
+
+    if not doc_ids:
+        return []
+
+    recipients = list(db.recipients.find({
+        "document_id": {"$in": doc_ids},
+        "status": {"$nin": ["completed", "declined", "expired"]}
+    }))
+
+    return [serialize_recipient(r) for r in recipients]
+
+
+
+@router.get("/audit-logs/recent")
+async def get_recent_activities(
+    current_user: dict = Depends(get_current_user),
+    limit: int = Query(20, ge=1, le=100)
+):
+    owner_id = ObjectId(current_user["id"])
+
+    docs = list(db.documents.find(
+        {"owner_id": owner_id},
+        {"_id": 1, "filename": 1, "status": 1}
+    ))
+
+    doc_map = {d["_id"]: d for d in docs}
+
+    logs = list(
+        db.document_timeline
+        .find({"document_id": {"$in": list(doc_map.keys())}})
+        .sort("timestamp", -1)
+        .limit(limit)
+    )
+
+
+    results = []
+
+    for log in logs:
+        doc = doc_map.get(log["document_id"])
+        if not doc:
+            continue
+
+        document_id = log["document_id"]
+
+        total_signers = db.recipients.count_documents({
+            "document_id": document_id,
+            "role": "signer"
+        })
+
+        completed_signers = db.recipients.count_documents({
+            "document_id": document_id,
+            "role": "signer",
+            "status": "completed"
+        })
+
+        results.append({
+            "id": str(log["_id"]),
+            "document_id": str(document_id),
+            "document_name": doc.get("filename", "Untitled"),
+            "status": doc.get("status", "draft"),
+            "action": log.get("action"),
+            "timestamp": log.get("timestamp"),
+
+            "signers_total": total_signers,
+            "signers_completed": completed_signers,
+        })
+
+    return results   # ← ADD THIS
+
+
+# -----------------------------
+# COMMON MESSAGE MANAGEMENT
+# -----------------------------
+
+@router.put("/{document_id}/common-message")
+async def update_common_message(
+    document_id: str,
+    payload: dict,  # {"common_message": "Your common message"}
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Update common message for a document.
+    Can be used at any stage (draft, sent, in_progress).
+    """
+    try:
+        doc = db.documents.find_one({
+            "_id": ObjectId(document_id),
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        common_message = payload.get("common_message", "").strip()
+        
+        if not common_message:
+            raise HTTPException(status_code=400, detail="Common message cannot be empty")
+        
+        # Update document
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$set": {"common_message": common_message}}
+        )
+        
+        _log_event(
+            document_id,
+            current_user,
+            "update_common_message",
+            {"message_preview": common_message[:50] + "..." if len(common_message) > 50 else common_message},
+            request
+        )
+        
+        return {"message": "Common message updated successfully", "common_message": common_message}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to update common message")
+
+
+@router.get("/{document_id}/common-message")
+async def get_common_message(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get common message for a document.
+    """
+    try:
+        doc = db.documents.find_one({
+            "_id": ObjectId(document_id),
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        return {"common_message": doc.get("common_message", "")}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/expiring")
+async def get_expiring_documents(
+    current_user: dict = Depends(get_current_user),
+    days: int = Query(7, ge=1, le=90)
+):
+    """
+    Returns documents owned by the current user that will expire within N days
+    and are still active (sent or in progress).
+    """
+
+    owner_id = ObjectId(current_user["id"])
+
+    now = datetime.utcnow()
+    threshold = now + timedelta(days=days)
+
+    docs = list(db.documents.find({
+        "owner_id": owner_id,
+        "status": {"$in": ["sent", "in_progress"]},
+        "expires_at": {"$lte": threshold, "$gte": now}
+    }).sort("expires_at", 1))
+
+    return [serialize_document(d) for d in docs]
+
+
+# -----------------------------
+# GET SINGLE DOCUMENT
+# -----------------------------
+@router.get("/{document_id}")
+async def get_document(document_id: str, current_user: dict = Depends(get_current_user)):
+
+    # make invalid IDs safe instead of crashing
+    try:
+        oid = ObjectId(document_id)
+    except Exception:
+        raise HTTPException(400, "Invalid document ID")
+
+    doc = db.documents.find_one({
+        "_id": oid,
+        "owner_id": ObjectId(current_user["id"])
+    })
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return serialize_document(doc)
+
+
+# -----------------------------
+# DOWNLOAD ORIGINAL FILE
+# -----------------------------
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: str, 
+    current_user: dict = Depends(get_current_user), 
+    request: Request = None
+):
+    """
+    Download the original uploaded file (not the converted PDF).
+    Owner-only by default.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id), 
+        "owner_id": ObjectId(current_user["id"])
+    })
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    original_path = doc.get("original_file_path")
+    if not original_path:
+        raise HTTPException(status_code=404, detail="Original file missing")
+
+    try:
+        file_bytes = storage.download(original_path)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Original file not found in storage: {str(e)}")
+
+    # Log download
+    _log_event(
+        document_id, 
+        current_user, 
+        "download_original", 
+        {"filename": doc.get("filename")}, 
+        request
+    )
+
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type=doc.get("mime_type", "application/octet-stream"),
+        headers={"Content-Disposition": f'attachment; filename="{doc["filename"]}"'}
+    )
+
+
+# -----------------------------
+# SOFT DELETE (move to trash)
+# -----------------------------
+@router.delete("/{document_id}")
+async def soft_delete_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None):
+    """
+    Soft delete: mark document as deleted. Files remain in storage and can be restored.
+    """
+    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") == "deleted":
+        raise HTTPException(status_code=400, detail="Document already deleted")
+
+    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}})
+
+    _log_event(document_id, current_user, "soft_delete", request=request)
+    return {"message": "Document moved to trash"}
+
+@router.delete("/{document_id}/permanent")
+async def permanent_delete(
+    request: Request,
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    doc = db.documents.find_one(
+        {"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])}
+    )
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") != "deleted":
+        raise HTTPException(status_code=400, detail="Document must be in trash to permanently delete")
+
+    # ============================================
+    # Delete files from Azure Blob Storage
+    # ============================================
+    for key in ["original_file_path", "pdf_file_path", "signed_pdf_path"]:
+        if doc.get(key):
+            try:
+                storage.delete(doc[key])
+            except Exception as e:
+                print(f"Error deleting {key}: {e}")
+
+    # Delete thumbnails
+    if doc.get("preview_thumbnail_path"):
+        try:
+            storage.delete(doc["preview_thumbnail_path"])
+        except:
+            pass
+
+    if doc.get("page_thumbnails"):
+        for thumb in doc["page_thumbnails"]:
+            if thumb.get("thumbnail_path"):
+                try:
+                    storage.delete(thumb["thumbnail_path"])
+                except:
+                    pass
+
+    # Delete all document files
+    doc_files = db.document_files.find({"document_id": ObjectId(document_id)})
+    for f in doc_files:
+        if f.get("file_path"):
+            try:
+                storage.delete(f["file_path"])
+            except:
+                pass
+        if f.get("thumbnail_path"):
+            try:
+                storage.delete(f["thumbnail_path"])
+            except:
+                pass
+
+    # Delete DB dependencies
+    db.documents.delete_one({"_id": ObjectId(document_id)})
+    db.recipients.delete_many({"document_id": ObjectId(document_id)})
+    db.signatures.delete_many({"document_id": ObjectId(document_id)})
+    db.document_files.delete_many({"document_id": ObjectId(document_id)})
+
+    _log_event(document_id, current_user, "permanent_delete", request=request)
+
+    return {"message": "Document permanently deleted"}
+
+
+# -----------------------------
+# TIMELINE / AUDIT FEED (document)
+# -----------------------------
+@router.get("/{document_id}/timeline")
+async def get_document_timeline(document_id: str, current_user: dict = Depends(get_current_user)):
+    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    logs = list(
+        db.document_timeline
+        .find({"document_id": ObjectId(document_id)})
+        .sort("timestamp", 1)
+    )
+
+    return [
+        serialize_timeline_event(log, doc)
+        for log in logs
+    ]
+
+
+
+
+# -----------------------------
+# GET DOCUMENT STATS
+# -----------------------------
+@router.get("/{document_id}/stats")
+async def get_document_stats(document_id: str, current_user: dict = Depends(get_current_user)):
+
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    total = db.recipients.count_documents({"document_id": ObjectId(document_id)})
+    signed = db.recipients.count_documents({
+        "document_id": ObjectId(document_id),
+        "status": "completed"
+    })
+
+
+    return {
+        "total_recipients": total,
+        "signed_recipients": signed,
+        "pending_recipients": total - signed,
+        "completion_rate": (signed / total * 100) if total > 0 else 0
+    }
+
+
+@router.get("/{document_id}/preview")
+async def get_document_preview(
+    document_id: str,
+    width: int = Query(400, ge=100, le=1200),
+    height: int = Query(300, ge=100, le=800),
+    token: Optional[str] = Query(None),
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """
+    Get the document PREVIEW image (first page as preview).
+    """
+    try:
+        doc_id = ObjectId(document_id)
+    except:
+        raise HTTPException(400, "Invalid document ID")
+    
+    # Check permissions (same as before)
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("id") or payload.get("_id")
+        except JWTError:
+            raise HTTPException(401, "Invalid token")
+            
+        recipient = db.recipients.find_one({
+            "document_id": doc_id,
+            "$or": [
+                {"email": payload.get("email")},
+                {"_id": ObjectId(user_id) if user_id else None}
+            ]
+        })
+        if not recipient:
+            raise HTTPException(403, "Not authorized")
+    elif current_user:
+        doc = db.documents.find_one({
+            "_id": doc_id,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(403, "Not authorized")
+    else:
+        raise HTTPException(401, "Authentication required")
+    
+    # Get document
+    doc = db.documents.find_one({"_id": doc_id})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    
+    # Try to get PREVIEW thumbnail from Azure
+    if doc.get("preview_thumbnail_path"):
+        try:
+            thumb_bytes = storage.download(doc["preview_thumbnail_path"])
+            
+            # Resize if needed
+            if width != 400 or height != 300:
+                img = Image.open(io.BytesIO(thumb_bytes))
+                img.thumbnail((width, height), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG', optimize=True)
+                thumb_bytes = buffer.getvalue()
+            
+            return StreamingResponse(
+                io.BytesIO(thumb_bytes),
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                    "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
+                }
+            )
+        except Exception as e:
+            print(f"Error loading preview thumbnail: {e}")
+            # Fall through to generate from PDF
+    
+    # Fallback: Generate preview from first page
+    pdf_path = doc.get("pdf_file_path")
+    if not pdf_path:
+        raise HTTPException(404, "PDF not found")
+    
+    try:
+        pdf_bytes = storage.download(pdf_path)
+        thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)  # First page
+        
+        return StreamingResponse(
+            io.BytesIO(thumb_bytes),
+            media_type="image/png",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
+            }
+        )
+    except Exception as e:
+        print(f"Error generating preview: {e}")
+        raise HTTPException(500, "Error generating preview")
+
+# -----------------------------
+# DOWNLOAD FINAL SIGNED PDF
+# -----------------------------
+@router.get("/{document_id}/signed-download")
+async def download_signed(
+    document_id: str, 
+    request: Request
+):
+    """
+    Download signed document (accessible by both owner and recipients).
+    Includes ALL completed signatures and form fields.
+    """
+    current_user = await get_user_from_request(request)
+
+    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    is_owner = doc["owner_id"] == ObjectId(current_user["id"])
+    is_recipient = db.recipients.find_one({
+        "document_id": ObjectId(document_id), 
+        "email": current_user["email"]
+    })
+
+    if not is_owner and not is_recipient:
+        raise HTTPException(403, "Not authorized")
+
+    # Load base PDF from Azure
+    pdf_path = doc.get("pdf_file_path")
+    if not pdf_path:
+        raise HTTPException(404, "PDF not found")
+    
+    try:
+        pdf_bytes = storage.download(pdf_path)
+    except Exception as e:
+        print(f"Error reading PDF: {str(e)}")
+        raise HTTPException(404, "PDF file not found in storage")
+    
+    # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+    pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+    
+    # Add envelope header
+    envelope_id = doc.get("envelope_id")
+    if envelope_id:
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+
+    name = doc["filename"].rsplit(".", 1)[0]
+    filename = f"{name}_signed.pdf"
+
+    _log_event(
+        document_id,
+        current_user,
+        "download_signed_or_current_pdf",
+        {
+            "used_signed_version": False,  # We're generating dynamically
+            "envelope_id": envelope_id
+        },
+        request=request
+    )
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+    
+    
+@router.get("/{doc_id}/builder-pdf")
+async def builder_pdf(
+    request: Request, 
+    doc_id: str,
+    show_fields: bool = Query(True),
+    show_envelope_header: bool = Query(True)
+):
+    user = await get_user_from_request(request)
+
+    doc = db.documents.find_one({
+        "_id": ObjectId(doc_id),
+        "owner_id": ObjectId(user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id)
+    }))
+
+    # ✅ Always load merged PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+
+    # ✅ Apply envelope header (FULL DOCUMENT)
+    if show_envelope_header and doc.get("envelope_id"):
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=doc["envelope_id"],
+            color="#000000"
+        )
+
+    # ✅ Apply fields to ALL pages
+    # if show_fields and fields:
+    #     enriched = [serialize_field_with_recipient(f) for f in fields]
+    #     pdf_bytes = PDFEngine.apply_field_placeholders(
+    #         pdf_bytes,
+    #         enriched
+    #     )
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline"}
+    )
+
+
+
+@router.get("/{doc_id}/owner-preview")
+async def owner_preview(
+    request: Request, 
+    doc_id: str,
+    show_fields: bool = Query(True, description="Show field overlays"),
+    highlight_incomplete: bool = Query(True, description="Highlight incomplete fields"),
+    show_status: bool = Query(True, description="Show current signing status"),
+    use_recipient_colors: bool = Query(True, description="Use recipient colors for field placeholders"),
+    show_envelope_header: bool = Query(True, description="Show envelope ID in header")  # NEW
+):
+    """
+    Owner preview showing field placeholders with current signing status.
+    Shows all fields with their current state (completed/pending).
+    Uses recipient-based colors for field placeholders.
+    """
+    user = await get_user_from_request(request)
+
+    doc = db.documents.find_one({
+        "_id": ObjectId(doc_id),
+        "owner_id": ObjectId(user["id"])
+    })
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Get all fields for this document
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id)
+    }))
+    
+    # Get all recipients for color mapping
+    recipients = list(db.recipients.find({
+        "document_id": ObjectId(doc_id)
+    }))
+    
+    # Create recipient map
+    recipient_map = {}
+    for r in recipients:
+        recipient_id = str(r["_id"])
+        recipient_map[recipient_id] = {
+            "id": recipient_id,
+            "name": r.get("name", ""),
+            "email": r.get("email", ""),
+            "color": r.get("color", "")
+        }
+    
+    # Enrich fields with recipient info and completion status
+    enriched_fields = []
+    for field in fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = field.get("completed_at") is not None
+        
+        # Add recipient info
+        recipient_id = str(field.get("recipient_id"))
+        if recipient_id in recipient_map:
+            enriched["recipient"] = recipient_map[recipient_id]
+        
+        # ✅ ALWAYS normalize completed field values
+        if enriched.get("is_completed"):
+            enriched["display_value"] = normalize_field_value(field)
+        
+        enriched_fields.append(enriched)
+    
+    # Load PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+
+    
+    # ============================================
+    # NEW: Apply envelope header if envelope ID exists
+    # ============================================
+    envelope_id = doc.get("envelope_id")
+    if show_envelope_header and envelope_id:
+        document_name = doc.get("filename", "Document")
+        status = doc.get("status", "draft").replace("_", " ").title()
+        
+        # Get sender info
+        sender_email = doc.get("owner_email", user.get("email", ""))
+        sender_name = ""
+        user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+        if user_record:
+            sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
+        
+        # Format dates
+        created_date = doc.get("uploaded_at")
+        if created_date:
+            created_date = created_date.strftime("%Y-%m-%d") if hasattr(created_date, 'strftime') else str(created_date)[:10]
+        
+        # Apply minimal header for preview (not full header)
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    
+    # Apply field placeholders if requested
+    if show_fields and enriched_fields:
+        # Apply completed field values first
+        completed_fields = [f for f in enriched_fields if f.get("is_completed", False)]
+        if completed_fields:
+            signatures = []
+            form_fields = []
+
+            for field in completed_fields:
+                field_type = field.get("type")
+                field_value = field.get("display_value") or field.get("value")
+
+                # 🔹 IMAGE FIELDS (signature / initials / stamp)
+                if field_type in IMAGE_FIELDS:
+                    if isinstance(field_value, dict) and field_value.get("image"):
+                        signatures.append({
+                            "field_id": field["id"],
+                            "image": field_value["image"],
+                            "page": field.get("page", 0),
+                            "x": field.get("x", field.get("pdf_x", 0)),
+                            "y": field.get("y", field.get("pdf_y", 0)),
+                            "width": field.get("width", field.get("pdf_width", 120)),
+                            "height": field.get("height", field.get("pdf_height", 40)),
+                            "opacity": 1.0,
+                            "is_completed": True
+                        })
+
+                # 🔹 FORM FIELDS (text / checkbox / radio / dropdown)
+                else:
+                    render_data = get_field_render_data(field)
+                    render_data["_render_completed"] = True
+                    render_data["is_completed"] = True
+                    form_fields.append(render_data)
+
+        
+        # Apply placeholders for all fields with recipient colors
+        pdf_bytes = PDFEngine.apply_field_placeholders(
+            pdf_bytes, 
+            enriched_fields,
+            show_values=True,
+            highlight_incomplete=highlight_incomplete,
+            # border_style="professional",
+            use_recipient_colors=use_recipient_colors
+        )
+    
+    # Apply status-based watermark
+    watermark_text = None
+    if doc.get("status") == "draft":
+        watermark_text = "DRAFT"
+    elif doc.get("status") in ["sent", "in_progress"]:
+        total_recipients = db.recipients.count_documents({"document_id": ObjectId(doc_id)})
+        completed_recipients = db.recipients.count_documents({
+            "document_id": ObjectId(doc_id),
+            "status": "completed"
+        })
+        
+        if total_recipients > 0:
+            progress_percent = int((completed_recipients / total_recipients) * 100)
+            watermark_text = f"IN PROGRESS - {completed_recipients}/{total_recipients} ({progress_percent}%)"
+        else:
+            watermark_text = "IN PROGRESS - NO RECIPIENTS"
+    elif doc.get("status") == "completed":
+        watermark_text = "COMPLETED"
+    elif doc.get("status") == "declined":
+        watermark_text = "DECLINED"
+    elif doc.get("status") == "expired":
+        watermark_text = "EXPIRED"
+    elif doc.get("status") == "voided":
+        watermark_text = "VOIDED"
+    
+    # if watermark_text:
+    #     pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, watermark_text)
+    
+    # Add overall status summary at bottom of first page
+    # if show_status and not doc.get("signed_pdf_id"):
+    #     try:
+    #         pdf = fitz.open(stream=pdf_bytes, filetype="pdf")
+            
+    #         # 🔒 ONLY add overlay to page 0
+    #         if show_status and len(pdf) > 0:
+    #             page = pdf[0]
+    #             rect = page.rect
+                
+    #             summary_rect = fitz.Rect(
+    #                 rect.x0 + 20,
+    #                 rect.y1 - 100,
+    #                 rect.x1 - 20,
+    #                 rect.y1 - 20
+    #             )
+                
+    #             all_recipients = list(db.recipients.find({"document_id": ObjectId(doc_id)}))
+    #             total = len(all_recipients)
+    #             completed = sum(1 for r in all_recipients if r.get("status") == "completed")
+    #             pending = total - completed
+                
+    #             status_text = f"DOCUMENT STATUS: {doc.get('status', 'unknown').upper()}\n"
+    #             status_text += f"Signing Progress: {completed}/{total} completed ({int((completed/total)*100) if total > 0 else 0}%)\n"
+    #             status_text += f"Pending Recipients: {pending}\n"
+    #             status_text += f"Last Updated: {doc.get('updated_at', doc.get('uploaded_at')).strftime('%Y-%m-%d %H:%M') if doc.get('updated_at') or doc.get('uploaded_at') else 'N/A'}"
+                
+    #             # Add envelope ID to status summary if exists
+    #             if envelope_id:
+    #                 status_text += f"\nEnvelope ID: {envelope_id}"
+                
+    #             # page.draw_rect(
+    #             #     summary_rect,
+    #             #     color=(0.9, 0.9, 1.0),
+    #             #     fill=(0.95, 0.95, 1.0),
+    #             #     fill_opacity=0.3,
+    #             #     overlay=True
+    #             # )
+                
+    #             # page.draw_rect(
+    #             #     summary_rect,
+    #             #     color=(0.2, 0.2, 0.8),
+    #             #     width=1,
+    #             #     overlay=True
+    #             # )
+                
+    #             page.insert_textbox(
+    #                 summary_rect,
+    #                 status_text,
+    #                 fontsize=9,
+    #                 fontname="Helvetica",
+    #                 color=(0, 0, 0),
+    #                 align=0,
+    #                 overlay=True
+    #             )
+            
+    #         pdf_bytes = pdf.tobytes(clean=True)
+    #         pdf.close()
+    #     except Exception as e:
+    #         print(f"Error adding status summary: {e}")
+    
+    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_owner_preview.pdf"
+    
+    # Log the view
+    _log_event(
+        doc_id,
+        user,
+        "owner_preview",
+        {
+            "show_fields": show_fields,
+            "highlight_incomplete": highlight_incomplete,
+            "show_status": show_status,
+            "use_recipient_colors": use_recipient_colors,
+            "show_envelope_header": show_envelope_header,
+            "envelope_id": envelope_id,
+            "document_status": doc.get("status")
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
+
+@router.get("/{doc_id}/view")
+async def view_document(
+    request: Request, 
+    doc_id: str,
+    show_fields: bool = Query(True, description="Show field overlays"),
+    include_signatures: bool = Query(True, description="Include completed signatures"),
+    show_placeholders: bool = Query(True, description="Show placeholders for pending fields"),
+    preview_type: str = Query("all", description="'all', 'signed', or 'fields'"),
+    render_type: str = Query("values", description="'values' (show actual values), 'placeholders' (show field boundaries)"),
+    use_recipient_colors: bool = Query(True, description="Use recipient colors for field placeholders"),
+    show_envelope_header: bool = Query(True, description="Show envelope ID in header")
+):
+    """
+    Unified document viewer with ALL field types properly displayed.
+    Image fields (signature, initials, stamp) are properly rendered when completed.
+    """
+    user = await get_user_from_request(request)
+
+    # Get document
+    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Check permissions
+    is_owner = doc.get("owner_id") == ObjectId(user["id"])
+    is_recipient = db.recipients.find_one({
+        "document_id": ObjectId(doc_id), 
+        "email": user.get("email")
+    })
+    
+    if not is_owner and not is_recipient:
+        raise HTTPException(403, "Not authorized")
+
+    # Get all fields
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id)
+    }))
+    
+    # Enrich fields with consistent value normalization
+    enriched_fields = []
+    for field in fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = field.get("completed_at") is not None
+        
+        # ✅ CRITICAL: Normalize ALL field values using the same function
+        enriched["display_value"] = normalize_field_value(field)
+        enriched["value"] = field.get("value")  # Keep original value too
+        
+        enriched_fields.append(enriched)
+    
+    # Load base PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+    
+    # Apply envelope header if envelope ID exists
+    envelope_id = doc.get("envelope_id")
+    if show_envelope_header and envelope_id:
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    
+    # ============================================
+    # UNIFIED FIELD PROCESSING LOGIC
+    # ============================================
+    
+    # Define field type categories
+    IMAGE_FIELDS = {"signature", "initials", "witness_signature", "stamp"}
+    TEXT_FIELDS = {"textbox", "date", "mail", "dropdown", "radio"}
+    BOOLEAN_FIELDS = {"checkbox", "approval"}
+    ATTACHMENT_FIELDS = {"attachment"}
+    
+    # Separate fields by completion status
+    completed_fields = [f for f in enriched_fields if f.get("is_completed", False)]
+    incomplete_fields = [f for f in enriched_fields if not f.get("is_completed", False)]
+    
+    print(f"View - Total fields: {len(enriched_fields)}")
+    print(f"  - Completed: {len(completed_fields)}")
+    print(f"  - Incomplete: {len(incomplete_fields)}")
+    
+    # Log field types for debugging
+    for field in completed_fields:
+        field_type = field.get("type", "")
+        has_image = False
+        if field_type in IMAGE_FIELDS:
+            value = field.get("display_value") or field.get("value")
+            if isinstance(value, dict) and value.get("image"):
+                has_image = True
+            elif isinstance(value, str) and value.startswith("data:image"):
+                has_image = True
+        print(f"  - Field {field_type}: completed={field.get('is_completed')}, has_image={has_image}")
+    
+    # Handle different preview types
+    if preview_type == "signed":
+        # Show ONLY completed fields
+        pdf_bytes = apply_completed_fields_only(pdf_bytes, completed_fields, IMAGE_FIELDS)
+        
+    elif preview_type == "fields":
+        # Show ONLY field placeholders
+        if show_placeholders:
+            pdf_bytes = apply_field_placeholders_only(
+                pdf_bytes, 
+                incomplete_fields if show_placeholders else enriched_fields,
+                use_recipient_colors=use_recipient_colors,
+                show_values=(render_type != "placeholders")
+            )
+    
+    else:  # preview_type == "all" (default)
+        # ✅ Apply completed fields FIRST
+        if include_signatures and completed_fields:
+            pdf_bytes = apply_all_completed_fields(pdf_bytes, completed_fields, IMAGE_FIELDS)
+        
+        # Apply placeholders for incomplete fields if requested
+        if show_fields and show_placeholders and incomplete_fields:
+            print(f"Applying {len(incomplete_fields)} incomplete fields as placeholders")
+            
+            pdf_bytes = apply_field_placeholders_only(
+                pdf_bytes, 
+                incomplete_fields,
+                use_recipient_colors=use_recipient_colors,
+                show_values=(render_type != "placeholders")
+            )
+
+    # Apply status-based watermarks
+    pdf_bytes = apply_status_watermark(pdf_bytes, doc.get("status"))
+    
+    # Generate filename
+    filename_base = doc.get("filename", "document").rsplit(".", 1)[0]
+    preview_suffix = {
+        "all": "preview",
+        "signed": "signed",
+        "fields": "fields"
+    }.get(preview_type, "view")
+    filename = f"{filename_base}_{preview_suffix}.pdf"
+    
+    # Log the view
+    _log_event(
+        doc_id,
+        user,
+        "view_document",
+        {
+            "preview_type": preview_type,
+            "show_fields": show_fields,
+            "include_signatures": include_signatures,
+            "show_placeholders": show_placeholders,
+            "completed_count": len(completed_fields),
+            "incomplete_count": len(incomplete_fields),
+            "envelope_id": envelope_id
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
+
+
+@router.get("/{doc_id}/signed-preview")
+async def view_signed_preview(
+    request: Request,
+    doc_id: str,
+    include_audit_trail: bool = Query(True, description="Include audit footer"),
+    include_all_fields: bool = Query(True, description="Include all field types"),
+    show_envelope_header: bool = Query(True, description="Show envelope ID in header")
+):
+    """
+    View the fully signed document with ALL completed signatures and form fields.
+    Image fields (signature, initials, stamp) are properly rendered.
+    """
+    user = await get_user_from_request(request)
+
+    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Check permissions
+    is_owner = doc.get("owner_id") == ObjectId(user["id"])
+    is_recipient = db.recipients.find_one({
+        "document_id": ObjectId(doc_id), 
+        "email": user.get("email")
+    })
+    
+    if not is_owner and not is_recipient:
+        raise HTTPException(403, "Not authorized")
+
+    # Get all completed fields (or all fields if requested)
+    query = {
+        "document_id": ObjectId(doc_id),
+        "completed_at": {"$exists": True}
+    }
+    
+    if not include_all_fields:
+        # Only get fields that should be visible in signed preview
+        query["type"] = {"$nin": ["attachment"]}  # Exclude attachment fields
+    
+    completed_fields = list(db.signature_fields.find(query))
+    
+    if not completed_fields:
+        # If no completed fields, get placeholder fields for preview
+        completed_fields = list(db.signature_fields.find({
+            "document_id": ObjectId(doc_id)
+        }).limit(10))  # Limit to avoid excessive processing
+    
+    # Enrich fields with consistent normalization
+    enriched_fields = []
+    for field in completed_fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = field.get("completed_at") is not None
+        enriched["display_value"] = normalize_field_value(field)
+        enriched["value"] = field.get("value")
+        
+        # Ensure proper rendering flags
+        enriched["_render_completed"] = True
+        enriched["show_placeholder"] = False
+        enriched["is_placeholder"] = False
+        
+        enriched_fields.append(enriched)
+    
+    print(f"Signed preview - Processing {len(enriched_fields)} fields")
+    
+    # Load base PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+    
+    # Apply envelope header if envelope ID exists
+    envelope_id = doc.get("envelope_id")
+    if show_envelope_header and envelope_id:
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    
+    # Process all field types
+    signatures = []
+    form_fields = []
+    
+    for field in enriched_fields:
+        field_type = field.get("type", "")
+        field_value = field.get("display_value") or field.get("value")
+        
+        if field_type in IMAGE_FIELDS:
+            # Handle image-based fields
+            image_data = extract_image_data(field_value)
+            if image_data:
+                signatures.append({
+                    "field_id": field["id"],
+                    "image": image_data,
+                    "page": field.get("page", 0),
+                    "x": field.get("pdf_x") or field.get("x", 0),
+                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "width": field.get("pdf_width") or field.get("width", 100),
+                    "height": field.get("pdf_height") or field.get("height", 30),
+                    "opacity": 1.0,
+                    "is_completed": True
+                })
+                print(f"  - Added {field_type} image for field {field['id']}")
+            else:
+                print(f"  - No image data for {field_type} field {field['id']}, value: {type(field_value)}")
+        else:
+            # Handle all other field types
+            printable_value = extract_printable_value(field_value)
+            if printable_value not in [None, ""]:
+                form_field = create_form_field_data(field, printable_value)
+                form_fields.append(form_field)
+                preview_value = str(printable_value)
+                print(f"  - Added {field_type} form field with value: {preview_value[:50]}")
+    
+    print(f"Processing {len(signatures)} signatures and {len(form_fields)} form fields")
+    
+    # Apply form fields first (text appears under signatures)
+    if form_fields:
+        pdf_bytes = PDFEngine.apply_form_fields_with_values(pdf_bytes, form_fields)
+    
+    # Apply signatures on top
+    if signatures:
+        pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
+            pdf_bytes,
+            signatures,
+            enriched_fields  # Pass field data for coordinate context
+        )
+    
+    # Add audit trail if requested
+    # if include_audit_trail:
+    #     pdf_bytes = PDFEngine.apply_audit_footer(
+    #         pdf_bytes,
+    #         user.get("email", "unknown"),
+    #         request.client.host if request and request.client else "0.0.0.0",
+    #         datetime.utcnow().isoformat()
+    #     )
+    
+    # Apply "SIGNED" watermark if all recipients completed
+    all_recipients = list(db.recipients.find({"document_id": ObjectId(doc_id)}))
+    all_completed = all(r.get("status") == "completed" for r in all_recipients)
+    
+    if all_completed:
+        pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "SIGNED")
+    elif doc.get("status") == "in_progress":
+        pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "IN PROGRESS")
+    elif doc.get("status") == "completed":
+        pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "FINAL")
+    
+    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_signed_preview.pdf"
+    
+    # Log the view
+    _log_event(
+        doc_id,
+        user,
+        "view_signed_preview",
+        {
+            "include_audit_trail": include_audit_trail,
+            "include_all_fields": include_all_fields,
+            "show_envelope_header": show_envelope_header,
+            "envelope_id": envelope_id,
+            "field_count": len(enriched_fields),
+            "signature_count": len(signatures),
+            "form_field_count": len(form_fields)
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+    
+@router.get("/{document_id}/view-with-fields")
+async def view_document_with_fields(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    preview_type: str = Query("overlay", description="'overlay' or 'final'"),
+    show_envelope_header: bool = Query(True, description="Show envelope ID in header")
+):
+    """
+    View document with field overlays or final signatures.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    
+    # Get all fields with recipient info
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(document_id)
+    }))
+    
+    enriched_fields = []
+    for field in fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched_fields.append(enriched)
+    
+    # Load PDF
+    if preview_type == "final" and doc.get("signed_pdf_path"):
+        pdf_bytes = storage.download(doc["signed_pdf_path"])
+    else:
+        pdf_bytes = load_document_pdf(doc, document_id)
+        
+        # Apply field overlays
+        if enriched_fields:
+            pdf_bytes = PDFEngine.apply_field_placeholders(pdf_bytes, enriched_fields)
+    
+    # Apply envelope header if envelope ID exists
+    envelope_id = doc.get("envelope_id")
+    if show_envelope_header and envelope_id:
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    
+    filename = f"{doc['filename'].rsplit('.', 1)[0]}_with_fields.pdf"
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
+@router.get("/{doc_id}/field-preview")
+async def view_field_preview(
+    request: Request,
+    doc_id: str,
+    show_values: bool = Query(True, description="Show field values if completed"),
+    highlight_incomplete: bool = Query(True, description="Highlight incomplete fields"),
+    show_envelope_header: bool = Query(True, description="Show envelope ID in header")  # NEW
+):
+    """
+    Optimized field preview showing all fields with clear visual indicators.
+    Completed fields show values, incomplete fields show placeholders.
+    """
+    user = await get_user_from_request(request)
+
+    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Owner only for field preview
+    if doc.get("owner_id") != ObjectId(user["id"]):
+        raise HTTPException(403, "Only document owner can view field preview")
+
+    # Get all fields
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id)
+    }))
+    
+    # Enrich fields
+    enriched_fields = []
+    for field in fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = field.get("completed_at") is not None
+        
+        # ✅ ALWAYS normalize completed field values
+        if enriched.get("is_completed"):
+            enriched["display_value"] = normalize_field_value(field)
+                
+        enriched_fields.append(enriched)
+    
+    # Load PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+
+    
+    # ============================================
+    # NEW: Apply envelope header if envelope ID exists
+    # ============================================
+    envelope_id = doc.get("envelope_id")
+    if show_envelope_header and envelope_id:
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    
+    # Separate completed and incomplete fields
+    completed_fields = [f for f in enriched_fields if f.get("is_completed", False)]
+    incomplete_fields = [f for f in enriched_fields if not f.get("is_completed", False)]
+    
+    # Apply completed field values if requested
+    if show_values and completed_fields:
+        field_data = []
+        for field in completed_fields:
+            render_data = get_field_render_data(field)
+            render_data["is_completed"] = True
+            render_data["_render_completed"] = True 
+            field_data.append(render_data)
+        
+        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, field_data)
+    
+    # Apply placeholders for all fields
+    # Note: Completed fields won't get borders/backgrounds in apply_field_placeholders
+    if enriched_fields:
+        pdf_bytes = PDFEngine.apply_field_placeholders(
+            pdf_bytes, 
+            enriched_fields,
+            show_values=show_values,
+            highlight_incomplete=highlight_incomplete
+        )
+    
+    # Add preview watermark
+    if doc.get("status") == "draft":
+        pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "FIELD PREVIEW")
+    
+    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_field_preview.pdf"
+    
+    # Log the view
+    _log_event(
+        doc_id,
+        user,
+        "view_field_preview",
+        {
+            "show_values": show_values,
+            "highlight_incomplete": highlight_incomplete,
+            "show_envelope_header": show_envelope_header,
+            "envelope_id": envelope_id,
+            "completed_count": len(completed_fields),
+            "incomplete_count": len(incomplete_fields)
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )  
+
+# -----------------------------
+# VOID DOCUMENT (prevent further signing)
+# -----------------------------
+@router.post("/{document_id}/void")
+async def void_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None):
+    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") == "voided":
+        raise HTTPException(status_code=400, detail="Document already voided")
+
+    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "voided", "voided_at": datetime.utcnow()}})
+    _log_event(document_id, current_user, "void_document", request=request)
+    return {"message": "Document voided successfully"}
+
+@router.post("/{document_id}/unvoid")
+async def unvoid_document(
+    request: Request,
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") != "voided":
+        raise HTTPException(status_code=400, detail="Document is not voided")
+
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"status": "draft", "unvoided_at": datetime.utcnow()}}
+    )
+
+    _log_event(document_id, current_user, "unvoid_document", request=request)
+
+    return {"message": "Void canceled. Document is now draft."}
+
+# -----------------------------
+# RESTORE (from deleted or voided)
+# -----------------------------
+@router.post("/{document_id}/restore")
+async def restore_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None):
+    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") not in ["deleted", "voided"]:
+        raise HTTPException(status_code=400, detail="Document cannot be restored")
+
+    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "draft", "restored_at": datetime.utcnow()}})
+    _log_event(document_id, current_user, "restore_document", request=request)
+    return {"message": "Document restored successfully"}
+
+
+
+@router.post("/signing/recipient/{recipient_id}/decline")
+async def decline_document(
+    recipient_id: str,
+    payload: DeclinePayload,
+    request: Request ,
+    current_user: dict = Depends(get_current_user),
+    
+):
+    try:
+        rid = ObjectId(recipient_id)
+    except:
+        raise HTTPException(400, "Invalid recipient ID")
+
+    recipient = db.recipients.find_one({
+        "_id": rid,
+        "email": current_user["email"]
+    })
+    if not recipient:
+        raise HTTPException(403, "Not authorized")
+
+    if recipient["status"] in ["completed", "declined", "expired"]:
+        raise HTTPException(400, "Cannot decline at this stage")
+
+    doc = db.documents.find_one({"_id": recipient["document_id"]})
+    guard_document_active(doc)
+
+    if doc["status"] not in ["sent", "in_progress"]:
+        raise HTTPException(400, "Document is not active")
+
+    now = datetime.utcnow()
+
+    # 1️⃣ Mark recipient declined
+    db.recipients.update_one(
+        {"_id": rid},
+        {"$set": {
+            "status": "declined",
+            "declined_at": now,
+            "decline_reason": payload.reason
+        }}
+    )
+
+    # 2️⃣ Expire all other pending recipients
+    db.recipients.update_many(
+        {
+            "document_id": doc["_id"],
+            "_id": {"$ne": rid},
+            "status": {"$nin": ["completed", "declined"]}
+        },
+        {"$set": {"status": "expired", "expired_at": now}}
+    )
+
+    # 3️⃣ Auto-cancel document
+    db.documents.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {
+            "status": "declined",
+            "declined_at": now
+        }}
+    )
+
+    # 4️⃣ Audit log
+    _log_event(
+        str(doc["_id"]),
+        current_user,
+        "recipient_declined",
+        {"reason": payload.reason},
+        request
+    )
+
+    return {"message": "Document declined successfully"}
+
+
+
+@router.post("/{document_id}/set-expiry")
+async def set_document_expiry(
+    document_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    if doc["status"] not in ["draft", "sent", "in_progress"]:
+        raise HTTPException(
+            400,
+            "Cannot set expiry for completed, declined, expired, or deleted documents"
+        )
+
+    expiry_days = payload.get("expiry_days")
+
+    # 🔹 Remove expiry
+    if expiry_days is None:
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$unset": {"expires_at": "", "expiry_days": ""}}
+        )
+
+        _log_event(
+            document_id,
+            current_user,
+            "expiry_removed",
+            request=request
+        )
+
+        return {"message": "Expiry removed successfully"}
+
+    # 🔹 Validate expiry days
+    try:
+        expiry_days = int(expiry_days)
+        if expiry_days <= 0:
+            raise ValueError()
+    except:
+        raise HTTPException(400, "expiry_days must be a positive integer")
+
+    expires_at = datetime.utcnow() + timedelta(days=expiry_days)
+
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {
+            "expires_at": expires_at,
+            "expiry_days": expiry_days,
+            "expiry_updated_at": datetime.utcnow()
+        }}
+    )
+
+    _log_event(
+        document_id,
+        current_user,
+        "expiry_set",
+        {"expiry_days": expiry_days, "expires_at": expires_at.isoformat()},
+        request
+    )
+
+    return {
+        "message": "Expiry set successfully",
+        "expires_at": expires_at.isoformat()
+    }
+
+
+@router.put("/{document_id}/envelope-id")
+async def set_envelope_id(
+    document_id: str,
+    payload: dict,  # {"envelope_id": "your-envelope-id"}
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Set or update envelope ID for a document.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    envelope_id = payload.get("envelope_id")
+    
+    if not envelope_id:
+        raise HTTPException(status_code=400, detail="envelope_id is required")
+    
+    # Validate envelope ID format (optional)
+    if not envelope_id.startswith("ENV-"):
+        raise HTTPException(
+            status_code=400,
+            detail="Envelope ID should start with 'ENV-'"
+        )
+    
+    # Check if envelope_id already exists for another document
+    if not validate_envelope_id(envelope_id, document_id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Envelope ID '{envelope_id}' is already in use by another document"
+        )
+    
+    # Update document with envelope_id
+    update_data = {
+        "envelope_id": envelope_id,
+        "envelope_auto_generated": False,
+        "envelope_updated_at": datetime.utcnow()
+    }
+    
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": update_data}
+    )
+    
+    _log_event(
+        document_id,
+        current_user,
+        "set_envelope_id",
+        {"envelope_id": envelope_id},
+        request
+    )
+    
+    return {"message": "Envelope ID set successfully", "envelope_id": envelope_id}
+
+@router.delete("/{document_id}/envelope-id")
+async def remove_envelope_id(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Remove envelope ID from a document.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if not doc.get("envelope_id"):
+        raise HTTPException(status_code=400, detail="Document has no envelope ID")
+    
+    # Remove envelope_id
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$unset": {"envelope_id": ""}}
+    )
+    
+    _log_event(
+        document_id,
+        current_user,
+        "remove_envelope_id",
+        request=request
+    )
+    
+    return {"message": "Envelope ID removed successfully"}
+
+@router.get("/by-envelope/{envelope_id}")
+async def get_document_by_envelope_id(
+    envelope_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get document by envelope ID.
+    """
+    doc = db.documents.find_one({
+        "envelope_id": envelope_id,
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    return serialize_document(doc)
+
+@router.get("/search/envelope")
+async def search_by_envelope_id(
+    envelope_id: str,
+    current_user: dict = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500)
+):
+    """
+    Search documents by envelope ID (partial match).
+    """
+    query = {
+        "owner_id": ObjectId(current_user["id"]),
+        "envelope_id": {"$regex": envelope_id, "$options": "i"}
+    }
+    
+    docs = db.documents.find(query).sort("uploaded_at", -1).skip(skip).limit(limit)
+    
+    return [serialize_document(d) for d in docs]
+
+@router.get("/{doc_id}/envelope-preview")
+async def view_document_with_envelope(
+    request: Request,
+    doc_id: str,
+    show_fields: bool = Query(True, description="Show field overlays"),
+    header_style: str = Query("full", description="Header style: 'full', 'minimal', or 'none'"),
+    include_recipients: bool = Query(True, description="Show recipient info in header")
+):
+    """
+    Preview document with Docusign-like envelope header showing envelope ID.
+    """
+    user = await get_user_from_request(request)
+
+    # Get document
+    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Check permissions
+    is_owner = doc.get("owner_id") == ObjectId(user["id"])
+    is_recipient = db.recipients.find_one({
+        "document_id": ObjectId(doc_id), 
+        "email": user.get("email")
+    })
+    
+    if not is_owner and not is_recipient:
+        raise HTTPException(403, "Not authorized")
+
+    # Check if envelope ID exists
+    envelope_id = doc.get("envelope_id")
+    if not envelope_id:
+        raise HTTPException(400, "Document has no envelope ID")
+
+    # Get document data for header
+    document_name = doc.get("filename", "Document")
+    status = doc.get("status", "draft").replace("_", " ").title()
+    
+    # Get sender info
+    sender_email = doc.get("owner_email", user.get("email", ""))
+    sender_name = ""
+    
+    # Try to get sender name from users collection
+    user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+    if user_record:
+        sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
+    
+    # Format dates
+    created_date = doc.get("uploaded_at")
+    if created_date:
+        created_date = created_date.strftime("%Y-%m-%d") if hasattr(created_date, 'strftime') else str(created_date)[:10]
+    
+    expires_date = doc.get("expires_at")
+    if expires_date:
+        expires_date = expires_date.strftime("%Y-%m-%d") if hasattr(expires_date, 'strftime') else str(expires_date)[:10]
+    
+    # Get all fields for rendering
+    fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id)
+    }))
+    
+    # Get all recipients for header
+    recipients_list = []
+    if include_recipients:
+        recipients = list(db.recipients.find({
+            "document_id": ObjectId(doc_id)
+        }))
+        
+        for r in recipients:
+            recipients_list.append({
+                "name": r.get("name", ""),
+                "email": r.get("email", ""),
+                "role": r.get("role", "signer"),
+                "status": r.get("status", "created")
+            })
+    
+    # Enrich fields
+    enriched_fields = []
+    for field in fields:
+        enriched = serialize_field_with_recipient(field)
+        enriched["is_completed"] = field.get("completed_at") is not None
+        
+        # ✅ ALWAYS normalize completed field values
+        if enriched.get("is_completed"):
+            enriched["display_value"] = normalize_field_value(field)
+        
+        enriched_fields.append(enriched)
+    
+    # Load base PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+
+    
+    # Apply envelope header
+    if header_style == "full":
+        # Apply full Docusign-like header
+        pdf_bytes = PDFEngine.apply_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            document_name=document_name,
+            status=status,
+            sender=sender_name or sender_email,
+            created_date=created_date,
+            expires_date=expires_date,
+            color="#000000"  
+        )
+    elif header_style == "minimal":
+        # Apply minimal header
+        pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
+    # else "none" - no header
+    
+    # Apply field placeholders if requested
+    if show_fields and enriched_fields:
+        pdf_bytes = PDFEngine.apply_field_placeholders(
+            pdf_bytes, 
+            enriched_fields,
+            show_values=True,
+            highlight_incomplete=True,
+            # border_style="professional",
+            use_recipient_colors=True
+        )
+    
+    # Apply completed fields
+    completed_fields = [f for f in enriched_fields if f.get("is_completed", False)]
+    if completed_fields:
+        field_data = []
+        for field in completed_fields:
+            render_data = get_field_render_data(field)
+            render_data["is_completed"] = True
+            render_data["_render_completed"] = True 
+            field_data.append(render_data)
+        
+        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, field_data)
+    
+    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_envelope_{envelope_id}.pdf"
+    
+    # Log the view
+    _log_event(
+        doc_id,
+        user,
+        "view_envelope_preview",
+        {
+            "envelope_id": envelope_id,
+            "header_style": header_style,
+            "show_fields": show_fields,
+            "include_recipients": include_recipients
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
+
+@router.get("/{doc_id}/final-with-envelope")
+async def get_final_document_with_envelope(
+    request: Request,
+    doc_id: str,
+    include_audit_trail: bool = Query(True, description="Include audit footer")
+):
+    """
+    Get final signed document with envelope header.
+    This is the version to send to recipients.
+    """
+    user = await get_user_from_request(request)
+
+    # Get document
+    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    # Check permissions (owner only for final)
+    if doc.get("owner_id") != ObjectId(user["id"]):
+        raise HTTPException(403, "Only document owner can generate final version")
+
+    # Check if envelope ID exists
+    envelope_id = doc.get("envelope_id")
+    if not envelope_id:
+        raise HTTPException(400, "Document has no envelope ID")
+
+    # Get completed fields
+    completed_fields = list(db.signature_fields.find({
+        "document_id": ObjectId(doc_id),
+        "completed_at": {"$exists": True}
+    }))
+    
+    # Load base PDF
+    pdf_bytes = load_document_pdf(doc, doc_id)
+
+    
+    # Apply completed fields
+    if completed_fields:
+        field_data = []
+        for field in completed_fields:
+            enriched = serialize_field_with_recipient(field)
+            enriched["is_completed"] = True
+
+            render_data = get_field_render_data(enriched)
+            render_data["_render_completed"] = True
+            render_data["is_completed"] = True
+
+            field_data.append(render_data)
+
+        
+        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, field_data)
+    
+    # Apply envelope header
+    document_name = doc.get("filename", "Document")
+    status = "COMPLETED" if doc.get("status") == "completed" else doc.get("status", "draft").replace("_", " ").upper()
+    
+    # Get sender info
+    sender_email = doc.get("owner_email", user.get("email", ""))
+    sender_name = ""
+    user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+    if user_record:
+        sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
+    
+    # Format dates
+    created_date = doc.get("uploaded_at")
+    if created_date:
+        created_date = created_date.strftime("%Y-%m-%d") if hasattr(created_date, 'strftime') else str(created_date)[:10]
+    
+    completed_date = doc.get("completed_at") or doc.get("updated_at")
+    if completed_date:
+        completed_date = completed_date.strftime("%Y-%m-%d") if hasattr(completed_date, 'strftime') else str(completed_date)[:10]
+    
+    pdf_bytes = PDFEngine.apply_envelope_header(
+        pdf_bytes,
+        envelope_id=envelope_id,
+        document_name=document_name,
+        status=status,
+        sender=sender_name or sender_email,
+        created_date=created_date,
+        expires_date=completed_date,  # Show completion date instead of expiry
+        color="#0d9488"
+    )
+    
+    # Add audit trail if requested
+    if include_audit_trail:
+        pdf_bytes = PDFEngine.apply_audit_footer(
+            pdf_bytes,
+            user.get("email", "unknown"),
+            request.client.host if request and request.client else "0.0.0.0",
+            datetime.utcnow().isoformat()
+        )
+    
+    filename = f"{document_name.rsplit('.', 1)[0]}_envelope_{envelope_id}_final.pdf"
+    
+    # Log the generation
+    _log_event(
+        doc_id,
+        user,
+        "generate_final_with_envelope",
+        {
+            "envelope_id": envelope_id,
+            "include_audit_trail": include_audit_trail
+        },
+        request
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+    
+    
+@router.get("/{document_id}/download/certificate")
+async def download_certificate_owner(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None,
+    include_timeline: bool = Query(True, description="Include detailed field completion timeline")
+):
+    """
+    Download professional Certificate of Completion for document owner.
+    Same professional design as recipient certificate.
+    """
+    try:
+        # Validate document ID
+        try:
+            doc_oid = ObjectId(document_id)
+        except Exception:
+            raise HTTPException(400, "Invalid document ID format")
+        
+        # Get document
+        doc = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found")
+        
+        # Check if document is completed
+        doc_status = doc.get("status")
+        if doc_status != "completed":
+            raise HTTPException(
+                400, 
+                f"Certificate can only be generated for completed documents. Current status: {doc_status}"
+            )
+        
+        # ========== GATHER ALL DOCUMENT DATA (same as recipient) ==========
+        
+        # Get all recipients
+        recipients = list(db.recipients.find({
+            "document_id": doc_oid
+        }).sort("signing_order", 1))
+        
+        # Get all fields
+        all_fields = list(db.signature_fields.find({
+            "document_id": doc_oid
+        }))
+        
+        # Get completed fields
+        completed_fields = [f for f in all_fields if f.get("completed_at")]
+        
+        # Calculate detailed field statistics
+        total_signatures = len([f for f in all_fields if f.get("type") in ["signature", "witness_signature"]])
+        completed_signatures = len([f for f in completed_fields if f.get("type") in ["signature", "witness_signature"]])
+        
+        total_initials = len([f for f in all_fields if f.get("type") == "initials"])
+        completed_initials = len([f for f in completed_fields if f.get("type") == "initials"])
+        
+        total_form_fields = len([f for f in all_fields if f.get("type") in ["textbox", "date", "mail", "dropdown"]])
+        completed_form_fields = len([f for f in completed_fields if f.get("type") in ["textbox", "date", "mail", "dropdown"]])
+        
+        total_checkboxes = len([f for f in all_fields if f.get("type") in ["checkbox", "radio"]])
+        completed_checkboxes = len([f for f in completed_fields if f.get("type") in ["checkbox", "radio"]])
+        
+        # Get owner/user details
+        owner_name = ""
+        owner_record = db.users.find_one({"_id": doc.get("owner_id")})
+        if owner_record:
+            owner_name = owner_record.get("full_name") or owner_record.get("name") or doc.get("owner_email", "")
+        
+        # Get sender IP from document creation
+        sender_ip = None
+        creation_log = db.document_timeline.find_one({
+            "document_id": doc_oid,
+            "action": "upload_document"
+        })
+        if creation_log and creation_log.get("metadata"):
+            sender_ip = creation_log["metadata"].get("ip") or creation_log.get("metadata", {}).get("ip_address")
+        
+        # Prepare recipients with detailed completion data
+        recipients_data = []
+        for r in recipients:
+            completion_timestamp = None
+            completion_ip = "Unknown"
+            role = r.get("role", "signer")
+            
+            if role == "signer" or role == "in_person_signer":
+                completion_timestamp = r.get("signed_at")
+                completion_ip = r.get("signed_ip", r.get("completed_ip", "Unknown"))
+            elif role == "approver":
+                completion_timestamp = r.get("approved_at")
+                completion_ip = r.get("approved_ip", r.get("completed_ip", "Unknown"))
+            elif role == "form_filler":
+                completion_timestamp = r.get("form_completed_at")
+                completion_ip = r.get("completed_ip", "Unknown")
+            elif role == "witness":
+                completion_timestamp = r.get("witnessed_at")
+                completion_ip = r.get("witnessed_ip", r.get("completed_ip", "Unknown"))
+            elif role == "viewer":
+                completion_timestamp = r.get("viewer_at")
+                completion_ip = r.get("viewed_ip", r.get("completed_ip", "Unknown"))
+            
+            recipients_data.append({
+                "name": r.get("name", "Unknown"),
+                "email": r.get("email", "No email"),
+                "role": role,
+                "status": r.get("status", "pending"),
+                "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else None,
+                "ip_address": completion_ip,
+                "signing_order": r.get("signing_order", 0),
+                "otp_verified": r.get("otp_verified", False),
+                "terms_accepted": r.get("terms_accepted", False),
+            })
+        
+        # Prepare field completion history
+        field_history = []
+        if include_timeline:
+            for field in completed_fields[:25]:
+                field_recipient = db.recipients.find_one({"_id": field.get("recipient_id")})
+                if field_recipient:
+                    completion_time = field.get("completed_at")
+                    field_history.append({
+                        "type": field.get("type", "unknown"),
+                        "signer_name": field_recipient.get("name", "Unknown"),
+                        "completed_at": completion_time.strftime("%Y-%m-%d %H:%M:%S") if completion_time else None,
+                        "ip_address": field.get("completed_ip", "Unknown"),
+                        "page": field.get("page", 0) + 1
+                    })
+            
+            field_history.sort(key=lambda x: x.get("completed_at", ""), reverse=True)
+        
+        # Format dates
+        created_date = doc.get("uploaded_at")
+        created_date_str = created_date.strftime("%B %d, %Y") if created_date else "Unknown"
+        
+        completed_date = doc.get("completed_at") or doc.get("finalized_at")
+        completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else "Unknown"
+        
+        # Generate unique certificate ID
+        certificate_id = f"CERT-{doc.get('envelope_id', uuid.uuid4().hex[:8])}-{datetime.utcnow().strftime('%Y%m%d')}"
+        
+        # ========== PREPARE CERTIFICATE DATA ==========
+        certificate_data = {
+            "envelope_id": doc.get("envelope_id", "N/A"),
+            "document_name": doc.get("filename", "Unknown Document"),
+            "document_id": str(doc["_id"]),
+            "page_count": doc.get("page_count", 0),
+            "status": doc_status,
+            
+            # Dates
+            "created_date": created_date_str,
+            "completed_date": completed_date_str,
+            
+            # Owner information
+            "owner_name": owner_name or doc.get("owner_email", ""),
+            "owner_email": doc.get("owner_email", current_user.get("email", "")),
+            "owner_ip": sender_ip or "Unknown",
+            
+            # Statistics
+            "statistics": {
+                "total_recipients": len(recipients),
+                "completed_recipients": len([r for r in recipients if r.get("status") == "completed"]),
+                "total_fields": len(all_fields),
+                "completed_fields": len(completed_fields),
+                "completion_percentage": round((len(completed_fields) / len(all_fields) * 100), 1) if all_fields else 0,
+                
+                "total_signatures": total_signatures,
+                "signatures_completed": completed_signatures,
+                "signatures_percentage": int((completed_signatures / total_signatures * 100)) if total_signatures > 0 else 0,
+                
+                "total_initials": total_initials,
+                "initials_completed": completed_initials,
+                "initials_percentage": int((completed_initials / total_initials * 100)) if total_initials > 0 else 0,
+                
+                "total_form_fields": total_form_fields,
+                "form_fields_completed": completed_form_fields,
+                "form_fields_percentage": int((completed_form_fields / total_form_fields * 100)) if total_form_fields > 0 else 0,
+                
+                "total_checkboxes": total_checkboxes,
+                "checkboxes_completed": completed_checkboxes,
+                "checkboxes_percentage": int((completed_checkboxes / total_checkboxes * 100)) if total_checkboxes > 0 else 0,
+            },
+            
+            # Recipients
+            "recipients": recipients_data,
+            
+            # Field history
+            "field_history": field_history if include_timeline else [],
+            
+            # Certificate metadata
+            "certificate_id": certificate_id,
+            "generated_at": datetime.utcnow().isoformat(),
+            "generated_by": current_user.get("email", "unknown"),
+            "platform": "SafeSign Professional"
+        }
+        
+        # ========== GENERATE PROFESSIONAL CERTIFICATE PDF ==========
+        try:
+            pdf_bytes = ProfessionalCertificateEngine.create_certificate_pdf(certificate_data)
+        except Exception as e:
+            print(f"Error creating certificate PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # Use fallback
+            from reportlab.pdfgen import canvas
+            
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+            
+            c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
+            c.rect(0, height - 60, width, 60, fill=1, stroke=0)
+            
+            c.setFillColor(colors.white)
+            c.setFont("Helvetica-Bold", 20)
+            c.drawString(50, height - 40, "SafeSign")
+            c.drawString(width - 200, height - 40, "CERTIFICATE OF COMPLETION")
+            
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, height - 100, f"Document: {doc.get('filename', 'Unknown')}")
+            
+            c.setFont("Helvetica", 11)
+            c.drawString(50, height - 130, f"Envelope ID: {doc.get('envelope_id', 'N/A')}")
+            c.drawString(50, height - 150, f"Completed: {completed_date_str}")
+            c.drawString(50, height - 170, f"Total Signers: {len(recipients)}")
+            c.drawString(50, height - 190, f"Certificate ID: {certificate_id}")
+            
+            c.setFont("Helvetica", 9)
+            c.drawString(50, 50, f"Generated: {datetime.utcnow().strftime('%B %d, %Y at %I:%M:%S %p UTC')}")
+            c.drawString(50, 30, "Verified by SafeSign Secure Digital Signature Platform")
+            
+            c.save()
+            buffer.seek(0)
+            pdf_bytes = buffer.read()
+        
+        # ========== CREATE FILENAME ==========
+        safe_name = re.sub(r'[^\w\s-]', '', doc.get('filename', 'document'))
+        base_name = safe_name.rsplit('.', 1)[0][:40]
+        envelope_short = doc.get('envelope_id', certificate_id)[-8:]
+        
+        filename = f"SafeSign_Certificate_{envelope_short}_{base_name}.pdf"
+        filename = re.sub(r'\s+', '_', filename)
+        
+        # ========== LOG THE DOWNLOAD ==========
+        try:
+            _log_event(
+                str(doc["_id"]),
+                current_user,
+                "download_certificate",
+                {
+                    "download_type": "certificate",
+                    "filename": filename,
+                    "envelope_id": doc.get("envelope_id"),
+                    "certificate_id": certificate_id,
+                    "total_recipients": len(recipients),
+                    "total_fields": len(completed_fields)
+                },
+                request
+            )
+        except Exception as e:
+            print(f"Warning: Could not log event: {str(e)}")
+        
+        # ========== RETURN STREAMING RESPONSE ==========
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+                "X-Certificate-Type": "professional_completion",
+                "X-Envelope-ID": doc.get("envelope_id", "none"),
+                "X-Certificate-ID": certificate_id,
+                "X-Document-Status": "completed",
+                "X-Generated-At": certificate_data["generated_at"]
+            }
+        )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Error downloading certificate: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, "Internal server error while downloading certificate")  
+       
+@router.post("/{document_id}/email")
+async def email_document_owner(
+    document_id: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Email the document to specified recipients.
+    Includes ALL completed signatures and form fields.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+        
+        # Get document
+        doc = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found")
+        
+        # Get recipients from payload
+        recipients_list = payload.get("recipients", [])
+        if not recipients_list:
+            raise HTTPException(400, "At least one recipient is required")
+        
+        # Validate email addresses
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        valid_recipients = []
+        
+        for recipient in recipients_list:
+            email = recipient.get("email", "").strip()
+            if not email:
+                continue
+                
+            if not re.match(email_pattern, email):
+                raise HTTPException(400, f"Invalid email address: {email}")
+            
+            valid_recipients.append({
+                "email": email,
+                "name": recipient.get("name", "").strip() or email.split('@')[0]
+            })
+        
+        if not valid_recipients:
+            raise HTTPException(400, "No valid email addresses provided")
+        
+        # Load base PDF from Azure
+        pdf_path = doc.get("pdf_file_path")
+        if not pdf_path:
+            raise HTTPException(404, "PDF not found")
+        
+        try:
+            pdf_bytes = storage.download(pdf_path)
+        except Exception as e:
+            print(f"Error reading PDF: {str(e)}")
+            raise HTTPException(404, "PDF file not found in storage")
+        
+        # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+        
+        # Add envelope header if exists
+        envelope_id = doc.get("envelope_id")
+        if envelope_id:
+            try:
+                pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+                    pdf_bytes,
+                    envelope_id=envelope_id,
+                    color="#000000"
+                )
+            except Exception as e:
+                print(f"Warning: Could not apply envelope header: {str(e)}")
+        
+        # Prepare email content
+        subject = payload.get("subject", f"Document: {doc.get('filename', 'Document')}")
+        body = payload.get("body", "Please find the attached document.")
+        
+        if envelope_id:
+            body += f"\n\nEnvelope ID: {envelope_id}"
+        
+        sender_email = current_user.get("email", "noreply@example.com")
+        sender_name = current_user.get("name", "Document Sender")
+        
+        from .email_service import send_document_email
+        
+        success_count = 0
+        failed_recipients = []
+        
+        for recipient in valid_recipients:
+            try:
+                success = send_document_email(
+                    to_email=recipient["email"],
+                    to_name=recipient["name"],
+                    sender_email=sender_email,
+                    sender_name=sender_name,
+                    subject=subject,
+                    body=body,
+                    document_name=doc.get("filename", "document.pdf"),
+                    pdf_bytes=pdf_bytes,
+                    envelope_id=envelope_id
+                )
+                
+                if success:
+                    success_count += 1
+                else:
+                    failed_recipients.append(recipient["email"])
+            except Exception as e:
+                print(f"Error sending email to {recipient.get('email')}: {str(e)}")
+                failed_recipients.append(recipient["email"])
+        
+        # Log the email event
+        _log_event(
+            str(doc["_id"]),
+            current_user,
+            "email_document",
+            {
+                "recipients_count": len(valid_recipients),
+                "success_count": success_count,
+                "failed_recipients": failed_recipients,
+                "subject": subject,
+                "envelope_id": envelope_id
+            },
+            request
+        )
+        
+        response_data = {
+            "message": f"Document sent to {success_count} recipient(s) successfully",
+            "total_recipients": len(valid_recipients),
+            "success_count": success_count
+        }
+        
+        if failed_recipients:
+            response_data["failed_recipients"] = failed_recipients
+        
+        return response_data
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Error emailing document: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, "Internal server error while emailing document")
+       
+@router.get("/{document_id}/download/signed")
+async def download_signed_document_owner(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Download signed document for document owner.
+    Includes ALL completed signatures and form fields.
+    """
+    try:
+        # Validate document ID
+        try:
+            doc_oid = ObjectId(document_id)
+        except Exception:
+            raise HTTPException(400, "Invalid document ID format")
+        
+        # Get document
+        doc = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found")
+        
+        # Load base PDF from Azure
+        pdf_path = doc.get("pdf_file_path")
+        if not pdf_path:
+            raise HTTPException(404, "PDF not found")
+        
+        try:
+            pdf_bytes = storage.download(pdf_path)
+        except Exception as e:
+            print(f"Error reading PDF: {str(e)}")
+            raise HTTPException(404, "PDF file not found in storage")
+        
+        # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+        
+        # Apply "SIGNED" watermark
+        try:
+            pdf_bytes = PDFEngine.apply_watermark(
+                pdf_bytes,
+                "SIGNED DOCUMENT",
+                color="#4CAF50",
+                opacity=0.1,
+                font_size=48,
+                angle=45
+            )
+        except Exception as e:
+            print(f"Warning: Could not apply watermark: {str(e)}")
+        
+        # Add envelope header if exists
+        envelope_id = doc.get("envelope_id")
+        if envelope_id:
+            try:
+                pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+                    pdf_bytes,
+                    envelope_id=envelope_id,
+                    color="#000000"
+                )
+            except Exception as e:
+                print(f"Warning: Could not apply envelope header: {str(e)}")
+        
+        # Create filename
+        original_filename = doc.get("filename", "document.pdf")
+        base_name = original_filename.rsplit('.', 1)[0]
+        filename = f"signed_{base_name}.pdf"
+        
+        # Log the download
+        try:
+            _log_event(
+                str(doc["_id"]),
+                current_user,
+                "download_signed_document",
+                {
+                    "download_type": "signed",
+                    "filename": filename,
+                    "envelope_id": envelope_id
+                },
+                request
+            )
+        except Exception as e:
+            print(f"Warning: Could not log event: {str(e)}")
+        
+        # Return streaming response
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+                "X-Document-Status": doc.get("status", "unknown"),
+                "X-Download-Type": "signed",
+                "X-Filename": filename
+            }
+        )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Error downloading signed document: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, "Internal server error while downloading document")
+    
+
+@router.get("/{document_id}/download/original")
+async def download_original_document_owner(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Download original (unsigned) document for document owner.
+    """
+    try:
+        # Validate document ID
+        try:
+            doc_oid = ObjectId(document_id)
+        except Exception:
+            raise HTTPException(400, "Invalid document ID format")
+        
+        # Get document
+        doc = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found")
+        
+        # Get original PDF path
+        pdf_path = doc.get("pdf_file_path")
+        if not pdf_path:
+            raise HTTPException(404, "PDF not found")
+        
+        # Get PDF from Azure Storage
+        try:
+            pdf_bytes = storage.download(pdf_path)
+        except Exception as e:
+            print(f"Error reading PDF: {str(e)}")
+            raise HTTPException(404, "PDF file not found in storage")
+        
+        # Apply "ORIGINAL" watermark
+        try:
+            pdf_bytes = PDFEngine.apply_watermark(
+                pdf_bytes,
+                "ORIGINAL UNSIGNED COPY",
+                color="#666666",
+                opacity=0.1,
+                font_size=36,
+                angle=45
+            )
+        except Exception as e:
+            print(f"Warning: Could not apply watermark: {str(e)}")
+        
+        # Add envelope header if exists
+        envelope_id = doc.get("envelope_id")
+        if envelope_id:
+            try:
+                pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+                    pdf_bytes,
+                    envelope_id=envelope_id,
+                    color="#666666"
+                )
+            except Exception as e:
+                print(f"Warning: Could not apply envelope header: {str(e)}")
+        
+        # Create filename
+        original_filename = doc.get("filename", "document.pdf")
+        base_name = original_filename.rsplit('.', 1)[0]
+        filename = f"original_{base_name}.pdf"
+        
+        # Log the download
+        try:
+            _log_event(
+                str(doc["_id"]),
+                current_user,
+                "download_original_document",
+                {
+                    "download_type": "original",
+                    "filename": filename,
+                    "envelope_id": envelope_id
+                },
+                request
+            )
+        except Exception as e:
+            print(f"Warning: Could not log event: {str(e)}")
+        
+        # Return streaming response
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+                "X-Document-Status": doc.get("status", "unknown"),
+                "X-Download-Type": "original",
+                "X-Filename": filename
+            }
+        )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Error downloading original document: {str(e)}")
+        raise HTTPException(500, "Internal server error while downloading document")
+    
+    
+    
+@router.post("/{document_id}/send-completed")
+async def send_completed_document(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Manually trigger sending completed documents to all recipients.
+    Only works if document is completed.
+    """
+    try:
+        doc = db.documents.find_one({
+            "_id": ObjectId(document_id),
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        if doc.get("status") != "completed":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot send completed document. Current status: {doc.get('status')}"
+            )
+        
+        # ✅ UPDATE: Pass document_id to the background task
+        background_tasks.add_task(
+            send_completed_document_to_recipients,
+            document_id=document_id
+        )
+        
+        _log_event(
+            document_id,
+            current_user,
+            "trigger_completed_document_email",
+            request=request
+        )
+        
+        return {
+            "message": "Completed document emails are being sent to all recipients",
+            "status": "processing"
+        }
+        
+    except Exception as e:
+        print(f"Error sending completed document: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/search")
+async def search_documents(
+    request: Request,
+    q: str = Query(..., min_length=1, description="Search query"),
+    limit: int = Query(8, ge=1, le=20, description="Maximum number of results"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Search documents by filename, envelope ID, or content.
+    
+    Features:
+    - General search across filename and envelope_id
+    - Advanced search syntax:
+      * filename:contract - search by filename
+      * status:completed - filter by status
+      * envelope:ENV-123 - search by envelope ID
+      * date:2024-01 - filter by date (YYYY-MM)
+    
+    Returns:
+        List of matching documents with metadata
+    """
+    try:
+        # Log search request for debugging
+        print(f"Search request - Query: '{q}', Limit: {limit}, User: {current_user.get('email')}")
+        
+        # Initialize search query with owner filter
+        search_query = {"owner_id": ObjectId(current_user["id"])}
+        
+        # Parse search query
+        q = q.strip()
+        
+        # Check if query is empty after stripping
+        if not q:
+            return []
+        
+        # Handle advanced search syntax
+        if ':' in q and not q.startswith('http'):  # Avoid treating URLs as advanced search
+            parts = q.split(':', 1)
+            field = parts[0].strip().lower()
+            value = parts[1].strip()
+            
+            print(f"Advanced search - Field: '{field}', Value: '{value}'")
+            
+            if field == 'filename':
+                # Search by filename
+                search_query['filename'] = {'$regex': value, '$options': 'i'}
+                
+            elif field == 'status':
+                # Filter by status - check if valid status
+                valid_statuses = ['draft', 'sent', 'in_progress', 'completed', 'declined', 'expired', 'voided', 'deleted']
+                if value in valid_statuses:
+                    search_query['status'] = value
+                else:
+                    # Invalid status - return empty results
+                    print(f"Invalid status: {value}")
+                    return []
+                    
+            elif field == 'envelope':
+                # Search by envelope ID
+                search_query['envelope_id'] = {'$regex': value, '$options': 'i'}
+                
+            elif field == 'date':
+                try:
+                    # Parse YYYY-MM format
+                    year, month = value.split('-')
+                    start_date = datetime(int(year), int(month), 1)
+                    
+                    # Calculate end date (first day of next month)
+                    if int(month) == 12:
+                        end_date = datetime(int(year) + 1, 1, 1)
+                    else:
+                        end_date = datetime(int(year), int(month) + 1, 1)
+                    
+                    search_query['uploaded_at'] = {
+                        '$gte': start_date,
+                        '$lt': end_date
+                    }
+                except (ValueError, IndexError) as e:
+                    # Invalid date format - fallback to general search
+                    print(f"Invalid date format: {value}, error: {e}")
+                    search_query['$or'] = [
+                        {'filename': {'$regex': q, '$options': 'i'}},
+                        {'envelope_id': {'$regex': q, '$options': 'i'}}
+                    ]
+            else:
+                # Unknown field - fallback to general search on the full query
+                search_query['$or'] = [
+                    {'filename': {'$regex': q, '$options': 'i'}},
+                    {'envelope_id': {'$regex': q, '$options': 'i'}}
+                ]
+        else:
+            # General search - search in filename and envelope_id
+            search_query['$or'] = [
+                {'filename': {'$regex': q, '$options': 'i'}},
+                {'envelope_id': {'$regex': q, '$options': 'i'}}
+            ]
+        
+        # Always exclude deleted documents unless specifically searching for them
+        if 'status' not in search_query or search_query.get('status') != 'deleted':
+            search_query['status'] = {'$ne': 'deleted'}
+        
+        print(f"MongoDB Query: {search_query}")
+        
+        # Execute search with sorting
+        documents = list(db.documents.find(search_query)
+                        .sort([('uploaded_at', -1)])
+                        .limit(limit))
+        
+        print(f"Found {len(documents)} documents")
+        
+        # Serialize results
+        results = []
+        for doc in documents:
+            try:
+                # Get recipient count
+                recipient_count = db.recipients.count_documents({
+                    "document_id": doc['_id']
+                })
+                
+                # Format uploaded_at
+                uploaded_at = doc.get('uploaded_at')
+                if uploaded_at:
+                    if isinstance(uploaded_at, datetime):
+                        uploaded_at = uploaded_at.isoformat()
+                
+                results.append({
+                    'id': str(doc['_id']),
+                    'filename': doc.get('filename', 'Untitled'),
+                    'uploaded_at': uploaded_at,
+                    'status': doc.get('status', 'unknown'),
+                    'envelope_id': doc.get('envelope_id'),
+                    'recipient_count': recipient_count,
+                    'source': doc.get('source', 'local'),
+                    'thumbnail': f"/documents/{doc['_id']}/preview",
+                    'page_count': doc.get('page_count', 0),
+                    'size': doc.get('size', 0)
+                })
+            except Exception as e:
+                print(f"Error serializing document {doc.get('_id')}: {e}")
+                continue
+        
+        return results
+        
+    except Exception as e:
+        print(f"Search error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Return empty array instead of 500 error for better UX
+        return []
+    
+@router.get("/analytics/complete")
+async def get_complete_analytics(
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Get complete analytics data for dashboard
+    Returns all metrics in one call for efficiency
+    """
+    try:
+        owner_id = ObjectId(current_user["id"])
+        
+        # ============================================
+        # 1. DOCUMENT ANALYTICS
+        # ============================================
+        doc_stats = {}
+        for status in DOCUMENT_STATUSES:
+            doc_stats[status] = db.documents.count_documents({
+                "owner_id": owner_id,
+                "status": status
+            })
+        doc_stats["total"] = sum(doc_stats.values())
+        
+        # Get documents for detailed stats
+        documents = list(db.documents.find(
+            {"owner_id": owner_id, "status": {"$ne": "deleted"}}
+        ).sort("uploaded_at", -1).limit(100))
+        
+        # ============================================
+        # 2. RECIPIENT ANALYTICS
+        # ============================================
+        doc_ids = [d["_id"] for d in documents]
+        
+        recipient_stats = {
+            "total": 0,
+            "invited": 0,
+            "viewed": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "declined": 0,
+            "expired": 0,
+            "avg_signing_time": 0,
+            "completion_rate": 0,
+            "by_role": {
+                "signer": 0,
+                "approver": 0,
+                "viewer": 0,
+                "form_filler": 0,
+                "witness": 0,
+                "in_person_signer": 0
+            }
+        }
+        
+        total_signing_time = 0
+        completed_count = 0
+        
+        if doc_ids:
+            # Get all recipients for these documents
+            recipients = list(db.recipients.find({
+                "document_id": {"$in": doc_ids}
+            }))
+            
+            recipient_stats["total"] = len(recipients)
+            
+            for r in recipients:
+                # Count by status
+                status = r.get("status", "created")
+                if status in recipient_stats:
+                    recipient_stats[status] = recipient_stats.get(status, 0) + 1
+                
+                # Count by role
+                role = r.get("role", "signer")
+                if role in recipient_stats["by_role"]:
+                    recipient_stats["by_role"][role] += 1
+                
+                # Calculate average signing time
+                if status == "completed" and r.get("sent_at") and r.get("completed_at"):
+                    sent = r["sent_at"]
+                    completed = r["completed_at"]
+                    if isinstance(sent, datetime) and isinstance(completed, datetime):
+                        hours = (completed - sent).total_seconds() / 3600
+                        total_signing_time += hours
+                        completed_count += 1
+            
+            if completed_count > 0:
+                recipient_stats["avg_signing_time"] = round(total_signing_time / completed_count, 1)
+            
+            if recipient_stats["total"] > 0:
+                recipient_stats["completion_rate"] = round(
+                    (recipient_stats["completed"] / recipient_stats["total"]) * 100, 1
+                )
+        
+        # ============================================
+        # 3. FIELD ANALYTICS
+        # ============================================
+        field_stats = {
+            "total_fields": 0,
+            "completed_fields": 0,
+            "completion_percentage": 0,
+            "signatures": {"total": 0, "completed": 0, "percentage": 0},
+            "initials": {"total": 0, "completed": 0, "percentage": 0},
+            "form_fields": {"total": 0, "completed": 0, "percentage": 0},
+            "checkboxes": {"total": 0, "completed": 0, "percentage": 0},
+            "by_type": {}
+        }
+        
+        if doc_ids:
+            fields = list(db.signature_fields.find({
+                "document_id": {"$in": doc_ids}
+            }))
+            
+            for f in fields:
+                field_type = f.get("type", "unknown")
+                is_completed = f.get("completed_at") is not None
+                
+                field_stats["total_fields"] += 1
+                if is_completed:
+                    field_stats["completed_fields"] += 1
+                
+                # Count by type
+                if field_type not in field_stats["by_type"]:
+                    field_stats["by_type"][field_type] = {"total": 0, "completed": 0}
+                field_stats["by_type"][field_type]["total"] += 1
+                if is_completed:
+                    field_stats["by_type"][field_type]["completed"] += 1
+                
+                # Signature counts
+                if field_type in ["signature", "witness_signature"]:
+                    field_stats["signatures"]["total"] += 1
+                    if is_completed:
+                        field_stats["signatures"]["completed"] += 1
+                
+                # Initials counts
+                elif field_type == "initials":
+                    field_stats["initials"]["total"] += 1
+                    if is_completed:
+                        field_stats["initials"]["completed"] += 1
+                
+                # Form fields (text, date, mail, dropdown)
+                elif field_type in ["textbox", "date", "mail", "dropdown"]:
+                    field_stats["form_fields"]["total"] += 1
+                    if is_completed:
+                        field_stats["form_fields"]["completed"] += 1
+                
+                # Checkboxes and radio
+                elif field_type in ["checkbox", "radio"]:
+                    field_stats["checkboxes"]["total"] += 1
+                    if is_completed:
+                        field_stats["checkboxes"]["completed"] += 1
+            
+            # Calculate percentages
+            if field_stats["total_fields"] > 0:
+                field_stats["completion_percentage"] = round(
+                    (field_stats["completed_fields"] / field_stats["total_fields"]) * 100, 1
+                )
+            
+            for key in ["signatures", "initials", "form_fields", "checkboxes"]:
+                if field_stats[key]["total"] > 0:
+                    field_stats[key]["percentage"] = round(
+                        (field_stats[key]["completed"] / field_stats[key]["total"]) * 100, 1
+                    )
+        
+        # ============================================
+        # 4. ACTIVITY ANALYTICS
+        # ============================================
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        
+        activity_stats = {
+            "total_activities": 0,
+            "last_30_days": 0,
+            "by_type": {},
+            "daily_timeline": [],
+            "counts": {
+                "viewed": 0,
+                "downloaded": 0,
+                "signed": 0,
+                "completed": 0,
+                "declined": 0,
+                "voided": 0,
+                "uploaded": 0,
+                "sent": 0
+            }
+        }
+        
+        # Get timeline events
+        timeline_events = list(db.document_timeline.find({
+            "document_id": {"$in": doc_ids}
+        }).sort("timestamp", -1).limit(500))
+        
+        activity_stats["total_activities"] = len(timeline_events)
+        
+        # Create daily timeline for last 30 days
+        daily_counts = {}
+        for i in range(30):
+            date = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_counts[date] = 0
+        
+        for event in timeline_events:
+            event_type = event.get("type") or event.get("action", "unknown")
+            timestamp = event.get("timestamp")
+            
+            if event_type in activity_stats["counts"]:
+                activity_stats["counts"][event_type] += 1
+            else:
+                activity_stats["counts"]["other"] = activity_stats["counts"].get("other", 0) + 1
+            
+            # Count by type
+            activity_stats["by_type"][event_type] = activity_stats["by_type"].get(event_type, 0) + 1
+            
+            # Daily timeline
+            if timestamp and isinstance(timestamp, datetime):
+                date_str = timestamp.strftime("%Y-%m-%d")
+                if date_str in daily_counts:
+                    daily_counts[date_str] += 1
+                    if timestamp > thirty_days_ago:
+                        activity_stats["last_30_days"] += 1
+        
+        # Format timeline for chart
+        activity_stats["daily_timeline"] = [
+            {"date": date, "count": count}
+            for date, count in sorted(daily_counts.items())
+        ]
+        
+        # ============================================
+        # 5. SUBSCRIPTION ANALYTICS (if applicable)
+        # ============================================
+        subscription = await get_active_subscription(current_user["email"])
+        subscription_stats = {
+            "has_active": False,
+            "status": "inactive",
+            "plan_type": None,
+            "plan_name": "No Active Plan",
+            "days_remaining": 0,
+            "total_revenue": 0,
+            "total_payments": 0,
+            "payment_success_rate": 0,
+            "is_trial": False
+        }
+        
+        if subscription:
+            expiry = subscription.get("expiry_date")
+            days_remaining = 0
+            if expiry and isinstance(expiry, datetime):
+                days_remaining = max(0, (expiry - datetime.utcnow()).days)
+            
+            subscription_stats.update({
+                "has_active": True,
+                "status": subscription.get("status", "active"),
+                "plan_type": subscription.get("plan_type"),
+                "plan_name": PLAN_CONFIG.get(subscription.get("plan_type"), {}).get("name", "Active Plan"),
+                "days_remaining": days_remaining,
+                "is_trial": subscription.get("plan_type") == "free_trial"
+            })
+        
+        # ============================================
+        # 6. CONTACT ANALYTICS
+        # ============================================
+        contacts = list(db.contacts.find({"owner_id": owner_id}))
+        
+        # Calculate frequent recipients
+        email_frequency = {}
+        if doc_ids:
+            all_recipients = list(db.recipients.find({
+                "document_id": {"$in": doc_ids}
+            }))
+            for r in all_recipients:
+                email = r.get("email")
+                if email:
+                    email_frequency[email] = email_frequency.get(email, 0) + 1
+        
+        frequent_recipients = len([f for f in email_frequency.values() if f >= 3])
+        
+        contact_stats = {
+            "total_contacts": len(contacts),
+            "frequent_recipients": frequent_recipients,
+            "unique_contacts": len(contacts),
+            "recent_contacts": len([c for c in contacts if c.get("created_at", datetime.utcnow()) > thirty_days_ago])
+        }
+        
+        # ============================================
+        # 7. MONTHLY TRENDS
+        # ============================================
+        monthly_trends = []
+        for i in range(6):
+            month_start = datetime.utcnow().replace(day=1) - timedelta(days=30*i)
+            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            
+            month_docs = db.documents.count_documents({
+                "owner_id": owner_id,
+                "uploaded_at": {"$gte": month_start, "$lte": month_end}
+            })
+            
+            month_completed = db.documents.count_documents({
+                "owner_id": owner_id,
+                "status": "completed",
+                "completed_at": {"$gte": month_start, "$lte": month_end}
+            })
+            
+            monthly_trends.append({
+                "month": month_start.strftime("%b %Y"),
+                "documents": month_docs,
+                "completed": month_completed
+            })
+        
+        monthly_trends.reverse()
+        
+        return {
+            "documents": doc_stats,
+            "recipients": recipient_stats,
+            "fields": field_stats,
+            "activities": activity_stats,
+            "subscription": subscription_stats,
+            "contacts": contact_stats,
+            "trends": monthly_trends
+        }
+        
+    except Exception as e:
+        print(f"Error in analytics: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
