@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
+
 import IntegrationsScroll from './IntegrationsScroll';
-import SafeSignFAQ from './SafeSignFAQ';
+
 import SimpleFAQ from './SimpleFAQ';
 import PricingHero from './PricingHero';
 import FeatureComparisonTable from './FeatureComparisonTable';
@@ -581,6 +581,7 @@ function PricingSection() {
 color: #ffffff;
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+  background: rgba(255,255,255,0.12);
 }
 
         .btn-outline1 {

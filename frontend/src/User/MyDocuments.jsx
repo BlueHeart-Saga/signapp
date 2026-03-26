@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import {
   uploadDocument,
-  getDocuments,
+  // getDocuments,
   downloadDocument,
   uploadFromCloud,
   exchangeBoxToken,
@@ -13,7 +13,6 @@ import {
   getBoxFolderInfo
 } from "../services/DocumentAPI";
 import { 
-  FaUpload, 
   FaCloudUploadAlt, 
   FaFileAlt, 
   FaFolder, 
@@ -22,7 +21,6 @@ import {
   FaDropbox, 
   FaMicrosoft, 
   FaBox, 
-  FaDownload, 
   FaSearch, 
   FaTimes,
   FaArrowLeft,
@@ -34,11 +32,6 @@ import {
   FaFileWord,FaFilter
   
 } from "react-icons/fa";
-import { HiOutlineUpload } from "react-icons/hi";
-import { AiOutlineUpload } from "react-icons/ai";
-import { MdCloudUpload } from "react-icons/md";
-import { FiUploadCloud } from "react-icons/fi";
-import { MdInsertDriveFile } from "react-icons/md";
 import { AiOutlineFileText } from "react-icons/ai";
 
 
@@ -67,13 +60,10 @@ import {
   Delete as DeleteIcon,
   Restore as RestoreIcon,
   DeleteForever as DeleteForeverIcon,
-  People as PeopleIcon,
   Edit as EditIcon
 } from "@mui/icons-material";
 import { Button } from "@mui/material";
 import { FaEdit } from "react-icons/fa";
-
-import SmartToy from "@mui/icons-material/SmartToy";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import { Summarize as SummarizeIcon } from "@mui/icons-material";
 
@@ -87,9 +77,9 @@ import TimelineDrawer from "../components/TimelineDrawer";
 import StatusChip from "../components/StatusChip";
 import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged } from "../services/DocumentAPI";
  import { setPageTitle } from "../utils/pageTitle";
-import templatesAPI from "../services/api";
+// import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
-import PremiumBannerSlider from "../components/PremiumBannerSlider";
+// import PremiumBannerSlider from "../components/PremiumBannerSlider";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 const token = localStorage.getItem("token");

@@ -46,7 +46,7 @@ jobs:
 
       # 4️⃣ Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # 5️⃣ Build
       - name: Build frontend
