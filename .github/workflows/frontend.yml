@@ -6,46 +6,51 @@ on:
       - main
     paths:
       - "frontend/**"
-  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # 1️⃣ Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # 2️⃣ Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Create .env
+      # 3️⃣ Create .env (🔥 MOST IMPORTANT STEP)
+      - name: Create .env file
         run: |
           cd frontend
-          echo REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }} >> .env
-          echo REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }} >> .env
-          echo REACT_APP_GOOGLE_REDIRECT_URI=${{ secrets.REACT_APP_GOOGLE_REDIRECT_URI }} >> .env
-          echo REACT_APP_DROPBOX_APP_KEY=${{ secrets.REACT_APP_DROPBOX_APP_KEY }} >> .env
-          echo REACT_APP_ONEDRIVE_CLIENT_ID=${{ secrets.REACT_APP_ONEDRIVE_CLIENT_ID }} >> .env
-          echo REACT_APP_BOX_CLIENT_ID=${{ secrets.REACT_APP_BOX_CLIENT_ID }} >> .env
-          echo REACT_APP_BOX_REDIRECT_URI=${{ secrets.REACT_APP_BOX_REDIRECT_URI }} >> .env
-          echo REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }} >> .env
-          echo REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }} >> .env
-          echo GENERATE_SOURCEMAP=false >> .env
+          echo "REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}" > .env
+          echo "REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }}" >> .env
+          echo "REACT_APP_GOOGLE_REDIRECT_URI=${{ secrets.REACT_APP_GOOGLE_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_DROPBOX_APP_KEY=${{ secrets.REACT_APP_DROPBOX_APP_KEY }}" >> .env
+          echo "REACT_APP_ONEDRIVE_CLIENT_ID=${{ secrets.REACT_APP_ONEDRIVE_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_CLIENT_ID=${{ secrets.REACT_APP_BOX_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_REDIRECT_URI=${{ secrets.REACT_APP_BOX_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }}" >> .env
+          echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
+          echo "GENERATE_SOURCEMAP=${{ secrets.GENERATE_SOURCEMAP }}" >> .env
 
-      - name: Install
+      # 4️⃣ Install dependencies
+      - name: Install dependencies
         run: |
           cd frontend
-          npm ci
+          npm install
 
-      - name: Build
+      # 5️⃣ Build
+      - name: Build frontend
         run: |
           cd frontend
-          CI=false npm run build
+          npm run build
 
-      - name: Deploy
+      # 6️⃣ Deploy to Azure
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: signapp
