@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-push:
+  build-push-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,10 +35,10 @@ jobs:
         with:
           images: blueheartsaga/signapp-backend
           tags: |
-            type=latest
+            type=raw,value=latest
             type=sha
 
-      # 5️⃣ Build & Push (with cache)
+      # 5️⃣ Build & Push Docker Image (with cache)
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -47,3 +47,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=blueheartsaga/signapp-backend:latest
           cache-to: type=inline
+
+      # 6️⃣ 🔥 Restart Azure Web App (AUTO DEPLOY)
+      - name: Restart Azure Web App
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp restart \
+              --name signapp-backend-docker \
+              --resource-group AI-Esign
