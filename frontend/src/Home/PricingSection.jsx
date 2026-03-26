@@ -181,7 +181,7 @@ function PricingSection() {
 
       <div className="pricing-cta-actions">
         <button
-          className="btn-primary"
+          className="btn-primary2"
           onClick={() => navigate("/demo")}
         >
           Schedule a Demo
@@ -563,6 +563,25 @@ function PricingSection() {
         .feature-text {
           flex: 1;
         }
+
+          .btn-primary2 {
+  padding: 16px 32px;
+  background: #ffffff;
+  color: #0d9488;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.btn-primary2:hover {
+color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+}
 
         .btn-outline1 {
           padding: 16px 32px;

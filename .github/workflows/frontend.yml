@@ -6,10 +6,16 @@ on:
       - main
     paths:
       - "frontend/**"
+      - ".github/workflows/frontend.yml"   # 🔥 IMPORTANT
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend   # 🔥 cleaner (no need cd)
 
     steps:
       # 1️⃣ Checkout
@@ -21,11 +27,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      # 3️⃣ Create .env (🔥 MOST IMPORTANT STEP)
+      # 3️⃣ Create .env
       - name: Create .env file
         run: |
-          cd frontend
           echo "REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}" > .env
           echo "REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }}" >> .env
           echo "REACT_APP_GOOGLE_REDIRECT_URI=${{ secrets.REACT_APP_GOOGLE_REDIRECT_URI }}" >> .env
@@ -35,19 +42,15 @@ jobs:
           echo "REACT_APP_BOX_REDIRECT_URI=${{ secrets.REACT_APP_BOX_REDIRECT_URI }}" >> .env
           echo "REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }}" >> .env
           echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
-          echo "GENERATE_SOURCEMAP=${{ secrets.GENERATE_SOURCEMAP }}" >> .env
+          echo "GENERATE_SOURCEMAP=false" >> .env
 
       # 4️⃣ Install dependencies
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm install
+        run: npm ci
 
       # 5️⃣ Build
       - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
+        run: CI=false npm run build
 
       # 6️⃣ Deploy to Azure
       - name: Deploy to Azure Web App
