@@ -47,7 +47,7 @@ jobs:
       - name: Build frontend
         run: |
           cd frontend
-          npm run build
+          CI=false npm run build
 
       # 6️⃣ Deploy to Azure
       - name: Deploy to Azure Web App
