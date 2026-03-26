@@ -1,0 +1,58 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3️⃣ Create .env (🔥 MOST IMPORTANT STEP)
+      - name: Create .env file
+        run: |
+          cd frontend
+          echo "REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}" > .env
+          echo "REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }}" >> .env
+          echo "REACT_APP_GOOGLE_REDIRECT_URI=${{ secrets.REACT_APP_GOOGLE_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_DROPBOX_APP_KEY=${{ secrets.REACT_APP_DROPBOX_APP_KEY }}" >> .env
+          echo "REACT_APP_ONEDRIVE_CLIENT_ID=${{ secrets.REACT_APP_ONEDRIVE_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_CLIENT_ID=${{ secrets.REACT_APP_BOX_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_REDIRECT_URI=${{ secrets.REACT_APP_BOX_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }}" >> .env
+          echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
+          echo "GENERATE_SOURCEMAP=${{ secrets.GENERATE_SOURCEMAP }}" >> .env
+
+      # 4️⃣ Install dependencies
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      # 5️⃣ Build
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      # 6️⃣ Deploy to Azure
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: signapp
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: frontend/build

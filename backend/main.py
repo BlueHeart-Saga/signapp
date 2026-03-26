@@ -27,8 +27,11 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "your-secret-key-change-in-production"),
     session_cookie="session",
-    max_age=3600,  # 1 hour
+    max_age=3600,
+    same_site="none",   # 🔥 REQUIRED for OAuth
+    https_only=True     # 🔥 REQUIRED for Azure HTTPS
 )
+
 
 
 origins = [
@@ -36,6 +39,8 @@ origins = [
     "https://safesign.devopstrio.co.uk",  # Production frontend
     "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",  # Azure frontend,
 ]
+
+
 
 app.add_middleware(
     CORSMiddleware,

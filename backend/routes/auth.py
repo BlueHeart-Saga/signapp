@@ -43,7 +43,7 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@influencerplatform.com")
 # Google OAuth configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://e-sign-backend-g5hgdygmg4cca6gm.southindia-01.azurewebsites.net/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://signapp-backend-docker-gva0g0a9f9g9cmax.southindia-01.azurewebsites.net/auth/google/callback")
 
 # Initialize OAuth
 oauth = OAuth()
@@ -1179,11 +1179,12 @@ async def google_login(request: Request):
             detail="Google OAuth is not configured"
         )
     
-    # Generate state for security
-    state = secrets.token_urlsafe(16)
-    
-    # Store state in session for verification
-    request.session['oauth_state'] = state
+    state_payload = {
+        "nonce": secrets.token_urlsafe(8),
+        "exp": datetime.utcnow() + timedelta(minutes=5)
+    }
+
+    state = jwt.encode(state_payload, JWT_SECRET, algorithm="HS256")
     
     # Create authorization URL
     authorization_url = (
@@ -1226,9 +1227,11 @@ async def google_callback(
             )
         
         # Verify state to prevent CSRF
-        if state != request.session.get('oauth_state'):
+        try:
+            jwt.decode(state, JWT_SECRET, algorithms=["HS256"])
+        except JWTError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="Invalid state parameter"
             )
         

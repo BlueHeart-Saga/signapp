@@ -188,7 +188,7 @@ function PricingSection() {
         </button>
 
         <button
-          className="btn-outline"
+          className="btn-outline1"
           onClick={() => navigate("/login")}
         >
           Get Started Free
@@ -562,6 +562,24 @@ function PricingSection() {
 
         .feature-text {
           flex: 1;
+        }
+
+        .btn-outline1 {
+          padding: 16px 32px;
+          background: transparent;
+          color: #ffffff;
+          border: 2px solid rgba(255,255,255,0.4);
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+
+        .btn-outline1:hover {
+          background: rgba(255,255,255,0.12);
+          border-color: #ffffff;
+          transform: translateY(-2px);
         }
 
         /* Responsive Design */

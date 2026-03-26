@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/static/css/main.c7cc87ba.css",
-    "main.js": "/static/js/main.1f4db6f0.js",
+    "main.js": "/static/js/main.8632a973.js",
     "static/media/ai-template-bg.png": "/static/media/ai-template-bg.8708a3b5c5b6747edfc4.png",
     "static/media/password-bg.jpg": "/static/media/password-bg.df15e4087abcd08baa14.jpg",
     "index.html": "/index.html",
     "main.c7cc87ba.css.map": "/static/css/main.c7cc87ba.css.map",
-    "main.1f4db6f0.js.map": "/static/js/main.1f4db6f0.js.map"
+    "main.8632a973.js.map": "/static/js/main.8632a973.js.map"
   },
   "entrypoints": [
     "static/css/main.c7cc87ba.css",
-    "static/js/main.1f4db6f0.js"
+    "static/js/main.8632a973.js"
   ]
 }
