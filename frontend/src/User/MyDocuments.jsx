@@ -37,7 +37,7 @@ import { AiOutlineFileText } from "react-icons/ai";
 
 
 
-
+import { FiUploadCloud } from "react-icons/fi";
 import { FiUpload } from "react-icons/fi";
 
 import {
@@ -66,6 +66,7 @@ import { Button } from "@mui/material";
 import { FaEdit } from "react-icons/fa";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import { Summarize as SummarizeIcon } from "@mui/icons-material";
+
 
 import "../style/MyDocuments.css";
 import RecipientManager from "./RecipientSelector"; // Fixed import
