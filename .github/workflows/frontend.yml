@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "frontend/**"
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -22,7 +21,7 @@ jobs:
         with:
           node-version: 20
 
-      # 3️⃣ Create .env (🔥 MOST IMPORTANT STEP)
+      # 3️⃣ Create .env
       - name: Create .env file
         run: |
           cd frontend
@@ -37,11 +36,11 @@ jobs:
           echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
           echo "GENERATE_SOURCEMAP=${{ secrets.GENERATE_SOURCEMAP }}" >> .env
 
-      # 4️⃣ Install dependencies
+      # 4️⃣ Install
       - name: Install dependencies
         run: |
           cd frontend
-          npm install
+          npm ci
 
       # 5️⃣ Build
       - name: Build frontend
@@ -49,7 +48,7 @@ jobs:
           cd frontend
           CI=false npm run build
 
-      # 6️⃣ Deploy to Azure
+      # 6️⃣ Deploy
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
