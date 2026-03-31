@@ -609,14 +609,27 @@
    Smooth transitions and effects
    -------------------------------------------- */
 @keyframes signapp-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes signapp-pulse {
-  0% { box-shadow: 0 0 0 0 var(--signapp-primary-light); }
-  70% { box-shadow: 0 0 0 6px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
+  0% {
+    box-shadow: 0 0 0 0 var(--signapp-primary-light);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
 .spinning {
@@ -696,6 +709,7 @@
    Focus states and reduced motion
    -------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -712,25 +726,7 @@
   outline-offset: 2px;
 }
 
-/* --------------------------------------------
-   DARK MODE SUPPORT
-   Optional dark theme adaptation
-   -------------------------------------------- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --signapp-white: #1f2937;
-    --signapp-gray-50: #111827;
-    --signapp-gray-100: #1f2937;
-    --signapp-gray-200: #374151;
-    --signapp-gray-300: #4b5563;
-    --signapp-gray-400: #6b7280;
-    --signapp-gray-500: #9ca3af;
-    --signapp-gray-600: #d1d5db;
-    --signapp-gray-700: #e5e7eb;
-    --signapp-gray-800: #f3f4f6;
-    --signapp-gray-900: #f9fafb;
-  }
-}
+
 
 .signapp-navbar-profile {
   display: flex;
@@ -762,8 +758,12 @@
   font-size: 14px;
   font-weight: 700;
   color: #334155;
-  max-width: 120px;      /* limit width */
-  white-space: nowrap;   /* prevent wrap */
-  overflow: hidden;      /* hide overflow */
-  text-overflow: ellipsis; /* show ... */
+  max-width: 120px;
+  /* limit width */
+  white-space: nowrap;
+  /* prevent wrap */
+  overflow: hidden;
+  /* hide overflow */
+  text-overflow: ellipsis;
+  /* show ... */
 }
