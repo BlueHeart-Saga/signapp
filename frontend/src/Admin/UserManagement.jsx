@@ -2483,27 +2483,28 @@ const AdminLogsComponent = () => {
 
 
   const fetchLogs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/admin/admin-logs?limit=50`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  try {
+    setLoading(true);
+    const response = await fetch(`${API_BASE_URL}/admin/admin-logs?limit=50`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-      if (!response.ok) throw new Error('Failed to fetch logs');
+    if (!response.ok) throw new Error('Failed to fetch logs');
 
-      const data = await response.json();
-      setLogs(data.logs || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [API_BASE_URL, token]);
+    const data = await response.json();
+    setLogs(data.logs || []);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}, [API_BASE_URL, token]);
 
+useEffect(() => {
   fetchLogs();
 }, [fetchLogs]);
 
