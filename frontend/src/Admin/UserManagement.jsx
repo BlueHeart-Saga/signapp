@@ -46,7 +46,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
- People as  PeopleIcon,
+  People as PeopleIcon,
   CheckCircle as CheckIcon,
   Email as EmailIcon,
   PersonAdd as AddUserIcon,
@@ -73,12 +73,12 @@ import {
   Calculate as CalculateIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   CalendarMonth as CalendarMonthIcon,
-    History as HistoryIcon,
-    Create as CreateIcon,
-    Warning as WarningIcon,
-    Lock as LockIcon,
-    Cloud as CloudIcon,
-  
+  History as HistoryIcon,
+  Create as CreateIcon,
+  Warning as WarningIcon,
+  Lock as LockIcon,
+  Cloud as CloudIcon,
+
 } from '@mui/icons-material';
 // Add this to your imports at the top
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -103,7 +103,7 @@ const UserManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Filter states
   const [searchEmail, setSearchEmail] = useState('');
   const [searchName, setSearchName] = useState('');
@@ -114,7 +114,7 @@ const UserManagement = () => {
   const [activeFilter, setActiveFilter] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState(-1);
-  
+
   // Dialog states
   const [selectedUser, setSelectedUser] = useState(null);
   const [viewDialog, setViewDialog] = useState(false);
@@ -125,7 +125,7 @@ const UserManagement = () => {
   const [deactivateDialog, setDeactivateDialog] = useState(false);
   const [activateDialog, setActivateDialog] = useState(false);
   const [statsDialog, setStatsDialog] = useState(false);
-  
+
   // Form states
   const [newUser, setNewUser] = useState({
     email: '',
@@ -136,7 +136,7 @@ const UserManagement = () => {
     email_verified: true,
     is_active: true
   });
-  
+
   const [editUser, setEditUser] = useState({
     full_name: '',
     role: '',
@@ -144,18 +144,18 @@ const UserManagement = () => {
     is_active: true,
     email_verified: true
   });
-  
+
   const [newPassword, setNewPassword] = useState('');
-  
+
   // Stats states
   const [stats, setStats] = useState(null);
   const [activityStats, setActivityStats] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
-  
+
   // Menu state
   const [actionMenu, setActionMenu] = useState(null);
   const [menuUserId, setMenuUserId] = useState(null);
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState(0);
 
@@ -178,26 +178,26 @@ const UserManagement = () => {
   };
 
   // Format time ago function (add this with your other format functions)
-const formatTimeAgo = (dateString) => {
-  if (!dateString) return '';
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) {
-    return 'Just now';
-  } else if (diffMins < 60) {
-    return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-  } else if (diffHours < 24) {
-    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-  } else {
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  }
-};
-  
+    if (diffMins < 1) {
+      return 'Just now';
+    } else if (diffMins < 60) {
+      return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    } else {
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    }
+  };
+
 
   // Format role
   const formatRole = (role) => {
@@ -216,7 +216,7 @@ const formatTimeAgo = (dateString) => {
     try {
       setLoading(true);
       setError('');
-      
+
       // Build query parameters
       const params = new URLSearchParams({
         page: pageNum + 1, // Convert 0-indexed to 1-indexed
@@ -224,7 +224,7 @@ const formatTimeAgo = (dateString) => {
         sort_by: sortBy,
         sort_order: sortOrder
       });
-      
+
       if (searchEmail) params.append('email', searchEmail);
       if (searchName) params.append('full_name', searchName);
       if (searchRole) params.append('role', searchRole);
@@ -246,7 +246,7 @@ const formatTimeAgo = (dateString) => {
       setUsers(data.users || []);
       setTotalUsers(data.pagination?.total_users || 0);
       setTotalPages(data.pagination?.total_pages || 0);
-      
+
     } catch (err) {
       setError(err.message || 'Failed to fetch users');
       console.error('Error fetching users:', err);
@@ -264,7 +264,7 @@ const formatTimeAgo = (dateString) => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch user details');
-      
+
       const data = await response.json();
       return data;
     } catch (err) {
@@ -418,7 +418,7 @@ const formatTimeAgo = (dateString) => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch statistics');
-      
+
       const data = await response.json();
       setStats(data);
     } catch (err) {
@@ -435,7 +435,7 @@ const formatTimeAgo = (dateString) => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch activity statistics');
-      
+
       const data = await response.json();
       setActivityStats(data);
     } catch (err) {
@@ -444,7 +444,7 @@ const formatTimeAgo = (dateString) => {
   };
 
   // Fetch dashboard summary
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/dashboard/summary`, {
         method: 'GET',
@@ -452,13 +452,13 @@ const formatTimeAgo = (dateString) => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch dashboard statistics');
-      
+
       const data = await response.json();
       setDashboardStats(data);
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [API_BASE_URL]);
 
   // Export users to CSV
   const exportUsersCSV = async () => {
@@ -479,7 +479,7 @@ const formatTimeAgo = (dateString) => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       setSuccess('Users exported successfully');
     } catch (err) {
       setError(err.message);
@@ -495,7 +495,7 @@ const formatTimeAgo = (dateString) => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch admin logs');
-      
+
       const data = await response.json();
       return data.logs || [];
     } catch (err) {
@@ -627,7 +627,7 @@ const formatTimeAgo = (dateString) => {
   useEffect(() => {
     fetchUsers();
     fetchDashboardStats();
-  }, [fetchUsers]);
+  }, [fetchUsers, fetchDashboardStats]);
 
   // Handle page change
   const handleChangePage = (event, newPage) => {
@@ -693,16 +693,16 @@ const formatTimeAgo = (dateString) => {
     return (
       <Tooltip title={`Created: ${user.documents_created || 0}, Signed: ${user.documents_signed || 0}`}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Badge 
-            badgeContent={user.documents_created || 0} 
+          <Badge
+            badgeContent={user.documents_created || 0}
             color="primary"
             sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem' } }}
           >
             <ArrowIcon fontSize="small" />
           </Badge>
           {user.role === 'recipient' && (
-            <Badge 
-              badgeContent={user.documents_signed || 0} 
+            <Badge
+              badgeContent={user.documents_signed || 0}
               color="success"
               sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem' } }}
             >
@@ -727,9 +727,9 @@ const formatTimeAgo = (dateString) => {
               {formatNumber(value)}
             </Typography>
             {change && (
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   color: change > 0 ? 'success.main' : 'error.main',
                   display: 'flex',
                   alignItems: 'center',
@@ -1097,7 +1097,7 @@ const formatTimeAgo = (dateString) => {
                                       Activate
                                     </MenuItem>
                                   )}
-                                  <MenuItem 
+                                  <MenuItem
                                     onClick={() => {
                                       handleDeleteUser(user);
                                       handleMenuClose();
@@ -1129,322 +1129,322 @@ const formatTimeAgo = (dateString) => {
             </Paper>
           </>
         ) : activeTab === 1 ? (
-  // Dashboard Tab - Fixed Section
-  <Box sx={{ mt: 4 }}>
-    {dashboardStats ? (
-      <Stack spacing={4}>
-        
-        {/* Recent Users & Activity Section */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
-          {/* Recent Users Card */}
-          <Paper sx={{ 
-            p: 4, 
-            borderRadius: 3, 
-            bgcolor: 'background.paper',
-            boxShadow: 2,
-            flex: 1
-          }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Typography variant="h4" sx={{ 
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
-              }}>
-                <PeopleIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-                Recent Users
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<ViewIcon />}
-                component={Link}
-                to="/admin/users"
-                size="large"
-              >
-                View All
-              </Button>
-            </Box>
+          // Dashboard Tab - Fixed Section
+          <Box sx={{ mt: 4 }}>
+            {dashboardStats ? (
+              <Stack spacing={4}>
 
-            {dashboardStats.recent_users?.length === 0 ? (
-              <Box sx={{ 
-                textAlign: 'center', 
-                py: 8,
-                border: 2,
-                borderColor: 'divider',
-                borderRadius: 2,
-                bgcolor: 'grey.50'
-              }}>
-                <PeopleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="textSecondary" gutterBottom>
-                  No Recent Users
-                </Typography>
-                <Typography variant="body1" color="textSecondary">
-                  New user registrations will appear here
-                </Typography>
-              </Box>
-            ) : (
-              <Stack spacing={3}>
-                {dashboardStats.recent_users?.slice(0, 5).map((user) => (
-                  <Card key={user.id} sx={{ 
-                    borderRadius: 2,
-                    borderLeft: 4,
-                    borderColor: user.role === 'admin' ? 'error.main' : 
-                                user.role === 'user' ? 'primary.main' : 
+                {/* Recent Users & Activity Section */}
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
+                  {/* Recent Users Card */}
+                  <Paper sx={{
+                    p: 4,
+                    borderRadius: 3,
+                    bgcolor: 'background.paper',
+                    boxShadow: 2,
+                    flex: 1
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                      <Typography variant="h4" sx={{
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}>
+                        <PeopleIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+                        Recent Users
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        startIcon={<ViewIcon />}
+                        component={Link}
+                        to="/admin/users"
+                        size="large"
+                      >
+                        View All
+                      </Button>
+                    </Box>
+
+                    {dashboardStats.recent_users?.length === 0 ? (
+                      <Box sx={{
+                        textAlign: 'center',
+                        py: 8,
+                        border: 2,
+                        borderColor: 'divider',
+                        borderRadius: 2,
+                        bgcolor: 'grey.50'
+                      }}>
+                        <PeopleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                        <Typography variant="h6" color="textSecondary" gutterBottom>
+                          No Recent Users
+                        </Typography>
+                        <Typography variant="body1" color="textSecondary">
+                          New user registrations will appear here
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Stack spacing={3}>
+                        {dashboardStats.recent_users?.slice(0, 5).map((user) => (
+                          <Card key={user.id} sx={{
+                            borderRadius: 2,
+                            borderLeft: 4,
+                            borderColor: user.role === 'admin' ? 'error.main' :
+                              user.role === 'user' ? 'primary.main' :
                                 'success.main',
-                    '&:hover': { 
-                      transform: 'translateX(4px)',
-                      boxShadow: 3,
-                      transition: 'all 0.3s ease'
-                    }
-                  }}>
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Avatar sx={{ 
-                          width: 56, 
-                          height: 56, 
-                          bgcolor: user.role === 'admin' ? 'error.main' : 
-                                  user.role === 'user' ? 'primary.main' : 
-                                  'success.main',
-                          fontSize: '1.25rem',
-                          fontWeight: 600
-                        }}>
-                          {user.email?.charAt(0).toUpperCase()}
-                        </Avatar>
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              {user.full_name || user.email}
-                            </Typography>
-                            <Chip
-                              label={formatRole(user.role).label}
-                              size="medium"
-                              color={
-                                user.role === 'admin' ? 'error' :
-                                user.role === 'user' ? 'primary' :
-                                'success'
-                              }
-                              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                            />
-                          </Box>
-                          
-                          <Typography variant="body1" color="textSecondary" gutterBottom>
-                            {user.email}
-                          </Typography>
-                          
-                          <Box sx={{ 
-                            display: 'flex', 
-                            gap: 3,
-                            mt: 2,
-                            flexWrap: 'wrap'
+                            '&:hover': {
+                              transform: 'translateX(4px)',
+                              boxShadow: 3,
+                              transition: 'all 0.3s ease'
+                            }
                           }}>
-                            <Box>
-                              <Typography variant="caption" color="textSecondary" display="block">
-                                Registered
-                              </Typography>
-                              <Typography variant="body2" fontWeight={500}>
-                                {formatDate(user.created_at)}
-                              </Typography>
-                            </Box>
-                            
-                            {user.organization_name && (
-                              <Box>
-                                <Typography variant="caption" color="textSecondary" display="block">
-                                  Organization
-                                </Typography>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {user.organization_name}
-                                </Typography>
+                            <CardContent sx={{ p: 3 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <Avatar sx={{
+                                  width: 56,
+                                  height: 56,
+                                  bgcolor: user.role === 'admin' ? 'error.main' :
+                                    user.role === 'user' ? 'primary.main' :
+                                      'success.main',
+                                  fontSize: '1.25rem',
+                                  fontWeight: 600
+                                }}>
+                                  {user.email?.charAt(0).toUpperCase()}
+                                </Avatar>
+
+                                <Box sx={{ flex: 1 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                      {user.full_name || user.email}
+                                    </Typography>
+                                    <Chip
+                                      label={formatRole(user.role).label}
+                                      size="medium"
+                                      color={
+                                        user.role === 'admin' ? 'error' :
+                                          user.role === 'user' ? 'primary' :
+                                            'success'
+                                      }
+                                      sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                                    />
+                                  </Box>
+
+                                  <Typography variant="body1" color="textSecondary" gutterBottom>
+                                    {user.email}
+                                  </Typography>
+
+                                  <Box sx={{
+                                    display: 'flex',
+                                    gap: 3,
+                                    mt: 2,
+                                    flexWrap: 'wrap'
+                                  }}>
+                                    <Box>
+                                      <Typography variant="caption" color="textSecondary" display="block">
+                                        Registered
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight={500}>
+                                        {formatDate(user.created_at)}
+                                      </Typography>
+                                    </Box>
+
+                                    {user.organization_name && (
+                                      <Box>
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                          Organization
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={500}>
+                                          {user.organization_name}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Box>
+                                </Box>
+
+                                <IconButton
+                                  component={Link}
+                                  to={`/admin/users/${user.id}`}
+                                  sx={{
+                                    color: 'primary.main',
+                                    '&:hover': { bgcolor: 'primary.light' }
+                                  }}
+                                  title="View User Details"
+                                >
+                                  <ArrowForwardIcon />
+                                </IconButton>
                               </Box>
-                            )}
-                          </Box>
-                        </Box>
-                        
-                        <IconButton 
-                          component={Link}
-                          to={`/admin/users/${user.id}`}
-                          sx={{ 
-                            color: 'primary.main',
-                            '&:hover': { bgcolor: 'primary.light' }
-                          }}
-                          title="View User Details"
-                        >
-                          <ArrowForwardIcon />
-                        </IconButton>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    )}
+                  </Paper>
+
+                  {/* Recent Activity Card */}
+                  <Paper sx={{
+                    p: 4,
+                    borderRadius: 3,
+                    bgcolor: 'background.paper',
+                    boxShadow: 2,
+                    flex: 1
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                      <Typography variant="h4" sx={{
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}>
+                        <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+                        Recent Activity
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        startIcon={<ViewIcon />}
+                        component={Link}
+                        to="/admin/logs"
+                        size="large"
+                      >
+                        View All
+                      </Button>
+                    </Box>
+
+                    {dashboardStats.recent_activity?.length === 0 ? (
+                      <Box sx={{
+                        textAlign: 'center',
+                        py: 8,
+                        border: 2,
+                        borderColor: 'divider',
+                        borderRadius: 2,
+                        bgcolor: 'grey.50'
+                      }}>
+                        <HistoryIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                        <Typography variant="h6" color="textSecondary" gutterBottom>
+                          No Recent Activity
+                        </Typography>
+                        <Typography variant="body1" color="textSecondary">
+                          Admin activities will appear here
+                        </Typography>
                       </Box>
-                    </CardContent>
-                  </Card>
-                ))}
+                    ) : (
+                      <Stack spacing={3}>
+                        {dashboardStats.recent_activity?.slice(0, 5).map((activity, index) => (
+                          <Card key={index} sx={{
+                            borderRadius: 2,
+                            '&:hover': {
+                              transform: 'translateX(4px)',
+                              boxShadow: 3,
+                              transition: 'all 0.3s ease'
+                            }
+                          }}>
+                            <CardContent sx={{ p: 3 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+                                <Avatar sx={{
+                                  width: 48,
+                                  height: 48,
+                                  bgcolor:
+                                    activity.action?.includes('create') ? 'success.light' :
+                                      activity.action?.includes('update') ? 'info.light' :
+                                        activity.action?.includes('delete') ? 'error.light' :
+                                          'primary.light',
+                                  color:
+                                    activity.action?.includes('create') ? 'success.dark' :
+                                      activity.action?.includes('update') ? 'info.dark' :
+                                        activity.action?.includes('delete') ? 'error.dark' :
+                                          'primary.dark'
+                                }}>
+                                  {activity.action?.includes('create') && <PersonAddIcon />}
+                                  {activity.action?.includes('update') && <CreateIcon />}
+                                  {activity.action?.includes('delete') && <WarningIcon />}
+                                  {activity.action?.includes('login') && <LockIcon />}
+                                  {!activity.action && <EmailIcon />}
+                                </Avatar>
+
+                                <Box sx={{ flex: 1 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                      {activity.action ? activity.action.replace(/_/g, ' ').toUpperCase() : 'ACTIVITY'}
+                                    </Typography>
+                                    <Chip
+                                      label={formatTimeAgo(activity.created_at)}
+                                      size="small"
+                                      sx={{ fontWeight: 500 }}
+                                    />
+                                  </Box>
+
+                                  <Typography variant="body1" color="textSecondary" gutterBottom>
+                                    <strong>{activity.admin_email || 'System'}</strong>
+                                    {activity.target_email && (
+                                      <>
+                                        {' performed action on '}
+                                        <strong>{activity.target_email}</strong>
+                                      </>
+                                    )}
+                                  </Typography>
+
+                                  <Box sx={{
+                                    mt: 2,
+                                    p: 2,
+                                    bgcolor: 'grey.50',
+                                    borderRadius: 1
+                                  }}>
+                                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                                      Timestamp
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight={500}>
+                                      {formatDate(activity.created_at)}
+                                    </Typography>
+                                  </Box>
+
+                                  {activity.details && (
+                                    <Box sx={{
+                                      mt: 2,
+                                      p: 2,
+                                      bgcolor: 'primary.light',
+                                      borderRadius: 1
+                                    }}>
+                                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                                        Details
+                                      </Typography>
+                                      <Typography variant="body2" sx={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.875rem'
+                                      }}>
+                                        {JSON.stringify(activity.details, null, 2)}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    )}
+                  </Paper>
+                </Box>
               </Stack>
-            )}
-          </Paper>
-
-          {/* Recent Activity Card */}
-          <Paper sx={{ 
-            p: 4, 
-            borderRadius: 3, 
-            bgcolor: 'background.paper',
-            boxShadow: 2,
-            flex: 1
-          }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Typography variant="h4" sx={{ 
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
+            ) : (
+              <Paper sx={{
+                p: 8,
+                textAlign: 'center',
+                borderRadius: 3,
+                bgcolor: 'background.paper',
+                boxShadow: 2
               }}>
-                <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-                Recent Activity
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<ViewIcon />}
-                component={Link}
-                to="/admin/logs"
-                size="large"
-              >
-                View All
-              </Button>
-            </Box>
-
-            {dashboardStats.recent_activity?.length === 0 ? (
-              <Box sx={{ 
-                textAlign: 'center', 
-                py: 8,
-                border: 2,
-                borderColor: 'divider',
-                borderRadius: 2,
-                bgcolor: 'grey.50'
-              }}>
-                <HistoryIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+                <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
                 <Typography variant="h6" color="textSecondary" gutterBottom>
-                  No Recent Activity
+                  Loading System Data...
                 </Typography>
                 <Typography variant="body1" color="textSecondary">
-                  Admin activities will appear here
+                  Please wait while we fetch the latest information
                 </Typography>
-              </Box>
-            ) : (
-              <Stack spacing={3}>
-                {dashboardStats.recent_activity?.slice(0, 5).map((activity, index) => (
-                  <Card key={index} sx={{ 
-                    borderRadius: 2,
-                    '&:hover': { 
-                      transform: 'translateX(4px)',
-                      boxShadow: 3,
-                      transition: 'all 0.3s ease'
-                    }
-                  }}>
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-                        <Avatar sx={{ 
-                          width: 48, 
-                          height: 48, 
-                          bgcolor: 
-                            activity.action?.includes('create') ? 'success.light' :
-                            activity.action?.includes('update') ? 'info.light' :
-                            activity.action?.includes('delete') ? 'error.light' :
-                            'primary.light',
-                          color: 
-                            activity.action?.includes('create') ? 'success.dark' :
-                            activity.action?.includes('update') ? 'info.dark' :
-                            activity.action?.includes('delete') ? 'error.dark' :
-                            'primary.dark'
-                        }}>
-                          {activity.action?.includes('create') && <PersonAddIcon />}
-                          {activity.action?.includes('update') && <CreateIcon />}
-                          {activity.action?.includes('delete') && <WarningIcon />}
-                          {activity.action?.includes('login') && <LockIcon />}
-                          {!activity.action && <EmailIcon />}
-                        </Avatar>
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              {activity.action ? activity.action.replace(/_/g, ' ').toUpperCase() : 'ACTIVITY'}
-                            </Typography>
-                            <Chip
-                              label={formatTimeAgo(activity.created_at)}
-                              size="small"
-                              sx={{ fontWeight: 500 }}
-                            />
-                          </Box>
-                          
-                          <Typography variant="body1" color="textSecondary" gutterBottom>
-                            <strong>{activity.admin_email || 'System'}</strong>
-                            {activity.target_email && (
-                              <>
-                                {' performed action on '}
-                                <strong>{activity.target_email}</strong>
-                              </>
-                            )}
-                          </Typography>
-                          
-                          <Box sx={{ 
-                            mt: 2,
-                            p: 2,
-                            bgcolor: 'grey.50',
-                            borderRadius: 1
-                          }}>
-                            <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                              Timestamp
-                            </Typography>
-                            <Typography variant="body2" fontWeight={500}>
-                              {formatDate(activity.created_at)}
-                            </Typography>
-                          </Box>
-                          
-                          {activity.details && (
-                            <Box sx={{ 
-                              mt: 2,
-                              p: 2,
-                              bgcolor: 'primary.light',
-                              borderRadius: 1
-                            }}>
-                              <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                                Details
-                              </Typography>
-                              <Typography variant="body2" sx={{ 
-                                fontFamily: 'monospace',
-                                fontSize: '0.875rem'
-                              }}>
-                                {JSON.stringify(activity.details, null, 2)}
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
+              </Paper>
             )}
-          </Paper>
-        </Box>
-      </Stack>
-    ) : (
-      <Paper sx={{ 
-        p: 8, 
-        textAlign: 'center',
-        borderRadius: 3,
-        bgcolor: 'background.paper',
-        boxShadow: 2
-      }}>
-        <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
-        <Typography variant="h6" color="textSecondary" gutterBottom>
-          Loading System Data...
-        </Typography>
-        <Typography variant="body1" color="textSecondary">
-          Please wait while we fetch the latest information
-        </Typography>
-      </Paper>
-    )}
-  </Box>
-) : (
-  // Admin Logs Tab
-  <AdminLogsComponent />
-)}
+          </Box>
+        ) : (
+          // Admin Logs Tab
+          <AdminLogsComponent />
+        )}
 
         {/* Dialogs */}
         {/* View User Dialog */}
@@ -1478,7 +1478,7 @@ const formatTimeAgo = (dateString) => {
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">Documents</Typography>
                   <Typography>
-                    Created: {selectedUser.documents_created || 0}, 
+                    Created: {selectedUser.documents_created || 0},
                     Signed: {selectedUser.documents_signed || 0}
                   </Typography>
                 </Grid>
@@ -1523,7 +1523,7 @@ const formatTimeAgo = (dateString) => {
                     label="Email"
                     type="email"
                     value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -1533,7 +1533,7 @@ const formatTimeAgo = (dateString) => {
                     label="Password"
                     type="password"
                     value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     helperText="Minimum 6 characters"
                   />
                 </Grid>
@@ -1543,7 +1543,7 @@ const formatTimeAgo = (dateString) => {
                     fullWidth
                     label="Full Name"
                     value={newUser.full_name}
-                    onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -1552,7 +1552,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={newUser.role}
                       label="Role"
-                      onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                     >
                       <MenuItem value="admin">Admin</MenuItem>
                       <MenuItem value="user">User</MenuItem>
@@ -1565,7 +1565,7 @@ const formatTimeAgo = (dateString) => {
                     fullWidth
                     label="Organization"
                     value={newUser.organization_name}
-                    onChange={(e) => setNewUser({...newUser, organization_name: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, organization_name: e.target.value })}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -1574,7 +1574,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={newUser.email_verified}
                       label="Email Verified"
-                      onChange={(e) => setNewUser({...newUser, email_verified: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, email_verified: e.target.value })}
                     >
                       <MenuItem value={true}>Yes</MenuItem>
                       <MenuItem value={false}>No</MenuItem>
@@ -1587,7 +1587,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={newUser.is_active}
                       label="Active"
-                      onChange={(e) => setNewUser({...newUser, is_active: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, is_active: e.target.value })}
                     >
                       <MenuItem value={true}>Yes</MenuItem>
                       <MenuItem value={false}>No</MenuItem>
@@ -1614,7 +1614,7 @@ const formatTimeAgo = (dateString) => {
                     fullWidth
                     label="Full Name"
                     value={editUser.full_name}
-                    onChange={(e) => setEditUser({...editUser, full_name: e.target.value})}
+                    onChange={(e) => setEditUser({ ...editUser, full_name: e.target.value })}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -1623,7 +1623,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={editUser.role}
                       label="Role"
-                      onChange={(e) => setEditUser({...editUser, role: e.target.value})}
+                      onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
                     >
                       <MenuItem value="admin">Admin</MenuItem>
                       <MenuItem value="user">User</MenuItem>
@@ -1636,7 +1636,7 @@ const formatTimeAgo = (dateString) => {
                     fullWidth
                     label="Organization"
                     value={editUser.organization_name}
-                    onChange={(e) => setEditUser({...editUser, organization_name: e.target.value})}
+                    onChange={(e) => setEditUser({ ...editUser, organization_name: e.target.value })}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -1645,7 +1645,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={editUser.is_active}
                       label="Active"
-                      onChange={(e) => setEditUser({...editUser, is_active: e.target.value})}
+                      onChange={(e) => setEditUser({ ...editUser, is_active: e.target.value })}
                     >
                       <MenuItem value={true}>Yes</MenuItem>
                       <MenuItem value={false}>No</MenuItem>
@@ -1658,7 +1658,7 @@ const formatTimeAgo = (dateString) => {
                     <Select
                       value={editUser.email_verified}
                       label="Email Verified"
-                      onChange={(e) => setEditUser({...editUser, email_verified: e.target.value})}
+                      onChange={(e) => setEditUser({ ...editUser, email_verified: e.target.value })}
                     >
                       <MenuItem value={true}>Yes</MenuItem>
                       <MenuItem value={false}>No</MenuItem>
@@ -1770,671 +1770,671 @@ const formatTimeAgo = (dateString) => {
 
         {/* Statistics Dialog */}
         {/* Statistics Dialog */}
-<Dialog 
-  open={statsDialog} 
-  onClose={() => setStatsDialog(false)} 
-  maxWidth="lg" 
-  fullWidth
-  PaperProps={{
-    sx: { 
-      borderRadius: 3,
-      maxHeight: '90vh'
-    }
-  }}
->
-  <DialogTitle sx={{ 
-    bgcolor: 'primary.main', 
-    color: 'white',
-    py: 3,
-    px: 4,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <TimelineIcon sx={{ fontSize: 32 }} />
-      <Box>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Platform Statistics
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-          Comprehensive overview of user metrics and growth trends
-        </Typography>
-      </Box>
-    </Box>
-    <IconButton 
-      onClick={() => setStatsDialog(false)} 
-      sx={{ color: 'white' }}
-    >
-      <CloseIcon />
-    </IconButton>
-  </DialogTitle>
-  
-  <DialogContent sx={{ p: 0 }}>
-    {stats ? (
-      <Box sx={{ p: 4 }}>
-        {/* Header Summary */}
-        <Paper sx={{ 
-          p: 4, 
-          mb: 4, 
-          borderRadius: 2,
-          bgcolor: 'primary.light',
-          background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)'
-        }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.dark' }}>
-            Platform Overview
-          </Typography>
-          <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', gap: 3 }}>
-            {Object.entries(stats.summary || {})
-              .filter(([key]) => !['users_by_role'].includes(key))
-              .map(([key, value]) => (
-                <Box key={key} sx={{ flex: '1 1 200px' }}>
-                  <Card sx={{ 
-                    borderRadius: 2,
-                    borderLeft: 4,
-                    borderColor: 'primary.main',
-                    height: '100%'
-                  }}>
-                    <CardContent sx={{ p: 3 }}>
-                      <Typography variant="h3" sx={{ 
-                        fontWeight: 700,
-                        color: 'primary.main',
-                        mb: 1
-                      }}>
-                        {typeof value === 'number' ? formatNumber(value) : value}
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: 'text.secondary',
-                        textTransform: 'capitalize',
-                        fontWeight: 500
-                      }}>
-                        {key.replace(/_/g, ' ')}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
-              ))}
-          </Stack>
-        </Paper>
-
-        {/* Main Content */}
-        <Stack spacing={4}>
-          {/* Users by Role Section */}
-          <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
-            <Typography variant="h5" gutterBottom sx={{ 
-              fontWeight: 700,
-              mb: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2
-            }}>
-              <PeopleIcon sx={{ color: 'primary.main' }} />
-              User Distribution by Role
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {/* Progress Bars */}
-              <Box sx={{ flex: '1 1 300px' }}>
-                <Stack spacing={3}>
-                  {Object.entries(stats.summary?.users_by_role || {}).map(([role, count]) => {
-                    const percentage = (count / stats.summary?.total_users) * 100;
-                    return (
-                      <Box key={role} sx={{ mb: 2 }}>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          mb: 1.5 
-                        }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Avatar sx={{ 
-                              width: 40, 
-                              height: 40,
-                              bgcolor: 
-                                role === 'admin' ? 'error.main' :
-                                role === 'user' ? 'primary.main' :
-                                'success.main'
-                            }}>
-                              {role === 'admin' && <AdminPanelSettingsIcon />}
-                              {role === 'user' && <PersonIcon />}
-                              {role === 'recipient' && <AssignmentIndIcon />}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                {formatRole(role).label}
-                              </Typography>
-                              <Typography variant="body2" color="textSecondary">
-                                {count} users
-                              </Typography>
-                            </Box>
-                          </Box>
-                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                            {percentage.toFixed(1)}%
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={percentage}
-                          sx={{ 
-                            height: 12, 
-                            borderRadius: 6,
-                            backgroundColor: 'grey.200'
-                          }}
-                          color={
-                            role === 'admin' ? 'error' :
-                            role === 'user' ? 'primary' :
-                            'success'
-                          }
-                        />
-                      </Box>
-                    );
-                  })}
-                </Stack>
+        <Dialog
+          open={statsDialog}
+          onClose={() => setStatsDialog(false)}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              maxHeight: '90vh'
+            }
+          }}
+        >
+          <DialogTitle sx={{
+            bgcolor: 'primary.main',
+            color: 'white',
+            py: 3,
+            px: 4,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <TimelineIcon sx={{ fontSize: 32 }} />
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Platform Statistics
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Comprehensive overview of user metrics and growth trends
+                </Typography>
               </Box>
-              
-              {/* Pie Chart Visualization */}
-              <Box sx={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Paper sx={{ 
-                  p: 4, 
-                  borderRadius: 3,
-                  textAlign: 'center',
-                  bgcolor: 'grey.50',
-                  width: '100%',
-                  maxWidth: 400
+            </Box>
+            <IconButton
+              onClick={() => setStatsDialog(false)}
+              sx={{ color: 'white' }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent sx={{ p: 0 }}>
+            {stats ? (
+              <Box sx={{ p: 4 }}>
+                {/* Header Summary */}
+                <Paper sx={{
+                  p: 4,
+                  mb: 4,
+                  borderRadius: 2,
+                  bgcolor: 'primary.light',
+                  background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)'
                 }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                    Distribution Chart
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.dark' }}>
+                    Platform Overview
                   </Typography>
-                  <Box sx={{ 
-                    position: 'relative', 
-                    height: 200, 
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {/* Simple pie chart visualization using circles */}
-                    <Box sx={{ 
-                      position: 'relative',
-                      width: 180,
-                      height: 180
-                    }}>
-                      {(() => {
-                        const roles = Object.entries(stats.summary?.users_by_role || {});
-                        const total = roles.reduce((sum, [, count]) => sum + count, 0);
-                        let currentAngle = 0;
-                        
-                        return roles.map(([role, count], index) => {
-                          const percentage = (count / total) * 100;
-                          const angle = (percentage / 100) * 360;
-                          const radius = 80;
-                          
-                          // Create a segment using border
-                          const segmentStyle = {
-                            position: 'absolute',
-                            width: radius * 2,
-                            height: radius * 2,
-                            borderRadius: '50%',
-                            border: `${radius}px solid transparent`,
-                            borderTopColor: 
-                              role === 'admin' ? 'error.main' :
-                              role === 'user' ? 'primary.main' :
-                              'success.main',
-                            transform: `rotate(${currentAngle}deg)`,
-                            clipPath: `inset(0 0 ${100 - percentage}% 0)`
-                          };
-                          
-                          currentAngle += angle;
-                          
-                          return (
-                            <Box key={role} sx={segmentStyle} />
-                          );
-                        });
-                      })()}
-                      
-                      {/* Center circle */}
-                      <Box sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: 60,
-                        height: 60,
-                        borderRadius: '50%',
-                        bgcolor: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: 2
-                      }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                          {stats.summary?.total_users}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                  
-                  {/* Legend */}
-                  <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
-                    {Object.entries(stats.summary?.users_by_role || {}).map(([role, count]) => (
-                      <Box key={role} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          bgcolor: 
-                            role === 'admin' ? 'error.main' :
-                            role === 'user' ? 'primary.main' :
-                            'success.main'
-                        }} />
-                        <Typography variant="body2">
-                          {formatRole(role).label}
-                        </Typography>
-                      </Box>
-                    ))}
+                  <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', gap: 3 }}>
+                    {Object.entries(stats.summary || {})
+                      .filter(([key]) => !['users_by_role'].includes(key))
+                      .map(([key, value]) => (
+                        <Box key={key} sx={{ flex: '1 1 200px' }}>
+                          <Card sx={{
+                            borderRadius: 2,
+                            borderLeft: 4,
+                            borderColor: 'primary.main',
+                            height: '100%'
+                          }}>
+                            <CardContent sx={{ p: 3 }}>
+                              <Typography variant="h3" sx={{
+                                fontWeight: 700,
+                                color: 'primary.main',
+                                mb: 1
+                              }}>
+                                {typeof value === 'number' ? formatNumber(value) : value}
+                              </Typography>
+                              <Typography variant="body1" sx={{
+                                color: 'text.secondary',
+                                textTransform: 'capitalize',
+                                fontWeight: 500
+                              }}>
+                                {key.replace(/_/g, ' ')}
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Box>
+                      ))}
                   </Stack>
                 </Paper>
-              </Box>
-            </Box>
-          </Paper>
 
-          {/* Monthly Growth Section */}
-          <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
-            <Typography variant="h5" gutterBottom sx={{ 
-              fontWeight: 700,
-              mb: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2
-            }}>
-              <TrendingUpIcon sx={{ color: 'primary.main' }} />
-              Monthly User Growth
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
-              {/* Growth Data Table */}
-              <Box sx={{ flex: 1 }}>
-                <Paper sx={{ 
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  border: '1px solid',
-                  borderColor: 'divider'
-                }}>
-                  <Box sx={{ 
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    py: 2,
-                    px: 3
-                  }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Monthly Registration Data
+                {/* Main Content */}
+                <Stack spacing={4}>
+                  {/* Users by Role Section */}
+                  <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
+                    <Typography variant="h5" gutterBottom sx={{
+                      fontWeight: 700,
+                      mb: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}>
+                      <PeopleIcon sx={{ color: 'primary.main' }} />
+                      User Distribution by Role
                     </Typography>
-                  </Box>
-                  <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-                    <List sx={{ p: 0 }}>
-                      {(stats.trends?.monthly_growth || []).map((item, index) => (
-                        <React.Fragment key={item.month}>
-                          <ListItem sx={{ 
-                            py: 2.5,
-                            px: 3,
-                            '&:hover': { bgcolor: 'action.hover' }
+
+                    <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {/* Progress Bars */}
+                      <Box sx={{ flex: '1 1 300px' }}>
+                        <Stack spacing={3}>
+                          {Object.entries(stats.summary?.users_by_role || {}).map(([role, count]) => {
+                            const percentage = (count / stats.summary?.total_users) * 100;
+                            return (
+                              <Box key={role} sx={{ mb: 2 }}>
+                                <Box sx={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  mb: 1.5
+                                }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar sx={{
+                                      width: 40,
+                                      height: 40,
+                                      bgcolor:
+                                        role === 'admin' ? 'error.main' :
+                                          role === 'user' ? 'primary.main' :
+                                            'success.main'
+                                    }}>
+                                      {role === 'admin' && <AdminPanelSettingsIcon />}
+                                      {role === 'user' && <PersonIcon />}
+                                      {role === 'recipient' && <AssignmentIndIcon />}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                        {formatRole(role).label}
+                                      </Typography>
+                                      <Typography variant="body2" color="textSecondary">
+                                        {count} users
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                    {percentage.toFixed(1)}%
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={percentage}
+                                  sx={{
+                                    height: 12,
+                                    borderRadius: 6,
+                                    backgroundColor: 'grey.200'
+                                  }}
+                                  color={
+                                    role === 'admin' ? 'error' :
+                                      role === 'user' ? 'primary' :
+                                        'success'
+                                  }
+                                />
+                              </Box>
+                            );
+                          })}
+                        </Stack>
+                      </Box>
+
+                      {/* Pie Chart Visualization */}
+                      <Box sx={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Paper sx={{
+                          p: 4,
+                          borderRadius: 3,
+                          textAlign: 'center',
+                          bgcolor: 'grey.50',
+                          width: '100%',
+                          maxWidth: 400
+                        }}>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                            Distribution Chart
+                          </Typography>
+                          <Box sx={{
+                            position: 'relative',
+                            height: 200,
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}>
-                            <ListItemIcon sx={{ minWidth: 48 }}>
-                              <Avatar sx={{ 
-                                bgcolor: index % 2 === 0 ? 'primary.light' : 'secondary.light',
-                                color: index % 2 === 0 ? 'primary.dark' : 'secondary.dark'
+                            {/* Simple pie chart visualization using circles */}
+                            <Box sx={{
+                              position: 'relative',
+                              width: 180,
+                              height: 180
+                            }}>
+                              {(() => {
+                                const roles = Object.entries(stats.summary?.users_by_role || {});
+                                const total = roles.reduce((sum, [, count]) => sum + count, 0);
+                                let currentAngle = 0;
+
+                                return roles.map(([role, count], index) => {
+                                  const percentage = (count / total) * 100;
+                                  const angle = (percentage / 100) * 360;
+                                  const radius = 80;
+
+                                  // Create a segment using border
+                                  const segmentStyle = {
+                                    position: 'absolute',
+                                    width: radius * 2,
+                                    height: radius * 2,
+                                    borderRadius: '50%',
+                                    border: `${radius}px solid transparent`,
+                                    borderTopColor:
+                                      role === 'admin' ? 'error.main' :
+                                        role === 'user' ? 'primary.main' :
+                                          'success.main',
+                                    transform: `rotate(${currentAngle}deg)`,
+                                    clipPath: `inset(0 0 ${100 - percentage}% 0)`
+                                  };
+
+                                  currentAngle += angle;
+
+                                  return (
+                                    <Box key={role} sx={segmentStyle} />
+                                  );
+                                });
+                              })()}
+
+                              {/* Center circle */}
+                              <Box sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: 60,
+                                height: 60,
+                                borderRadius: '50%',
+                                bgcolor: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: 2
                               }}>
-                                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                                  {index + 1}
+                                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                  {stats.summary?.total_users}
                                 </Typography>
-                              </Avatar>
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={
-                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                  {item.month}
+                              </Box>
+                            </Box>
+                          </Box>
+
+                          {/* Legend */}
+                          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
+                            {Object.entries(stats.summary?.users_by_role || {}).map(([role, count]) => (
+                              <Box key={role} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '50%',
+                                  bgcolor:
+                                    role === 'admin' ? 'error.main' :
+                                      role === 'user' ? 'primary.main' :
+                                        'success.main'
+                                }} />
+                                <Typography variant="body2">
+                                  {formatRole(role).label}
                                 </Typography>
-                              }
-                              secondary={
-                                <Typography variant="body2" color="textSecondary">
-                                  {format(new Date(item.month + '-01'), 'MMMM yyyy')}
-                                </Typography>
-                              }
-                            />
-                            <Box sx={{ textAlign: 'right' }}>
-                              <Typography variant="h4" sx={{ 
-                                fontWeight: 700,
-                                color: item.new_users > 0 ? 'success.main' : 'error.main'
-                              }}>
-                                +{item.new_users}
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Paper>
+                      </Box>
+                    </Box>
+                  </Paper>
+
+                  {/* Monthly Growth Section */}
+                  <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
+                    <Typography variant="h5" gutterBottom sx={{
+                      fontWeight: 700,
+                      mb: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}>
+                      <TrendingUpIcon sx={{ color: 'primary.main' }} />
+                      Monthly User Growth
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
+                      {/* Growth Data Table */}
+                      <Box sx={{ flex: 1 }}>
+                        <Paper sx={{
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          border: '1px solid',
+                          borderColor: 'divider'
+                        }}>
+                          <Box sx={{
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            py: 2,
+                            px: 3
+                          }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              Monthly Registration Data
+                            </Typography>
+                          </Box>
+                          <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+                            <List sx={{ p: 0 }}>
+                              {(stats.trends?.monthly_growth || []).map((item, index) => (
+                                <React.Fragment key={item.month}>
+                                  <ListItem sx={{
+                                    py: 2.5,
+                                    px: 3,
+                                    '&:hover': { bgcolor: 'action.hover' }
+                                  }}>
+                                    <ListItemIcon sx={{ minWidth: 48 }}>
+                                      <Avatar sx={{
+                                        bgcolor: index % 2 === 0 ? 'primary.light' : 'secondary.light',
+                                        color: index % 2 === 0 ? 'primary.dark' : 'secondary.dark'
+                                      }}>
+                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                          {index + 1}
+                                        </Typography>
+                                      </Avatar>
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={
+                                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                          {item.month}
+                                        </Typography>
+                                      }
+                                      secondary={
+                                        <Typography variant="body2" color="textSecondary">
+                                          {format(new Date(item.month + '-01'), 'MMMM yyyy')}
+                                        </Typography>
+                                      }
+                                    />
+                                    <Box sx={{ textAlign: 'right' }}>
+                                      <Typography variant="h4" sx={{
+                                        fontWeight: 700,
+                                        color: item.new_users > 0 ? 'success.main' : 'error.main'
+                                      }}>
+                                        +{item.new_users}
+                                      </Typography>
+                                      <Typography variant="caption" color="textSecondary">
+                                        New Users
+                                      </Typography>
+                                    </Box>
+                                  </ListItem>
+                                  {index < (stats.trends?.monthly_growth?.length || 0) - 1 && (
+                                    <Divider />
+                                  )}
+                                </React.Fragment>
+                              ))}
+                            </List>
+                          </Box>
+                        </Paper>
+                      </Box>
+
+                      {/* Growth Chart */}
+                      <Box sx={{ flex: 1, minWidth: 300 }}>
+                        <Paper sx={{
+                          p: 4,
+                          borderRadius: 2,
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column'
+                        }}>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                            Growth Visualization
+                          </Typography>
+
+                          {/* Simple bar chart */}
+                          <Box sx={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            gap: 2,
+                            height: 300,
+                            py: 3
+                          }}>
+                            {(stats.trends?.monthly_growth || []).slice(-6).map((item, index) => {
+                              const maxUsers = Math.max(...(stats.trends?.monthly_growth || []).map(m => m.new_users));
+                              const heightPercentage = (item.new_users / maxUsers) * 100;
+
+                              return (
+                                <Box key={item.month} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <Tooltip title={`${item.new_users} new users in ${item.month}`}>
+                                    <Box
+                                      sx={{
+                                        width: '80%',
+                                        height: `${Math.max(heightPercentage, 10)}%`,
+                                        bgcolor: item.new_users > 0 ? 'primary.main' : 'error.main',
+                                        borderRadius: '4px 4px 0 0',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                          transform: 'scale(1.05)',
+                                          bgcolor: item.new_users > 0 ? 'primary.dark' : 'error.dark'
+                                        }
+                                      }}
+                                    />
+                                  </Tooltip>
+                                  <Typography variant="caption" sx={{
+                                    mt: 1,
+                                    textAlign: 'center',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem'
+                                  }}>
+                                    {item.month.split('-')[1]}
+                                  </Typography>
+                                  <Typography variant="caption" color="textSecondary">
+                                    {format(new Date(item.month + '-01'), 'MMM')}
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+
+                          {/* Summary */}
+                          <Box sx={{
+                            mt: 4,
+                            p: 3,
+                            bgcolor: 'grey.50',
+                            borderRadius: 2,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <Box>
+                              <Typography variant="body2" color="textSecondary">
+                                Total Growth (12 months)
                               </Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                New Users
+                              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                                {stats.trends?.monthly_growth?.reduce((sum, item) => sum + item.new_users, 0) || 0}
                               </Typography>
                             </Box>
-                          </ListItem>
-                          {index < (stats.trends?.monthly_growth?.length || 0) - 1 && (
-                            <Divider />
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </List>
-                  </Box>
-                </Paper>
-              </Box>
-              
-              {/* Growth Chart */}
-              <Box sx={{ flex: 1, minWidth: 300 }}>
-                <Paper sx={{ 
-                  p: 4, 
-                  borderRadius: 2,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                    Growth Visualization
-                  </Typography>
-                  
-                  {/* Simple bar chart */}
-                  <Box sx={{ 
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    gap: 2,
-                    height: 300,
-                    py: 3
-                  }}>
-                    {(stats.trends?.monthly_growth || []).slice(-6).map((item, index) => {
-                      const maxUsers = Math.max(...(stats.trends?.monthly_growth || []).map(m => m.new_users));
-                      const heightPercentage = (item.new_users / maxUsers) * 100;
-                      
-                      return (
-                        <Box key={item.month} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <Tooltip title={`${item.new_users} new users in ${item.month}`}>
-                            <Box
-                              sx={{
-                                width: '80%',
-                                height: `${Math.max(heightPercentage, 10)}%`,
-                                bgcolor: item.new_users > 0 ? 'primary.main' : 'error.main',
-                                borderRadius: '4px 4px 0 0',
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  transform: 'scale(1.05)',
-                                  bgcolor: item.new_users > 0 ? 'primary.dark' : 'error.dark'
-                                }
-                              }}
+                            <Chip
+                              label={`Avg: ${Math.round(
+                                (stats.trends?.monthly_growth?.reduce((sum, item) => sum + item.new_users, 0) || 0) /
+                                (stats.trends?.monthly_growth?.length || 1)
+                              )}/month`}
+                              color="primary"
+                              sx={{ fontWeight: 600 }}
                             />
-                          </Tooltip>
-                          <Typography variant="caption" sx={{ 
-                            mt: 1, 
-                            textAlign: 'center',
-                            fontWeight: 600,
-                            fontSize: '0.75rem'
-                          }}>
-                            {item.month.split('-')[1]}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {format(new Date(item.month + '-01'), 'MMM')}
-                          </Typography>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                  
-                  {/* Summary */}
-                  <Box sx={{ 
-                    mt: 4, 
-                    p: 3, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: 2,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <Box>
-                      <Typography variant="body2" color="textSecondary">
-                        Total Growth (12 months)
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                        {stats.trends?.monthly_growth?.reduce((sum, item) => sum + item.new_users, 0) || 0}
-                      </Typography>
+                          </Box>
+                        </Paper>
+                      </Box>
                     </Box>
-                    <Chip
-                      label={`Avg: ${Math.round(
-                        (stats.trends?.monthly_growth?.reduce((sum, item) => sum + item.new_users, 0) || 0) / 
-                        (stats.trends?.monthly_growth?.length || 1)
-                      )}/month`}
-                      color="primary"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  </Box>
-                </Paper>
-              </Box>
-            </Box>
-          </Paper>
+                  </Paper>
 
-          {/* Additional Metrics Section */}
-          <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
-            <Typography variant="h5" gutterBottom sx={{ 
-              fontWeight: 700,
-              mb: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2
-            }}>
-              <AnalyticsIcon sx={{ color: 'primary.main' }} />
-              Performance Insights
-            </Typography>
-            
-            <Grid container spacing={3}>
-              {/* Key Metrics */}
-              <Grid item xs={12} md={6}>
-                <Card sx={{ height: '100%', borderRadius: 2 }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SpeedIcon /> Key Ratios
-                      </Box>
+                  {/* Additional Metrics Section */}
+                  <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2 }}>
+                    <Typography variant="h5" gutterBottom sx={{
+                      fontWeight: 700,
+                      mb: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}>
+                      <AnalyticsIcon sx={{ color: 'primary.main' }} />
+                      Performance Insights
                     </Typography>
-                    
-                    <Stack spacing={3}>
-                      <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            Active User Ratio
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 700, color: 'success.main' }}>
-                            {stats.summary?.active_users && stats.summary?.total_users
-                              ? `${((stats.summary.active_users / stats.summary.total_users) * 100).toFixed(1)}%`
-                              : '0%'
-                            }
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={stats.summary?.active_users && stats.summary?.total_users
-                            ? (stats.summary.active_users / stats.summary.total_users) * 100
-                            : 0
-                          }
-                          sx={{ height: 8, borderRadius: 4 }}
-                          color="success"
-                        />
-                      </Box>
-                      
-                      <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            Verified Email Rate
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 700, color: 'info.main' }}>
-                            {stats.summary?.verified_users && stats.summary?.total_users
-                              ? `${((stats.summary.verified_users / stats.summary.total_users) * 100).toFixed(1)}%`
-                              : '0%'
-                            }
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={stats.summary?.verified_users && stats.summary?.total_users
-                            ? (stats.summary.verified_users / stats.summary.total_users) * 100
-                            : 0
-                          }
-                          sx={{ height: 8, borderRadius: 4 }}
-                          color="info"
-                        />
-                      </Box>
-                      
-                      <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            Recipient Engagement
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                            {stats.summary?.recipients_with_signatures && stats.summary?.users_by_role?.recipient
-                              ? `${((stats.summary.recipients_with_signatures / stats.summary.users_by_role.recipient) * 100).toFixed(1)}%`
-                              : '0%'
-                            }
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={stats.summary?.recipients_with_signatures && stats.summary?.users_by_role?.recipient
-                            ? (stats.summary.recipients_with_signatures / stats.summary.users_by_role.recipient) * 100
-                            : 0
-                          }
-                          sx={{ height: 8, borderRadius: 4 }}
-                          color="warning"
-                        />
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              {/* Average Metrics */}
-              <Grid item xs={12} md={6}>
-                <Card sx={{ height: '100%', borderRadius: 2 }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CalculateIcon /> Average Metrics
-                      </Box>
-                    </Typography>
-                    
-                    <Stack spacing={3}>
-                      <Paper sx={{ 
-                        p: 2.5, 
-                        borderRadius: 2,
-                        bgcolor: 'primary.light',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          <AssignmentTurnedInIcon />
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary">
-                            Avg Signatures per Recipient
-                          </Typography>
-                          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                            {stats.summary?.average_signatures_per_recipient?.toFixed(1) || '0.0'}
-                          </Typography>
-                        </Box>
-                      </Paper>
-                      
-                      <Paper sx={{ 
-                        p: 2.5, 
-                        borderRadius: 2,
-                        bgcolor: 'success.light',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}>
-                        <Avatar sx={{ bgcolor: 'success.main' }}>
-                          <PersonAddIcon />
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary">
-                            New Users (7 days)
-                          </Typography>
-                          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                            {stats.summary?.new_users_last_7_days || 0}
-                          </Typography>
-                        </Box>
-                      </Paper>
-                      
-                      <Paper sx={{ 
-                        p: 2.5, 
-                        borderRadius: 2,
-                        bgcolor: 'info.light',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}>
-                        <Avatar sx={{ bgcolor: 'info.main' }}>
-                          <CalendarMonthIcon />
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" color="textSecondary">
-                            New Users (30 days)
-                          </Typography>
-                          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                            {stats.summary?.new_users_last_30_days || 0}
-                          </Typography>
-                        </Box>
-                      </Paper>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Stack>
-      </Box>
-    ) : (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        minHeight: 400,
-        p: 4
-      }}>
-        <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
-        <Typography variant="h6" color="textSecondary">
-          Loading Statistics...
-        </Typography>
-      </Box>
-    )}
-  </DialogContent>
-  
-  <DialogActions sx={{ 
-    px: 4, 
-    py: 3,
-    borderTop: 1,
-    borderColor: 'divider'
-  }}>
-    <Button 
-      onClick={() => setStatsDialog(false)}
-      variant="outlined"
-      sx={{ mr: 2 }}
-    >
-      Close
-    </Button>
-    <Button
-      variant="contained"
-      startIcon={<DownloadIcon />}
-      onClick={() => {
-        // Add export functionality here
-        console.log('Export statistics');
-      }}
-    >
-      Export Report
-    </Button>
-  </DialogActions>
-</Dialog>
+
+                    <Grid container spacing={3}>
+                      {/* Key Metrics */}
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ height: '100%', borderRadius: 2 }}>
+                          <CardContent sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <SpeedIcon /> Key Ratios
+                              </Box>
+                            </Typography>
+
+                            <Stack spacing={3}>
+                              <Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    Active User Ratio
+                                  </Typography>
+                                  <Typography variant="body1" sx={{ fontWeight: 700, color: 'success.main' }}>
+                                    {stats.summary?.active_users && stats.summary?.total_users
+                                      ? `${((stats.summary.active_users / stats.summary.total_users) * 100).toFixed(1)}%`
+                                      : '0%'
+                                    }
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={stats.summary?.active_users && stats.summary?.total_users
+                                    ? (stats.summary.active_users / stats.summary.total_users) * 100
+                                    : 0
+                                  }
+                                  sx={{ height: 8, borderRadius: 4 }}
+                                  color="success"
+                                />
+                              </Box>
+
+                              <Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    Verified Email Rate
+                                  </Typography>
+                                  <Typography variant="body1" sx={{ fontWeight: 700, color: 'info.main' }}>
+                                    {stats.summary?.verified_users && stats.summary?.total_users
+                                      ? `${((stats.summary.verified_users / stats.summary.total_users) * 100).toFixed(1)}%`
+                                      : '0%'
+                                    }
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={stats.summary?.verified_users && stats.summary?.total_users
+                                    ? (stats.summary.verified_users / stats.summary.total_users) * 100
+                                    : 0
+                                  }
+                                  sx={{ height: 8, borderRadius: 4 }}
+                                  color="info"
+                                />
+                              </Box>
+
+                              <Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                    Recipient Engagement
+                                  </Typography>
+                                  <Typography variant="body1" sx={{ fontWeight: 700, color: 'warning.main' }}>
+                                    {stats.summary?.recipients_with_signatures && stats.summary?.users_by_role?.recipient
+                                      ? `${((stats.summary.recipients_with_signatures / stats.summary.users_by_role.recipient) * 100).toFixed(1)}%`
+                                      : '0%'
+                                    }
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={stats.summary?.recipients_with_signatures && stats.summary?.users_by_role?.recipient
+                                    ? (stats.summary.recipients_with_signatures / stats.summary.users_by_role.recipient) * 100
+                                    : 0
+                                  }
+                                  sx={{ height: 8, borderRadius: 4 }}
+                                  color="warning"
+                                />
+                              </Box>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      {/* Average Metrics */}
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ height: '100%', borderRadius: 2 }}>
+                          <CardContent sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CalculateIcon /> Average Metrics
+                              </Box>
+                            </Typography>
+
+                            <Stack spacing={3}>
+                              <Paper sx={{
+                                p: 2.5,
+                                borderRadius: 2,
+                                bgcolor: 'primary.light',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2
+                              }}>
+                                <Avatar sx={{ bgcolor: 'primary.main' }}>
+                                  <AssignmentTurnedInIcon />
+                                </Avatar>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="body2" color="textSecondary">
+                                    Avg Signatures per Recipient
+                                  </Typography>
+                                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                                    {stats.summary?.average_signatures_per_recipient?.toFixed(1) || '0.0'}
+                                  </Typography>
+                                </Box>
+                              </Paper>
+
+                              <Paper sx={{
+                                p: 2.5,
+                                borderRadius: 2,
+                                bgcolor: 'success.light',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2
+                              }}>
+                                <Avatar sx={{ bgcolor: 'success.main' }}>
+                                  <PersonAddIcon />
+                                </Avatar>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="body2" color="textSecondary">
+                                    New Users (7 days)
+                                  </Typography>
+                                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                                    {stats.summary?.new_users_last_7_days || 0}
+                                  </Typography>
+                                </Box>
+                              </Paper>
+
+                              <Paper sx={{
+                                p: 2.5,
+                                borderRadius: 2,
+                                bgcolor: 'info.light',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2
+                              }}>
+                                <Avatar sx={{ bgcolor: 'info.main' }}>
+                                  <CalendarMonthIcon />
+                                </Avatar>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="body2" color="textSecondary">
+                                    New Users (30 days)
+                                  </Typography>
+                                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                                    {stats.summary?.new_users_last_30_days || 0}
+                                  </Typography>
+                                </Box>
+                              </Paper>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Stack>
+              </Box>
+            ) : (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: 400,
+                p: 4
+              }}>
+                <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
+                <Typography variant="h6" color="textSecondary">
+                  Loading Statistics...
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{
+            px: 4,
+            py: 3,
+            borderTop: 1,
+            borderColor: 'divider'
+          }}>
+            <Button
+              onClick={() => setStatsDialog(false)}
+              variant="outlined"
+              sx={{ mr: 2 }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={() => {
+                // Add export functionality here
+                console.log('Export statistics');
+              }}
+            >
+              Export Report
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Notifications */}
         <Snackbar
@@ -2472,17 +2472,17 @@ const AdminLogsComponent = () => {
 
 
   const formatDate = (dateString) => {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
-};
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  };
 
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/admin/admin-logs?limit=50`, {
@@ -2494,7 +2494,7 @@ const AdminLogsComponent = () => {
       });
 
       if (!response.ok) throw new Error('Failed to fetch logs');
-      
+
       const data = await response.json();
       setLogs(data.logs || []);
     } catch (err) {
@@ -2502,80 +2502,79 @@ const AdminLogsComponent = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE_URL, token]);
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
+  fetchLogs();
+}, [fetchLogs]);
 
-  return (
-    <Paper>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Admin Activity Logs</Typography>
-        <Button startIcon={<RefreshIcon />} onClick={fetchLogs}>
-          Refresh
-        </Button>
+return (
+  <Paper>
+    <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Typography variant="h6">Admin Activity Logs</Typography>
+      <Button startIcon={<RefreshIcon />} onClick={fetchLogs}>
+        Refresh
+      </Button>
+    </Box>
+    {loading ? (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <CircularProgress />
       </Box>
-      {loading ? (
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Action</TableCell>
-                <TableCell>Admin</TableCell>
-                <TableCell>Target</TableCell>
-                <TableCell>Details</TableCell>
-                <TableCell>Time</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {logs.map((log, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <Chip
-                      label={log.action?.replace('_', ' ')}
-                      size="small"
-                      color={
-                        log.action?.includes('delete') ? 'error' :
+    ) : (
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Action</TableCell>
+              <TableCell>Admin</TableCell>
+              <TableCell>Target</TableCell>
+              <TableCell>Details</TableCell>
+              <TableCell>Time</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {logs.map((log, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Chip
+                    label={log.action?.replace('_', ' ')}
+                    size="small"
+                    color={
+                      log.action?.includes('delete') ? 'error' :
                         log.action?.includes('create') ? 'success' :
-                        log.action?.includes('update') ? 'info' : 'default'
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{log.admin_email}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {log.admin_id?.slice(-8)}
+                          log.action?.includes('update') ? 'info' : 'default'
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">{log.admin_email}</Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    {log.admin_id?.slice(-8)}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">{log.target_email}</Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    {log.target_user_id?.slice(-8)}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {log.changes && (
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                      {JSON.stringify(log.changes, null, 2)}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{log.target_email}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {log.target_user_id?.slice(-8)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {log.changes && (
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                        {JSON.stringify(log.changes, null, 2)}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(log.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-    </Paper>
-  );
+                  )}
+                </TableCell>
+                <TableCell>
+                  {formatDate(log.created_at)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )}
+  </Paper>
+);
 };
 
 export default UserManagement;
