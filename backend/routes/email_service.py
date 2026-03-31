@@ -14,11 +14,17 @@ import uuid
 import re
 from bson import ObjectId
 
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak, KeepTogether
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
 from database import db
 from config import SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, EMAIL_FROM, FRONTEND_URL, BACKEND_URL
 from storage import storage  # Import Azure storage provider
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 router = APIRouter()
 
 # Note: GridFS is removed - we now use Azure Blob Storage
@@ -3152,19 +3158,33 @@ async def send_completed_document_to_recipients(document_id: str):
             print(f"❌ Document {document_id} is not completed (status: {document.get('status')})")
             return False
         
-        # Get completed PDF path
-        pdf_path = document.get("signed_pdf_path") or document.get("pdf_file_path")
-        if not pdf_path:
-            print(f"❌ No PDF found for document {document_id}")
-            return False
-        
-        # Get PDF content from Azure
+        # ✅ USE UNIFIED RENDERING TO ENSURE PDF FORMAT WITH SIGNATURES
+        # This solves the issue where original formats like DOCX were being sent in emails.
         try:
-            from storage import storage
-            pdf_bytes = storage.download(pdf_path)
+            from .documents import load_document_pdf, apply_completed_fields_to_pdf
+            
+            # Load base PDF (correctly handles multi-file and conversions)
+            pdf_bytes = load_document_pdf(document, str(document["_id"]))
+            if not pdf_bytes:
+                raise Exception("Could not load base PDF")
+                
+            # Apply all completed fields dynamically
+            print(f"Generating optimized signed PDF for completion emails (Document ID: {document_id})")
+            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+            
         except Exception as e:
-            print(f"❌ Error reading PDF: {str(e)}")
-            return False
+            print(f"❌ Error in dynamic rendering for email: {str(e)}")
+            # Fallback to storage version if dynamic fails
+            pdf_path = document.get("signed_pdf_path") or document.get("pdf_file_path")
+            if not pdf_path:
+                print(f"❌ No PDF found for document {document_id}")
+                return False
+            try:
+                from storage import storage
+                pdf_bytes = storage.download(pdf_path)
+            except Exception as se:
+                print(f"❌ Storage fallback failed: {str(se)}")
+                return False
         
         # Get all recipients
         recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
@@ -3204,6 +3224,7 @@ async def send_completed_document_to_recipients(document_id: str):
                     sender_email=sender_email,
                     sender_organization=sender_organization,
                     recipient_role=recipient_role,
+                    recipient=recipient,
                     logo_url=logo_url,
                     platform_name=platform_name
                 )
@@ -3285,6 +3306,7 @@ def send_document_completion_email(
     sender_email: str,
     sender_organization: str,
     recipient_role: str,
+    recipient: dict = None,
     logo_url: str = None,
     platform_name: str = "SafeSign"
 ) -> bool:
@@ -3586,8 +3608,11 @@ def send_document_completion_email(
                     </div>
                     
                     <!-- Download Button -->
-                   
-                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{BACKEND_URL}/recipient/{str(recipient['_id']) if recipient else 'unknown'}/download/signed" class="download-button" style="color: white; background-color: #059669; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                            Download Signed Document
+                        </a>
+                    </div>
                     <!-- Attachment Info -->
                     <div class="attachment-info">
                         <strong>📎 Attachment:</strong> {document_name} (PDF)<br>
@@ -3696,16 +3721,39 @@ async def send_completed_document_package(document_id: str):
             print(f"❌ No recipients found for document {document_id}")
             return False
         
-        # Track results
-        success_count = 0
-        failed_recipients = []
+        # Pre-generate common package data (Signed doc, Summary, Certificate)
+        # This optimization ensures we don't re-render for every recipient
+        from .documents import load_document_pdf, apply_completed_fields_to_pdf
         
-        for recipient in recipients:
+        # Determine who should receive the package (Recipients + Owner)
+        package_recipients = []
+        for r in recipients:
+            package_recipients.append({
+                "email": r.get("email"),
+                "name": r.get("name", "Recipient"),
+                "is_owner": False,
+                "recipient_obj": r
+            })
+            
+        # Add Owner (Sender) to the list
+        if owner:
+            package_recipients.append({
+                "email": sender_email or owner.get("email"),
+                "name": sender_name or owner.get("full_name") or "Sender",
+                "is_owner": True,
+                "recipient_obj": recipients[0] if recipients else None # Use first recipient for context if needed
+            })
+            
+        for target in package_recipients:
             try:
-                # Generate document package for this recipient
+                recipient_email = target["email"]
+                recipient_name = target["name"]
+                is_owner = target["is_owner"]
+                
+                # Generate document package for this target
                 package_data = await generate_document_package(
                     document=document,
-                    recipient=recipient,
+                    recipient=target["recipient_obj"],
                     sender_name=sender_name,
                     sender_email=sender_email,
                     sender_organization=sender_organization,
@@ -3714,10 +3762,15 @@ async def send_completed_document_package(document_id: str):
                 )
                 
                 if package_data and package_data.get("zip_bytes"):
+                    # Custom subject/greeting if it's the owner
+                    subject = None
+                    if is_owner:
+                        subject = f"🔔 All Recipients Signed: {document.get('filename')} - Final Package Ready"
+                    
                     # Send email with ZIP attachment
                     success = send_package_email(
-                        recipient_email=recipient.get("email", ""),
-                        recipient_name=recipient.get("name", ""),
+                        recipient_email=recipient_email,
+                        recipient_name=recipient_name,
                         document=document,
                         zip_bytes=package_data["zip_bytes"],
                         zip_filename=package_data["zip_filename"],
@@ -3725,20 +3778,22 @@ async def send_completed_document_package(document_id: str):
                         sender_email=sender_email,
                         sender_organization=sender_organization,
                         platform_name=platform_name,
-                        logo_url=logo_url
+                        logo_url=logo_url,
+                        subject_override=subject
                     )
                     
                     if success:
                         success_count += 1
-                        print(f"✅ Sent document package to {recipient.get('email')}")
+                        print(f"✅ Sent document package to {recipient_email}")
                         
                         # Log the email send
+                        current_recipient = target["recipient_obj"]
                         db.document_activity.insert_one({
                             "document_id": ObjectId(document_id),
                             "action": "completed_package_sent",
-                            "recipient_email": recipient.get("email"),
-                            "recipient_name": recipient.get("name"),
-                            "recipient_role": recipient.get("role"),
+                            "recipient_email": recipient_email,
+                            "recipient_name": recipient_name,
+                            "recipient_role": current_recipient.get("role") if current_recipient else "owner",
                             "timestamp": datetime.utcnow(),
                             "sender": sender_email,
                             "document_status": "completed",
@@ -3838,29 +3893,57 @@ async def generate_document_package(
         
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             
-            # 1. Get and add SIGNED DOCUMENT
-            signed_pdf_path = document.get("signed_pdf_path") or document.get("pdf_file_path")
-            if signed_pdf_path:
-                try:
-                    from storage import storage
-                    signed_pdf_bytes = storage.download(signed_pdf_path)
-                    signed_filename = f"signed_{base_name}.pdf"
+            # 1. Get and add SIGNED DOCUMENT (Dynamically rendered to ensure PDF format)
+            try:
+                from .documents import load_document_pdf, apply_completed_fields_to_pdf
+                
+                # Use unified rendering logic to get the perfect signed PDF
+                signed_pdf_bytes = load_document_pdf(document, str(document["_id"]))
+                if signed_pdf_bytes:
+                    signed_pdf_bytes = apply_completed_fields_to_pdf(signed_pdf_bytes, str(document["_id"]), document)
+                    
+                    # Ensure filename has .pdf extension
+                    bare_filename = base_name
+                    if bare_filename.lower().endswith(".pdf"):
+                        bare_filename = bare_filename[:-4]
+                    elif bare_filename.lower().endswith(".docx"):
+                        bare_filename = bare_filename[:-5]
+                        
+                    signed_filename = f"signed_{bare_filename}.pdf"
                     zip_file.writestr(signed_filename, signed_pdf_bytes)
-                    print(f"✅ Added signed document: {signed_filename}")
-                except Exception as e:
-                    print(f"❌ Error adding signed document: {e}")
+                    print(f"✅ Added signed document (PDF): {signed_filename}")
+                else:
+                    print(f"❌ Could not load base PDF for package")
+            except Exception as e:
+                print(f"❌ Error adding signed document to package: {e}")
+                # Fallback to stored version if dynamic fails
+                signed_pdf_path = document.get("signed_pdf_path") or document.get("pdf_file_path")
+                if signed_pdf_path:
+                    try:
+                        from storage import storage
+                        signed_pdf_bytes = storage.download(signed_pdf_path)
+                        zip_file.writestr(f"signed_{base_name}.pdf", signed_pdf_bytes)
+                    except: pass
             
-            # 2. Get and add ORIGINAL DOCUMENT
-            original_pdf_path = document.get("pdf_file_path")
-            if original_pdf_path and original_pdf_path != signed_pdf_path:
+            # 2. Get and add ORIGINAL DOCUMENT (Ensuring PDF if possible)
+            original_path = document.get("pdf_file_path")
+            if original_path:
                 try:
-                    from storage import storage
-                    original_pdf_bytes = storage.download(original_pdf_path)
-                    original_filename = f"original_{base_name}.pdf"
-                    zip_file.writestr(original_filename, original_pdf_bytes)
-                    print(f"✅ Added original document: {original_filename}")
+                    from .documents import load_document_pdf
+                    original_pdf_bytes = load_document_pdf(document, str(document["_id"]))
+                    
+                    if original_pdf_bytes:
+                        bare_filename = base_name
+                        if bare_filename.lower().endswith(".pdf"):
+                            bare_filename = bare_filename[:-4]
+                        elif bare_filename.lower().endswith(".docx"):
+                            bare_filename = bare_filename[:-5]
+                            
+                        original_filename = f"original_{bare_filename}.pdf"
+                        zip_file.writestr(original_filename, original_pdf_bytes)
+                        print(f"✅ Added original document (PDF): {original_filename}")
                 except Exception as e:
-                    print(f"❌ Error adding original document: {e}")
+                    print(f"❌ Error adding original document to package: {e}")
             
             # 3. Generate and add DOCUMENT SUMMARY
             try:
@@ -4253,7 +4336,8 @@ def send_package_email(
     sender_email: str,
     sender_organization: str,
     platform_name: str,
-    logo_url: str = None
+    logo_url: str = None,
+    subject_override: str = None
 ) -> bool:
     """
     Send email with ZIP attachment containing all signed documents
@@ -4269,7 +4353,7 @@ def send_package_email(
         else:
             completed_date = str(completed_at)[:10]
         
-        subject = f"✅ Document Package: {document_name} - All Signed Documents"
+        subject = subject_override or f"✅ Document Package: {document_name} - All Signed Documents"
         
         html_content = f"""
         <!DOCTYPE html>
@@ -4546,4 +4630,36 @@ def send_package_email(
         
     except Exception as e:
         print(f"❌ Failed to send package to {recipient_email}: {str(e)}")
+        return False
+
+# ============================================
+# EXTERNAL TRIGGER ROUTE
+# ============================================
+
+@router.post("/trigger-completed-emails/{document_id}")
+async def trigger_completed_emails(
+    document_id: str,
+    background_tasks: BackgroundTasks
+):
+    """
+    Manually trigger completion emails (ZIP packages) for a document.
+    Sends to all recipients and the document owner.
+    """
+    try:
+        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        if not doc:
+            return {"success": False, "message": "Document not found"}
+            
+        if doc.get("status") != "completed":
+            return {"success": False, "message": "Document is not yet completed/signed"}
+            
+        # Trigger in background
+        background_tasks.add_task(send_completed_document_package, document_id=document_id)
+        
+        return {
+            "success": True, 
+            "message": f"Completion emails scheduled for document {document_id}"
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
         return False

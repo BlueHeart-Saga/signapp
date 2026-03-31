@@ -32,11 +32,11 @@ const FIELD_CARDS = [
   { type: 'textbox', label: 'Text', color: '#2ECC71' },
   { type: 'stamp', label: 'Stamp', color: '#E67E22' },
   { type: 'mail', label: 'Email', color: '#1ABC9C' },
-//   { type: 'company', label: 'Company', color: '#9B59B6' },
-//   { type: 'job_title', label: 'Job title', color: '#34495E' },
-//   { type: 'full_name', label: 'Full name', color: '#E67E22' },
+  //   { type: 'company', label: 'Company', color: '#9B59B6' },
+  //   { type: 'job_title', label: 'Job title', color: '#34495E' },
+  //   { type: 'full_name', label: 'Full name', color: '#E67E22' },
   { type: 'dropdown', label: 'Dropdown', color: '#16A085' },
-//   { type: 'image', label: 'Image', color: '#8E44AD' },
+  //   { type: 'image', label: 'Image', color: '#8E44AD' },
   { type: 'checkbox', label: 'Checkbox', color: '#27AE60' },
   { type: 'radio', label: 'Radio', color: '#D35400' },
   { type: 'attachment', label: 'Attachment', color: '#7F8C8D' },
@@ -47,13 +47,13 @@ const FIELD_CARDS = [
 // Group fields by category
 const FIELD_CATEGORIES = {
   signature: { name: 'Signature Fields', fields: ['signature', 'initials', 'stamp', 'witness_signature'] },
-  form: { name: 'Form Fields', fields: ['date', 'textbox', 'mail','approval', 'company', 'job_title', 'full_name', 'dropdown', 'image', 'checkbox', 'radio', 'attachment'] }
+  form: { name: 'Form Fields', fields: ['date', 'textbox', 'mail', 'approval', 'company', 'job_title', 'full_name', 'dropdown', 'image', 'checkbox', 'radio', 'attachment'] }
 };
 
-const DocumentLeftBar = ({ 
-  onAddField, 
-  recipients = [], 
-  selectedRecipientId, 
+const DocumentLeftBar = ({
+  onAddField,
+  recipients = [],
+  selectedRecipientId,
   onSelectRecipient,
   onAddRecipientClick
 }) => {
@@ -63,15 +63,15 @@ const DocumentLeftBar = ({
   // Handle drag start
   const handleDragStart = (e, fieldType, fieldLabel, fieldColor) => {
     e.dataTransfer.setData('text/plain', fieldType);
-    e.dataTransfer.setData('application/json', JSON.stringify({ 
+    e.dataTransfer.setData('application/json', JSON.stringify({
       type: fieldType,
       label: fieldLabel,
       color: fieldColor,
       source: 'field-library'
     }));
-    
+
     e.dataTransfer.effectAllowed = 'copy';
-    
+
     // Create custom drag preview
     const dragPreview = document.createElement('div');
     dragPreview.innerHTML = `
@@ -99,7 +99,7 @@ const DocumentLeftBar = ({
   // Filter fields based on recipient role
   const getAvailableFieldsForRole = (role) => {
     if (role === 'viewer') return [];
-    
+
     const rules = ROLE_FIELD_RULES[role];
     if (rules === 'ALL') {
       return FIELD_CARDS;
@@ -117,10 +117,10 @@ const DocumentLeftBar = ({
   const availableFields = useMemo(() => {
     if (!selectedRecipient) {
       // Return all fields grouped by category
-      const signatureFields = FIELD_CARDS.filter(card => 
+      const signatureFields = FIELD_CARDS.filter(card =>
         FIELD_CATEGORIES.signature.fields.includes(card.type)
       );
-      const formFields = FIELD_CARDS.filter(card => 
+      const formFields = FIELD_CARDS.filter(card =>
         FIELD_CATEGORIES.form.fields.includes(card.type)
       );
       return {
@@ -128,14 +128,14 @@ const DocumentLeftBar = ({
         form: formFields
       };
     }
-    
+
     // Filter by role when recipient selected
     const roleFields = getAvailableFieldsForRole(selectedRecipient.role);
     return {
-      signature: roleFields.filter(card => 
+      signature: roleFields.filter(card =>
         FIELD_CATEGORIES.signature.fields.includes(card.type)
       ),
-      form: roleFields.filter(card => 
+      form: roleFields.filter(card =>
         FIELD_CATEGORIES.form.fields.includes(card.type)
       )
     };
@@ -150,7 +150,7 @@ const DocumentLeftBar = ({
       }
       groups[recipient.role].push(recipient);
     });
-    
+
     const roleOrder = ['signer', 'in_person_signer', 'approver', 'form_filler', 'witness', 'viewer'];
     const sortedGroups = {};
     roleOrder.forEach(role => {
@@ -158,20 +158,20 @@ const DocumentLeftBar = ({
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     Object.keys(groups).forEach(role => {
       if (!sortedGroups[role]) {
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     return sortedGroups;
   }, [recipients]);
 
   // Filter recipients by search
   const filteredRecipients = useMemo(() => {
     if (!searchTerm) return recipients;
-    return recipients.filter(recipient => 
+    return recipients.filter(recipient =>
       recipient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       recipient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       FIELD_ROLES[recipient.role]?.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -186,7 +186,7 @@ const DocumentLeftBar = ({
   };
 
   return (
-    <Paper sx={{ 
+    <Paper sx={{
       width: 280,
       height: '100%',
       borderRadius: 2,
@@ -237,99 +237,11 @@ const DocumentLeftBar = ({
         />
       </Box> */}
 
-      {/* Recipient Selection */}
-      <Box sx={{ 
-        p: 2,
-        borderBottom: '1px solid',
-        borderColor: '#e0e0e0',
-        bgcolor: '#fafafa',
-        
-      }}>
-        <Typography variant="subtitle2" fontWeight={500} sx={{ fontSize: '0.75rem', color: '#757575', mb: 1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Assign to
-        </Typography>
-
-        {selectedRecipient ? (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1, 
-            p: 1,
-            bgcolor: '#ffffff',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: getRecipientColor(selectedRecipient),
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            
-          }}>
-            <Avatar sx={{ 
-              bgcolor: getRecipientColor(selectedRecipient), 
-              width: 36,
-  height: 36,
-  fontSize: '0.9rem',
-              fontWeight: 500
-            }}>
-              {selectedRecipient.name?.charAt(0) || 'R'}
-            </Avatar>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={600} noWrap sx={{ fontSize: '0.9125rem' }}>
-                {selectedRecipient.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.8rem' }}>
-                {selectedRecipient.email}
-              </Typography>
-            </Box>
-            <Chip
-              label={FIELD_ROLES[selectedRecipient.role]?.name}
-              size="small"
-              sx={{ 
-                height: 20,
-                fontSize: '0.6rem',
-                fontWeight: 500,
-                bgcolor: `${getRecipientColor(selectedRecipient)}15`,
-                color: getRecipientColor(selectedRecipient),
-                border: 'none'
-              }}
-            />
-            <IconButton 
-              size="small" 
-              onClick={() => onSelectRecipient(null)}
-              sx={{ p: 0.5 }}
-            >
-              <ChevronLeftIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Box>
-        ) : (
-          <Box 
-            sx={{ 
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 1,
-              bgcolor: '#ffffff',
-              borderRadius: 1,
-              border: '1px dashed',
-              borderColor: '#bdbdbd',
-              cursor: 'pointer',
-              '&:hover': {
-                borderColor: '#1976d2',
-                bgcolor: '#f5f9ff'
-              }
-            }}
-            onClick={() => document.getElementById('recipient-search')?.focus()}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-              Select recipient
-            </Typography>
-            <PersonAddIcon sx={{ fontSize: 16, color: '#1976d2' }} />
-          </Box>
-        )}
-      </Box>
 
       {/* Recipients List */}
-      <Box sx={{ 
-        height: '40%',
-  overflow: 'auto',
+      <Box sx={{
+        height: '50%',
+        overflow: 'auto',
         px: 2,
         py: 1,
         borderBottom: '1px solid',
@@ -340,20 +252,20 @@ const DocumentLeftBar = ({
       }}>
         {Object.entries(recipientsByRole).map(([role, roleRecipients]) => {
           const roleInfo = FIELD_ROLES[role];
-          const filtered = roleRecipients.filter(r => 
+          const filtered = roleRecipients.filter(r =>
             filteredRecipients.some(fr => fr.id === r.id)
           );
-          
+
           if (filtered.length === 0) return null;
-          
+
           const isExpanded = expandedRoles[role] !== false;
-          
+
           return (
             <Box key={role} sx={{ mb: 1 }}>
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 1,
                   p: 0.75,
                   borderRadius: 1,
@@ -362,10 +274,10 @@ const DocumentLeftBar = ({
                 }}
                 onClick={() => toggleRoleExpansion(role)}
               >
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  borderRadius: '50%', 
+                <Box sx={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
                   bgcolor: '#e0e0e0',
                   display: 'flex',
                   alignItems: 'center',
@@ -378,89 +290,92 @@ const DocumentLeftBar = ({
                 <Typography variant="caption" fontWeight={500} sx={{ flex: 1, fontSize: '0.75rem' }}>
                   {roleInfo?.name} ({filtered.length})
                 </Typography>
-                {isExpanded ? 
-                  <ChevronLeftIcon sx={{ transform: 'rotate(-90deg)', fontSize: 14 }} /> : 
+                {isExpanded ?
+                  <ChevronLeftIcon sx={{ transform: 'rotate(-90deg)', fontSize: 14 }} /> :
                   <ChevronRightIcon sx={{ transform: 'rotate(90deg)', fontSize: 14 }} />
                 }
               </Box>
-              
+
               {isExpanded && (
                 <Box sx={{ pl: 3 }}>
-                  
-                   
-<Box sx={{
-  height: '40%',
-  overflow: 'auto',
-  // px: 2,
-  py: 1,
-  borderBottom: '1px solid',
-  borderColor: '#e0e0e0',
-  bgcolor: '#ffffff'
-}}>
 
-{filtered.map((recipient) => {
 
-  const isSelected = selectedRecipientId === recipient.id;
-  const color = getRecipientColor(recipient);
+                  <Box sx={{
+                    height: '40%',
+                    overflow: 'auto',
+                    // px: 2,
+                    py: 1,
+                    borderBottom: '1px solid',
+                    borderColor: '#e0e0e0',
+                    bgcolor: '#ffffff'
+                  }}>
 
-  return (
-    <Box
-      key={recipient.id}
-      onClick={() => onSelectRecipient(recipient.id)}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        p: 1,
-        borderRadius: 1,
-        cursor: 'pointer',
-        bgcolor: isSelected ? `${color}10` : 'transparent',
-        transition: '0.2s',
-        '&:hover': {
-          bgcolor: isSelected ? `${color}20` : '#f5f5f5'
-        }
-      }}
-    >
+                    {filtered.map((recipient) => {
 
-      <Avatar sx={{
-        width: 28,
-        height: 28,
-        fontSize: '0.75rem',
-        bgcolor: color
-      }}>
-        {recipient.name?.charAt(0)}
-      </Avatar>
+                      const isSelected = selectedRecipientId === recipient.id;
+                      const color = getRecipientColor(recipient);
 
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500 }} noWrap>
-          {recipient.name}
-        </Typography>
+                      return (
+                        <Box
+                          key={recipient.id}
+                          onClick={() => onSelectRecipient(recipient.id)}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            p: 1,
+                            borderRadius: 1,
+                            cursor: 'pointer',
+                            bgcolor: isSelected ? `${color}10` : 'transparent',
+                            border: isSelected ? `2px solid ${color}` : '1px solid transparent',
+                            boxShadow: isSelected ? `0 2px 8px ${color}20` : 'none',
+                            transition: '0.2s',
+                            '&:hover': {
+                              bgcolor: isSelected ? `${color}20` : '#f5f5f5',
+                              borderColor: isSelected ? color : '#e0e0e0'
+                            }
+                          }}
+                        >
 
-        <Typography sx={{ fontSize: '0.72rem', color: '#777' }} noWrap>
-          {recipient.email}
-        </Typography>
-      </Box>
+                          <Avatar sx={{
+                            width: 28,
+                            height: 28,
+                            fontSize: '0.75rem',
+                            bgcolor: color
+                          }}>
+                            {recipient.name?.charAt(0)}
+                          </Avatar>
 
-      <Chip
-        label={FIELD_ROLES[recipient.role]?.name}
-        size="small"
-        sx={{
-          height: 22,
-          fontSize: '0.65rem',
-          bgcolor: `${color}15`,
-          color: color
-        }}
-      />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 500 }} noWrap>
+                              {recipient.name}
+                            </Typography>
 
-    </Box>
-  );
+                            <Typography sx={{ fontSize: '0.72rem', color: '#777' }} noWrap>
+                              {recipient.email}
+                            </Typography>
+                          </Box>
 
-})}
+                          <Chip
+                            label={FIELD_ROLES[recipient.role]?.name}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.65rem',
+                              bgcolor: `${color}15`,
+                              color: color
+                            }}
+                          />
 
-</Box>
+                        </Box>
+                      );
 
-                    
-                
+                    })}
+
+                  </Box>
+
+
+
                 </Box>
               )}
             </Box>
@@ -468,29 +383,29 @@ const DocumentLeftBar = ({
         })}
 
         {!selectedRecipient && (
-  <Box
-    sx={{
-      p: 1.5,
-      mb: 1,
-      bgcolor: '#fff8e1',
-      border: '1px solid #ffe082',
-      borderRadius: 1,
-      fontSize: '12px',
-      color: '#8d6e63',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1
-    }}
-  >
-    <InfoIcon sx={{ fontSize: 16 }} />
-    Select a recipient first to enable fields
-  </Box>
-)}
+          <Box
+            sx={{
+              p: 1.5,
+              mb: 1,
+              bgcolor: '#fff8e1',
+              border: '1px solid #ffe082',
+              borderRadius: 1,
+              fontSize: '12px',
+              color: '#8d6e63',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoIcon sx={{ fontSize: 16 }} />
+            Select a recipient first to enable fields
+          </Box>
+        )}
       </Box>
 
       {/* Field Categories */}
-      <Box sx={{ 
-        height: '60%',
+      <Box sx={{
+        height: '50%',
         flex: 1,
         overflow: 'auto',
         p: 2,
@@ -500,22 +415,22 @@ const DocumentLeftBar = ({
       }}>
         {/* Signature Fields */}
         {availableFields.signature?.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
+          <Box sx={{ mb: 1 }}>
+            <Typography
+              variant="subtitle2"
+              sx={{
                 fontSize: '0.7rem',
                 fontWeight: 600,
                 color: '#757575',
-                mb: 1.5,
+                mb: 0.5,
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}
             >
               Signature Fields
             </Typography>
-            
-            <Box sx={{ 
+
+            <Box sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: 1
@@ -523,66 +438,66 @@ const DocumentLeftBar = ({
               {availableFields.signature.map((field) => {
                 const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : field.color;
                 const bgOpacity = selectedRecipient ? 0.08 : 0.03;
-                
+
                 return (
-                    <Tooltip
-  title={!selectedRecipient ? "Please select a recipient first" : ""}
-  arrow
->    
-             <Card
-  key={field.type}
-  draggable={!!selectedRecipient}
-  onDragStart={
-    selectedRecipient
-      ? (e) => handleDragStart(e, field.type, field.label, recipientColor)
-      : undefined
-  }
-                    sx={{
-                      cursor: selectedRecipient ? 'grab' : 'not-allowed',
-                      border: '1px solid',
-                      borderColor: selectedRecipient ? recipientColor : '#e0e0e0',
-                      borderRadius: 1,
-                      transition: 'all 0.2s',
-                      bgcolor: selectedRecipient ? `${recipientColor}${Math.round(bgOpacity * 255).toString(16).padStart(2, '0')}` : '#ffffff',
-                      boxShadow: 'none',
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        borderColor: recipientColor,
-                        boxShadow: `0 2px 4px ${recipientColor}20`,
-                        bgcolor: selectedRecipient ? `${recipientColor}15` : '#f8f8f8'
-                      },
-                      '&:active': {
-                         cursor: selectedRecipient ? 'default' : 'grabbing',
-                        transform: 'scale(0.98)'
-                      }
-                    }}
+                  <Tooltip
+                    title={!selectedRecipient ? "Please select a recipient first" : ""}
+                    arrow
                   >
-                    <Box sx={{ 
-                      p: 1.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 400,
-                          fontSize: '0.8125rem',
-                          color: selectedRecipient ? recipientColor : '#1a1a1a'
-                        }}
-                      >
-                        {field.label}
-                      </Typography>
-                      <DragIndicatorIcon sx={{ 
-                        fontSize: 14, 
-                        color: selectedRecipient ? recipientColor : '#bdbdbd',
-                        opacity: 0.5
-                      }} />
-                    </Box>
-                  </Card>
+                    <Card
+                      key={field.type}
+                      draggable={!!selectedRecipient}
+                      onDragStart={
+                        selectedRecipient
+                          ? (e) => handleDragStart(e, field.type, field.label, recipientColor)
+                          : undefined
+                      }
+                      sx={{
+                        cursor: selectedRecipient ? 'grab' : 'not-allowed',
+                        border: '1px solid',
+                        borderColor: selectedRecipient ? recipientColor : '#e0e0e0',
+                        borderRadius: 1,
+                        transition: 'all 0.2s',
+                        bgcolor: selectedRecipient ? `${recipientColor}${Math.round(bgOpacity * 255).toString(16).padStart(2, '0')}` : '#ffffff',
+                        boxShadow: 'none',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          borderColor: recipientColor,
+                          boxShadow: `0 2px 4px ${recipientColor}20`,
+                          bgcolor: selectedRecipient ? `${recipientColor}15` : '#f8f8f8'
+                        },
+                        '&:active': {
+                          cursor: selectedRecipient ? 'default' : 'grabbing',
+                          transform: 'scale(0.98)'
+                        }
+                      }}
+                    >
+                      <Box sx={{
+                        p: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 400,
+                            fontSize: '0.8125rem',
+                            color: selectedRecipient ? recipientColor : '#1a1a1a'
+                          }}
+                        >
+                          {field.label}
+                        </Typography>
+                        <DragIndicatorIcon sx={{
+                          fontSize: 14,
+                          color: selectedRecipient ? recipientColor : '#bdbdbd',
+                          opacity: 0.5
+                        }} />
+                      </Box>
+                    </Card>
 
                   </Tooltip>
- 
+
                 );
               })}
             </Box>
@@ -605,8 +520,8 @@ const DocumentLeftBar = ({
             >
               Form Fields
             </Typography> */}
-            
-            <Box sx={{ 
+
+            <Box sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: 1
@@ -614,63 +529,63 @@ const DocumentLeftBar = ({
               {availableFields.form.map((field) => {
                 const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : field.color;
                 const bgOpacity = selectedRecipient ? 0.08 : 0.03;
-                
+
                 return (
-                    <Tooltip
-  title={!selectedRecipient ? "Please select a recipient first" : ""}
-  arrow
->
-                  <Card
-  key={field.type}
-  draggable={!!selectedRecipient}
-  onDragStart={
-    selectedRecipient
-      ? (e) => handleDragStart(e, field.type, field.label, recipientColor)
-      : undefined
-  }
-                    sx={{
-                      cursor: selectedRecipient ? 'grab' : 'not-allowed',
-                      border: '1px solid',
-                      borderColor: selectedRecipient ? recipientColor : '#e0e0e0',
-                      borderRadius: 1,
-                      transition: 'all 0.2s',
-                      bgcolor: selectedRecipient ? `${recipientColor}${Math.round(bgOpacity * 255).toString(16).padStart(2, '0')}` : '#ffffff',
-                      boxShadow: 'none',
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        borderColor: recipientColor,
-                        boxShadow: `0 2px 4px ${recipientColor}20`,
-                        bgcolor: selectedRecipient ? `${recipientColor}15` : '#f8f8f8'
-                      },
-                      '&:active': {
-                        cursor: selectedRecipient ? 'default' : 'grabbing',
-                        transform: 'scale(0.98)'
-                      }
-                    }}
+                  <Tooltip
+                    title={!selectedRecipient ? "Please select a recipient first" : ""}
+                    arrow
                   >
-                    <Box sx={{ 
-                      p: 1.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 400,
-                          fontSize: '0.8125rem',
-                          color: selectedRecipient ? recipientColor : '#1a1a1a'
-                        }}
-                      >
-                        {field.label}
-                      </Typography>
-                      <DragIndicatorIcon sx={{ 
-                        fontSize: 14, 
-                        color: selectedRecipient ? recipientColor : '#bdbdbd',
-                        opacity: 0.5
-                      }} />
-                    </Box>
-                  </Card>
+                    <Card
+                      key={field.type}
+                      draggable={!!selectedRecipient}
+                      onDragStart={
+                        selectedRecipient
+                          ? (e) => handleDragStart(e, field.type, field.label, recipientColor)
+                          : undefined
+                      }
+                      sx={{
+                        cursor: selectedRecipient ? 'grab' : 'not-allowed',
+                        border: '1px solid',
+                        borderColor: selectedRecipient ? recipientColor : '#e0e0e0',
+                        borderRadius: 1,
+                        transition: 'all 0.2s',
+                        bgcolor: selectedRecipient ? `${recipientColor}${Math.round(bgOpacity * 255).toString(16).padStart(2, '0')}` : '#ffffff',
+                        boxShadow: 'none',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          borderColor: recipientColor,
+                          boxShadow: `0 2px 4px ${recipientColor}20`,
+                          bgcolor: selectedRecipient ? `${recipientColor}15` : '#f8f8f8'
+                        },
+                        '&:active': {
+                          cursor: selectedRecipient ? 'default' : 'grabbing',
+                          transform: 'scale(0.98)'
+                        }
+                      }}
+                    >
+                      <Box sx={{
+                        p: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 400,
+                            fontSize: '0.8125rem',
+                            color: selectedRecipient ? recipientColor : '#1a1a1a'
+                          }}
+                        >
+                          {field.label}
+                        </Typography>
+                        <DragIndicatorIcon sx={{
+                          fontSize: 14,
+                          color: selectedRecipient ? recipientColor : '#bdbdbd',
+                          opacity: 0.5
+                        }} />
+                      </Box>
+                    </Card>
 
                   </Tooltip>
                 );
@@ -681,8 +596,8 @@ const DocumentLeftBar = ({
 
         {/* No fields message */}
         {(!availableFields.signature?.length && !availableFields.form?.length) && (
-          <Box sx={{ 
-            textAlign: 'center', 
+          <Box sx={{
+            textAlign: 'center',
             py: 4,
             px: 2,
             color: '#999'
@@ -699,7 +614,7 @@ const DocumentLeftBar = ({
       </Box>
 
       {/* Add Recipient Button */}
-      <Box sx={{ 
+      <Box sx={{
         p: 2,
         borderTop: '1px solid',
         borderColor: '#e0e0e0',

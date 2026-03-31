@@ -21,7 +21,8 @@ import {
   VerifiedUserOutlined,
   DescriptionOutlined,
   MoreVert,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Archive
 } from "@mui/icons-material";
 
 const API_BASE_URL =
@@ -45,22 +46,22 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
     const headers = {
       "Accept": "application/pdf"
     };
-    
+
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    
+
     return headers;
   };
 
   const handleDownload = async (type) => {
     try {
       setLoading({ type, loading: true });
-      
+
       let endpoint = "";
       let defaultFilename = "";
-      
-      switch(type) {
+
+      switch (type) {
         case 'signed':
           endpoint = `/documents/${documentId}/download/signed`;
           defaultFilename = "signed_document.pdf";
@@ -72,12 +73,26 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
         case 'certificate':
           endpoint = `/documents/${documentId}/download/certificate`;
           defaultFilename = "certificate_of_completion.pdf";
-          
+
           // Check if document is completed before trying to download certificate
           if (documentStatus !== 'completed') {
             setSnackbar({
               open: true,
               message: `Certificate is only available for completed documents. Current status: ${documentStatus}`,
+              severity: "warning"
+            });
+            setLoading({ type: null, loading: false });
+            return;
+          }
+          break;
+        case 'package':
+          endpoint = `/documents/${documentId}/download/package`;
+          defaultFilename = "document_package.zip";
+
+          if (documentStatus !== 'completed') {
+            setSnackbar({
+              open: true,
+              message: "Full package is only available for completed documents.",
               severity: "warning"
             });
             setLoading({ type: null, loading: false });
@@ -92,23 +107,23 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: getAuthHeaders()
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = `Download failed: ${errorText}`;
-        
+
         // Special handling for certificate errors
         if (type === 'certificate' && response.status === 400) {
           errorMessage = "Certificate is only available for completed documents. Please ensure all recipients have signed.";
         }
-        
+
         throw new Error(errorMessage);
       }
 
       // Extract filename from headers or use default
       let filename = defaultFilename;
       const contentDisposition = response.headers.get('Content-Disposition');
-      
+
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
         if (filenameMatch && filenameMatch[1]) {
@@ -132,17 +147,17 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setSnackbar({ 
-        open: true, 
-        message: `${filename} downloaded successfully`, 
-        severity: "success" 
+      setSnackbar({
+        open: true,
+        message: `${filename} downloaded successfully`,
+        severity: "success"
       });
     } catch (error) {
       console.error('Download error:', error);
-      setSnackbar({ 
-        open: true, 
-        message: error.message || "Download failed. Please try again.", 
-        severity: "error" 
+      setSnackbar({
+        open: true,
+        message: error.message || "Download failed. Please try again.",
+        severity: "error"
       });
     } finally {
       setLoading({ type: null, loading: false });
@@ -155,9 +170,9 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
         recipients: emailData.recipients
           .split(",")
           .filter(email => email.trim())
-          .map(email => ({ 
-            email: email.trim(), 
-            name: email.trim().split('@')[0] 
+          .map(email => ({
+            email: email.trim(),
+            name: email.trim().split('@')[0]
           })),
         subject: emailData.subject || `Document: ${documentId}`,
         body: emailData.body || "Please find the attached document."
@@ -174,15 +189,15 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
       });
 
       const result = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(result.detail || "Email failed");
       }
 
-      setSnackbar({ 
-        open: true, 
-        message: result.message || "Email sent successfully", 
-        severity: "success" 
+      setSnackbar({
+        open: true,
+        message: result.message || "Email sent successfully",
+        severity: "success"
       });
       setEmailDialog(false);
       // Reset form
@@ -193,10 +208,10 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
       });
     } catch (error) {
       console.error('Email error:', error);
-      setSnackbar({ 
-        open: true, 
-        message: error.message || "Email failed. Please check your connection and try again.", 
-        severity: "error" 
+      setSnackbar({
+        open: true,
+        message: error.message || "Email failed. Please check your connection and try again.",
+        severity: "error"
       });
     }
   };
@@ -213,7 +228,7 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
 
       {/* Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeMenu}>
-        <MenuItem 
+        <MenuItem
           onClick={() => { handleDownload('signed'); closeMenu(); }}
           disabled={loading.type === 'signed'}
         >
@@ -227,7 +242,7 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
           </span>
         </MenuItem>
 
-        <MenuItem 
+        <MenuItem
           onClick={() => { handleDownload('original'); closeMenu(); }}
           disabled={loading.type === 'original'}
         >
@@ -241,12 +256,12 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
           </span>
         </MenuItem>
 
-        <Tooltip 
+        <Tooltip
           title={!isCertificateAvailable ? "Certificate only available for completed documents" : ""}
           placement="left"
         >
           <span>
-            <MenuItem 
+            <MenuItem
               onClick={() => { handleDownload('certificate'); closeMenu(); }}
               disabled={loading.type === 'certificate' || !isCertificateAvailable}
               sx={{
@@ -265,6 +280,36 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
                 {loading.type === 'certificate' ? 'Downloading...' : 'Download Certificate'}
               </span>
               {!isCertificateAvailable && (
+                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#666' }}>
+                  (Not available)
+                </span>
+              )}
+            </MenuItem>
+          </span>
+        </Tooltip>
+
+        <Tooltip
+          title={documentStatus !== 'completed' ? "Full package only available for completed documents" : ""}
+          placement="left"
+        >
+          <span>
+            <MenuItem
+              onClick={() => { handleDownload('package'); closeMenu(); }}
+              disabled={loading.type === 'package' || documentStatus !== 'completed'}
+              sx={{
+                opacity: documentStatus === 'completed' ? 1 : 0.6,
+                cursor: documentStatus === 'completed' ? 'pointer' : 'not-allowed'
+              }}
+            >
+              {loading.type === 'package' ? (
+                <CircularProgress size={20} />
+              ) : (
+                <Archive fontSize="small" />
+              )}
+              <span style={{ marginLeft: 10 }}>
+                {loading.type === 'package' ? 'Downloading...' : 'Download Package (ZIP)'}
+              </span>
+              {documentStatus !== 'completed' && (
                 <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#666' }}>
                   (Not available)
                 </span>
@@ -313,9 +358,9 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEmailDialog(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={sendEmail} 
+          <Button
+            variant="contained"
+            onClick={sendEmail}
             disabled={!emailData.recipients.trim()}
           >
             Send Email
@@ -330,7 +375,7 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
+        <Alert
           severity={snackbar.severity}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           sx={{ width: '100%' }}

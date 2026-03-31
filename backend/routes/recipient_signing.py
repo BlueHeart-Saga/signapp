@@ -10,6 +10,7 @@ from .fields import serialize_field_with_recipient
 from .pdf_engine import PDFEngine
 from .documents import _log_event, get_merged_pdf, load_document_pdf, apply_completed_fields_to_pdf
 from database import db
+from config import BACKEND_URL
 from .auth import get_current_user
 from .email_service import send_completed_document_to_recipients, SafeSignSummaryEngine, SafeSignCertificateEngine
 import re
@@ -2157,8 +2158,8 @@ def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
     if not document:
         return
     
-    # Get current PDF
-    pdf_path = document.get("intermediate_pdf_path") or document.get("pdf_file_path")
+    # Get current PDF - Always prefer original PDF as base for clean application
+    pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
     if not pdf_path:
         return
     
@@ -2220,10 +2221,11 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         return None
     
     # Get latest PDF
-    pdf_path = document.get("intermediate_pdf_path") or document.get("pdf_file_path")
+    # IMPORTANT: Always start from ORIGINAL PDF to avoid doubling fields
+    # If we use intermediate_pdf_path, it might already have some fields burned in
+    pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
     if not pdf_path:
-        return None
-    
+        raise HTTPException(404, "Base PDF not found for finalization")
     pdf_bytes = storage.download(pdf_path)
     
     # Get all completed fields
@@ -2232,37 +2234,51 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         "completed_at": {"$exists": True}
     }))
     
-    # Separate signatures from form fields
-    signature_fields = []
-    form_fields = []
-    
-    for field in fields:
-        if field["type"] in IMAGE_FIELDS:
-            signature_fields.append(field)
-        else:
-            form_fields.append(field)
-    
-    # Prepare signatures
+    # Prepare all fields with completion flags and coordinates
+    all_form_fields = []
     signatures = []
-    for f in signature_fields:
+    
+    for f in fields:
+        field_type = f.get("type")
         val = f.get("value")
-
-        if isinstance(val, dict) and val.get("image"):
-            signatures.append({
-                "field_id": str(f["_id"]),
-                "image": val["image"],
-                "page": f.get("page", 0)
-            })
-
+        
+        # Enrich field for PDFEngine
+        f_enriched = f.copy()
+        f_enriched["_render_completed"] = True
+        f_enriched["is_completed"] = True
+        
+        # Ensure we have consistent coordinate keys
+        if "pdf_x" not in f_enriched: f_enriched["pdf_x"] = f.get("x", 0)
+        if "pdf_y" not in f_enriched: f_enriched["pdf_y"] = f.get("y", 0)
+        if "pdf_width" not in f_enriched: f_enriched["pdf_width"] = f.get("width", 100)
+        if "pdf_height" not in f_enriched: f_enriched["pdf_height"] = f.get("height", 30)
+        
+        if field_type in IMAGE_FIELDS:
+            # Handle image-based fields (signatures, initials, stamps)
+            image_data = None
+            if isinstance(val, dict):
+                image_data = val.get("image") or val.get("data")
+            elif isinstance(val, str) and val.startswith("data:image"):
+                image_data = val
+                
+            if image_data:
+                signatures.append({
+                    "field_id": str(f["_id"]),
+                    "image": image_data,
+                    "page": f.get("page", 0)
+                })
+        
+        # Always include in fields list for coordinate lookup and form rendering
+        all_form_fields.append(f_enriched)
     
     # Finalize document
     final_pdf = PDFEngine.finalize_document(
         pdf_bytes=pdf_bytes,
         signatures=signatures,
-        fields=form_fields,
+        fields=all_form_fields,
         add_footer=True,
-        signer_email="document_system@example.com",
-        ip="system",
+        signer_email="system@safesign.ai",
+        ip=request.client.host if request and request.client else "system",
         timestamp=datetime.utcnow().isoformat()
     )
     
@@ -2701,160 +2717,25 @@ async def download_signed_document(
                 f"Document is not completed yet. Current status: {doc_status}"
             )
         
-        # Get signed PDF path
-        signed_pdf_path = document.get("signed_pdf_path")
-        if not signed_pdf_path:
-            # Fallback to intermediate or original
-            signed_pdf_path = document.get("intermediate_pdf_path") or document.get("pdf_file_path")
-            if not signed_pdf_path:
-                raise HTTPException(404, "No signed PDF available")
+        # Always start from base PDF (unified loader handles multiple files and fallbacks)
+        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        if not pdf_bytes:
+            raise HTTPException(404, "No PDF content available for this document")
         
-        # Get the signed PDF from Azure
+        # ✅ USE UNIFIED RENDERING LOGIC (MATCHES documents.py)
+        # This fixes the missing signatures/initials from the signing side.
         try:
-            pdf_bytes = storage.download(signed_pdf_path)
+            print(f"Applying all completed fields dynamically for recipient download")
+            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
         except Exception as e:
-            print(f"Error reading PDF from Azure: {str(e)}")
-            raise HTTPException(404, "PDF file not found in storage")
+            print(f"Error in dynamic rendering: {str(e)}")
+            # If dynamic failed and we have a storage version, use it
+            if document.get("signed_pdf_path"):
+                pdf_bytes = storage.download(document["signed_pdf_path"])
+            else:
+                raise HTTPException(500, f"Critical rendering error: {str(e)}")
         
-        # ============================================
-        # FIX: APPLY COMPLETED FIELDS ONLY ONCE
-        # ============================================
-        
-        # Get ALL completed fields for this document
-        completed_fields_query = {
-            "document_id": recipient["document_id"],
-            "completed_at": {"$exists": True}
-        }
-        completed_raw_fields = list(db.signature_fields.find(completed_fields_query))
-        
-        print(f"Download signed: Found {len(completed_raw_fields)} completed fields")
-        
-        if completed_raw_fields:
-            # Pre-fetch recipients for name mapping
-            all_recipients = {}
-            recipients_list = list(db.recipients.find({"document_id": recipient["document_id"]}))
-            for r in recipients_list:
-                all_recipients[str(r["_id"])] = r
-            
-            # Prepare signatures and form fields
-            signatures = []
-            form_fields = []
-            
-            for raw_field in completed_raw_fields:
-                field_type = raw_field.get("type")
-                field_value = raw_field.get("value")
-                
-                if field_type in IMAGE_FIELDS:
-                    # Handle image-based fields (signatures, initials, stamps)
-                    image_data = None
-                    if isinstance(field_value, dict):
-                        if "image" in field_value:
-                            image_data = field_value["image"]
-                        elif "data" in field_value and field_value.get("type") == "image":
-                            image_data = field_value["data"]
-                    
-                    if image_data:
-                        signatures.append({
-                            "field_id": str(raw_field["_id"]),
-                            "image": image_data,
-                            "page": raw_field.get("page", 0),
-                            "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                            "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                            "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                            "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                            "opacity": 1.0,
-                            "is_completed": True,
-                            "_render_completed": True
-                        })
-                        print(f"  - Added completed {field_type}")
-                        
-                elif field_type not in IMAGE_FIELDS:
-                    # Handle form fields
-                    printable_value = None
-                    
-                    if isinstance(field_value, dict):
-                        printable_value = field_value.get("value")
-                    else:
-                        printable_value = field_value
-                    
-                    if printable_value not in [None, ""]:
-                        # Special handling for approval fields
-                        if field_type == "approval":
-                            if isinstance(field_value, dict):
-                                if "value" in field_value:
-                                    val = field_value["value"]
-                                    if isinstance(val, bool):
-                                        printable_value = val
-                                    elif isinstance(val, str):
-                                        printable_value = val.lower() in ["true", "yes", "1", "approved"]
-                            elif isinstance(field_value, bool):
-                                printable_value = field_value
-                        
-                        form_fields.append({
-                            "field_id": str(raw_field["_id"]),
-                            "type": field_type,
-                            "value": printable_value,
-                            "page": raw_field.get("page", 0),
-                            "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                            "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                            "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                            "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                            "font_size": raw_field.get("font_size", 12),
-                            "color": "#000000",
-                            "opacity": 1.0,
-                            "is_completed": True,
-                            "_render_completed": True
-                        })
-                        print(f"  - Added completed {field_type}: {printable_value}")
-            
-            # ✅ CRITICAL FIX: Apply fields only ONCE
-            # Create a combined list of fields for PDFEngine.apply_all_fields
-            all_fields_data = []
-            
-            # Add form fields
-            for field in form_fields:
-                all_fields_data.append({
-                    "id": field["field_id"],
-                    "type": field["type"],
-                    "value": field["value"],
-                    "page": field["page"],
-                    "pdf_x": field["x"],
-                    "pdf_y": field["y"],
-                    "pdf_width": field["width"],
-                    "pdf_height": field["height"],
-                    "font_size": field.get("font_size", 12),
-                    "is_completed": True,
-                    "_render_completed": True
-                })
-            
-            # Apply ALL fields (both form fields and signatures) using apply_all_fields
-            if all_fields_data:
-                print(f"Applying {len(all_fields_data)} form fields")
-                pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, all_fields_data)
-            
-            # Apply signatures separately (on top)
-            if signatures:
-                print(f"Applying {len(signatures)} signatures")
-                pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
-                    pdf_bytes,
-                    signatures,
-                    completed_raw_fields
-                )
-        
-        # Apply "SIGNED" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",  # Green color
-                opacity=0.1,
-                font_size=48,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
-        
-        # Add envelope header if exists
+        # Add envelope header if info exists
         envelope_id = document.get("envelope_id")
         if envelope_id:
             try:
@@ -2866,7 +2747,20 @@ async def download_signed_document(
             except Exception as e:
                 print(f"Warning: Could not apply envelope header: {str(e)}")
         
-        # Add download timestamp footer
+        # Apply "SIGNED" watermark
+        try:
+            pdf_bytes = PDFEngine.apply_watermark(
+                pdf_bytes,
+                "SIGNED DOCUMENT",
+                color="#4CAF50",  # Professional green
+                opacity=0.1,
+                font_size=48,
+                angle=45
+            )
+        except Exception as e:
+            print(f"Warning: Could not apply watermark: {str(e)}")
+        
+        # Add download timestamp footer (Audit Evidence)
         try:
             client_ip = request.client.host if request.client else "0.0.0.0"
             pdf_bytes = PDFEngine.apply_audit_footer(
@@ -2874,17 +2768,29 @@ async def download_signed_document(
                 recipient.get("email", "unknown"),
                 client_ip,
                 datetime.utcnow().isoformat(),
-                footer_text=f"Downloaded: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                footer_text=f"Downloaded by: {recipient.get('email')} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
             )
         except Exception as e:
             print(f"Warning: Could not apply audit footer: {str(e)}")
         
-        # Create filename
-        original_filename = document.get("filename", "document.pdf")
-        base_name = original_filename.rsplit('.', 1)[0]
-        filename = f"signed_{base_name}.pdf"
+        # Determine filename
+        original_filename = document.get("filename", "signed_document.pdf")
+        if not original_filename.lower().endswith(".pdf"):
+            original_filename += ".pdf"
+        filename = f"signed_{original_filename}"
         
-        # Log the download
+        # Generate count of completed fields for headers/logging
+        # We don't have completed_raw_fields in scope anymore (it's inside apply_completed_fields_to_pdf)
+        # So we'll just check the document or do a simple count
+        try:
+            completed_count = db.signature_fields.count_documents({
+                "document_id": document["_id"],
+                "completed_at": {"$exists": True}
+            })
+        except:
+            completed_count = 0
+            
+        # Log the download event
         try:
             _log_event(
                 str(document["_id"]),
@@ -2894,7 +2800,7 @@ async def download_signed_document(
                     "download_type": "signed",
                     "filename": filename,
                     "envelope_id": envelope_id,
-                    "completed_fields": len(completed_raw_fields)
+                    "completed_fields_count": completed_count
                 },
                 request
             )
@@ -2908,10 +2814,8 @@ async def download_signed_document(
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
                 "Content-Length": str(len(pdf_bytes)),
-                "X-Document-Status": "completed",
-                "X-Download-Type": "signed",
-                "X-Filename": filename,
-                "X-Completed-Fields": str(len(completed_raw_fields))
+                "X-Document-ID": str(document["_id"]),
+                "X-Completed-Fields": str(completed_count)
             }
         )
         
@@ -2923,6 +2827,76 @@ async def download_signed_document(
         import traceback
         traceback.print_exc()
         raise HTTPException(500, "Internal server error while downloading document")
+
+@router.get("/recipient/{recipient_id}/download/package")
+async def download_recipient_package(
+    recipient_id: str,
+    request: Request
+):
+    """Download full document package (ZIP) for a recipient."""
+    try:
+        # Get recipient and document
+        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        if not recipient:
+            raise HTTPException(404, "Recipient not found")
+            
+        document = db.documents.find_one({"_id": recipient["document_id"]})
+        if not document:
+            raise HTTPException(404, "Document not found")
+            
+        # Verify document is completed
+        if document.get("status") != "completed":
+            raise HTTPException(403, "Document package only available after completion")
+            
+        # Import package generator
+        from .email_service import generate_document_package
+        
+        # Get overall branding/owner info
+        owner = db.users.find_one({"_id": document["owner_id"]})
+        sender_email = document.get("owner_email", "")
+        sender_name = owner.get("full_name", "") or owner.get("name", "") if owner else ""
+        sender_organization = owner.get("organization_name", "") if owner else ""
+        
+        branding = db.branding.find_one({}) or {}
+        platform_name = branding.get("platform_name", "SafeSign")
+        logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
+        
+        # Generate the package
+        package = await generate_document_package(
+            document=document,
+            recipient=recipient,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_organization=sender_organization,
+            platform_name=platform_name,
+            logo_url=logo_url
+        )
+        
+        if not package or not package.get("zip_bytes"):
+            raise HTTPException(500, "Could not generate document package")
+            
+        # Log the event
+        _log_event(
+            str(document["_id"]),
+            recipient,
+            "download_package",
+            {"format": "zip"},
+            request
+        )
+        
+        # Return ZIP as streaming response
+        return StreamingResponse(
+            io.BytesIO(package["zip_bytes"]),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{package["zip_filename"]}"'
+            }
+        )
+        
+    except HTTPException: raise
+    except Exception as e:
+        print(f"Error generating recipient package: {str(e)}")
+        raise HTTPException(500, "Internal error during package generation")
     
     
 
@@ -2964,10 +2938,16 @@ async def download_signed_document_with_passkey(
         if document.get("status") != "completed":
             raise HTTPException(400, "Document is not completed yet")
         
-        # Get signed PDF path
+        # Decide if we need to apply fields
         signed_pdf_path = document.get("signed_pdf_path")
+        should_reapply_fields = False
+        
         if not signed_pdf_path:
-            raise HTTPException(404, "Signed PDF not available")
+            # Fallback (rare for completed docs)
+            signed_pdf_path = document.get("intermediate_pdf_path") or document.get("pdf_file_path")
+            should_reapply_fields = True
+            if not signed_pdf_path:
+                raise HTTPException(404, "Signed PDF not available")
         
         # Get PDF from Azure
         try:
@@ -2989,7 +2969,7 @@ async def download_signed_document_with_passkey(
         
         print(f"Download password-protected: Found {len(completed_raw_fields)} completed fields")
         
-        if completed_raw_fields:
+        if completed_raw_fields and should_reapply_fields:
             # Prepare signatures and form fields with COMPLETION FLAGS
             signatures = []
             form_fields = []

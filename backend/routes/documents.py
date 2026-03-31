@@ -1376,8 +1376,9 @@ def load_document_pdf(doc: dict, document_id: str) -> bytes:
             print(f"[load_document_pdf] merge failed: {e}")
             # fallback to single PDF
 
-    # 2️⃣ Legacy single-PDF fallback
-    pdf_path = doc.get("signed_pdf_path") or doc.get("pdf_file_path")
+    # 2️⃣ Prefer ORIGINAL PDF when intended for field application
+    # Using signed_pdf_path here was causing doubling in live document and previewers
+    pdf_path = doc.get("pdf_file_path") or doc.get("signed_pdf_path")
     if not pdf_path:
         raise HTTPException(500, "Base PDF missing")
 
@@ -1748,11 +1749,16 @@ def extract_image_data(field_value) -> Optional[str]:
         # Format 2: {"data": "data:image/png;base64,...", "type": "image"}
         elif field_value.get("type") == "image" and "data" in field_value:
             return field_value["data"]
-        # Format 3: Nested value structure
-        elif "value" in field_value and isinstance(field_value["value"], dict):
-            nested = field_value["value"]
-            if "image" in nested:
-                return nested["image"]
+        # Format 3: Nested value structure: {"value": "data:image..."} or {"value": {"image": "..."}}
+        elif "value" in field_value:
+            val = field_value["value"]
+            if isinstance(val, str) and val.startswith("data:image"):
+                return val
+            elif isinstance(val, dict):
+                if "image" in val:
+                    return val["image"]
+                elif "data" in val and val.get("type") == "image":
+                    return val["data"]
     elif isinstance(field_value, str) and field_value.startswith("data:image"):
         # Direct base64 string
         return field_value
@@ -1903,13 +1909,13 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, doc: dict 
     if not completed_fields:
         return pdf_bytes
     
-    # Enrich fields
+    # Enrich fields with consistent normalization
     enriched_fields = []
     for field in completed_fields:
         enriched = serialize_field_with_recipient(field)
         enriched["is_completed"] = True
         enriched["display_value"] = normalize_field_value(field)
-        enriched["value"] = field.get("value")  # Keep original value too
+        enriched["value"] = field.get("value")
         enriched["_render_completed"] = True
         enriched_fields.append(enriched)
     
@@ -1923,46 +1929,33 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, doc: dict 
         
         if field_type in IMAGE_FIELDS:
             # Handle image-based fields
-            image_data = None
-            if isinstance(field_value, dict):
-                if "image" in field_value:
-                    image_data = field_value["image"]
-                elif "data" in field_value and field_value.get("type") == "image":
-                    image_data = field_value["data"]
-            elif isinstance(field_value, str) and field_value.startswith("data:image"):
-                image_data = field_value
-            
+            image_data = extract_image_data(field_value)
             if image_data:
                 signatures.append({
                     "field_id": field["id"],
                     "image": image_data,
                     "page": field.get("page", 0),
-                    "x": field.get("pdf_x", field.get("x", 0)),
-                    "y": field.get("pdf_y", field.get("y", 0)),
-                    "width": field.get("pdf_width", field.get("width", 100)),
-                    "height": field.get("pdf_height", field.get("height", 30)),
+                    "x": field.get("pdf_x") or field.get("x", 0),
+                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "width": field.get("pdf_width") or field.get("width", 100),
+                    "height": field.get("pdf_height") or field.get("height", 30),
                     "opacity": 1.0,
                     "is_completed": True,
                     "_render_completed": True
                 })
         else:
             # Handle form fields
-            printable_value = None
-            if isinstance(field_value, dict):
-                printable_value = field_value.get("value")
-            else:
-                printable_value = field_value
-            
+            printable_value = extract_printable_value(field_value)
             if printable_value not in [None, ""]:
                 form_fields.append({
                     "field_id": field["id"],
                     "type": field_type,
                     "value": printable_value,
                     "page": field.get("page", 0),
-                    "x": field.get("pdf_x", field.get("x", 0)),
-                    "y": field.get("pdf_y", field.get("y", 0)),
-                    "width": field.get("pdf_width", field.get("width", 100)),
-                    "height": field.get("pdf_height", field.get("height", 30)),
+                    "x": field.get("pdf_x") or field.get("x", 0),
+                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "width": field.get("pdf_width") or field.get("width", 100),
+                    "height": field.get("pdf_height") or field.get("height", 30),
                     "font_size": field.get("font_size", 12),
                     "color": "#000000",
                     "opacity": 1.0,
@@ -1970,28 +1963,13 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, doc: dict 
                     "_render_completed": True
                 })
     
-    # Apply form fields first (text appears under signatures)
-    if form_fields:
-        field_data = []
-        for field in form_fields:
-            render_data = {
-                "id": field["field_id"],
-                "type": field["type"],
-                "value": field["value"],
-                "page": field["page"],
-                "pdf_x": field["x"],
-                "pdf_y": field["y"],
-                "pdf_width": field["width"],
-                "pdf_height": field["height"],
-                "font_size": field.get("font_size", 12),
-                "is_completed": True,
-                "_render_completed": True
-            }
-            field_data.append(render_data)
-        
-        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, field_data)
+    print(f"Applying {len(signatures)} signatures and {len(form_fields)} form fields to PDF")
     
-    # Apply signatures on top
+    # Apply form fields first
+    if form_fields:
+        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, form_fields)
+    
+    # Apply signatures
     if signatures:
         pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
             pdf_bytes,
@@ -5876,6 +5854,97 @@ async def download_original_document_owner(
     except Exception as e:
         print(f"Error downloading original document: {str(e)}")
         raise HTTPException(500, "Internal server error while downloading document")
+
+
+@router.get("/{document_id}/download/package")
+async def download_document_package_owner(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Download full document package (ZIP) for document owner.
+    """
+    try:
+        # Validate document ID
+        try:
+            doc_oid = ObjectId(document_id)
+        except Exception:
+            raise HTTPException(400, "Invalid document ID format")
+        
+        # Get document and verify ownership
+        document = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not document:
+            raise HTTPException(404, "Document not found or you're not the owner")
+            
+        # Verify document is completed
+        if document.get("status") != "completed":
+            raise HTTPException(400, "Document package only available after completion")
+            
+        # Import package generator (inside function to avoid circular imports)
+        from .email_service import generate_document_package
+        
+        # Get overall branding/owner info
+        owner = current_user
+        sender_email = document.get("owner_email", owner.get("email", ""))
+        sender_name = owner.get("full_name", "") or owner.get("name", "")
+        sender_organization = owner.get("organization_name", "")
+        
+        branding = db.branding.find_one({}) or {}
+        platform_name = branding.get("platform_name", "SafeSign")
+        # Use request.base_url to get current backend URL
+        base_url = str(request.base_url).rstrip('/')
+        logo_url = f"{base_url}/branding/logo/file" if branding.get("logo_file_path") else None
+        
+        # Get first recipient for context if needed for summary/certificate
+        recipient = db.recipients.find_one({"document_id": doc_oid})
+        if not recipient:
+            # Fallback to a dummy recipient object for core info if no recipients exist (unlikely for completed)
+            recipient = {
+                "_id": ObjectId(),
+                "name": sender_name,
+                "email": sender_email,
+                "role": "owner"
+            }
+        
+        # Generate the package
+        package = await generate_document_package(
+            document=document,
+            recipient=recipient,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_organization=sender_organization,
+            platform_name=platform_name,
+            logo_url=logo_url
+        )
+        
+        if not package or not package.get("zip_bytes"):
+            raise HTTPException(500, "Could not generate document package")
+            
+        # Log the event
+        log_activity(document_id, current_user, "package_downloaded")
+        
+        # Return ZIP as streaming response
+        return StreamingResponse(
+            io.BytesIO(package["zip_bytes"]),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{package["zip_filename"]}"',
+                "Content-Length": str(len(package["zip_bytes"]))
+            }
+        )
+        
+    except HTTPException: raise
+    except Exception as e:
+        print(f"Error generating owner package: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal error during package generation: {str(e)}")
+
+
     
     
     

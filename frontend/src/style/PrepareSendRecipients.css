@@ -1,7 +1,6 @@
 /* PrepareSendRecipients.css */
 .docusign-container {
   min-height: 100vh;
-  max-width: 1400px;
   margin: 0 auto;
   
   background-color: white;
@@ -2212,13 +2211,13 @@ border-color: transparent;
   text-decoration: underline;
 }
 
-.zoho-file-block {
+/* .zoho-file-block {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
-}
+} */
 
 .zoho-file-header {
   display: flex;

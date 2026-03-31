@@ -231,24 +231,38 @@ export async function getFileThumbnails(documentId, fileId) {
 //   window.URL.revokeObjectURL(url);
 // };
 
-export const downloadDocument = async (id, filename, final = false) => {
+export const downloadDocument = async (id, filename, type = "signed") => {
   const token = localStorage.getItem("token");
 
-  const url = final
-    ? `/documents/${id}/signed-download?token=${encodeURIComponent(token)}`
-    : `/documents/${id}/view?token=${encodeURIComponent(token)}`;
+  let url;
+  let mimeType = "application/pdf";
+  let downloadFilename = filename;
+
+  if (type === "package") {
+    url = `/documents/${id}/download/package?token=${encodeURIComponent(token)}`;
+    mimeType = "application/zip";
+    downloadFilename = filename.replace(/\.[^/.]+$/, "") + "_package.zip";
+  } else if (type === "signed" || type === true) {
+    url = `/documents/${id}/signed-download?token=${encodeURIComponent(token)}`;
+    downloadFilename = filename.replace(/\.[^/.]+$/, "") + "_signed.pdf";
+  } else {
+    // type === "original" or type === false
+    url = `/documents/${id}/view?token=${encodeURIComponent(token)}`;
+    downloadFilename = filename;
+  }
 
   const response = await api.get(url, { responseType: "blob" });
 
-  const blob = new Blob([response.data], { type: "application/pdf" });
+  const blob = new Blob([response.data], { type: mimeType });
   const link = document.createElement("a");
   link.href = window.URL.createObjectURL(blob);
-
-  link.download = final
-    ? filename.replace(/\.[^/.]+$/, "") + "_signed.pdf"
-    : filename;
-
+  link.download = downloadFilename;
   link.click();
+
+  // Clean up
+  setTimeout(() => {
+    window.URL.revokeObjectURL(link.href);
+  }, 100);
 };
 
 
@@ -361,28 +375,28 @@ export const getRecentActivities = async (limit = 20) => {
 // ✅ Unified upload handler - CORRECTED
 export const uploadFromCloud = async (provider, fileMeta, additionalData = {}) => {
   const { downloadFile = true, accessToken } = additionalData;
-  
+
   switch (provider) {
     case "google":
-      return downloadFile 
+      return downloadFile
         ? uploadFromGoogleDrive(fileMeta, accessToken)
         : selectGoogleDriveFile(fileMeta, accessToken);
-        
+
     case "dropbox":
-      return downloadFile 
+      return downloadFile
         ? uploadFromDropbox(fileMeta)
         : selectDropboxFile(fileMeta);
-        
+
     case "onedrive":
-      return downloadFile 
+      return downloadFile
         ? uploadFromOneDrive(fileMeta, accessToken)
         : selectOneDriveFile(fileMeta);
-        
+
     case "box":
-      return downloadFile 
+      return downloadFile
         ? uploadFromBox(fileMeta, accessToken)
         : selectBoxFile(fileMeta, accessToken);
-        
+
     default:
       throw new Error("Unknown cloud provider");
   }
@@ -411,7 +425,7 @@ export const searchDocuments = async (query, limit = 8) => {
   try {
     // Use api.get directly - it already has the base URL and auth headers
     const response = await api.get(`/documents/search?q=${encodeURIComponent(query)}&limit=${limit}`);
-    
+
     // api.get already returns the response data, not the raw response
     return response.data;
   } catch (error) {

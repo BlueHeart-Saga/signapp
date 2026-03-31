@@ -36,7 +36,8 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckIcon,
   Schedule as ScheduleIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import { Description as DocumentIcon } from '@mui/icons-material';
 
@@ -52,7 +53,7 @@ const Completion = () => {
   const [snackbar, setSnackbar] = useState({ open: false, msg: '', severity: 'success' });
   const [passwordDialog, setPasswordDialog] = useState(false);
   const [downloadPassword, setDownloadPassword] = useState('');
-  
+
   // New states for document info
   const [loading, setLoading] = useState(true);
   const [documentInfo, setDocumentInfo] = useState(null);
@@ -67,21 +68,21 @@ const Completion = () => {
       try {
         setLoading(true);
         const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch document information');
         }
-        
+
         const data = await response.json();
-        
+
         setDocumentInfo(data.document);
         setRecipientInfo(data.recipient);
         setSigningInfo(data.signing_info);
-        
+
         // Check if document is fully completed
         const isCompleted = data.document?.status === 'completed';
         setIsDocumentCompleted(isCompleted);
-        
+
         // Get all recipients for the document
         if (data.document?.id) {
           const recipientsResponse = await fetch(
@@ -92,13 +93,13 @@ const Completion = () => {
               }
             }
           );
-          
+
           if (recipientsResponse.ok) {
             const recipientsData = await recipientsResponse.json();
             setAllRecipients(recipientsData);
           }
         }
-        
+
       } catch (error) {
         console.error('Error fetching document info:', error);
         setSnackbar({
@@ -124,19 +125,19 @@ const Completion = () => {
         const errorText = await res.text();
         throw new Error(`HTTP ${res.status}: ${errorText}`);
       }
-      
+
       const blob = await res.blob();
       const link = document.createElement('a');
       const blobUrl = URL.createObjectURL(blob);
       link.href = blobUrl;
       link.download = filename;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-      
+
       setSnackbar({
         open: true,
         msg: `✅ ${filename} downloaded successfully`,
@@ -146,7 +147,7 @@ const Completion = () => {
       console.error('Download failed:', error);
       setSnackbar({
         open: true,
-        msg: error.message.includes('Document not completed') 
+        msg: error.message.includes('Document not completed')
           ? 'Document is not fully signed yet. Please wait for all recipients to complete signing.'
           : '❌ Download failed. Please try again.',
         severity: 'error'
@@ -164,7 +165,7 @@ const Completion = () => {
       });
       return;
     }
-    
+
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/signed`,
       `signed_${documentInfo?.filename || 'document'}.pdf`
@@ -181,7 +182,7 @@ const Completion = () => {
       });
       return;
     }
-    
+
     if (!downloadPassword || downloadPassword.length < 4) {
       setSnackbar({
         open: true,
@@ -235,10 +236,27 @@ const Completion = () => {
       });
       return;
     }
-    
+
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/certificate`,
       `certificate_${documentInfo?.filename || 'document'}.pdf`
+    );
+  };
+
+  /* ---------------- PACKAGE DOWNLOAD (ZIP) ---------------- */
+  const handlePackageDownload = async () => {
+    if (!isDocumentCompleted) {
+      setSnackbar({
+        open: true,
+        msg: 'The full package is only available once all recipients have signed.',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    await downloadFile(
+      `${API_BASE_URL}/signing/recipient/${recipientId}/download/package`,
+      `SafeSign_Package_${documentInfo?.envelope_id || 'Document'}.zip`
     );
   };
 
@@ -252,7 +270,7 @@ const Completion = () => {
       });
       return;
     }
-    
+
     try {
       await fetch(
         `${API_BASE_URL}/signing/recipient/${recipientId}/email-signed`,
@@ -356,52 +374,51 @@ const Completion = () => {
       }}
     >
       <Box
-  sx={{
-    position: "fixed",
-    top: 20,
-    left: 20,
-    zIndex: 2000,
-    display: "flex",
-    alignItems: "center",
-    gap: 1.5,
-    cursor: "pointer",
-  }}
-  onClick={() => window.location.href = "/"}
->
-  <img
-    src={`${API_BASE_URL}/branding/logo/file`}    // ← replace with your actual logo path
-    alt="Logo"
-    style={{
-      height: 45,
-      objectFit: "contain",
-    }}
-  />
-  <Typography
-    variant="subtitle1"
-    sx={{
-      fontSize: 30,
-      fontWeight: 700,
-      color: "#0d9488",
-      letterSpacing: 0.3,
-    }}
-  >
-    SafeSign
-  </Typography>
-</Box>
+        sx={{
+          position: "fixed",
+          top: 20,
+          left: 20,
+          zIndex: 2000,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          cursor: "pointer",
+        }}
+        onClick={() => window.location.href = "/"}
+      >
+        <img
+          src={`${API_BASE_URL}/branding/logo/file`}    // ← replace with your actual logo path
+          alt="Logo"
+          style={{
+            height: 45,
+            objectFit: "contain",
+          }}
+        />
+        <Typography
+          variant="subtitle1"
+          sx={{
+            fontSize: 30,
+            fontWeight: 700,
+            color: "#0d9488",
+            letterSpacing: 0.3,
+          }}
+        >
+          SafeSign
+        </Typography>
+      </Box>
 
       <Box sx={{ maxWidth: 800, width: '100%' }}>
         {/* Document Status Banner */}
-        <Paper 
-          elevation={3} 
-          sx={{ 
-            p: 3, 
-            mb: 3, 
+        <Paper
+          elevation={3}
+          sx={{
+            p: 3,
+            mb: 3,
             borderRadius: 2,
-            borderLeft: `4px solid ${
-              documentInfo?.status === 'completed' ? '#4CAF50' :
+            borderLeft: `4px solid ${documentInfo?.status === 'completed' ? '#4CAF50' :
               documentInfo?.status === 'voided' ? '#f44336' :
-              documentInfo?.status === 'declined' ? '#ff9800' : '#2196f3'
-            }`
+                documentInfo?.status === 'declined' ? '#ff9800' : '#2196f3'
+              }`
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -412,13 +429,13 @@ const Completion = () => {
                   {documentInfo?.filename || 'Document'}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                  <Chip 
-                    label={getDocumentStatusText(documentInfo?.status)} 
+                  <Chip
+                    label={getDocumentStatusText(documentInfo?.status)}
                     color={getDocumentStatusColor(documentInfo?.status)}
                     size="small"
                   />
                   {documentInfo?.envelope_id && (
-                    <Chip 
+                    <Chip
                       label={`Envelope: ${documentInfo.envelope_id}`}
                       variant="outlined"
                       size="small"
@@ -427,7 +444,7 @@ const Completion = () => {
                 </Box>
               </Box>
             </Box>
-            
+
             {isDocumentCompleted && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CheckIcon color="success" />
@@ -449,29 +466,29 @@ const Completion = () => {
                   <ListItemIcon>
                     <PersonIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary="Your Name" 
-                    secondary={recipientInfo?.name || 'Not provided'} 
+                  <ListItemText
+                    primary="Your Name"
+                    secondary={recipientInfo?.name || 'Not provided'}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
                     <EmailIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary="Your Email" 
-                    secondary={recipientInfo?.email || 'Not provided'} 
+                  <ListItemText
+                    primary="Your Email"
+                    secondary={recipientInfo?.email || 'Not provided'}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemIcon>
                     <ScheduleIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary="Uploaded" 
-                    secondary={documentInfo?.uploaded_at ? 
-                      new Date(documentInfo.uploaded_at).toLocaleDateString() : 
-                      'Unknown'} 
+                  <ListItemText
+                    primary="Uploaded"
+                    secondary={documentInfo?.uploaded_at ?
+                      new Date(documentInfo.uploaded_at).toLocaleDateString() :
+                      'Unknown'}
                   />
                 </ListItem>
               </List>
@@ -513,8 +530,8 @@ const Completion = () => {
 
           {/* Status-specific messages */}
           {documentInfo?.status === 'voided' && (
-            <Alert 
-              severity="error" 
+            <Alert
+              severity="error"
               icon={<BlockedIcon />}
               sx={{ mt: 2 }}
             >
@@ -526,8 +543,8 @@ const Completion = () => {
           )}
 
           {documentInfo?.status === 'declined' && (
-            <Alert 
-              severity="warning" 
+            <Alert
+              severity="warning"
               icon={<WarningIcon />}
               sx={{ mt: 2 }}
             >
@@ -538,13 +555,13 @@ const Completion = () => {
           )}
 
           {!isDocumentCompleted && documentInfo?.status === 'in_progress' && (
-            <Alert 
-              severity="info" 
+            <Alert
+              severity="info"
               icon={<InfoIcon />}
               sx={{ mt: 2 }}
             >
               <Typography variant="body2">
-                Waiting for other recipients to sign. You can download the original document, 
+                Waiting for other recipients to sign. You can download the original document,
                 but the final signed version will be available once all signers complete.
               </Typography>
             </Alert>
@@ -563,69 +580,61 @@ const Completion = () => {
           </Typography> */}
 
           <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap" gap={1}>
-            <Tooltip 
+            <Tooltip
               title={!isDocumentCompleted ? "Document must be fully completed to email" : ""}
               placement="top"
             >
               <span>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<EmailIcon />} 
+                <Button
+                  variant="outlined"
+                  startIcon={<EmailIcon />}
                   onClick={handleEmail}
                   disabled={!isDocumentCompleted}
+                  sx={{ minWidth: 140 }}
                 >
                   Email to me
                 </Button>
               </span>
             </Tooltip>
 
-            <Tooltip 
+            <Tooltip
               title={!isDocumentCompleted ? "Document must be fully completed to print" : ""}
               placement="top"
             >
               <span>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<PrintIcon />} 
+                <Button
+                  variant="outlined"
+                  startIcon={<PrintIcon />}
                   onClick={handlePrint}
                   disabled={!isDocumentCompleted}
+                  sx={{ minWidth: 110 }}
                 >
                   Print
                 </Button>
               </span>
             </Tooltip>
 
-            <Tooltip 
-              title={!isDocumentCompleted ? "Waiting for all recipients to complete signing" : ""}
-              placement="top"
-            >
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleMainDownload}
-                  disabled={!isDocumentCompleted}
-                  sx={{ minWidth: 120 }}
-                >
-                  Download Signed
-                </Button>
-                <Button
-              // variant="outlined"
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
               endIcon={<ArrowDownIcon />}
               onClick={(e) => setAnchorEl(e.currentTarget)}
+              sx={{
+                minWidth: 140,
+                bgcolor: '#0d9488',
+                '&:hover': {
+                  bgcolor: '#0f766e'
+                }
+              }}
             >
-              {/* More Options */}
+              Download
             </Button>
-              </span>
-            </Tooltip>
-
-            
           </Stack>
 
           {/* DROPDOWN MENU */}
-          <Menu 
-            anchorEl={anchorEl} 
-            open={Boolean(anchorEl)} 
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
             onClose={() => setAnchorEl(null)}
             anchorOrigin={{
               vertical: 'bottom',
@@ -635,73 +644,115 @@ const Completion = () => {
               vertical: 'top',
               horizontal: 'center',
             }}
+            PaperProps={{
+              elevation: 4,
+              sx: { minWidth: 260, mt: 1 }
+            }}
           >
-            <Tooltip 
-              title={!isDocumentCompleted ? "Document must be fully completed for password protection" : ""}
+            {/* 1. Package (ZIP) */}
+            <Tooltip
+              title={!isDocumentCompleted ? "Full package only available once all recipients sign" : ""}
+              placement="left"
+            >
+              <span>
+                <MenuItem
+                  onClick={() => { handlePackageDownload(); setAnchorEl(null); }}
+                  disabled={!isDocumentCompleted}
+                >
+                  <ListItemIcon>
+                    <ArchiveIcon fontSize="small" sx={{ color: '#6366f1' }} />
+                  </ListItemIcon>
+                  <ListItemText>Download Package (ZIP)</ListItemText>
+                </MenuItem>
+              </span>
+            </Tooltip>
+
+            {/* 2. Signed PDF */}
+            <Tooltip
+              title={!isDocumentCompleted ? "Waiting for completion" : ""}
+              placement="left"
+            >
+              <span>
+                <MenuItem
+                  onClick={() => { handleMainDownload(); setAnchorEl(null); }}
+                  disabled={!isDocumentCompleted}
+                >
+                  <ListItemIcon>
+                    <CheckIcon fontSize="small" sx={{ color: '#10b981' }} />
+                  </ListItemIcon>
+                  <ListItemText>Download Signed PDF</ListItemText>
+                </MenuItem>
+              </span>
+            </Tooltip>
+
+            {/* 3. Product Pass (Protected) */}
+            <Tooltip
+              title={!isDocumentCompleted ? "Document must be fully completed" : ""}
               placement="left"
             >
               <span>
                 <MenuItem
                   onClick={() => {
-                    if (!isDocumentCompleted) {
-                      setSnackbar({
-                        open: true,
-                        msg: 'Document must be fully completed for password protection',
-                        severity: 'warning'
-                      });
-                      return;
-                    }
+                    if (!isDocumentCompleted) return;
                     setAnchorEl(null);
                     setPasswordDialog(true);
                   }}
                   disabled={!isDocumentCompleted}
                 >
-                  🔐 Signed PDF (Password Protected)
+                  <ListItemIcon>
+                    <BlockedIcon fontSize="small" sx={{ color: '#f59e0b' }} />
+                  </ListItemIcon>
+                  <ListItemText>Download Product Pass (Protected)</ListItemText>
                 </MenuItem>
               </span>
             </Tooltip>
 
             <Divider />
 
+            {/* 4. Original */}
             <MenuItem
               onClick={() => {
                 handleOriginalDownload();
                 setAnchorEl(null);
               }}
             >
-              📄 Original Document
+              <ListItemIcon>
+                <DocumentIcon fontSize="small" sx={{ color: '#6b7280' }} />
+              </ListItemIcon>
+              <ListItemText>Original Document</ListItemText>
             </MenuItem>
 
+            {/* 5. Summary */}
             <MenuItem
               onClick={() => {
                 handleSummaryDownload();
                 setAnchorEl(null);
               }}
             >
-              📋 Document Summary
+              <ListItemIcon>
+                <SummaryIcon fontSize="small" sx={{ color: '#3b82f6' }} />
+              </ListItemIcon>
+              <ListItemText>Document Summary</ListItemText>
             </MenuItem>
 
-            <Tooltip 
-              title={!isDocumentCompleted ? "Certificate only available when document is fully completed" : ""}
+            {/* 6. Certificate */}
+            <Tooltip
+              title={!isDocumentCompleted ? "Certificate only available when fully completed" : ""}
               placement="left"
             >
               <span>
                 <MenuItem
                   onClick={() => {
-                    if (!isDocumentCompleted) {
-                      setSnackbar({
-                        open: true,
-                        msg: 'Certificate only available when document is fully completed',
-                        severity: 'warning'
-                      });
-                      return;
-                    }
+                    if (!isDocumentCompleted) return;
                     handleCertificateDownload();
                     setAnchorEl(null);
                   }}
                   disabled={!isDocumentCompleted}
                 >
-                  🏆 Certificate of Completion
+                  <ListItemIcon>
+                    <CertificateIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+                  </ListItemIcon>
+                  <ListItemText>Certificate of Completion</ListItemText>
                 </MenuItem>
               </span>
             </Tooltip>
@@ -716,7 +767,7 @@ const Completion = () => {
               <List dense>
                 {pendingRecipients.map((recipient, index) => (
                   <ListItem key={index}>
-                    <ListItemText 
+                    <ListItemText
                       primary={recipient.name || recipient.email}
                       secondary={`Role: ${recipient.role} • Status: ${recipient.status}`}
                     />
@@ -728,8 +779,8 @@ const Completion = () => {
         </Paper>
 
         {/* PASSWORD DIALOG */}
-        <Dialog 
-          open={passwordDialog} 
+        <Dialog
+          open={passwordDialog}
           onClose={() => {
             setPasswordDialog(false);
             setDownloadPassword('');
@@ -758,8 +809,8 @@ const Completion = () => {
             }}>
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={handleSignedDownloadWithPassword}
               disabled={!downloadPassword || downloadPassword.length < 4}
             >
@@ -775,8 +826,8 @@ const Completion = () => {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert 
-            severity={snackbar.severity} 
+          <Alert
+            severity={snackbar.severity}
             onClose={() => setSnackbar({ ...snackbar, open: false })}
             sx={{ width: '100%' }}
           >
@@ -785,12 +836,12 @@ const Completion = () => {
         </Snackbar>
 
         {/* Footer Note */}
-        <Typography 
-          variant="caption" 
-          color="text.secondary" 
-          sx={{ 
-            display: 'block', 
-            textAlign: 'center', 
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            textAlign: 'center',
             mt: 3,
             fontSize: '0.75rem'
           }}
@@ -798,27 +849,27 @@ const Completion = () => {
           Note: Some options may be disabled until all recipients complete signing.
         </Typography>
         <Typography
-  variant="body2"
-  sx={{
-    textAlign: 'center',
-    mt: 2,
-    color: 'text.secondary'
-  }}
->
-  If you want to view your previous signed documents,&nbsp;
-  <Box
-    component="span"
-    sx={{
-      color: 'primary.main',
-      cursor: 'pointer',
-      fontWeight: 500,
-      '&:hover': { textDecoration: 'underline' }
-    }}
-    onClick={() => window.open('/recipient/access', '_blank')}
-  >
-    click here
-  </Box>
-</Typography>
+          variant="body2"
+          sx={{
+            textAlign: 'center',
+            mt: 2,
+            color: 'text.secondary'
+          }}
+        >
+          If you want to view your previous signed documents,&nbsp;
+          <Box
+            component="span"
+            sx={{
+              color: 'primary.main',
+              cursor: 'pointer',
+              fontWeight: 500,
+              '&:hover': { textDecoration: 'underline' }
+            }}
+            onClick={() => window.open('/recipient/access', '_blank')}
+          >
+            click here
+          </Box>
+        </Typography>
       </Box>
     </Box>
   );

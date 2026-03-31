@@ -71,6 +71,7 @@ import {
   WatchLater as PendingIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
+import { FaArchive } from "react-icons/fa";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -133,12 +134,12 @@ const GlobalStyles = () => {
     const styleElement = document.createElement('style');
     styleElement.innerHTML = globalStyles;
     document.head.appendChild(styleElement);
-    
+
     return () => {
       document.head.removeChild(styleElement);
     };
   }, []);
-  
+
   return null;
 };
 
@@ -170,10 +171,10 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
   }
 
   const { pdfWidth, pdfHeight, renderWidth, renderHeight } = pageDimensions;
-  
+
   // 🔧 CRITICAL: Determine which coordinate system to use
   let pdfX, pdfY, fieldWidth, fieldHeight;
-  
+
   // Priority 1: Use PDF coordinates (most accurate for PDF rendering)
   if (field.pdf_x !== undefined && field.pdf_y !== undefined) {
     // ✅ PDF coordinates are stored with bottom-left origin
@@ -181,19 +182,19 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
     pdfY = field.pdf_y; // This is the BOTTOM coordinate in PDF space
     fieldWidth = field.pdf_width || field.width || 100;
     fieldHeight = field.pdf_height || field.height || 30;
-    
+
     // ⚠️ IMPORTANT: Convert from PDF bottom-left to screen top-left
     // In PDF: Y increases upward from bottom
     // In screen: Y increases downward from top
     // Formula: screenY = pdfHeight - pdfY - fieldHeight
     const screenY = pdfHeight - pdfY - fieldHeight;
-    
+
     // Convert PDF points to screen pixels
     const leftPx = (pdfX / pdfWidth) * renderWidth;
     const topPx = (screenY / pdfHeight) * renderHeight;
     const widthPx = (fieldWidth / pdfWidth) * renderWidth;
     const heightPx = (fieldHeight / pdfHeight) * renderHeight;
-    
+
     // Apply current scale
     return {
       left: leftPx * scale,
@@ -204,7 +205,7 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
       coordinateSource: 'pdf'
     };
   }
-  
+
   // Priority 2: Use canvas coordinates (from frontend editor)
   else if (field.canvas_x !== undefined && field.canvas_y !== undefined) {
     // Canvas coordinates are already in top-left pixels
@@ -212,20 +213,20 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
     const canvasY = field.canvas_y;
     const canvasWidth = field.canvas_width || field.width || 100;
     const canvasHeight = field.canvas_height || field.height || 30;
-    
+
     // We need to know the original canvas dimensions to scale properly
     const canvasPageWidth = field.canvas_page_width || 792; // Default US Letter
     const canvasPageHeight = field.canvas_page_height || 612;
-    
+
     // Convert canvas pixels to PDF points ratio
     const scaleX = pdfWidth / canvasPageWidth;
     const scaleY = pdfHeight / canvasPageHeight;
-    
+
     const leftPx = (canvasX * scaleX / pdfWidth) * renderWidth;
     const topPx = (canvasY * scaleY / pdfHeight) * renderHeight;
     const widthPx = (canvasWidth * scaleX / pdfWidth) * renderWidth;
     const heightPx = (canvasHeight * scaleY / pdfHeight) * renderHeight;
-    
+
     return {
       left: leftPx * scale,
       top: topPx * scale,
@@ -235,14 +236,14 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
       coordinateSource: 'canvas'
     };
   }
-  
+
   // Priority 3: Fallback to generic coordinates
   else {
     const leftPx = field.x || 0;
     const topPx = field.y || 0;
     const widthPx = field.width || 100;
     const heightPx = field.height || 30;
-    
+
     return {
       left: leftPx * scale,
       top: topPx * scale,
@@ -297,27 +298,27 @@ const generateRecipientColors = (fields = []) => {
     '#EF476F', '#7209B7', '#3A86FF', '#FB5607', '#8338EC',
     '#3A86FF', '#FF006E', '#8338EC', '#FB5607', '#FFBE0B'
   ];
-  
+
   const colorMap = {};
   const recipientIds = [...new Set(fields.map(f => f.recipient_id))];
-  
+
   recipientIds.forEach((recipientId, index) => {
     colorMap[recipientId] = colors[index % colors.length];
   });
-  
+
   return colorMap;
 };
 
 // 🔧 ADDED: Field Action Button Component (Zoho-style)
-const FieldActionButton = React.memo(({ 
-  field, 
-  isCompleted, 
-  hasValue, 
+const FieldActionButton = React.memo(({
+  field,
+  isCompleted,
+  hasValue,
   onClick,
-  recipientColor 
+  recipientColor
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   // Determine button text and icon based on field status and type
   const getButtonConfig = () => {
     if (isCompleted) {
@@ -329,7 +330,7 @@ const FieldActionButton = React.memo(({
         hoverBackgroundColor: '#45a049',
       };
     }
-    
+
     if (hasValue) {
       return {
         text: field.type === 'signature' || field.type === 'initials' || field.type === 'witness_signature' ? 'Re-sign' : 'Edit',
@@ -339,29 +340,29 @@ const FieldActionButton = React.memo(({
         hoverBackgroundColor: '#1976D2',
       };
     }
-    
+
     // Default pending state
     return {
-      text: field.type === 'signature' ? 'Sign' : 
-            field.type === 'initials' ? 'Initials' :
-            field.type === 'date' ? 'Select Date' :
+      text: field.type === 'signature' ? 'Sign' :
+        field.type === 'initials' ? 'Initials' :
+          field.type === 'date' ? 'Select Date' :
             field.type === 'checkbox' ? 'Check' :
-            field.type === 'approval' ? 'Approve' :
-            'Fill',
-      icon: field.type === 'signature' || field.type === 'initials' || field.type === 'witness_signature' ? 
-            <SignatureIcon sx={{ fontSize: '12px' }} /> :
-            field.type === 'date' ? <DateIcon sx={{ fontSize: '12px' }} /> :
-            field.type === 'checkbox' ? <CheckboxIcon sx={{ fontSize: '12px' }} /> :
+              field.type === 'approval' ? 'Approve' :
+                'Fill',
+      icon: field.type === 'signature' || field.type === 'initials' || field.type === 'witness_signature' ?
+        <SignatureIcon sx={{ fontSize: '12px' }} /> :
+        field.type === 'date' ? <DateIcon sx={{ fontSize: '12px' }} /> :
+          field.type === 'checkbox' ? <CheckboxIcon sx={{ fontSize: '12px' }} /> :
             field.type === 'approval' ? <ApprovalIcon sx={{ fontSize: '12px' }} /> :
-            <TextIcon sx={{ fontSize: '12px' }} />,
+              <TextIcon sx={{ fontSize: '12px' }} />,
       backgroundColor: recipientColor || '#FF9800',
       color: 'white',
       hoverBackgroundColor: recipientColor ? `${recipientColor}CC` : '#F57C00',
     };
   };
-  
+
   const buttonConfig = getButtonConfig();
-  
+
   return (
     <Box
       sx={{
@@ -419,7 +420,7 @@ const FieldActionButton = React.memo(({
       >
         {buttonConfig.text}
       </Button>
-      
+
       {/* Quick action tooltip on hover */}
       {isHovered && !isCompleted && (
         <Box
@@ -449,11 +450,11 @@ const FieldActionButton = React.memo(({
           }}
         >
           {field.type === 'signature' ? 'Click to sign' :
-           field.type === 'initials' ? 'Click to add initials' :
-           field.type === 'date' ? 'Click to select date' :
-           field.type === 'checkbox' ? 'Click to check/uncheck' :
-           field.type === 'approval' ? 'Click to approve' :
-           'Click to fill this field'}
+            field.type === 'initials' ? 'Click to add initials' :
+              field.type === 'date' ? 'Click to select date' :
+                field.type === 'checkbox' ? 'Click to check/uncheck' :
+                  field.type === 'approval' ? 'Click to approve' :
+                    'Click to fill this field'}
         </Box>
       )}
     </Box>
@@ -488,7 +489,7 @@ const EnhancedFieldOverlay = React.memo(({
         showHint: true
       };
     }
-    
+
     if (hasValue) {
       return {
         border: '2px dashed #2196F3',
@@ -500,15 +501,15 @@ const EnhancedFieldOverlay = React.memo(({
         showHint: true
       };
     }
-    
+
     // Pending field (not completed, no value)
     return {
       border: '2px dashed #FF9800',
       backgroundColor: 'rgba(255, 152, 0, 0.05)',
-      hintText: field.type === 'signature' ? 'CLICK TO SIGN' : 
-                field.type === 'initials' ? 'CLICK FOR INITIALS' : 
-                field.type === 'date' ? 'CLICK FOR DATE' : 
-                'CLICK TO FILL',
+      hintText: field.type === 'signature' ? 'CLICK TO SIGN' :
+        field.type === 'initials' ? 'CLICK FOR INITIALS' :
+          field.type === 'date' ? 'CLICK FOR DATE' :
+            'CLICK TO FILL',
       icon: <span style={{ fontSize: '14px' }}>👆</span>,
       cursor: 'pointer',
       textColor: '#FF9800',
@@ -532,16 +533,16 @@ const EnhancedFieldOverlay = React.memo(({
         top: `${screenPosition.top}px`,
         width: `${screenPosition.width}px`,
         height: `${screenPosition.height}px`,
-        
+
         // ⚠️ IMPORTANT: High z-index to sit above PDF canvas
         zIndex: 200,
-        
+
         // Visual styling
         border: visualState.border,
         backgroundColor: visualState.backgroundColor,
         borderRadius: '2px',
         cursor: isClickable ? visualState.cursor : 'default',
-        
+
         // ✅ Zoho-style hover effects
         '&:hover': isClickable ? {
           backgroundColor: 'rgba(255, 152, 0, 0.12)',
@@ -549,25 +550,25 @@ const EnhancedFieldOverlay = React.memo(({
           transform: 'scale(1.01)',
           zIndex: 201, // Raise on hover
         } : {},
-        
+
         // Smooth transitions
         transition: 'all 0.15s ease-in-out',
-        
+
         // 🔧 Pointer events control
         pointerEvents: isClickable ? 'auto' : 'none',
-        
+
         // Animation for pending fields
         animation: !isCompleted && !hasValue ? 'pulse 2s infinite' : 'none',
-        
+
         // Prevent text selection
         userSelect: 'none',
         WebkitUserSelect: 'none',
         MozUserSelect: 'none',
         msUserSelect: 'none',
-        
+
         // Ensure overlay doesn't affect PDF text layer
         mixBlendMode: 'normal',
-        
+
         // Ensure field content is clickable
         '& *': {
           pointerEvents: 'auto',
@@ -578,16 +579,16 @@ const EnhancedFieldOverlay = React.memo(({
           // 🔧 CRITICAL: Stop event propagation to prevent PDF click-through
           e.stopPropagation();
           e.preventDefault();
-          
+
           console.log(`🎯 Field clicked via overlay:`, {
             fieldId: field.id,
             fieldType: field.type,
             page: field.page,
             coordinates: screenPosition
           });
-          
+
           onClick(field);
-          
+
           // Visual feedback
           e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.5)';
           setTimeout(() => {
@@ -632,7 +633,7 @@ const EnhancedFieldOverlay = React.memo(({
           {field.required && ' *'}
         </Box>
       )}
-      
+
       {/* Field Content Area */}
       <Box
         sx={{
@@ -653,7 +654,7 @@ const EnhancedFieldOverlay = React.memo(({
         <Box sx={{ mb: 0.5, pointerEvents: 'auto' }}>
           {visualState.icon}
         </Box>
-        
+
         {/* Hint Text */}
         {visualState.showHint && (
           <Typography
@@ -670,7 +671,7 @@ const EnhancedFieldOverlay = React.memo(({
             {visualState.hintText}
           </Typography>
         )}
-        
+
         {/* 🔧 ADDED: Action Button for quick access */}
         <Box sx={{ pointerEvents: 'auto' }}>
           <FieldActionButton
@@ -681,7 +682,7 @@ const EnhancedFieldOverlay = React.memo(({
             recipientColor={recipientColor}
           />
         </Box>
-        
+
         {/* Recipient Indicator */}
         {!isCompleted && field.recipient_name && (
           <Box
@@ -702,7 +703,7 @@ const EnhancedFieldOverlay = React.memo(({
             {field.recipient_name.charAt(0)}
           </Box>
         )}
-        
+
         {/* Completed Checkmark (Zoho-style) */}
         {isCompleted && (
           <Box
@@ -724,7 +725,7 @@ const EnhancedFieldOverlay = React.memo(({
             <CheckIcon sx={{ fontSize: '9px', color: 'white' }} />
           </Box>
         )}
-        
+
         {/* Required Field Indicator */}
         {field.required && !isCompleted && (
           <Box
@@ -765,11 +766,11 @@ const PageOverlayContainer = React.memo(({
   fieldTypesConfig = {},
 }) => {
   // Filter fields for this specific page
-  const pageFields = useMemo(() => 
+  const pageFields = useMemo(() =>
     fields.filter(field => field.page === pageNum),
     [fields, pageNum]
   );
-  
+
 
   // Early return if no fields or invalid state
   if (!pageDimensions || pageFields.length === 0 || mode !== 'edit') {
@@ -777,19 +778,19 @@ const PageOverlayContainer = React.memo(({
   }
 
   if (!pageDimensions) {
-  console.warn(`⚠️ Overlay NOT rendered (no pageDimensions) → Page ${pageNum}`);
-  return null;
-}
+    console.warn(`⚠️ Overlay NOT rendered (no pageDimensions) → Page ${pageNum}`);
+    return null;
+  }
 
-if (pageFields.length === 0) {
-  console.warn(`⚠️ Overlay NOT rendered (no fields) → Page ${pageNum}`);
-  return null;
-}
+  if (pageFields.length === 0) {
+    console.warn(`⚠️ Overlay NOT rendered (no fields) → Page ${pageNum}`);
+    return null;
+  }
 
-if (mode !== 'edit') {
-  console.warn(`⚠️ Overlay NOT rendered (mode=${mode}) → Page ${pageNum}`);
-  return null;
-}
+  if (mode !== 'edit') {
+    console.warn(`⚠️ Overlay NOT rendered (mode=${mode}) → Page ${pageNum}`);
+    return null;
+  }
 
   return (
     <Box
@@ -810,19 +811,19 @@ if (mode !== 'edit') {
       {pageFields.map((field) => {
         const fieldId = field.id;
         const isCompleted = completedFields[fieldId] || false;
-        const hasValue = fieldValues[fieldId] !== undefined && 
-                        fieldValues[fieldId] !== null && 
-                        fieldValues[fieldId] !== '';
+        const hasValue = fieldValues[fieldId] !== undefined &&
+          fieldValues[fieldId] !== null &&
+          fieldValues[fieldId] !== '';
         const isClickable = !isCompleted && mode === 'edit';
-        
+
         // Convert coordinates
         const screenPosition = convertPdfToScreenCoordinates(field, pageDimensions, scale);
-        
+
         // Debug in development
         if (process.env.NODE_ENV === 'development' && screenPosition.isValid) {
           debugFieldCoordinates(field, screenPosition, pageNum, pageDimensions);
         }
-        
+
         // Skip invalid positions
         if (!screenPosition.isValid) {
           return null;
@@ -872,7 +873,7 @@ const PdfPageWithOverlay = React.memo(({
   // Handle page load to get accurate dimensions
   const handlePageLoadSuccess = useCallback((page) => {
     const viewport = page.getViewport({ scale: 1 });
-    
+
     const dimensions = {
       pdfWidth: viewport.width,
       pdfHeight: viewport.height,
@@ -881,10 +882,10 @@ const PdfPageWithOverlay = React.memo(({
       scale: page.scale,
       viewport: viewport,
     };
-    
+
     setPageDimensions(dimensions);
     onPageLoadSuccess?.(page, pageNum);
-    
+
     // Log for debugging
     console.log(`📄 Page ${pageNum} loaded:`, {
       pdfSize: `${dimensions.pdfWidth.toFixed(1)}x${dimensions.pdfHeight.toFixed(1)} pt`,
@@ -893,20 +894,20 @@ const PdfPageWithOverlay = React.memo(({
       fieldsOnPage: fields.filter(f => f.page === pageNum).length
     });
     console.groupCollapsed(`📄 PDF PAGE READY → Page ${pageNum}`);
-console.log('PDF Size (pt):', {
-  width: viewport.width,
-  height: viewport.height,
-});
-console.log('Rendered Size (px):', {
-  width: page.width,
-  height: page.height,
-});
-console.log('Scale:', page.scale);
-console.log(
-  'Fields on this page:',
-  fields.filter(f => f.page === pageNum).length
-);
-console.groupEnd();
+    console.log('PDF Size (pt):', {
+      width: viewport.width,
+      height: viewport.height,
+    });
+    console.log('Rendered Size (px):', {
+      width: page.width,
+      height: page.height,
+    });
+    console.log('Scale:', page.scale);
+    console.log(
+      'Fields on this page:',
+      fields.filter(f => f.page === pageNum).length
+    );
+    console.groupEnd();
 
   }, [pageNum, onPageLoadSuccess, fields]);
 
@@ -925,19 +926,19 @@ console.groupEnd();
 
     // Find clicked field on this page
     const pageFields = fields.filter(field => field.page === pageNum);
-    
+
     for (const field of pageFields) {
       const isCompleted = completedFields[field.id] || false;
       if (isCompleted) continue;
-      
+
       const screenPos = convertPdfToScreenCoordinates(field, pageDimensions, scale);
-      
+
       if (!screenPos.isValid) continue;
-      
+
       // Check if click is within field bounds
       const isInX = clickX >= screenPos.left && clickX <= screenPos.left + screenPos.width;
       const isInY = clickY >= screenPos.top && clickY <= screenPos.top + screenPos.height;
-      
+
       if (isInX && isInY) {
         console.log(`🎯 Field ${field.id} clicked via canvas fallback`);
         e.stopPropagation();
@@ -998,7 +999,7 @@ console.groupEnd();
           fieldTypesConfig={FIELD_TYPES}
         />
       )}
-      
+
       {/* Debug overlay (development only) */}
       {process.env.NODE_ENV === 'development' && pageDimensions && (
         <Box
@@ -1186,10 +1187,10 @@ const getFieldEmoji = (type) => {
 
 const getFieldPlaceholder = (field) => {
   const fieldType = FIELD_TYPES[field.type];
-  
+
   if (field.placeholder) return field.placeholder;
   if (field.label) return `Enter ${field.label.toLowerCase()}`;
-  
+
   return fieldType?.placeholder || `Enter ${getFieldDisplayName(field.type).toLowerCase()}`;
 };
 
@@ -1232,7 +1233,7 @@ const RecipientSigningPage = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
-  
+
   // 🔧 ADDED: Recipient colors for visual identification
   const [recipientColors, setRecipientColors] = useState({});
 
@@ -1266,14 +1267,14 @@ const RecipientSigningPage = () => {
       },
       recipient: field.recipient_name
     });
-    
+
     // Set selected field
     setSelectedField(field);
-    
+
     // Scroll to the page
     const pageNum = field.page;
     setActivePage(pageNum);
-    
+
     // Smooth scroll to the page
     setTimeout(() => {
       const pageElement = document.querySelector(`[data-page-number="${pageNum}"]`);
@@ -1281,10 +1282,10 @@ const RecipientSigningPage = () => {
         pageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 100);
-    
+
     // Open signature dialog immediately (Zoho-style)
     setSignDialogOpen(true);
-    
+
     // Visual feedback
     const fieldElement = document.querySelector(`[data-field-id="${field.id}"]`);
     if (fieldElement) {
@@ -1304,7 +1305,7 @@ const RecipientSigningPage = () => {
     if (selectedField) {
       const field = selectedField;
       let valueToSave;
-      
+
       // Handle different field types
       if (field.type === 'signature' || field.type === 'initials' || field.type === 'witness_signature') {
         let imageData;
@@ -1315,7 +1316,7 @@ const RecipientSigningPage = () => {
         } else {
           imageData = signatureData;
         }
-        
+
         valueToSave = {
           image: imageData,
           page: field.page,
@@ -1338,17 +1339,17 @@ const RecipientSigningPage = () => {
       } else {
         valueToSave = signatureData;
       }
-      
+
       // Update field value
       setFieldValues(prev => ({
         ...prev,
         [field.id]: valueToSave
       }));
-      
+
       // Show success message
       setSuccess(`✅ ${getFieldDisplayName(field.type)} saved as draft!`);
       setTimeout(() => setSuccess(''), 3000);
-      
+
       // Auto-close dialog after brief delay
       setTimeout(() => {
         setSignDialogOpen(false);
@@ -1365,28 +1366,28 @@ const RecipientSigningPage = () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch recipient information');
       }
-      
+
       const data = await response.json();
       setRecipientInfo(data.recipient);
       setDocumentInfo(data.document);
       setSigningInfo(data.signing_info);
-      
+
       // Check terms status
       if (data.signing_info?.requires_terms) {
         setTermsDialogOpen(true);
         return;
       }
-      
+
       if (data.signing_info?.terms_status === 'declined') {
         setCurrentStep(2);
         setError('You have declined the terms and conditions.');
         return;
       }
-      
+
       // If terms accepted, check OTP
       if (data.recipient.otp_verified) {
         setCurrentStep(1);
@@ -1395,12 +1396,12 @@ const RecipientSigningPage = () => {
       } else {
         setCurrentStep(0);
       }
-      
+
       if (data.recipient.status === 'completed') {
         setCurrentStep(2);
         setSuccess('Document signing already completed.');
       }
-      
+
     } catch (err) {
       setError(err.message || 'Failed to load signing page');
     } finally {
@@ -1411,7 +1412,7 @@ const RecipientSigningPage = () => {
   const fetchSignatureFields = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/fields`);
-      
+
       if (!response.ok) {
         if (recipientInfo?.role === 'viewer') {
           setSignatureFields([]);
@@ -1419,16 +1420,16 @@ const RecipientSigningPage = () => {
         }
         throw new Error('Failed to fetch signature fields');
       }
-      
+
       const fields = await response.json();
       console.log('📋 Loaded signature fields:', fields.length, 'fields');
-      
+
       // 🔧 ADDED: Generate recipient colors
       const colors = generateRecipientColors(fields);
       setRecipientColors(colors);
-      
+
       setSignatureFields(fields);
-      
+
       const initialValues = {};
       const completed = {};
       fields.forEach(field => {
@@ -1471,14 +1472,14 @@ const RecipientSigningPage = () => {
         } else {
           initialValues[field.id] = '';
         }
-        
+
         if (field.completed_at) {
           completed[field.id] = true;
         }
       });
       setFieldValues(initialValues);
       setCompletedFields(completed);
-      
+
     } catch (err) {
       if (recipientInfo?.role !== 'viewer') {
         console.error('Failed to load fields:', err);
@@ -1490,7 +1491,7 @@ const RecipientSigningPage = () => {
   const loadDocument = async () => {
     try {
       setPdfLoading(true);
-      
+
       const queryParams = new URLSearchParams({
         show_fields: 'true',
         include_signatures: 'true',
@@ -1499,30 +1500,30 @@ const RecipientSigningPage = () => {
         use_recipient_colors: 'true',
         show_envelope_header: 'true'
       });
-      
+
       const response = await fetch(
         `${API_BASE_URL}/signing/recipient/${recipientId}/live-document?${queryParams}`
       );
-        
+
       if (!response.ok) {
         console.warn('Live document endpoint failed, falling back to regular document');
         return await loadRegularDocument();
       }
-        
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-        
+
       if (documentUrl) {
         URL.revokeObjectURL(documentUrl);
       }
-        
+
       setDocumentUrl(url);
       console.log('Live document loaded with envelope header');
-        
+
     } catch (err) {
       console.error('Failed to load live document:', err);
       setError(`Failed to load document: ${err.message}`);
-        
+
       try {
         await loadRegularDocument();
       } catch (fallbackErr) {
@@ -1543,19 +1544,19 @@ const RecipientSigningPage = () => {
         use_recipient_colors: 'true',
         show_envelope_header: 'true'
       });
-      
+
       const response = await fetch(
         `${API_BASE_URL}/signing/recipient/${recipientId}/document?${queryParams}`
       );
-      
+
       if (!response.ok) throw new Error('Failed to load document');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-        
+
       if (documentUrl) {
         URL.revokeObjectURL(documentUrl);
       }
-        
+
       setDocumentUrl(url);
     } catch (err) {
       throw err;
@@ -1565,7 +1566,7 @@ const RecipientSigningPage = () => {
   const loadSignedPreview = async () => {
     try {
       setPdfLoading(true);
-      
+
       const fieldData = signatureFields.map(f => {
         const value = fieldValues[f.id];
         return {
@@ -1585,13 +1586,13 @@ const RecipientSigningPage = () => {
           canvas_y: f.canvas_y,
         };
       });
-      
+
       const queryParams = new URLSearchParams({
         include_audit_trail: 'true',
         include_all_fields: 'true',
         show_envelope_header: 'true'
       });
-      
+
       const response = await fetch(
         `${API_BASE_URL}/signing/recipient/${recipientId}/signed-preview?${queryParams}`,
         {
@@ -1606,18 +1607,18 @@ const RecipientSigningPage = () => {
           })
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Failed to load signed preview');
       }
-      
+
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setSignedPreviewUrl(url);
       setPreviewMode('signed');
-      
+
       console.log('Signed preview loaded with envelope header');
-      
+
     } catch (err) {
       console.error('Failed to load signed preview:', err);
       setPreviewMode('fields');
@@ -1631,18 +1632,18 @@ const RecipientSigningPage = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'OTP verification failed');
       }
-      
+
       const data = await response.json();
       if (data.verified) {
         setOtpVerified(true);
@@ -1652,7 +1653,7 @@ const RecipientSigningPage = () => {
         setSuccess('Identity verified successfully!');
         setTimeout(() => setSuccess(''), 3000);
       }
-      
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1671,7 +1672,7 @@ const RecipientSigningPage = () => {
           } else {
             setTermsDialogOpen(true);
           }
-          
+
           if (data.terms_declined) {
             setCurrentStep(2);
             setError('You have declined the terms and conditions.');
@@ -1701,12 +1702,12 @@ const RecipientSigningPage = () => {
           user_agent: navigator.userAgent
         })
       });
-      
+
       if (response.ok) {
         setTermsAccepted(true);
         setTermsDialogOpen(false);
         setSuccess('Terms accepted successfully');
-        
+
         if (recipientInfo?.otp_verified) {
           setCurrentStep(1);
         }
@@ -1734,13 +1735,13 @@ const RecipientSigningPage = () => {
           user_agent: navigator.userAgent
         })
       });
-      
+
       if (response.ok) {
         setTermsDialogOpen(false);
         setTermsAccepted(false);
         setCurrentStep(2);
         setError('You have declined the terms and conditions. Signing process cancelled.');
-        
+
         setTimeout(() => {
           window.close();
         }, 5000);
@@ -1758,16 +1759,16 @@ const RecipientSigningPage = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const fieldValue = fieldValues[fieldId];
       const field = signatureFields.find(f => f.id === fieldId);
-      
+
       if (!fieldValue) {
         throw new Error('Please fill in the field before completing');
       }
-      
+
       let valueData = {};
-      
+
       if (field.type === 'signature' || field.type === 'initials' || field.type === 'witness_signature') {
         let imageData;
         if (typeof fieldValue === 'string') {
@@ -1777,7 +1778,7 @@ const RecipientSigningPage = () => {
         } else {
           throw new Error('Invalid signature format');
         }
-        
+
         valueData = {
           value: {
             image: imageData,
@@ -1805,32 +1806,32 @@ const RecipientSigningPage = () => {
           value: fieldValue
         };
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/fields/${fieldId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(valueData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to complete field');
       }
-      
+
       const result = await response.json();
       console.log('Field completion result:', result);
-      
+
       setCompletedFields(prev => ({ ...prev, [fieldId]: true }));
       setSignDialogOpen(false);
       setSelectedField(null);
-      
+
       setSuccess(`Field "${getFieldDisplayName(field.type)}" completed successfully!`);
       setTimeout(() => setSuccess(''), 3000);
-      
+
       if (documentUrl && otpVerified) {
         await loadDocument();
       }
-      
+
       const allCompleted = signatureFields.every(f => completedFields[f.id] || f.id === fieldId);
       if (allCompleted && signatureFields.length > 0) {
         setTimeout(() => {
@@ -1838,7 +1839,7 @@ const RecipientSigningPage = () => {
           setSuccess('All fields completed! Signing process finished.');
         }, 1000);
       }
-      
+
     } catch (err) {
       console.error('Error completing field:', err);
       setError(err.message);
@@ -1855,7 +1856,7 @@ const RecipientSigningPage = () => {
       if (recipientInfo?.role === 'viewer' && signatureFields.length === 0) {
         const res = await fetch(
           `${API_BASE_URL}/signing/recipient/${recipientId}/viewer-complete`,
-          { 
+          {
             method: "POST",
             headers: { 'Content-Type': 'application/json' }
           }
@@ -1874,18 +1875,37 @@ const RecipientSigningPage = () => {
         setCurrentStep(2);
         setSuccess("Document review completed successfully!");
       } else {
-        const incompleteFields = signatureFields.filter(field => 
+        const incompleteFields = signatureFields.filter(field =>
           !completedFields[field.id] && !fieldValues[field.id]
         );
-        
+
         if (incompleteFields.length > 0) {
           throw new Error('Please complete all required fields before finishing');
         }
-        
+
         for (const field of signatureFields) {
           if (fieldValues[field.id] && !completedFields[field.id]) {
             await completeField(field.id);
           }
+        }
+
+        // Final completion call to mark the recipient as 'completed' in database
+        // and trigger automatic document finalization if this is the last recipient.
+        const completeRes = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!completeRes.ok) {
+          const errorData = await completeRes.json();
+          throw new Error(errorData.detail || 'Failed to finalize document signing');
+        }
+
+        const completeData = await completeRes.json();
+
+        // Refresh local recipient info if status changed
+        if (completeData.recipient_status === 'completed') {
+          setRecipientInfo(prev => ({ ...prev, status: 'completed' }));
         }
 
         setCurrentStep(2);
@@ -1903,20 +1923,20 @@ const RecipientSigningPage = () => {
     try {
       setLoading(true);
       setError('');
-      
-      const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/resend-otp`, { 
+
+      const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/resend-otp`, {
         method: "POST",
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to resend OTP');
       }
-      
+
       setSuccess('New OTP has been sent to your email');
       setTimeout(() => setSuccess(''), 5000);
-      
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1928,22 +1948,37 @@ const RecipientSigningPage = () => {
     try {
       let url;
       let filename;
-      
+
       if (type === 'signed' && signedPreviewUrl) {
         url = signedPreviewUrl;
         filename = `${documentInfo?.filename?.split('.')[0] || 'document'}_signed.pdf`;
+      } else if (type === 'package') {
+        const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/download/package`);
+        if (!response.ok) throw new Error('Document package (ZIP) is not yet available. Please wait for overall completion.');
+
+        const blob = await response.blob();
+        url = URL.createObjectURL(blob);
+        filename = `${documentInfo?.filename?.split('.')[0] || 'document'}_package.zip`;
       } else {
-        const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/document`);
-        
+        // Use the dedicated signed download endpoint for better rendering
+        const endpoint = recipientInfo?.status === 'completed'
+          ? `/signing/recipient/${recipientId}/download/signed`
+          : `/signing/recipient/${recipientId}/document`;
+
+        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+
         if (!response.ok) {
           throw new Error('Failed to download document');
         }
-        
+
         const blob = await response.blob();
         url = window.URL.createObjectURL(blob);
         filename = documentInfo?.filename || 'document.pdf';
+        if (recipientInfo?.status === 'completed' && !filename.startsWith('signed_')) {
+          filename = `signed_${filename}`;
+        }
       }
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -1951,7 +1986,7 @@ const RecipientSigningPage = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
     } catch (err) {
       setError(err.message);
     }
@@ -1969,12 +2004,12 @@ const RecipientSigningPage = () => {
 
   const handlePageLoadSuccess = useCallback((page, pageNum) => {
     const viewport = page.getViewport({ scale: 1.0 });
-    
+
     const pdfWidth = viewport.width;
     const pdfHeight = viewport.height;
     const renderWidth = page.width;
     const renderHeight = page.height;
-    
+
     console.log(`📄 Page ${pageNum} dimensions:`, {
       pdfWidth: pdfWidth.toFixed(1),
       pdfHeight: pdfHeight.toFixed(1),
@@ -1982,7 +2017,7 @@ const RecipientSigningPage = () => {
       renderHeight: renderHeight.toFixed(0),
       scale: page.scale
     });
-    
+
     setPageDimensions(prev => ({
       ...prev,
       [pageNum]: {
@@ -1993,7 +2028,7 @@ const RecipientSigningPage = () => {
         scale: page.scale
       }
     }));
-    
+
     setNumPagesLoaded(prev => {
       const newCount = prev + 1;
       if (newCount === numPages) {
@@ -2020,7 +2055,7 @@ const RecipientSigningPage = () => {
 
   const toggleFullscreen = () => {
     if (!pdfContainerRef.current) return;
-    
+
     if (!isFullscreen) {
       if (pdfContainerRef.current.requestFullscreen) {
         pdfContainerRef.current.requestFullscreen();
@@ -2100,7 +2135,7 @@ const RecipientSigningPage = () => {
       role = role.value;
     }
     role = String(role).toLowerCase();
-    
+
     const names = {
       signer: 'Signer',
       approver: 'Approver',
@@ -2109,7 +2144,7 @@ const RecipientSigningPage = () => {
       form_filler: 'Form Filler',
       in_person_signer: 'In-Person Signer'
     };
-    
+
     return names[role] || 'Unknown Role';
   };
 
@@ -2147,11 +2182,11 @@ const RecipientSigningPage = () => {
   }
 
   return (
-<>
-    <GlobalStyles />
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      <style>
-        {`
+    <>
+      <GlobalStyles />
+      <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+        <style>
+          {`
           @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -2188,728 +2223,650 @@ const RecipientSigningPage = () => {
             animation: pulse 2s infinite;
           }
         `}
-      </style>
+        </style>
 
-      {/* Header */}
-      <AppBar position="sticky" elevation={1} color="default" sx={{ bgcolor: 'white', zIndex: 1200 }}>
-        <Toolbar>
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-            <Typography variant="h6" color="primary">
-              Document {recipientInfo.role === 'viewer' ? 'Review' : 'Signing'} Portal
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              {documentInfo?.filename}
-            </Typography>
-            <Chip 
-              label={getRoleDisplayName(recipientInfo?.role)}
-              color="primary"
-              size="small"
-              variant="outlined"
-            />
-
-            {/* Terms Acceptance Status Chip */}
-            {recipientInfo && (
-              <Chip 
-                label={termsAccepted ? "Terms Accepted" : "Terms Pending"}
-                color={termsAccepted ? "success" : "warning"}
-                size="small"
-                icon={termsAccepted ? <CheckIcon /> : <WarningIcon />}
-                variant="filled"
-              />
-            )}
-            {currentStep === 1 && termsAccepted && (
-              <Chip 
-                label={previewMode === 'signed' ? 'Signed Preview' : 'Edit Mode'}
-                color={previewMode === 'signed' ? 'success' : 'primary'}
-                size="small"
-                variant="filled"
-                icon={previewMode === 'signed' ? <PreviewIcon /> : <SignIcon />}
-              />
-            )}
-          </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Badge badgeContent={pendingFieldsCount} color="error">
-              <IconButton 
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                sx={{ display: { xs: 'flex', lg: 'none' } }}
-              >
-                <MenuIcon />
-              </IconButton>
-            </Badge>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      {/* Stepper */}
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 0, position: 'sticky', top: 0, zIndex: 1100 }}>
-        <Container maxWidth="xl">
-          <Stepper activeStep={currentStep} sx={{ mb: 1, overflowX: 'auto' }}>
-            {steps.map((label) => (
-              <Step key={label} sx={{ minWidth: 100 }}>
-                <StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: { xs: '0.75rem', sm: '0.9rem' } } }}>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          {error && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setError('')}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mt: 1 }} onClose={() => setSuccess('')}>{success}</Alert>}
-        </Container>
-      </Paper>
-
-      {/* Step 0: OTP Verification */}
-      {currentStep === 0 && (
-        <Container maxWidth="sm">
-          <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-            <Box textAlign="center" mb={3}>
-              <VerifiedIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h5" gutterBottom>Verify Your Identity</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Enter the OTP sent to your email
+        {/* Header */}
+        <AppBar position="sticky" elevation={1} color="default" sx={{ bgcolor: 'white', zIndex: 1200 }}>
+          <Toolbar>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+              <Typography variant="h6" color="primary">
+                Document {recipientInfo.role === 'viewer' ? 'Review' : 'Signing'} Portal
               </Typography>
-            </Box>
-
-            <Box sx={{ maxWidth: 300, mx: 'auto' }}>
-              <Card variant="outlined" sx={{ mb: 3 }}>
-                <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>Signing Details</Typography>
-                  <Typography variant="body2"><strong>Name:</strong> {recipientInfo.name}</Typography>
-                  <Typography variant="body2"><strong>Email:</strong> {recipientInfo.email}</Typography>
-                  <Typography variant="body2"><strong>Role:</strong> {getRoleDisplayName(recipientInfo?.role)}</Typography>
-                  <Typography variant="body2"><strong>Document:</strong> {documentInfo?.filename}</Typography>
-                </CardContent>
-              </Card>
-              
-              <TextField
-                fullWidth
-                label="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                margin="normal"
-                placeholder="6-digit code"
-                inputProps={{ maxLength: 6 }}
+              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                {documentInfo?.filename}
+              </Typography>
+              <Chip
+                label={getRoleDisplayName(recipientInfo?.role)}
+                color="primary"
+                size="small"
+                variant="outlined"
               />
-              
-              <Box sx={{ mt: 2, display: 'flex', gap: 1, flexDirection: 'column' }}>
-                <Button
-                  variant="contained"
-                  onClick={verifyOtp}
-                  disabled={!otp || otp.length !== 6 || loading}
-                  fullWidth
-                  size="large"
-                >
-                  {loading ? <CircularProgress size={24} /> : 'Verify OTP'}
-                </Button>
-                
-                <Button
-                  variant="text"
-                  onClick={resendOtp}
-                  disabled={loading}
-                  startIcon={<RefreshIcon />}
-                  fullWidth
-                >
-                  Resend OTP
-                </Button>
-              </Box>
-            </Box>
-          </Paper>
-        </Container>
-      )}
 
-      {/* Step 1: Signing Interface */}
-      {currentStep === 1 && (
-        <Box sx={{ 
-          display: 'flex', 
-          height: 'calc(100vh - 140px)', 
-          position: 'relative',
-        }}>
-          {/* Main PDF Viewer */}
-          <Box 
-            ref={pdfContainerRef}
-            sx={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column',
-              position: 'relative',
-              overflow: 'hidden',
-              mr: rightSidebarExpanded ? 2 : 0,
-              transition: 'margin-right 0.3s ease'
-            }}
-          >
-            {/* Toolbar */}
-            <Paper 
-              elevation={1} 
-              sx={{ 
-                m: 2,
-                mb: 1,
-                p: 1,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderRadius: 1,
-                zIndex: 1000,
-                flexWrap: 'wrap',
-                gap: 1,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" sx={{ minWidth: 80 }}>
-                  Page {activePage} of {numPages || '?'}
-                </Typography>
-                
-                <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <IconButton size="small" onClick={zoomOut} title="Zoom Out">
-                    <ZoomOutIcon />
-                  </IconButton>
-                  <Typography variant="body2" sx={{ minWidth: 40, textAlign: 'center' }}>
-                    {Math.round(scale * 100)}%
-                  </Typography>
-                  <IconButton size="small" onClick={zoomIn} title="Zoom In">
-                    <ZoomInIcon />
-                  </IconButton>
-                  <IconButton size="small" onClick={fitToScreen} title="Fit to Screen">
-                    <FitScreenIcon />
-                  </IconButton>
-                  <IconButton size="small" onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
-                    {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                  </IconButton>
-                </Box>
-                
-                {previewMode === 'fields' && signatureFields.length > 0 && (
-                  <>
-                    <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={showFields}
-                          onChange={(e) => setShowFields(e.target.checked)}
-                          size="small"
-                          color="primary"
-                        />
-                      }
-                      label="Show Fields"
-                      sx={{ m: 0 }}
-                    />
-                  </>
-                )}
-              </Box>
-              
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <IconButton 
-                  onClick={loadDocument}
-                  title="Refresh Live Document"
-                  disabled={pdfLoading}
+              {/* Terms Acceptance Status Chip */}
+              {recipientInfo && (
+                <Chip
+                  label={termsAccepted ? "Terms Accepted" : "Terms Pending"}
+                  color={termsAccepted ? "success" : "warning"}
                   size="small"
-                >
-                  {pdfLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
-                </IconButton>
-                
-                <Button
-                  variant={previewMode === 'signed' ? 'contained' : 'outlined'}
+                  icon={termsAccepted ? <CheckIcon /> : <WarningIcon />}
+                  variant="filled"
+                />
+              )}
+              {currentStep === 1 && termsAccepted && (
+                <Chip
+                  label={previewMode === 'signed' ? 'Signed Preview' : 'Edit Mode'}
                   color={previewMode === 'signed' ? 'success' : 'primary'}
-                  onClick={togglePreviewMode}
-                  startIcon={previewMode === 'signed' ? <ViewIcon /> : <PreviewIcon />}
                   size="small"
-                  disabled={pdfLoading || !documentUrl}
+                  variant="filled"
+                  icon={previewMode === 'signed' ? <PreviewIcon /> : <SignIcon />}
+                />
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Badge badgeContent={pendingFieldsCount} color="error">
+                <IconButton
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  sx={{ display: { xs: 'flex', lg: 'none' } }}
                 >
-                  {previewMode === 'signed' ? 'Back to Edit' : 'Preview Signed'}
-                </Button>
-                
-                <Button
-                  variant="outlined"
-                  onClick={() => downloadDocument(previewMode === 'signed' ? 'signed' : 'current')}
-                  startIcon={<DownloadIcon />}
-                  size="small"
-                >
-                  Download
-                </Button>
-                
-                <Button
-                  variant="contained"
-                  onClick={completeSigning}
-                  disabled={loading || (signatureFields.length > 0 && pendingFieldsCount > 0)}
-                  size="small"
-                  sx={{ minWidth: 140 }}
-                >
-                  {loading ? <CircularProgress size={20} /> : 
-                   recipientInfo.role === 'viewer' ? 'Complete Review' : 'Complete Signing'}
-                </Button>
+                  <MenuIcon />
+                </IconButton>
+              </Badge>
+            </Box>
+          </Toolbar>
+        </AppBar>
+
+        {/* Stepper */}
+        <Paper elevation={1} sx={{ p: 2, borderRadius: 0, position: 'sticky', top: 0, zIndex: 1100 }}>
+          <Container maxWidth="xl">
+            <Stepper activeStep={currentStep} sx={{ mb: 1, overflowX: 'auto' }}>
+              {steps.map((label) => (
+                <Step key={label} sx={{ minWidth: 100 }}>
+                  <StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: { xs: '0.75rem', sm: '0.9rem' } } }}>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+            {error && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setError('')}>{error}</Alert>}
+            {success && <Alert severity="success" sx={{ mt: 1 }} onClose={() => setSuccess('')}>{success}</Alert>}
+          </Container>
+        </Paper>
+
+        {/* Step 0: OTP Verification */}
+        {currentStep === 0 && (
+          <Container maxWidth="sm">
+            <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+              <Box textAlign="center" mb={3}>
+                <VerifiedIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                <Typography variant="h5" gutterBottom>Verify Your Identity</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Enter the OTP sent to your email
+                </Typography>
+              </Box>
+
+              <Box sx={{ maxWidth: 300, mx: 'auto' }}>
+                <Card variant="outlined" sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom>Signing Details</Typography>
+                    <Typography variant="body2"><strong>Name:</strong> {recipientInfo.name}</Typography>
+                    <Typography variant="body2"><strong>Email:</strong> {recipientInfo.email}</Typography>
+                    <Typography variant="body2"><strong>Role:</strong> {getRoleDisplayName(recipientInfo?.role)}</Typography>
+                    <Typography variant="body2"><strong>Document:</strong> {documentInfo?.filename}</Typography>
+                  </CardContent>
+                </Card>
+
+                <TextField
+                  fullWidth
+                  label="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  margin="normal"
+                  placeholder="6-digit code"
+                  inputProps={{ maxLength: 6 }}
+                />
+
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexDirection: 'column' }}>
+                  <Button
+                    variant="contained"
+                    onClick={verifyOtp}
+                    disabled={!otp || otp.length !== 6 || loading}
+                    fullWidth
+                    size="large"
+                  >
+                    {loading ? <CircularProgress size={24} /> : 'Verify OTP'}
+                  </Button>
+
+                  <Button
+                    variant="text"
+                    onClick={resendOtp}
+                    disabled={loading}
+                    startIcon={<RefreshIcon />}
+                    fullWidth
+                  >
+                    Resend OTP
+                  </Button>
+                </Box>
               </Box>
             </Paper>
+          </Container>
+        )}
 
-            {/* PDF Container */}
+        {/* Step 1: Signing Interface */}
+        {currentStep === 1 && (
+          <Box sx={{
+            display: 'flex',
+            height: 'calc(100vh - 140px)',
+            position: 'relative',
+          }}>
+            {/* Main PDF Viewer */}
             <Box
-              ref={pdfScrollContainerRef}
+              ref={pdfContainerRef}
               sx={{
                 flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
                 position: 'relative',
-                overflow: 'auto',
-                m: 2,
-                mt: 0,
-                bgcolor: '#fff',
-                border: '1px solid #e0e0e0',
-                borderRadius: 1,
-                '&::-webkit-scrollbar': { width: 8 },
-                '&::-webkit-scrollbar-track': { backgroundColor: '#f1f1f1' },
-                '&::-webkit-scrollbar-thumb': { backgroundColor: '#888', borderRadius: 4 },
-                '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#555' },
+                overflow: 'hidden',
+                mr: rightSidebarExpanded ? 2 : 0,
+                transition: 'margin-right 0.3s ease'
               }}
             >
-              {pdfLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                  <CircularProgress />
+              {/* Toolbar */}
+              <Paper
+                elevation={1}
+                sx={{
+                  m: 2,
+                  mb: 1,
+                  p: 1,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderRadius: 1,
+                  zIndex: 1000,
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ minWidth: 80 }}>
+                    Page {activePage} of {numPages || '?'}
+                  </Typography>
+
+                  <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <IconButton size="small" onClick={zoomOut} title="Zoom Out">
+                      <ZoomOutIcon />
+                    </IconButton>
+                    <Typography variant="body2" sx={{ minWidth: 40, textAlign: 'center' }}>
+                      {Math.round(scale * 100)}%
+                    </Typography>
+                    <IconButton size="small" onClick={zoomIn} title="Zoom In">
+                      <ZoomInIcon />
+                    </IconButton>
+                    <IconButton size="small" onClick={fitToScreen} title="Fit to Screen">
+                      <FitScreenIcon />
+                    </IconButton>
+                    <IconButton size="small" onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                      {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                    </IconButton>
+                  </Box>
+
+                  {previewMode === 'fields' && signatureFields.length > 0 && (
+                    <>
+                      <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={showFields}
+                            onChange={(e) => setShowFields(e.target.checked)}
+                            size="small"
+                            color="primary"
+                          />
+                        }
+                        label="Show Fields"
+                        sx={{ m: 0 }}
+                      />
+                    </>
+                  )}
                 </Box>
-              ) : (previewMode === 'signed' ? signedPreviewUrl : documentUrl) && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  p: 2,
-                }}>
-                  <Document
-                    file={previewMode === 'signed' ? signedPreviewUrl : documentUrl}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    onLoadError={onDocumentLoadError}
-                    loading={<CircularProgress />}
-                    noData="No PDF file specified"
+
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <IconButton
+                    onClick={loadDocument}
+                    title="Refresh Live Document"
+                    disabled={pdfLoading}
+                    size="small"
                   >
-                    {Array.from(new Array(numPages), (el, index) => {
-                      const pageNum = index + 1;
-                      return (
-                        <PdfPageWithOverlay
-                          key={`page-${pageNum}`}
-                          pageNum={pageNum}
-                          scale={scale}
-                          documentUrl={previewMode === 'signed' ? signedPreviewUrl : documentUrl}
-                          fields={signatureFields}
-                          onFieldClick={handleFieldClick}
-                          fieldValues={fieldValues}
-                          completedFields={completedFields}
-                          showFields={showFields && previewMode === 'fields'}
-                          mode={previewMode === 'signed' ? 'view' : 'edit'}
-                          onPageLoadSuccess={handlePageLoadSuccess}
-                          recipientColors={recipientColors}
-                        />
-                      );
-                    })}
-                  </Document>
+                    {pdfLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                  </IconButton>
+
+                  <Button
+                    variant={previewMode === 'signed' ? 'contained' : 'outlined'}
+                    color={previewMode === 'signed' ? 'success' : 'primary'}
+                    onClick={togglePreviewMode}
+                    startIcon={previewMode === 'signed' ? <ViewIcon /> : <PreviewIcon />}
+                    size="small"
+                    disabled={pdfLoading || !documentUrl}
+                  >
+                    {previewMode === 'signed' ? 'Back to Edit' : 'Preview Signed'}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() => downloadDocument(previewMode === 'signed' ? 'signed' : 'current')}
+                    startIcon={<DownloadIcon />}
+                    size="small"
+                  >
+                    Download
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    onClick={completeSigning}
+                    disabled={loading || (signatureFields.length > 0 && pendingFieldsCount > 0)}
+                    size="small"
+                    sx={{ minWidth: 140 }}
+                  >
+                    {loading ? <CircularProgress size={20} /> :
+                      recipientInfo.role === 'viewer' ? 'Complete Review' : 'Complete Signing'}
+                  </Button>
                 </Box>
+              </Paper>
+
+              {/* PDF Container */}
+              <Box
+                ref={pdfScrollContainerRef}
+                sx={{
+                  flex: 1,
+                  position: 'relative',
+                  overflow: 'auto',
+                  m: 2,
+                  mt: 0,
+                  bgcolor: '#fff',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 1,
+                  '&::-webkit-scrollbar': { width: 8 },
+                  '&::-webkit-scrollbar-track': { backgroundColor: '#f1f1f1' },
+                  '&::-webkit-scrollbar-thumb': { backgroundColor: '#888', borderRadius: 4 },
+                  '&::-webkit-scrollbar-thumb:hover': { backgroundColor: '#555' },
+                }}
+              >
+                {pdfLoading ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <CircularProgress />
+                  </Box>
+                ) : (previewMode === 'signed' ? signedPreviewUrl : documentUrl) && (
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    p: 2,
+                  }}>
+                    <Document
+                      file={previewMode === 'signed' ? signedPreviewUrl : documentUrl}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      onLoadError={onDocumentLoadError}
+                      loading={<CircularProgress />}
+                      noData="No PDF file specified"
+                    >
+                      {Array.from(new Array(numPages), (el, index) => {
+                        const pageNum = index + 1;
+                        return (
+                          <PdfPageWithOverlay
+                            key={`page-${pageNum}`}
+                            pageNum={pageNum}
+                            scale={scale}
+                            documentUrl={previewMode === 'signed' ? signedPreviewUrl : documentUrl}
+                            fields={signatureFields}
+                            onFieldClick={handleFieldClick}
+                            fieldValues={fieldValues}
+                            completedFields={completedFields}
+                            showFields={showFields && previewMode === 'fields'}
+                            mode={previewMode === 'signed' ? 'view' : 'edit'}
+                            onPageLoadSuccess={handlePageLoadSuccess}
+                            recipientColors={recipientColors}
+                          />
+                        );
+                      })}
+                    </Document>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+
+            {/* Sidebar Toggle */}
+            <Box sx={{
+              position: 'absolute',
+              right: rightSidebarExpanded ? 320 : 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 1000,
+              transition: 'right 0.3s ease'
+            }}>
+              <IconButton
+                onClick={() => setRightSidebarExpanded(!rightSidebarExpanded)}
+                sx={{
+                  backgroundColor: 'background.paper',
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRight: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  boxShadow: 2,
+                  '&:hover': {
+                    backgroundColor: 'grey.100',
+                    transform: 'translateX(-2px)'
+                  },
+                  transition: 'all 0.2s'
+                }}
+              >
+                {rightSidebarExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+              </IconButton>
+            </Box>
+
+            {/* Right Sidebar */}
+            <Box sx={{
+              width: rightSidebarExpanded ? 320 : 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              transition: 'all 0.3s ease',
+              opacity: rightSidebarExpanded ? 1 : 0,
+              visibility: rightSidebarExpanded ? 'visible' : 'hidden',
+            }}>
+              {rightSidebarExpanded && (
+                <Fade in={rightSidebarExpanded}>
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      height: '100%',
+                      m: 2,
+                      ml: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      border: '1px solid #e0e0e0',
+                    }}
+                  >
+                    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <SignIcon />
+                          Signing Status
+                        </Typography>
+                        {isMobile && (
+                          <IconButton onClick={() => setSidebarOpen(false)} size="small">
+                            <CloseIcon />
+                          </IconButton>
+                        )}
+                      </Box>
+
+                      <Tabs
+                        value={activeTab}
+                        onChange={(e, val) => setActiveTab(val)}
+                        sx={{ mb: 2 }}
+                      >
+                        <Tab icon={<AssignmentIcon />} label="Fields" />
+                        <Tab icon={<HistoryIcon />} label="Progress" />
+                      </Tabs>
+
+                      {activeTab === 0 ? (
+                        <>
+                          {/* Progress Summary */}
+                          <Box sx={{ mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                {completedFieldsCount} signed
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {draftedFieldsCount} drafted
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {pendingFieldsCount} pending
+                              </Typography>
+                            </Box>
+                            <Box sx={{ width: '100%', bgcolor: '#e0e0e0', borderRadius: 1, height: 6 }}>
+                              <Box
+                                sx={{
+                                  width: `${signatureFields.length > 0 ? (completedFieldsCount / signatureFields.length) * 100 : 0}%`,
+                                  bgcolor: '#4caf50',
+                                  height: '100%',
+                                  borderRadius: 1
+                                }}
+                              />
+                              <Box
+                                sx={{
+                                  width: `${signatureFields.length > 0 ? (draftedFieldsCount / signatureFields.length) * 100 : 0}%`,
+                                  bgcolor: '#2196f3',
+                                  height: '100%',
+                                  borderRadius: 1,
+                                  marginLeft: `${signatureFields.length > 0 ? (completedFieldsCount / signatureFields.length) * 100 : 0}%`,
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          {/* Fields List */}
+                          {signatureFields.length > 0 ? (
+                            <>
+                              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                                Fields to Complete:
+                              </Typography>
+                              <Box sx={{ flex: 1, overflow: 'auto' }}>
+                                <List dense disablePadding>
+                                  {signatureFields.map((field) => {
+                                    const isCompleted = completedFields[field.id];
+                                    const hasValue = !!fieldValues[field.id];
+                                    const isRequired = field.required;
+
+                                    return (
+                                      <ListItem key={field.id} disablePadding>
+                                        <ListItemButton
+                                          disabled={isCompleted || previewMode === 'signed'}
+                                          onClick={() => {
+                                            if (!isCompleted && previewMode === 'fields') {
+                                              handleFieldClick(field);
+                                              const pageRef = pageRefs.current[field.page];
+                                              if (pageRef) {
+                                                pageRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                              }
+                                            }
+                                          }}
+                                          sx={{
+                                            borderRadius: 1,
+                                            mb: 0.5,
+                                            border: '1px solid',
+                                            borderColor: isCompleted
+                                              ? '#4caf50'
+                                              : hasValue
+                                                ? '#2196f3'
+                                                : 'transparent',
+                                            backgroundColor: isCompleted
+                                              ? 'rgba(76,175,80,0.05)'
+                                              : hasValue
+                                                ? 'rgba(33,150,243,0.05)'
+                                                : 'transparent',
+                                            '&:hover:not(.Mui-disabled)': {
+                                              backgroundColor: isCompleted
+                                                ? 'rgba(76,175,80,0.1)'
+                                                : hasValue
+                                                  ? 'rgba(33,150,243,0.1)'
+                                                  : 'rgba(0,0,0,0.04)',
+                                            }
+                                          }}
+                                        >
+                                          <ListItemIcon sx={{ minWidth: 36 }}>
+                                            {getFieldIcon(field.type)}
+                                          </ListItemIcon>
+
+                                          <ListItemText
+                                            primary={
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography component="span" variant="body2">
+                                                  {getFieldDisplayName(field.type)}
+                                                </Typography>
+
+                                                {isCompleted && <CheckIcon color="success" fontSize="small" />}
+                                                {!isCompleted && hasValue && <Chip label="Draft" size="small" />}
+                                                {!isCompleted && isRequired && <WarningIcon color="warning" fontSize="small" />}
+                                              </Box>
+                                            }
+                                            secondary={
+                                              <Typography component="span" variant="caption">
+                                                Page {field.page}
+                                              </Typography>
+                                            }
+                                            primaryTypographyProps={{ component: 'div' }}
+                                            secondaryTypographyProps={{ component: 'div' }}
+                                          />
+
+                                          {!isCompleted && previewMode !== 'signed' && (
+                                            <Button
+                                              size="small"
+                                              variant={hasValue ? "contained" : "outlined"}
+                                              color={hasValue ? "warning" : "primary"}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleFieldClick(field);
+                                              }}
+                                              sx={{ minWidth: 60, height: 28 }}
+                                            >
+                                              {hasValue ? 'Edit' : 'Sign'}
+                                            </Button>
+                                          )}
+                                        </ListItemButton>
+                                      </ListItem>
+                                    );
+                                  })}
+                                </List>
+                              </Box>
+                            </>
+                          ) : recipientInfo.role === 'viewer' ? (
+                            <Box sx={{ textAlign: 'center', py: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                              <ViewIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, mx: 'auto' }} />
+                              <Typography variant="body1" color="text.secondary">
+                                No signature fields required for review
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                              No signature fields assigned to you
+                            </Typography>
+                          )}
+                        </>
+                      ) : (
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Card variant="outlined">
+                            <CardContent>
+                              <Typography variant="subtitle2" gutterBottom>Document Progress</Typography>
+                              <Typography variant="h4" color="primary">
+                                {Math.round((completedFieldsCount / Math.max(signatureFields.length, 1)) * 100)}%
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {completedFieldsCount} of {signatureFields.length} fields completed
+                              </Typography>
+                            </CardContent>
+                          </Card>
+
+                          <Card variant="outlined">
+                            <CardContent>
+                              <Typography variant="subtitle2" gutterBottom>Signing Information</Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption">Role:</Typography>
+                                  <Typography variant="caption">{getRoleDisplayName(recipientInfo?.role)}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption">Status:</Typography>
+                                  <Chip
+                                    label={recipientInfo?.status || 'pending'}
+                                    size="small"
+                                    color={
+                                      recipientInfo?.status === 'completed' ? 'success' :
+                                        recipientInfo?.status === 'in_progress' ? 'warning' : 'default'
+                                    }
+                                  />
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption">OTP Verified:</Typography>
+                                  <Chip
+                                    label={otpVerified ? 'Yes' : 'No'}
+                                    size="small"
+                                    color={otpVerified ? 'success' : 'error'}
+                                  />
+                                </Box>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Box>
+                      )}
+
+                      {/* Completion Button */}
+                      <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid #e0e0e0' }}>
+                        <Button
+                          variant="contained"
+                          onClick={completeSigning}
+                          disabled={loading || (signatureFields.length > 0 && pendingFieldsCount > 0) || previewMode === 'signed'}
+                          fullWidth
+                          size="medium"
+                        >
+                          {loading ? <CircularProgress size={24} /> :
+                            recipientInfo.role === 'viewer' ? 'Complete Review' : 'Complete Signing'}
+                        </Button>
+
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
+                          {previewMode === 'signed' ? 'Switch to edit mode to sign' :
+                            pendingFieldsCount > 0
+                              ? `${pendingFieldsCount} required field(s) remaining`
+                              : signatureFields.length > 0 ? 'All fields completed' : 'Ready to complete'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Paper>
+                </Fade>
               )}
             </Box>
           </Box>
+        )}
 
-          {/* Sidebar Toggle */}
-          <Box sx={{ 
-            position: 'absolute',
-            right: rightSidebarExpanded ? 320 : 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 1000,
-            transition: 'right 0.3s ease'
-          }}>
-            <IconButton
-              onClick={() => setRightSidebarExpanded(!rightSidebarExpanded)}
-              sx={{
-                backgroundColor: 'background.paper',
-                border: 1,
-                borderColor: 'divider',
-                borderRight: 0,
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                boxShadow: 2,
-                '&:hover': {
-                  backgroundColor: 'grey.100',
-                  transform: 'translateX(-2px)'
-                },
-                transition: 'all 0.2s'
-              }}
-            >
-              {rightSidebarExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </IconButton>
-          </Box>
+        {/* Step 2: Completion with Terms Declined */}
+        {currentStep === 2 && recipientInfo?.terms_declined && (
+          <Container maxWidth="md">
+            <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+              <Box textAlign="center">
+                <CloseIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
+                <Typography variant="h5" gutterBottom color="error">
+                  Signing Process Declined
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  You have declined the terms and conditions. The signing process has been cancelled.
+                </Typography>
 
-          {/* Right Sidebar */}
-          <Box sx={{ 
-            width: rightSidebarExpanded ? 320 : 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            transition: 'all 0.3s ease',
-            opacity: rightSidebarExpanded ? 1 : 0,
-            visibility: rightSidebarExpanded ? 'visible' : 'hidden',
-          }}>
-            {rightSidebarExpanded && (
-              <Fade in={rightSidebarExpanded}>
-                <Paper
-                  elevation={1}
-                  sx={{
-                    height: '100%',
-                    m: 2,
-                    ml: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    border: '1px solid #e0e0e0',
-                  }}
-                >
-                  <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SignIcon />
-                        Signing Status
-                      </Typography>
-                      {isMobile && (
-                        <IconButton onClick={() => setSidebarOpen(false)} size="small">
-                          <CloseIcon />
-                        </IconButton>
-                      )}
-                    </Box>
-                    
-                    <Tabs 
-                      value={activeTab} 
-                      onChange={(e, val) => setActiveTab(val)}
-                      sx={{ mb: 2 }}
-                    >
-                      <Tab icon={<AssignmentIcon />} label="Fields" />
-                      <Tab icon={<HistoryIcon />} label="Progress" />
-                    </Tabs>
-                    
-                    {activeTab === 0 ? (
-                      <>
-                        {/* Progress Summary */}
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              {completedFieldsCount} signed
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {draftedFieldsCount} drafted
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {pendingFieldsCount} pending
-                            </Typography>
-                          </Box>
-                          <Box sx={{ width: '100%', bgcolor: '#e0e0e0', borderRadius: 1, height: 6 }}>
-                            <Box 
-                              sx={{ 
-                                width: `${signatureFields.length > 0 ? (completedFieldsCount / signatureFields.length) * 100 : 0}%`, 
-                                bgcolor: '#4caf50', 
-                                height: '100%', 
-                                borderRadius: 1 
-                              }} 
-                            />
-                            <Box 
-                              sx={{ 
-                                width: `${signatureFields.length > 0 ? (draftedFieldsCount / signatureFields.length) * 100 : 0}%`, 
-                                bgcolor: '#2196f3', 
-                                height: '100%', 
-                                borderRadius: 1,
-                                marginLeft: `${signatureFields.length > 0 ? (completedFieldsCount / signatureFields.length) * 100 : 0}%`,
-                              }} 
-                            />
-                          </Box>
-                        </Box>
-                        
-                        {/* Fields List */}
-                        {signatureFields.length > 0 ? (
-                          <>
-                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                              Fields to Complete:
-                            </Typography>
-                            <Box sx={{ flex: 1, overflow: 'auto' }}>
-                              <List dense disablePadding>
-                                {signatureFields.map((field) => {
-                                  const isCompleted = completedFields[field.id];
-                                  const hasValue = !!fieldValues[field.id];
-                                  const isRequired = field.required;
-                                  
-                                  return (
-                                    <ListItem key={field.id} disablePadding>
-                                      <ListItemButton
-                                        disabled={isCompleted || previewMode === 'signed'}
-                                        onClick={() => {
-                                          if (!isCompleted && previewMode === 'fields') {
-                                            handleFieldClick(field);
-                                            const pageRef = pageRefs.current[field.page];
-                                            if (pageRef) {
-                                              pageRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                            }
-                                          }
-                                        }}
-                                        sx={{
-                                          borderRadius: 1,
-                                          mb: 0.5,
-                                          border: '1px solid',
-                                          borderColor: isCompleted
-                                            ? '#4caf50'
-                                            : hasValue
-                                            ? '#2196f3'
-                                            : 'transparent',
-                                          backgroundColor: isCompleted
-                                            ? 'rgba(76,175,80,0.05)'
-                                            : hasValue
-                                            ? 'rgba(33,150,243,0.05)'
-                                            : 'transparent',
-                                          '&:hover:not(.Mui-disabled)': {
-                                            backgroundColor: isCompleted
-                                              ? 'rgba(76,175,80,0.1)'
-                                              : hasValue
-                                              ? 'rgba(33,150,243,0.1)'
-                                              : 'rgba(0,0,0,0.04)',
-                                          }
-                                        }}
-                                      >
-                                        <ListItemIcon sx={{ minWidth: 36 }}>
-                                          {getFieldIcon(field.type)}
-                                        </ListItemIcon>
-
-                                        <ListItemText
-                                          primary={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                              <Typography component="span" variant="body2">
-                                                {getFieldDisplayName(field.type)}
-                                              </Typography>
-
-                                              {isCompleted && <CheckIcon color="success" fontSize="small" />}
-                                              {!isCompleted && hasValue && <Chip label="Draft" size="small" />}
-                                              {!isCompleted && isRequired && <WarningIcon color="warning" fontSize="small" />}
-                                            </Box>
-                                          }
-                                          secondary={
-                                            <Typography component="span" variant="caption">
-                                              Page {field.page}
-                                            </Typography>
-                                          }
-                                          primaryTypographyProps={{ component: 'div' }}
-                                          secondaryTypographyProps={{ component: 'div' }}
-                                        />
-
-                                        {!isCompleted && previewMode !== 'signed' && (
-                                          <Button
-                                            size="small"
-                                            variant={hasValue ? "contained" : "outlined"}
-                                            color={hasValue ? "warning" : "primary"}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleFieldClick(field);
-                                            }}
-                                            sx={{ minWidth: 60, height: 28 }}
-                                          >
-                                            {hasValue ? 'Edit' : 'Sign'}
-                                          </Button>
-                                        )}
-                                      </ListItemButton>
-                                    </ListItem>
-                                  );
-                                })}
-                              </List>
-                            </Box>
-                          </>
-                        ) : recipientInfo.role === 'viewer' ? (
-                          <Box sx={{ textAlign: 'center', py: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                            <ViewIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, mx: 'auto' }} />
-                            <Typography variant="body1" color="text.secondary">
-                              No signature fields required for review
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-                            No signature fields assigned to you
-                          </Typography>
-                        )}
-                      </>
-                    ) : (
-                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Card variant="outlined">
-                          <CardContent>
-                            <Typography variant="subtitle2" gutterBottom>Document Progress</Typography>
-                            <Typography variant="h4" color="primary">
-                              {Math.round((completedFieldsCount / Math.max(signatureFields.length, 1)) * 100)}%
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {completedFieldsCount} of {signatureFields.length} fields completed
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                        
-                        <Card variant="outlined">
-                          <CardContent>
-                            <Typography variant="subtitle2" gutterBottom>Signing Information</Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="caption">Role:</Typography>
-                                <Typography variant="caption">{getRoleDisplayName(recipientInfo?.role)}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="caption">Status:</Typography>
-                                <Chip 
-                                  label={recipientInfo?.status || 'pending'} 
-                                  size="small"
-                                  color={
-                                    recipientInfo?.status === 'completed' ? 'success' :
-                                    recipientInfo?.status === 'in_progress' ? 'warning' : 'default'
-                                  }
-                                />
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="caption">OTP Verified:</Typography>
-                                <Chip 
-                                  label={otpVerified ? 'Yes' : 'No'} 
-                                  size="small"
-                                  color={otpVerified ? 'success' : 'error'}
-                                />
-                              </Box>
-                            </Box>
-                          </CardContent>
-                        </Card>
+                <Card variant="outlined" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Decline Details</Typography>
+                    <Box sx={{ display: 'grid', gap: 2 }}>
+                      <Box>
+                        <Typography variant="body2"><strong>Document:</strong></Typography>
+                        <Typography>{documentInfo?.filename}</Typography>
                       </Box>
-                    )}
-                    
-                    {/* Completion Button */}
-                    <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid #e0e0e0' }}>
-                      <Button
-                        variant="contained"
-                        onClick={completeSigning}
-                        disabled={loading || (signatureFields.length > 0 && pendingFieldsCount > 0) || previewMode === 'signed'}
-                        fullWidth
-                        size="medium"
-                      >
-                        {loading ? <CircularProgress size={24} /> : 
-                         recipientInfo.role === 'viewer' ? 'Complete Review' : 'Complete Signing'}
-                      </Button>
-                      
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-                        {previewMode === 'signed' ? 'Switch to edit mode to sign' :
-                         pendingFieldsCount > 0 
-                          ? `${pendingFieldsCount} required field(s) remaining`
-                          : signatureFields.length > 0 ? 'All fields completed' : 'Ready to complete'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Fade>
-            )}
-          </Box>
-        </Box>
-      )}
-
-      {/* Step 2: Completion with Terms Declined */}
-      {currentStep === 2 && recipientInfo?.terms_declined && (
-        <Container maxWidth="md">
-          <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-            <Box textAlign="center">
-              <CloseIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
-              <Typography variant="h5" gutterBottom color="error">
-                Signing Process Declined
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                You have declined the terms and conditions. The signing process has been cancelled.
-              </Typography>
-              
-              <Card variant="outlined" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Decline Details</Typography>
-                  <Box sx={{ display: 'grid', gap: 2 }}>
-                    <Box>
-                      <Typography variant="body2"><strong>Document:</strong></Typography>
-                      <Typography>{documentInfo?.filename}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2"><strong>Reason:</strong></Typography>
-                      <Typography color="error">
-                        {recipientInfo.terms_decline_reason || 'No reason provided'}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2"><strong>Declined at:</strong></Typography>
-                      <Typography>
-                        {new Date(recipientInfo.terms_declined_at).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-              
-              <Button
-                variant="contained"
-                onClick={() => window.close()}
-                startIcon={<CloseIcon />}
-                size="large"
-              >
-                Close Window
-              </Button>
-            </Box>
-          </Paper>
-        </Container>
-      )}
-
-      {/* Step 2: Normal Completion */}
-      {currentStep === 2 && !recipientInfo?.terms_declined && (
-        <Container maxWidth="md">
-          <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-            <Box textAlign="center">
-              <VerifiedIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-              <Typography variant="h5" gutterBottom>
-                {recipientInfo.role === 'viewer' ? 'Review Complete!' : 'Signing Complete!'}
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                {recipientInfo.role === 'viewer' 
-                  ? 'Thank you for reviewing the document.'
-                  : 'Thank you for signing the document.'}
-              </Typography>
-              
-              <Card variant="outlined" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Summary</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <Box>
-                      <Typography variant="body2"><strong>Document:</strong></Typography>
-                      <Typography>{documentInfo?.filename}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2"><strong>Role:</strong></Typography>
-                      <Typography>{getRoleDisplayName(recipientInfo?.role)}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2"><strong>Name:</strong></Typography>
-                      <Typography>{recipientInfo.name}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2"><strong>Completed:</strong></Typography>
-                      <Typography>{new Date().toLocaleString()}</Typography>
-                    </Box>
-                    {signatureFields.length > 0 && (
-                      <Box sx={{ gridColumn: '1 / -1' }}>
-                        <Typography variant="body2"><strong>Fields Completed:</strong></Typography>
-                        <Typography>{completedFieldsCount} of {signatureFields.length}</Typography>
+                      <Box>
+                        <Typography variant="body2"><strong>Reason:</strong></Typography>
+                        <Typography color="error">
+                          {recipientInfo.terms_decline_reason || 'No reason provided'}
+                        </Typography>
                       </Box>
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
-              
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => downloadDocument('current')}
-                  startIcon={<DownloadIcon />}
-                  size="large"
-                >
-                  Download Document
-                </Button>
-                {signedPreviewUrl && (
-                  <Button
-                    variant="contained"
-                    onClick={() => downloadDocument('signed')}
-                    startIcon={<PdfIcon />}
-                    size="large"
-                    color="success"
-                  >
-                    Download Signed PDF
-                  </Button>
-                )}
+                      <Box>
+                        <Typography variant="body2"><strong>Declined at:</strong></Typography>
+                        <Typography>
+                          {new Date(recipientInfo.terms_declined_at).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+
                 <Button
                   variant="contained"
                   onClick={() => window.close()}
@@ -2919,36 +2876,128 @@ const RecipientSigningPage = () => {
                   Close Window
                 </Button>
               </Box>
-            </Box>
-          </Paper>
-        </Container>
-      )}
+            </Paper>
+          </Container>
+        )}
 
-      {/* 🔧 ADDED: Enhanced Signature Dialog */}
-      <EnhancedSignaturePadModal
-        open={signDialogOpen}
-        onSave={handleSignatureSave}
-        onClose={() => {
-          setSignDialogOpen(false);
-          setSelectedField(null);
-        }}
-        existingSignature={selectedField ? fieldValues[selectedField.id] : null}
-        recipientData={recipientInfo}
-        fieldType={selectedField?.type || 'signature'}
-        fieldLabel={selectedField ? getFieldDisplayName(selectedField.type) : ''}
-      />
+        {/* Step 2: Normal Completion */}
+        {currentStep === 2 && !recipientInfo?.terms_declined && (
+          <Container maxWidth="md">
+            <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+              <Box textAlign="center">
+                <VerifiedIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+                <Typography variant="h5" gutterBottom> 
+                  {recipientInfo.role === 'viewer' ? 'Review Complete!' : 'Signing Complete!'}
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  {recipientInfo.role === 'viewer'
+                    ? 'Thank you for reviewing the document.'
+                    : 'Thank you for signing the document.'}
+                </Typography>
 
-      <TermsDialog
-        open={termsDialogOpen}
-        onAccept={acceptTerms}
-        onDecline={declineTerms}
-        recipientInfo={recipientInfo}
-        documentInfo={documentInfo}
-        required={true}
-      />
-    </Box>
+                <Card variant="outlined" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Summary</Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                      <Box>
+                        <Typography variant="body2"><strong>Document:</strong></Typography>
+                        <Typography>{documentInfo?.filename}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2"><strong>Role:</strong></Typography>
+                        <Typography>{getRoleDisplayName(recipientInfo?.role)}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2"><strong>Name:</strong></Typography>
+                        <Typography>{recipientInfo.name}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2"><strong>Completed:</strong></Typography>
+                        <Typography>{new Date().toLocaleString()}</Typography>
+                      </Box>
+                      {signatureFields.length > 0 && (
+                        <Box sx={{ gridColumn: '1 / -1' }}>
+                          <Typography variant="body2"><strong>Fields Completed:</strong></Typography>
+                          <Typography>{completedFieldsCount} of {signatureFields.length}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
 
-    
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => downloadDocument('current')}
+                    startIcon={<DownloadIcon />}
+                    size="large"
+                  >
+                    Download Document
+                  </Button>
+
+                  {/* 📦 ADDED: ZIP Package Download Button */}
+                  <Button
+                    variant="contained"
+                    onClick={() => downloadDocument('package')}
+                    startIcon={<FaArchive />}
+                    size="large"
+                    color="secondary"
+                    disabled={documentInfo?.status !== 'completed'}
+                    title={documentInfo?.status !== 'completed' ? "Full package available once all signers are finished" : "Download ZIP package"}
+                  >
+                    Download Package (ZIP)
+                  </Button>
+
+                  {signedPreviewUrl && (
+                    <Button
+                      variant="contained"
+                      onClick={() => downloadDocument('signed')}
+                      startIcon={<PdfIcon />}
+                      size="large"
+                      color="success"
+                    >
+                      Download Signed PDF
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    onClick={() => window.close()}
+                    startIcon={<CloseIcon />}
+                    size="large"
+                  >
+                    Close Window
+                  </Button>
+                </Box>
+              </Box>
+            </Paper>
+          </Container>
+        )}
+
+        {/* 🔧 ADDED: Enhanced Signature Dialog */}
+        <EnhancedSignaturePadModal
+          open={signDialogOpen}
+          onSave={handleSignatureSave}
+          onClose={() => {
+            setSignDialogOpen(false);
+            setSelectedField(null);
+          }}
+          existingSignature={selectedField ? fieldValues[selectedField.id] : null}
+          recipientData={recipientInfo}
+          fieldType={selectedField?.type || 'signature'}
+          fieldLabel={selectedField ? getFieldDisplayName(selectedField.type) : ''}
+        />
+
+        <TermsDialog
+          open={termsDialogOpen}
+          onAccept={acceptTerms}
+          onDecline={declineTerms}
+          recipientInfo={recipientInfo}
+          documentInfo={documentInfo}
+          required={true}
+        />
+      </Box>
+
+
     </>
   );
 };

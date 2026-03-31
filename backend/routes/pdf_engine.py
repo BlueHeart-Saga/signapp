@@ -54,11 +54,16 @@ class PDFEngine:
             # Remove whitespace
             data = re.sub(r"\s+", "", data)
 
-            # Base64 length must be valid
-            if len(data) < 50 or len(data) % 4 != 0:
+            # Ensure valid base64 length by adding padding if missing
+            missing_padding = len(data) % 4
+            if missing_padding:
+                data += '=' * (4 - missing_padding)
+
+            # Base64 length must be valid (at least some content)
+            if len(data) < 8:
                 return None
 
-            return base64.b64decode(data, validate=True)
+            return base64.b64decode(data, validate=False)  # validate=False to allow slightly malformed but readable data
 
         except Exception as e:
             # 🔕 Silent fail (no noisy logs in prod)
@@ -226,6 +231,12 @@ class PDFEngine:
                     image_data = PDFEngine.decode_base64_image(value["image"])
                 elif "data" in value and value.get("type") == "image":
                     image_data = PDFEngine.decode_base64_image(value["data"])
+                elif "value" in value:
+                    val = value.get("value")
+                    if isinstance(val, str) and val.startswith("data:image"):
+                        image_data = PDFEngine.decode_base64_image(val)
+                    elif isinstance(val, dict) and val.get("image"):
+                        image_data = PDFEngine.decode_base64_image(val.get("image"))
             elif isinstance(value, str):
                 image_data = PDFEngine.decode_base64_image(value)
             
@@ -358,11 +369,19 @@ class PDFEngine:
             if "text" in value:
                 text_value = value.get("text")
             elif "value" in value:
-                # Check if value is a dict or string
-                if isinstance(value["value"], dict):
-                    text_value = value["value"].get("text")
+                val = value.get("value")
+                # Check for image data in value key
+                if isinstance(val, str) and val.startswith("data:image"):
+                    image_data = PDFEngine.decode_base64_image(val)
+                elif isinstance(val, dict):
+                    if "image" in val:
+                        image_data = PDFEngine.decode_base64_image(val.get("image"))
+                    if "text" in val:
+                        text_value = val.get("text")
+                    elif "value" in val:
+                        text_value = str(val.get("value"))
                 else:
-                    text_value = str(value["value"])
+                    text_value = str(val)
         elif isinstance(value, str):
             if value.startswith("data:image"):
                 image_data = PDFEngine.decode_base64_image(value)
@@ -569,7 +588,8 @@ class PDFEngine:
         date_text = ""
         
         if isinstance(value, dict):
-            date_text = value.get("date", value.get("text", ""))
+            # Also check for 'value' key, which is used in recipient_signing.py
+            date_text = value.get("value", value.get("date", value.get("text", "")))
         elif isinstance(value, str):
             date_text = value
         
@@ -1314,7 +1334,7 @@ class PDFEngine:
         email = ""
 
         if isinstance(value, dict):
-            email = value.get("email", "")
+            email = value.get("value", value.get("email", ""))
         elif isinstance(value, str):
             email = value
 
@@ -1371,7 +1391,7 @@ class PDFEngine:
 
                 if field_id and fields_data:
                     for f in fields_data:
-                        if str(f.get("id")) == str(field_id):
+                        if str(f.get("id", f.get("_id", ""))) == str(field_id):
                             field_data = f
                             break
 

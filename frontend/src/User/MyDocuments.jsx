@@ -12,16 +12,16 @@ import {
   getBoxFiles,
   getBoxFolderInfo
 } from "../services/DocumentAPI";
-import { 
-  FaCloudUploadAlt, 
-  FaFileAlt, 
-  FaFolder, 
+import {
+  FaCloudUploadAlt,
+  FaFileAlt,
+  FaFolder,
   FaFolderOpen,
-  FaGoogleDrive, 
-  FaDropbox, 
-  FaMicrosoft, 
-  FaBox, 
-  FaSearch, 
+  FaGoogleDrive,
+  FaDropbox,
+  FaMicrosoft,
+  FaBox,
+  FaSearch,
   FaTimes,
   FaArrowLeft,
   FaSync,
@@ -29,8 +29,8 @@ import {
   FaChevronDown,
   FaFilePdf,
   FaFileImage,
-  FaFileWord,FaFilter
-  
+  FaFileWord, FaFilter
+
 } from "react-icons/fa";
 import { AiOutlineFileText } from "react-icons/ai";
 
@@ -50,7 +50,7 @@ import {
 import { Snackbar, Alert } from "@mui/material";
 // Add these imports with your other icon imports
 import {
-  
+
   MoreVert as MoreVertIcon,
   Visibility as VisibilityIcon,
   Download as DownloadIcon,
@@ -60,7 +60,8 @@ import {
   Delete as DeleteIcon,
   Restore as RestoreIcon,
   DeleteForever as DeleteForeverIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Archive as ArchiveIcon
 } from "@mui/icons-material";
 import { Button } from "@mui/material";
 import { FaEdit } from "react-icons/fa";
@@ -77,7 +78,7 @@ import SignedPreviewModal from "../components/SignedPreviewModal";
 import TimelineDrawer from "../components/TimelineDrawer";
 import StatusChip from "../components/StatusChip";
 import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged } from "../services/DocumentAPI";
- import { setPageTitle } from "../utils/pageTitle";
+import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
 // import PremiumBannerSlider from "../components/PremiumBannerSlider";
@@ -111,28 +112,28 @@ export default function MyDocuments() {
 
 
   const [renameOpen, setRenameOpen] = useState(false);
-const [newFilename, setNewFilename] = useState(document?.filename || "");
-const [renaming, setRenaming] = useState(false);
+  const [newFilename, setNewFilename] = useState(document?.filename || "");
+  const [renaming, setRenaming] = useState(false);
 
   const [totalDocs, setTotalDocs] = useState(0);
-const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [mergeDoc, setMergeDoc] = useState(null);
-const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
-const [currentPage, setCurrentPage] = useState(1);
-const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-const [mergeLoading, setMergeLoading] = useState(false);
-const [mergeProgress, setMergeProgress] = useState(0);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [mergeProgress, setMergeProgress] = useState(0);
 
 
-const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-const [uploadedDocument, setUploadedDocument] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState(null);
 
-  
+
   // Google Picker State
   const [googleAccessToken, setGoogleAccessToken] = useState(null);
-  
+
   // Box Picker State
   const [boxToken, setBoxToken] = useState(localStorage.getItem("box_access_token"));
   const [showBoxPicker, setShowBoxPicker] = useState(false);
@@ -141,35 +142,36 @@ const [uploadedDocument, setUploadedDocument] = useState(null);
   const [boxCurrentFolder, setBoxCurrentFolder] = useState("0");
 
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
-const [voiding, setVoiding] = useState(false);
-const [docToVoid, setDocToVoid] = useState(null);
-const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-const [deleting, setDeleting] = useState(false);
-const [docToDelete, setDocToDelete] = useState(null);
+  const [voiding, setVoiding] = useState(false);
+  const [docToVoid, setDocToVoid] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
 
-const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
-const [permanentDeleting, setPermanentDeleting] = useState(false);
-const [docToPermanentDelete, setDocToPermanentDelete] = useState(null);
+  const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
+  const [docToPermanentDelete, setDocToPermanentDelete] = useState(null);
 
-const [filters, setFilters] = useState({
-  search: "",
-  status: "",
-  source: "",
-});
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    source: "",
+  });
 
-const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
 
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const filterRef = useRef(null);
 
   useEffect(() => {
-  setPageTitle(
-    "Document Management",
-    "View, manage, and track all your documents in one secure place."
-  );
-}, []);    
+    setPageTitle(
+      "Document Management",
+      "View, manage, and track all your documents in one secure place."
+    );
+  }, []);
 
   // Debug environment variables
   useEffect(() => {
@@ -183,8 +185,14 @@ const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Close Upload Dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowUploadDropdown(false);
+      }
+
+      // Close Filter Dropdown
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setShowAdvancedFilters(false);
       }
     };
 
@@ -208,27 +216,27 @@ const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   }, []);
 
   useEffect(() => {
-  if (!mergeLoading) return;
+    if (!mergeLoading) return;
 
-  const interval = setInterval(() => {
-    setMergeProgress((p) => Math.min(p + 5, 95));
-  }, 400);
+    const interval = setInterval(() => {
+      setMergeProgress((p) => Math.min(p + 5, 95));
+    }, 400);
 
-  return () => clearInterval(interval);
-}, [mergeLoading]);
+    return () => clearInterval(interval);
+  }, [mergeLoading]);
 
 
   // Load user's documents
- const loadDocs = async () => {
-  const res = await getDocumentsPaged(currentPage, pageSize);
-  setDocuments(res.documents);
-  setTotalDocs(res.total);
-  setTotalPages(res.total_pages);
-};
+  const loadDocs = async () => {
+    const res = await getDocumentsPaged(currentPage, pageSize);
+    setDocuments(res.documents);
+    setTotalDocs(res.total);
+    setTotalPages(res.total_pages);
+  };
 
   useEffect(() => {
-  loadDocs();
-}, [currentPage, pageSize]);
+    loadDocs();
+  }, [currentPage, pageSize]);
 
   // =============================================
   // UPLOAD HANDLERS
@@ -240,45 +248,45 @@ const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   };
 
   const handleFileSelect = (event) => {
-  const selectedFile = event.target.files[0];
-  if (!selectedFile) return;
+    const selectedFile = event.target.files[0];
+    if (!selectedFile) return;
 
-  setFile(selectedFile);
-  setPreviewFile(selectedFile);
-  setPreviewOpen(true);
-};
-
-
-const filteredDocuments = documents.filter((doc) => {
-  const search = filters.search.toLowerCase();
-
-  const matchesSearch =
-    !filters.search ||
-    doc.filename?.toLowerCase().includes(search) ||
-    new Date(doc.uploaded_at)
-      .toLocaleDateString()
-      .toLowerCase()
-      .includes(search);
-
-  const matchesStatus =
-    !filters.status || doc.status === filters.status;
-
-  const matchesSource =
-    !filters.source ||
-    doc.source?.toLowerCase() === filters.source;
-
-  return matchesSearch && matchesStatus && matchesSource;
-});
+    setFile(selectedFile);
+    setPreviewFile(selectedFile);
+    setPreviewOpen(true);
+  };
 
 
-useEffect(() => {
-  setCurrentPage(1);
-}, [filters.search, filters.status, filters.source]);
+  const filteredDocuments = documents.filter((doc) => {
+    const search = filters.search.toLowerCase();
+
+    const matchesSearch =
+      !filters.search ||
+      doc.filename?.toLowerCase().includes(search) ||
+      new Date(doc.uploaded_at)
+        .toLocaleDateString()
+        .toLowerCase()
+        .includes(search);
+
+    const matchesStatus =
+      !filters.status || doc.status === filters.status;
+
+    const matchesSource =
+      !filters.source ||
+      doc.source?.toLowerCase() === filters.source;
+
+    return matchesSearch && matchesStatus && matchesSource;
+  });
+
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.search, filters.status, filters.source]);
 
 
   // const handleUpload = async (uploadFile = file) => {
   //   if (!uploadFile) return;
-    
+
   //   setLoading(true);
   //   try {
   //     await uploadDocument(uploadFile);
@@ -294,68 +302,68 @@ useEffect(() => {
   //   }
   // };
 
-const handleUpload = async (uploadFile) => {
-  if (!uploadFile) return;
+  const handleUpload = async (uploadFile) => {
+    if (!uploadFile) return;
 
-  setLoading(true);
-  setUploadProgress(0);
-
-  try {
-    // ⭐ STORE RESPONSE
-    const res = await uploadDocument(uploadFile, setUploadProgress);
-
-    console.log("UPLOAD RESPONSE:", res);
-
-    // ⭐ NORMALIZE BACKEND SHAPE
-    const newDoc = res?.document || res;
-
-    if (!newDoc?.id) {
-      throw new Error("Upload API did not return document id");
-    }
-
-    setUploadedDocument(newDoc);
-    setShowSuccessDialog(true);
-
-    setSnackbar({
-      open: true,
-      message: "Document uploaded successfully",
-      severity: "success",
-    });
-
-    loadDocs();
-
-  } catch (err) {
-    console.error(err);
-
-    setSnackbar({
-      open: true,
-      message: err.message || "Upload failed",
-      severity: "error",
-    });
-
-  } finally {
-    setLoading(false);
+    setLoading(true);
     setUploadProgress(0);
-  }
-};
+
+    try {
+      // ⭐ STORE RESPONSE
+      const res = await uploadDocument(uploadFile, setUploadProgress);
+
+      console.log("UPLOAD RESPONSE:", res);
+
+      // ⭐ NORMALIZE BACKEND SHAPE
+      const newDoc = res?.document || res;
+
+      if (!newDoc?.id) {
+        throw new Error("Upload API did not return document id");
+      }
+
+      setUploadedDocument(newDoc);
+      setShowSuccessDialog(true);
+
+      setSnackbar({
+        open: true,
+        message: "Document uploaded successfully",
+        severity: "success",
+      });
+
+      loadDocs();
+
+    } catch (err) {
+      console.error(err);
+
+      setSnackbar({
+        open: true,
+        message: err.message || "Upload failed",
+        severity: "error",
+      });
+
+    } finally {
+      setLoading(false);
+      setUploadProgress(0);
+    }
+  };
 
 
-const [snackbar, setSnackbar] = useState({
-  open: false,
-  message: "",
-  severity: "success", // success | error | info | warning
-});
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success | error | info | warning
+  });
 
 
 
 
 
-// const totalPages = Math.ceil(documents.length / pageSize);
+  // const totalPages = Math.ceil(documents.length / pageSize);
 
-// const paginatedDocs = documents.slice(
-//   (currentPage - 1) * pageSize,
-//   currentPage * pageSize
-// );
+  // const paginatedDocs = documents.slice(
+  //   (currentPage - 1) * pageSize,
+  //   currentPage * pageSize
+  // );
 
 
 
@@ -374,13 +382,13 @@ const [snackbar, setSnackbar] = useState({
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    
+
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-  setFile(droppedFile);
-  setPreviewFile(droppedFile);
-  setPreviewOpen(true);
-}
+      setFile(droppedFile);
+      setPreviewFile(droppedFile);
+      setPreviewOpen(true);
+    }
 
   };
 
@@ -390,7 +398,7 @@ const [snackbar, setSnackbar] = useState({
 
   const handleCloudProviderSelect = (provider) => {
     setShowCloudProviders(false);
-    
+
     switch (provider) {
       case 'google':
         handleGooglePicker();
@@ -416,7 +424,7 @@ const [snackbar, setSnackbar] = useState({
   const handleGooglePicker = () => {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const redirectUri = process.env.REACT_APP_GOOGLE_REDIRECT_URI || `${window.location.origin}/documents`;
-    
+
     if (!clientId) {
       alert('Google Client ID is not configured. Please check your environment variables.');
       return;
@@ -424,7 +432,7 @@ const [snackbar, setSnackbar] = useState({
 
     const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.readonly');
     const state = "google_auth";
-    
+
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -433,7 +441,7 @@ const [snackbar, setSnackbar] = useState({
       `&state=${state}` +
       `&access_type=offline` +
       `&prompt=consent`;
-    
+
     console.log('Redirecting to Google Auth...');
     window.location.href = authUrl;
   };
@@ -442,7 +450,7 @@ const [snackbar, setSnackbar] = useState({
     try {
       console.log('Exchanging Google code for token...');
       const res = await exchangeGoogleToken(code);
-      
+
       if (!res.access_token) {
         throw new Error("No access token received from Google");
       }
@@ -450,10 +458,10 @@ const [snackbar, setSnackbar] = useState({
       const token = res.access_token;
       setGoogleAccessToken(token);
       localStorage.setItem("google_access_token", token);
-      
+
       window.history.replaceState({}, document.title, "/documents");
       loadGooglePicker(token);
-      
+
     } catch (err) {
       console.error("Google auth failed:", err);
       alert("Failed to complete Google login: " + (err.response?.data?.detail || err.message));
@@ -482,7 +490,7 @@ const [snackbar, setSnackbar] = useState({
     try {
       const view = new window.google.picker.View(window.google.picker.ViewId.DOCS);
       view.setMimeTypes('application/pdf,image/png,image/jpeg,image/jpg');
-      
+
       const picker = new window.google.picker.PickerBuilder()
         .addView(view)
         .setOAuthToken(accessToken)
@@ -496,32 +504,32 @@ const [snackbar, setSnackbar] = useState({
               mimeType: doc[window.google.picker.Document.MIME_TYPE],
               size: doc[window.google.picker.Document.SIZE_BYTES]
             };
-            
+
             try {
-              await uploadFromCloud("google", fileMeta, { 
+              await uploadFromCloud("google", fileMeta, {
                 accessToken: accessToken,
-                downloadFile: true 
+                downloadFile: true
               });
               setSnackbar({
-  open: true,
-  message: "File uploaded from Google Drive successfully",
-  severity: "success",
-});
+                open: true,
+                message: "File uploaded from Google Drive successfully",
+                severity: "success",
+              });
 
               loadDocs();
             } catch (error) {
               console.error("Google Drive upload error:", error);
               setSnackbar({
-  open: true,
-  message: "Failed to upload file from Google Drive",
-  severity: "error",
-});
+                open: true,
+                message: "Failed to upload file from Google Drive",
+                severity: "error",
+              });
 
             }
           }
         })
         .build();
-      
+
       picker.setVisible(true);
     } catch (error) {
       console.error("Google Picker error:", error);
@@ -545,14 +553,14 @@ const [snackbar, setSnackbar] = useState({
           try {
             const file = files[0];
             console.log("Dropbox file selected:", file);
-            
+
             const fileMeta = {
               id: file.id || file.link,
               name: file.name,
               link: file.link,
               bytes: file.bytes
             };
-            
+
             await uploadFromCloud("dropbox", fileMeta);
             alert("File uploaded from Dropbox successfully");
             loadDocs();
@@ -570,7 +578,7 @@ const [snackbar, setSnackbar] = useState({
       multiselect: false,
       extensions: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'],
     };
-    
+
     window.Dropbox.choose(options);
   };
 
@@ -589,7 +597,7 @@ const [snackbar, setSnackbar] = useState({
       action: "download",
 
       multiSelect: false,
-      advanced: { 
+      advanced: {
         filter: ".pdf,.docx,.png,.jpg,.jpeg",
         redirectUri: window.location.origin
       },
@@ -603,7 +611,7 @@ const [snackbar, setSnackbar] = useState({
               downloadUrl: file['@microsoft.graph.downloadUrl'],
               size: file.size
             };
-            
+
             await uploadFromCloud("onedrive", fileMeta);
             alert("File uploaded from OneDrive successfully");
             loadDocs();
@@ -628,7 +636,7 @@ const [snackbar, setSnackbar] = useState({
 
   const handleBoxPicker = () => {
     console.log('Box Token Status:', boxToken ? 'Token exists' : 'No token');
-    
+
     if (!boxToken) {
       authenticateWithBox();
       return;
@@ -640,7 +648,7 @@ const [snackbar, setSnackbar] = useState({
   const authenticateWithBox = () => {
     const clientId = process.env.REACT_APP_BOX_CLIENT_ID;
     const redirectUri = process.env.REACT_APP_BOX_REDIRECT_URI || `${window.location.origin}/documents`;
-    
+
     if (!clientId) {
       alert('Box Client ID is not configured. Please check your environment variables.');
       return;
@@ -651,7 +659,7 @@ const [snackbar, setSnackbar] = useState({
       `&client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=box_auth`;
-    
+
     console.log('Redirecting to Box Auth...');
     window.location.href = authUrl;
   };
@@ -660,7 +668,7 @@ const [snackbar, setSnackbar] = useState({
     try {
       console.log('Exchanging Box code for token...');
       const res = await exchangeBoxToken(code);
-      
+
       if (!res.access_token) {
         throw new Error("No access token received from Box");
       }
@@ -668,13 +676,13 @@ const [snackbar, setSnackbar] = useState({
       const token = res.access_token;
       localStorage.setItem("box_access_token", token);
       setBoxToken(token);
-      
+
       alert("Box connected successfully");
       window.history.replaceState({}, document.title, "/documents");
-      
+
       setShowBoxPicker(true);
       loadBoxFiles("0", token);
-      
+
     } catch (err) {
       console.error("Box auth failed:", err);
       alert("Failed to complete Box login: " + (err.response?.data?.detail || err.message));
@@ -690,16 +698,16 @@ const [snackbar, setSnackbar] = useState({
     setBoxLoading(true);
     try {
       console.log('Loading Box files for folder:', folderId);
-      
+
       const response = await getBoxFiles(folderId, token);
       console.log('Box files loaded:', response.files);
-      
+
       setBoxFiles(response.files || []);
       setBoxCurrentFolder(folderId);
-      
+
     } catch (error) {
       console.error("Error loading Box files:", error);
-      
+
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("box_access_token");
         setBoxToken(null);
@@ -715,10 +723,10 @@ const [snackbar, setSnackbar] = useState({
 
   const handleBoxBack = async () => {
     if (boxCurrentFolder === "0") return;
-    
+
     try {
       const response = await getBoxFolderInfo(boxCurrentFolder, boxToken);
-      
+
       if (response.parent) {
         loadBoxFiles(response.parent.id);
       } else {
@@ -739,23 +747,23 @@ const [snackbar, setSnackbar] = useState({
     try {
       setBoxLoading(true);
       console.log('Uploading Box file:', file);
-      
+
       await uploadFromBox(
-        { 
-          id: file.id, 
+        {
+          id: file.id,
           name: file.name,
-          size: file.size 
-        }, 
+          size: file.size
+        },
         boxToken
       );
-      
+
       alert("File uploaded from Box successfully");
       setShowBoxPicker(false);
       loadDocs();
-      
+
     } catch (error) {
       console.error("Box upload error:", error);
-      
+
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("box_access_token");
         setBoxToken(null);
@@ -773,43 +781,43 @@ const [snackbar, setSnackbar] = useState({
   // TEMPLATE HANDLERS
   // =============================================
 
-const handleTemplateSelect = async (template) => {
-  try {
-    if (!template?.templateId) {
-      throw new Error("templateId is missing");
+  const handleTemplateSelect = async (template) => {
+    try {
+      if (!template?.templateId) {
+        throw new Error("templateId is missing");
+      }
+
+      setLoading(true);
+
+      const res = await fetch(`${API_BASE_URL}/documents/from-template`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          template_id: template.templateId,
+          title: `Copy of ${template.name}`,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Backend error:", data);
+        throw new Error(data.detail || "Backend failed");
+      }
+
+      console.log("SUCCESS:", data);
+      setShowTemplateBrowser(false);
+      loadDocs();
+    } catch (err) {
+      console.error("CREATE FROM TEMPLATE ERROR:", err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-
-    const res = await fetch(`${API_BASE_URL}/documents/from-template`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        template_id: template.templateId,
-        title: `Copy of ${template.name}`,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error("Backend error:", data);
-      throw new Error(data.detail || "Backend failed");
-    }
-
-    console.log("SUCCESS:", data);
-    setShowTemplateBrowser(false);
-    loadDocs();
-  } catch (err) {
-    console.error("CREATE FROM TEMPLATE ERROR:", err);
-    alert(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Alternative approach: Direct download and upload template
   const handleTemplateDownloadAndUpload = async (template) => {
@@ -823,7 +831,7 @@ const handleTemplateSelect = async (template) => {
     }
 
     setTemplateLoading(true);
-    
+
     try {
       // Step 1: Download template file
       const downloadResponse = await fetch(
@@ -843,10 +851,10 @@ const handleTemplateSelect = async (template) => {
 
       // Get the file blob
       const blob = await downloadResponse.blob();
-      
+
       // Step 2: Create a file from blob
       const templateFile = new File(
-        [blob], 
+        [blob],
         `${template.name || 'template'}.pdf`,
         { type: blob.type || 'application/pdf' }
       );
@@ -855,10 +863,10 @@ const handleTemplateSelect = async (template) => {
       setFile(templateFile);
       setPreviewFile(templateFile);
       setPreviewOpen(true);
-      
+
       // Close template browser
       setShowTemplateBrowser(false);
-      
+
     } catch (err) {
       console.error("Template download error:", err);
       setSnackbar({
@@ -879,7 +887,7 @@ const handleTemplateSelect = async (template) => {
     }
 
     setTemplateLoading(true);
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/documents/from-template`, {
         method: 'POST',
@@ -898,7 +906,7 @@ const handleTemplateSelect = async (template) => {
       }
 
       const result = await response.json();
-      
+
       if (result.document) {
         // Success
         setSnackbar({
@@ -906,13 +914,13 @@ const handleTemplateSelect = async (template) => {
           message: `Document created from "${template.name}" template`,
           severity: "success",
         });
-        
+
         // Refresh documents
         loadDocs();
-        
+
         // Close template browser
         setShowTemplateBrowser(false);
-        
+
         // Optionally navigate to the new document
         if (result.document.id) {
           // navigate to document editor or preview
@@ -920,7 +928,7 @@ const handleTemplateSelect = async (template) => {
       } else {
         throw new Error("No document created");
       }
-      
+
     } catch (err) {
       console.error("Template usage error:", err);
       setSnackbar({
@@ -934,7 +942,7 @@ const handleTemplateSelect = async (template) => {
   };
 
 
-const handleTemplateUse = (template) => {
+  const handleTemplateUse = (template) => {
     console.log('Template selected for use:', template);
     // Load the template into your editor
     // setCurrentTemplate(template);
@@ -944,34 +952,46 @@ const handleTemplateUse = (template) => {
 
 
 
-const handleDownload = async (doc) => {
-  try {
-    // Try downloading final signed PDF first
-    await downloadDocument(doc.id, doc.filename, true); // final=true
-  } catch (err) {
-    if (err.response?.status === 400) {
-      // Final PDF not ready → fallback to original
-      await downloadDocument(doc.id, doc.filename, false);
-    } else {
-      alert("Download failed: " + err.response?.data?.detail);
+  const handleDownload = async (doc) => {
+    try {
+      // Try downloading final signed PDF first
+      await downloadDocument(doc.id, doc.filename, "signed"); // type="signed"
+    } catch (err) {
+      if (err.response?.status === 400) {
+        // Final PDF not ready → fallback to original
+        await downloadDocument(doc.id, doc.filename, "original");
+      } else {
+        alert("Download failed: " + err.response?.data?.detail);
+      }
     }
-  }
-};
+  };
 
-const handleBuildTemplate = (document) => {
-  navigate(`/user/documentbuilder/${document.id}`);
-};
+  const handleDownloadPackage = async (doc) => {
+    try {
+      setLoading(true);
+      await downloadDocument(doc.id, doc.filename, "package");
+    } catch (err) {
+      console.error("Package download error:", err);
+      alert("Failed to download package: " + (err.response?.data?.detail || "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBuildTemplate = (document) => {
+    navigate(`/user/documentbuilder/${document.id}`);
+  };
 
 
-// const handleBuildTemplate = (document) => {
-//   // Save document to localStorage for the builder page
-//   localStorage.setItem('selectedDocument', JSON.stringify(document));
-  
-//   // Navigate to the builder page
-//   navigate('/user/documentbuilder', { 
-//     state: { document } 
-//   });
-// };
+  // const handleBuildTemplate = (document) => {
+  //   // Save document to localStorage for the builder page
+  //   localStorage.setItem('selectedDocument', JSON.stringify(document));
+
+  //   // Navigate to the builder page
+  //   navigate('/user/documentbuilder', { 
+  //     state: { document } 
+  //   });
+  // };
 
 
   // =============================================
@@ -995,8 +1015,8 @@ const handleBuildTemplate = (document) => {
     if (ext === 'pdf') return <FaFilePdf className="file-icon pdf" />;
     if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return <FaFileImage className="file-icon image" />;
     if (['doc', 'docx'].includes(ext)) return <FaFileWord className="file-icon word" />;
-if (['xls', 'xlsx'].includes(ext)) return <FaFileAlt className="file-icon excel" />;
-if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" />;
+    if (['xls', 'xlsx'].includes(ext)) return <FaFileAlt className="file-icon excel" />;
+    if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" />;
 
     return <FaFileAlt className="file-icon default" />;
   };
@@ -1028,9 +1048,9 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 
       {/* Modern Upload Section */}
       <div className="upload-section">
-       
 
-        <div 
+
+        <div
           className={`upload-area ${dragOver ? 'drag-over' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -1043,9 +1063,9 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
           <p className="upload-subtitle">
             Drag & drop files here or choose from the options below
           </p>
-          
+
           <div className="upload-button-container" ref={dropdownRef}>
-            <button 
+            <button
               className="upload-main-btn"
               onClick={() => setShowUploadDropdown(!showUploadDropdown)}
               disabled={loading}
@@ -1054,14 +1074,14 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
               {loading ? "Uploading..." : "Upload Document"}
               <FaChevronDown className="dropdown-arrow" />
             </button>
-            
+
             <div className={`upload-dropdown ${showUploadDropdown ? 'show' : ''}`}>
               <button className="dropdown-item" onClick={handleLocalUpload}>
                 <FiUploadCloud className="dropdown-icon" />
                 <span>Local File</span>
               </button>
-              <button 
-                className="dropdown-item" 
+              <button
+                className="dropdown-item"
                 onClick={() => {
                   setShowUploadDropdown(false);
                   setShowCloudProviders(true);
@@ -1070,19 +1090,19 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                 <FaCloudUploadAlt className="dropdown-icon" />
                 <span>Cloud Storage</span>
               </button>
-              <button 
-  className="dropdown-item"
-  onClick={() => {
-    setShowUploadDropdown(false);
-    setShowTemplateBrowser(true); // Changed from setShowTemplates
-  }}
->
-  <AiOutlineFileText className="dropdown-icon" />
-  <span>Use Template</span>
-</button>
+              <button
+                className="dropdown-item"
+                onClick={() => {
+                  setShowUploadDropdown(false);
+                  setShowTemplateBrowser(true); // Changed from setShowTemplates
+                }}
+              >
+                <AiOutlineFileText className="dropdown-icon" />
+                <span>Use Template</span>
+              </button>
 
 
-{/* {doc.status === "draft" && (
+              {/* {doc.status === "draft" && (
   <button
     className="dropdown-item"
     onClick={() => {
@@ -1098,58 +1118,58 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 
 
 
-<Button
-  variant="contained"
-  startIcon={<AutoAwesome />}
-  onClick={() => setTemplateBrowserOpen(true)}
-  className="ai-button"
->
-  Get AI Templates
-</Button>
+              <Button
+                variant="contained"
+                startIcon={<AutoAwesome />}
+                onClick={() => setTemplateBrowserOpen(true)}
+                className="ai-button"
+              >
+                Get AI Templates
+              </Button>
             </div>
             {loading && (
-  <div className="uploading-overlay-root">
-    <div className="uploading-card-box">
+              <div className="uploading-overlay-root">
+                <div className="uploading-card-box">
 
-      {/* Upload GIF */}
-      <img
-        src="/images/uploading.gif"
-        alt="Uploading"
-        className="uploading-gif-icon"
-      />
+                  {/* Upload GIF */}
+                  <img
+                    src="/images/uploading.gif"
+                    alt="Uploading"
+                    className="uploading-gif-icon"
+                  />
 
-      <h3 className="uploading-title">
-        Uploading document…
-      </h3>
+                  <h3 className="uploading-title">
+                    Uploading document…
+                  </h3>
 
-      <p className="uploading-filename">
-        {file?.name}
-      </p>
+                  <p className="uploading-filename">
+                    {file?.name}
+                  </p>
 
-      <div className="uploading-percent">
-        {uploadProgress}%
-      </div>
+                  <div className="uploading-percent">
+                    {uploadProgress}%
+                  </div>
 
-      <div className="uploading-progress-bar">
-        <div
-          className="uploading-progress-fill"
-          style={{ width: `${uploadProgress}%` }}
-        />
-      </div>
+                  <div className="uploading-progress-bar">
+                    <div
+                      className="uploading-progress-fill"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
 
-      <button
-        className="uploading-cancel-btn"
-        onClick={() => {
-          setLoading(false);
-          setUploadProgress(0);
-        }}
-      >
-        Cancel
-      </button>
+                  <button
+                    className="uploading-cancel-btn"
+                    onClick={() => {
+                      setLoading(false);
+                      setUploadProgress(0);
+                    }}
+                  >
+                    Cancel
+                  </button>
 
-    </div>
-  </div>
-)}
+                </div>
+              </div>
+            )}
 
 
 
@@ -1169,7 +1189,7 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
           <div className="cloud-providers-section">
             <div className="section-header">
               <h3 className="section-title">Choose Cloud Provider</h3>
-              <button 
+              <button
                 className="close-section-btn"
                 onClick={() => setShowCloudProviders(false)}
               >
@@ -1199,19 +1219,19 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 
         {/* Templates Grid */}
         {/* Template Browser Modal */}
-{showTemplateBrowser && (
-  <TemplateBrowser
-    isOpen={showTemplateBrowser}
-    onClose={() => setShowTemplateBrowser(false)}
-    onTemplateSelect={handleTemplateSelect}
-  />
-)}
+        {showTemplateBrowser && (
+          <TemplateBrowser
+            isOpen={showTemplateBrowser}
+            onClose={() => setShowTemplateBrowser(false)}
+            onTemplateSelect={handleTemplateSelect}
+          />
+        )}
       </div>
       <AITemplateBrowser
-  open={templateBrowserOpen}
-  onClose={() => setTemplateBrowserOpen(false)}
-  onTemplateUse={handleTemplateUse}
-/>
+        open={templateBrowserOpen}
+        onClose={() => setTemplateBrowserOpen(false)}
+        onTemplateUse={handleTemplateUse}
+      />
 
       {/* Box Picker Modal */}
       {showBoxPicker && (
@@ -1219,17 +1239,17 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
           <div className="modal box-picker-modal">
             <div className="modal-header">
               <h3>Select File from Box</h3>
-              <button 
+              <button
                 className="close-btn"
                 onClick={() => setShowBoxPicker(false)}
               >
                 <FaTimes />
               </button>
             </div>
-            
+
             <div className="modal-content">
               <div className="box-picker-toolbar">
-                <button 
+                <button
                   onClick={handleBoxBack}
                   disabled={boxCurrentFolder === "0"}
                   className="btn btn-outline back-btn"
@@ -1237,7 +1257,7 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                   <FaArrowLeft className="btn-icon" />
                   Back
                 </button>
-                <button 
+                <button
                   onClick={() => loadBoxFiles()}
                   className="btn btn-outline refresh-btn"
                 >
@@ -1260,14 +1280,14 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                     </div>
                   ) : (
                     boxFiles.map((item) => (
-                      <div 
-                        key={item.id} 
+                      <div
+                        key={item.id}
                         className={`box-file-item ${item.type}`}
                         onClick={() => handleBoxFileSelect(item)}
                       >
                         <div className="box-file-icon">
-                          {item.type === "folder" ? 
-                            <FaFolder className="folder-icon" /> : 
+                          {item.type === "folder" ?
+                            <FaFolder className="folder-icon" /> :
                             <FaFileAlt className="file-icon" />
                           }
                         </div>
@@ -1290,9 +1310,9 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                 </div>
               )}
             </div>
-            
+
             <div className="modal-footer">
-              <button 
+              <button
                 onClick={() => setShowBoxPicker(false)}
                 className="btn btn-secondary"
               >
@@ -1308,145 +1328,158 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
         <div className="section-header">
           <h3 className="section-title">Your Documents</h3>
 
-        <div className="dt-filter-bar-pro">
+          <div className="dt-filter-bar-pro">
 
-  {/* Left: Search */}
-  <div className="dt-filter-search">
-    <FaSearch className="dt-filter-icon" />
-    <input
-      type="text"
-      placeholder="Search by file name or date…"
-      value={filters.search}
-      onChange={(e) =>
-        setFilters({ ...filters, search: e.target.value })
-      }
-    />
-  </div>
+            {/* Left: Search */}
+            <div className="dt-filter-search">
+              <FaSearch className="dt-filter-icon" />
+              <input
+                type="text"
+                placeholder="Search by file name or date…"
+                value={filters.search}
+                onChange={(e) =>
+                  setFilters({ ...filters, search: e.target.value })
+                }
+              />
+            </div>
 
-  {/* Right: Filter Button */}
-  <div className="dt-filter-actions">
-    <button
-  className="dt-filter-btn"
-  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
->
-  <FaFilter className="dt-filter-btn-icon" />
-  <span>Filters</span>
-</button>
+            {/* Right: Filter Button */}
+            <div className="dt-filter-actions" ref={filterRef}>
+              <button
+                className={`dt-filter-btn ${showAdvancedFilters ? 'active' : ''} ${filters.status || filters.source ? 'has-active-filters' : ''}`}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <FaFilter className="dt-filter-btn-icon" />
+                <span>Filters</span>
+                {(filters.status || filters.source) && (
+                  <span className="dt-filter-badge"></span>
+                )}
+              </button>
 
 
-    {showAdvancedFilters && (
-      <div className="dt-filter-dropdown">
-        <div className="dt-filter-group">
-          <label>Status</label>
-          <select
-            value={filters.status}
-            onChange={(e) =>
-              setFilters({ ...filters, status: e.target.value })
-            }
-          >
-            <option value="">All</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="voided">Voided</option>
-          </select>
-        </div>
+              {showAdvancedFilters && (
+                <div className="dt-filter-dropdown shadow-lg animate-in fade-in zoom-in duration-200">
+                  <div className="dt-filter-dropdown-header">
+                    <h4>Advanced Filters</h4>
+                    <button
+                      onClick={() => setShowAdvancedFilters(false)}
+                      className="dt-filter-close-btn"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
 
-        <div className="dt-filter-group">
-          <label>Source</label>
-          <select
-            value={filters.source}
-            onChange={(e) =>
-              setFilters({ ...filters, source: e.target.value })
-            }
-          >
-            <option value="">All</option>
-            <option value="local">Local</option>
-            <option value="google">Google Drive</option>
-            <option value="dropbox">Dropbox</option>
-            <option value="onedrive">OneDrive</option>
-            <option value="box">Box</option>
-          </select>
-        </div>
+                  <div className="dt-filter-group">
+                    <label>Status</label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) =>
+                        setFilters({ ...filters, status: e.target.value })
+                      }
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="draft">Draft</option>
+                      <option value="sent">Sent</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="voided">Voided</option>
+                    </select>
+                  </div>
 
-        <div className="dt-filter-footer">
-          <button
-            className="dt-filter-reset"
-            onClick={() =>
-              setFilters({ search: "", status: "", source: "" })
-            }
-          >
-            Reset
-          </button>
+                  <div className="dt-filter-group">
+                    <label>Source</label>
+                    <select
+                      value={filters.source}
+                      onChange={(e) =>
+                        setFilters({ ...filters, source: e.target.value })
+                      }
+                    >
+                      <option value="">All Sources</option>
+                      <option value="local">Local Upload</option>
+                      <option value="google">Google Drive</option>
+                      <option value="dropbox">Dropbox</option>
+                      <option value="onedrive">OneDrive</option>
+                      <option value="box">Box</option>
+                    </select>
+                  </div>
 
-          <button
-            className="dt-filter-apply"
-            onClick={() => setShowAdvancedFilters(false)}
-          >
-            Apply
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
+                  <div className="dt-filter-footer">
+                    <button
+                      className="dt-filter-reset"
+                      onClick={() =>
+                        setFilters({ search: "", status: "", source: "" })
+                      }
+                    >
+                      Clear All
+                    </button>
+
+                    <button
+                      className="dt-filter-apply"
+                      onClick={() => setShowAdvancedFilters(false)}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
 
           <span className="doc-count">{filteredDocuments.length} of {totalDocs} documents documents</span>
-</div>
+        </div>
 
 
         <div className="safesign-pagination">
- <div className="safesign-pagination-info">
-  Showing{" "}
-  {totalDocs === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-  {" – "}
-  {Math.min(currentPage * pageSize, totalDocs)} of {totalDocs}
-</div>
+          <div className="safesign-pagination-info">
+            Showing{" "}
+            {totalDocs === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+            {" – "}
+            {Math.min(currentPage * pageSize, totalDocs)} of {totalDocs}
+          </div>
 
 
-  <div className="safesign-pagination-center">
-    Rows
-    <select
-      value={pageSize}
-      onChange={(e) => {
-        setPageSize(Number(e.target.value));
-        setCurrentPage(1);
-      }}
-    >
-      <option value={5}>5</option>
-      <option value={10}>10</option>
-      <option value={25}>25</option>
-      <option value={50}>50</option>
-    </select>
-  </div>
+          <div className="safesign-pagination-center">
+            Rows
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
 
-  <div className="safesign-pagination-controls">
-    <button
-      className="safesign-page-btn"
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage(currentPage - 1)}
-    >
-      ← Previous
-    </button>
+          <div className="safesign-pagination-controls">
+            <button
+              className="safesign-page-btn"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(currentPage - 1)}
+            >
+              ← Previous
+            </button>
 
-    <span className="safesign-page-current">
-      Page {currentPage} of {totalPages}
-    </span>
+            <span className="safesign-page-current">
+              Page {currentPage} of {totalPages}
+            </span>
 
-    <button
-      className="safesign-page-btn"
-      disabled={currentPage >= totalPages || totalDocs === 0}
-      onClick={() => setCurrentPage(currentPage + 1)}
-    >
-      Next →
-    </button>
-  </div>
-</div>
+            <button
+              className="safesign-page-btn"
+              disabled={currentPage >= totalPages || totalDocs === 0}
+              onClick={() => setCurrentPage(currentPage + 1)}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
 
 
-        
+
         {documents.length === 0 ? (
           <div className="empty-documents">
             <FaFileAlt className="empty-icon" />
@@ -1471,18 +1504,18 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 
                   <tr key={doc.id}>
                     <td className="file-cell">
-  {getFileIcon(doc.filename)}
-  <span
-    className="file-name clickable"
-    onClick={() => {
-      setActiveDocId(doc.id);
-      setActiveDocument(doc);
-      setViewerOpen(true);
-    }}
-  >
-    {doc.filename}
-  </span>
-</td>
+                      {getFileIcon(doc.filename)}
+                      <span
+                        className="file-name clickable"
+                        onClick={() => {
+                          setActiveDocId(doc.id);
+                          setActiveDocument(doc);
+                          setViewerOpen(true);
+                        }}
+                      >
+                        {doc.filename}
+                      </span>
+                    </td>
                     <td>{new Date(doc.uploaded_at).toLocaleString()}</td>
                     <td>
                       <span className={`source-badge source-${doc.source?.toLowerCase()}`}>
@@ -1490,8 +1523,8 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                       </span>
                     </td>
                     <td>
-          <StatusChip status={doc.status} />
-        </td>
+                      <StatusChip status={doc.status} />
+                    </td>
                     {/* <td className="action-buttons">
                       <button
   onClick={() => handleDownload(doc)}
@@ -1514,24 +1547,24 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
                       </button>
                     </td> */}
 
-<td className="action-buttons">
+                    <td className="action-buttons">
 
-  {/* Prepare & Send Button - Main Action */}
-   {/* {doc.status === "draft" && ( */}
-  <button
-    className="btn btn-primary2"
-    onClick={() => navigate(`/user/prepare-send/${doc.id}`)}
-    disabled={doc.status !== "draft"}
-  >
-    Prepare & Send
-  </button>
-   {/* )} */}
-  
-      {/* Recipient Manager */}
-  {/* <RecipientManager document={doc} onUpdate={loadDocs} /> */}
+                      {/* Prepare & Send Button - Main Action */}
+                      {/* {doc.status === "draft" && ( */}
+                      <button
+                        className="btn btn-primary2"
+                        onClick={() => navigate(`/user/prepare-send/${doc.id}`)}
+                        disabled={doc.status !== "draft"}
+                      >
+                        Prepare & Send
+                      </button>
+                      {/* )} */}
 
-  {/* // In the action-buttons section, add: */}
-{/* <button
+                      {/* Recipient Manager */}
+                      {/* <RecipientManager document={doc} onUpdate={loadDocs} /> */}
+
+                      {/* // In the action-buttons section, add: */}
+                      {/* <button
   className="btn btn-primary btn-sm"
   disabled={doc.status !== "draft"}
   onClick={() => handleBuildTemplate(doc)}
@@ -1541,56 +1574,56 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 </button> */}
 
 
-  {/* Three-dot dropdown menu */}
-  <div 
-  className="dropdown" 
-  ref={el => {
-    if (el) {
-      // Check space below on hover
-      const checkPosition = () => {
-        const rect = el.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        
-        // If less than 300px below and more space above, open upward
-        if (spaceBelow < 300 && spaceAbove > spaceBelow) {
-          el.classList.add('dropup');
-        } else {
-          el.classList.remove('dropup');
-        }
-      };
-      
-      // Check position on hover
-      el.addEventListener('mouseenter', checkPosition);
-      
-      // Cleanup
-      return () => el.removeEventListener('mouseenter', checkPosition);
-    }
-  }}
->
-    <button className="btn btn-sm" title="More actions">
-      <MoreVertIcon />
-    </button>
-    
-    <div className="dropdown-menu">
-      {/* Move Manage Recipients inside dropdown */}
+                      {/* Three-dot dropdown menu */}
+                      <div
+                        className="dropdown"
+                        ref={el => {
+                          if (el) {
+                            // Check space below on hover
+                            const checkPosition = () => {
+                              const rect = el.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const spaceAbove = rect.top;
 
-      <button
-  className="dropdown-item"
-  onClick={() => {
-  setActiveDocId(doc.id);                 // track which doc is being renamed
-  setNewFilename(
-    (doc.filename || "").replace(/\.pdf$/i, "")
-  );
-  setRenameOpen(true);
-}}
+                              // If less than 300px below and more space above, open upward
+                              if (spaceBelow < 300 && spaceAbove > spaceBelow) {
+                                el.classList.add('dropup');
+                              } else {
+                                el.classList.remove('dropup');
+                              }
+                            };
 
->
-  <FaEdit size={14}  className="dropdown-icon" />
-  <span>Rename</span>
-</button>
+                            // Check position on hover
+                            el.addEventListener('mouseenter', checkPosition);
 
-      {/* <button 
+                            // Cleanup
+                            return () => el.removeEventListener('mouseenter', checkPosition);
+                          }
+                        }}
+                      >
+                        <button className="btn btn-sm" title="More actions">
+                          <MoreVertIcon />
+                        </button>
+
+                        <div className="dropdown-menu">
+                          {/* Move Manage Recipients inside dropdown */}
+
+                          <button
+                            className="dropdown-item"
+                            onClick={() => {
+                              setActiveDocId(doc.id);                 // track which doc is being renamed
+                              setNewFilename(
+                                (doc.filename || "").replace(/\.pdf$/i, "")
+                              );
+                              setRenameOpen(true);
+                            }}
+
+                          >
+                            <FaEdit size={14} className="dropdown-icon" />
+                            <span>Rename</span>
+                          </button>
+
+                          {/* <button 
   className="dropdown-item"
   onClick={() => {
     setSelectedDocument(doc);
@@ -1602,153 +1635,160 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
 </button> */}
 
 
-      {/* Move Build Template inside dropdown */}
+                          {/* Move Build Template inside dropdown */}
 
-       {doc.status === "draft" && (
-      <button 
-        className="dropdown-item"
-        onClick={() => handleBuildTemplate(doc)}
-        disabled={doc.status !== "draft"}
-      >
-        <EditIcon className="dropdown-icon" />
-        <span>Build Template</span>
-      </button>
-       )
-      }
-
-
-      {/* Always visible options */}
-      <button className="dropdown-item" onClick={() => { 
-        setActiveDocId(doc.id); 
-        setActiveDocument(doc);
-        setViewerOpen(true); 
-      }}>
-        <VisibilityIcon className="dropdown-icon" />
-        <span>View Document</span>
-      </button>
-
-      <button className="dropdown-item" onClick={() => handleDownload(doc)}>
-        <DownloadIcon className="dropdown-icon" />
-        <span>Download</span>
-      </button>
-
-      <button className="dropdown-item" onClick={() => { 
-        setActiveDocId(doc.id); 
-        setActiveDocument(doc);
-        setSignedOpen(true); 
-      }}>
-        <PreviewIcon className="dropdown-icon" />
-        <span>Signed Preview</span>
-      </button>
-
-      <div className="dropdown-divider"></div>
-
-      <button 
-        className="dropdown-item" 
-        onClick={() => { 
-          setActiveDocId(doc.id); 
-          setTimelineOpen(true); 
-        }}
-      >
-        <HistoryIcon className="dropdown-icon" />
-        <span>Timeline</span>
-      </button>
-
-      {/* Conditional options based on status */}
-      {["draft", "sent", "in_progress"].includes(doc.status) && (
-        <>
-          <div className="dropdown-divider"></div>
-          
-          <button
-  className="dropdown-item dropdown-item-warning"
-  onClick={() => {
-    setDocToVoid(doc);
-    setVoidDialogOpen(true);
-  }}
->
-  <CancelIcon className="dropdown-icon" />
-  <span>Void Document</span>
-</button>
+                          {doc.status === "draft" && (
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleBuildTemplate(doc)}
+                              disabled={doc.status !== "draft"}
+                            >
+                              <EditIcon className="dropdown-icon" />
+                              <span>Build Template</span>
+                            </button>
+                          )
+                          }
 
 
-          <button
-  className="dropdown-item dropdown-item-danger"
-  onClick={() => {
-    setDocToDelete(doc);
-    setDeleteDialogOpen(true);
-  }}
->
-  <DeleteIcon className="dropdown-icon" />
-  <span>Delete</span>
-</button>
+                          {/* Always visible options */}
+                          <button className="dropdown-item" onClick={() => {
+                            setActiveDocId(doc.id);
+                            setActiveDocument(doc);
+                            setViewerOpen(true);
+                          }}>
+                            <VisibilityIcon className="dropdown-icon" />
+                            <span>View Document</span>
+                          </button>
 
-        </>
-      )}
+                          <button className="dropdown-item" onClick={() => handleDownload(doc)}>
+                            <DownloadIcon className="dropdown-icon" />
+                            <span>Download</span>
+                          </button>
 
-      {doc.status === "voided" && (
-        <>
-          <div className="dropdown-divider"></div>
-          
-          <button 
-            className="dropdown-item dropdown-item-success"
-            onClick={async () => {
-              await restoreDocument(doc.id);
-              alert("Void cancelled. Document active.");
-              loadDocs();
-            }}
-          >
-            <RestoreIcon className="dropdown-icon" />
-            <span>Cancel Void</span>
-          </button>
+                          <button className="dropdown-item" onClick={() => {
+                            setActiveDocId(doc.id);
+                            setActiveDocument(doc);
+                            setSignedOpen(true);
+                          }}>
+                            <PreviewIcon className="dropdown-icon" />
+                            <span>Signed Preview</span>
+                          </button>
 
-          <button
-  className="dropdown-item dropdown-item-danger"
-  onClick={() => {
-    setDocToDelete(doc);
-    setDeleteDialogOpen(true);
-  }}
->
-  <DeleteIcon className="dropdown-icon" />
-  <span>Delete</span>
-</button>
+                          {doc.status === "completed" && (
+                            <button className="dropdown-item" onClick={() => handleDownloadPackage(doc)}>
+                              <ArchiveIcon className="dropdown-icon" style={{ fontSize: '14px' }} />
+                              <span>Download Package (ZIP)</span>
+                            </button>
+                          )}
 
-        </>
-      )}
+                          <div className="dropdown-divider"></div>
 
-      {doc.status === "deleted" && (
-        <>
-          <div className="dropdown-divider"></div>
-          
-          <button 
-            className="dropdown-item dropdown-item-success"
-            onClick={async () => {
-              await restoreDocument(doc.id);
-              alert("Document restored");
-              loadDocs();
-            }}
-          >
-            <RestoreIcon className="dropdown-icon" />
-            <span>Restore</span>
-          </button>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => {
+                              setActiveDocId(doc.id);
+                              setTimelineOpen(true);
+                            }}
+                          >
+                            <HistoryIcon className="dropdown-icon" />
+                            <span>Timeline</span>
+                          </button>
 
-          <button
-  className="dropdown-item dropdown-item-danger"
-  onClick={() => {
-    setDocToPermanentDelete(doc);
-    setPermanentDeleteOpen(true);
-  }}
->
-  <DeleteForeverIcon className="dropdown-icon" />
-  <span>Permanent Delete</span>
-</button>
+                          {/* Conditional options based on status */}
+                          {["draft", "sent", "in_progress"].includes(doc.status) && (
+                            <>
+                              <div className="dropdown-divider"></div>
 
-        </>
-      )}
+                              <button
+                                className="dropdown-item dropdown-item-warning"
+                                onClick={() => {
+                                  setDocToVoid(doc);
+                                  setVoidDialogOpen(true);
+                                }}
+                              >
+                                <CancelIcon className="dropdown-icon" />
+                                <span>Void Document</span>
+                              </button>
 
-      <div className="dropdown-divider"></div>
 
-      {/* Recipient Manager */}
-      {/* <button 
+                              <button
+                                className="dropdown-item dropdown-item-danger"
+                                onClick={() => {
+                                  setDocToDelete(doc);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <DeleteIcon className="dropdown-icon" />
+                                <span>Delete</span>
+                              </button>
+
+                            </>
+                          )}
+
+                          {doc.status === "voided" && (
+                            <>
+                              <div className="dropdown-divider"></div>
+
+                              <button
+                                className="dropdown-item dropdown-item-success"
+                                onClick={async () => {
+                                  await restoreDocument(doc.id);
+                                  alert("Void cancelled. Document active.");
+                                  loadDocs();
+                                }}
+                              >
+                                <RestoreIcon className="dropdown-icon" />
+                                <span>Cancel Void</span>
+                              </button>
+
+                              <button
+                                className="dropdown-item dropdown-item-danger"
+                                onClick={() => {
+                                  setDocToDelete(doc);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <DeleteIcon className="dropdown-icon" />
+                                <span>Delete</span>
+                              </button>
+
+                            </>
+                          )}
+
+                          {doc.status === "deleted" && (
+                            <>
+                              <div className="dropdown-divider"></div>
+
+                              <button
+                                className="dropdown-item dropdown-item-success"
+                                onClick={async () => {
+                                  await restoreDocument(doc.id);
+                                  alert("Document restored");
+                                  loadDocs();
+                                }}
+                              >
+                                <RestoreIcon className="dropdown-icon" />
+                                <span>Restore</span>
+                              </button>
+
+                              <button
+                                className="dropdown-item dropdown-item-danger"
+                                onClick={() => {
+                                  setDocToPermanentDelete(doc);
+                                  setPermanentDeleteOpen(true);
+                                }}
+                              >
+                                <DeleteForeverIcon className="dropdown-icon" />
+                                <span>Permanent Delete</span>
+                              </button>
+
+                            </>
+                          )}
+
+                          <div className="dropdown-divider"></div>
+
+                          {/* Recipient Manager */}
+                          {/* <button 
         className="dropdown-item"
         onClick={() => {
           // You'll need to implement a modal or other way to show RecipientManager
@@ -1760,8 +1800,8 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
         <span>Manage Recipients</span>
       </button> */}
 
-      {/* Build Template */}
-      {/* <button 
+                          {/* Build Template */}
+                          {/* <button 
         className="dropdown-item dropdown-item-primary"
         onClick={() => handleBuildTemplate(doc)}
       >
@@ -1770,34 +1810,34 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
       </button> */}
 
 
-      {doc.status === "draft" && (
-  <button
-    className="dropdown-item"
-    onClick={() => {
-      setMergeDoc(doc);
-      setMergeOpen(true);
-    }}
-  >
-    <FaPlus className="dropdown-icon" />
-    <span>Add / Merge File</span>
-  </button>
-)}
+                          {doc.status === "draft" && (
+                            <button
+                              className="dropdown-item"
+                              onClick={() => {
+                                setMergeDoc(doc);
+                                setMergeOpen(true);
+                              }}
+                            >
+                              <FaPlus className="dropdown-icon" />
+                              <span>Add / Merge File</span>
+                            </button>
+                          )}
 
-<button
-  className="dropdown-item"
-  onClick={() => navigate(`/user/document-summary/${doc.id}`)}
->
-  <SummarizeIcon className="dropdown-icon" />
-  <span>View Summary</span>
-</button>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => navigate(`/user/document-summary/${doc.id}`)}
+                          >
+                            <SummarizeIcon className="dropdown-icon" />
+                            <span>View Summary</span>
+                          </button>
 
 
-      
-    </div>
-  </div>
 
-</td>
-                     
+                        </div>
+                      </div>
+
+                    </td>
+
 
                   </tr>
                 ))}
@@ -1807,605 +1847,605 @@ if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" /
         )}
       </div>
 
-      
-                      {/* Place modals/drawer once per parent component (not inside map) */}
 
-{showRecipientManager && selectedDocument && (
-  <RecipientManager
-    document={selectedDocument}
-    onUpdate={() => {
-      loadDocs();
-      setShowRecipientManager(false);
-    }}
-  />
-)}
+      {/* Place modals/drawer once per parent component (not inside map) */}
 
-
-
-
-                      
-
-<DocumentViewerModal 
-    open={viewerOpen} 
-    onClose={() => setViewerOpen(false)} 
-    documentId={activeDocId}
-    url={viewDocumentUrl(activeDocId)} 
-    documentName={activeDocument?.filename}
-    
-/>
-
-<SignedPreviewModal 
-     open={signedOpen} 
-     onClose={() => setSignedOpen(false)} 
-     documentId={activeDocId}
-     url={signedPreviewUrl(activeDocId)} 
-     documentName={activeDocument?.filename}
-/>
-
-
-<TimelineDrawer open={timelineOpen} onClose={() => setTimelineOpen(false)} documentId={activeDocId} />
-
-
-<UploadPreviewModal
-  open={previewOpen}
-  file={previewFile}
-  onClose={() => {
-    setPreviewOpen(false);
-    setFile(null);
-  }}
-  onUpload={() => {
-    setPreviewOpen(false);
-    handleUpload(previewFile);
-  }}
-  onPrepareAndSend={() => {
-    setPreviewOpen(false);
-    handleUpload(previewFile);
-    // The success dialog will show after upload
-  }}
-/>
-
-
-<Snackbar
-  open={snackbar.open}
-  autoHideDuration={3000}
-  onClose={() => setSnackbar({ ...snackbar, open: false })}
-  anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
->
-  <Alert
-    onClose={() => setSnackbar({ ...snackbar, open: false })}
-    severity={snackbar.severity}
-    variant="filled"
-    sx={{ width: "100%" }}
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
-
-
-
-
-
-
-  {mergeOpen && (
-  <div className="zoho-merge-backdrop">
-    <div className="zoho-merge-dialog">
-
-      {/* Header */}
-      <div className="zoho-merge-header">
-        <h3>Add or merge file</h3>
-        <button
-          className="zoho-merge-close"
-          onClick={() => {
-            setMergeOpen(false);
-            setFile(null);
+      {showRecipientManager && selectedDocument && (
+        <RecipientManager
+          document={selectedDocument}
+          onUpdate={() => {
+            loadDocs();
+            setShowRecipientManager(false);
           }}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Info */}
-      <p className="zoho-merge-info">
-        The selected file will be appended to
-        <strong> {mergeDoc?.filename}</strong>
-      </p>
-
-      {/* Upload */}
-      <label className="zoho-merge-upload">
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx,.png,.jpg"
-          onChange={(e) => setFile(e.target.files[0])}
         />
+      )}
 
-        <div className="zoho-upload-box">
-          <span className="zoho-upload-title">
-            {file ? file.name : "Choose a file"}
-          </span>
-          <span className="zoho-upload-hint">
-            PDF, Word, JPG, PNG
-          </span>
-        </div>
-      </label>
 
-      {/* Progress */}
-      {mergeLoading && (
-        <div className="zoho-merge-progress">
-          <div
-            className="zoho-merge-progress-bar"
-            style={{ width: `${mergeProgress}%` }}
-          />
+
+
+
+
+      <DocumentViewerModal
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        documentId={activeDocId}
+        url={viewDocumentUrl(activeDocId)}
+        documentName={activeDocument?.filename}
+
+      />
+
+      <SignedPreviewModal
+        open={signedOpen}
+        onClose={() => setSignedOpen(false)}
+        documentId={activeDocId}
+        url={signedPreviewUrl(activeDocId)}
+        documentName={activeDocument?.filename}
+      />
+
+
+      <TimelineDrawer open={timelineOpen} onClose={() => setTimelineOpen(false)} documentId={activeDocId} />
+
+
+      <UploadPreviewModal
+        open={previewOpen}
+        file={previewFile}
+        onClose={() => {
+          setPreviewOpen(false);
+          setFile(null);
+        }}
+        onUpload={() => {
+          setPreviewOpen(false);
+          handleUpload(previewFile);
+        }}
+        onPrepareAndSend={() => {
+          setPreviewOpen(false);
+          handleUpload(previewFile);
+          // The success dialog will show after upload
+        }}
+      />
+
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+
+
+
+
+
+      {mergeOpen && (
+        <div className="zoho-merge-backdrop">
+          <div className="zoho-merge-dialog">
+
+            {/* Header */}
+            <div className="zoho-merge-header">
+              <h3>Add or merge file</h3>
+              <button
+                className="zoho-merge-close"
+                onClick={() => {
+                  setMergeOpen(false);
+                  setFile(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Info */}
+            <p className="zoho-merge-info">
+              The selected file will be appended to
+              <strong> {mergeDoc?.filename}</strong>
+            </p>
+
+            {/* Upload */}
+            <label className="zoho-merge-upload">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg"
+                onChange={(e) => setFile(e.target.files[0])}
+              />
+
+              <div className="zoho-upload-box">
+                <span className="zoho-upload-title">
+                  {file ? file.name : "Choose a file"}
+                </span>
+                <span className="zoho-upload-hint">
+                  PDF, Word, JPG, PNG
+                </span>
+              </div>
+            </label>
+
+            {/* Progress */}
+            {mergeLoading && (
+              <div className="zoho-merge-progress">
+                <div
+                  className="zoho-merge-progress-bar"
+                  style={{ width: `${mergeProgress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="zoho-merge-actions">
+              <button
+                className="zoho-btn-secondary"
+                onClick={() => setMergeOpen(false)}
+                disabled={mergeLoading}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="zoho-btn-primary"
+                disabled={!file || mergeLoading}
+                onClick={async () => {
+                  try {
+                    setMergeLoading(true);
+                    setMergeProgress(0);
+
+                    await addFileToDocument(
+                      mergeDoc.id,
+                      file,
+                      setMergeProgress
+                    );
+
+                    setSnackbar({
+                      open: true,
+                      message: "File merged successfully",
+                      severity: "success",
+                    });
+
+                    setMergeOpen(false);
+                    setFile(null);
+                    loadDocs();
+                  } catch (err) {
+                    setSnackbar({
+                      open: true,
+                      message:
+                        err.response?.data?.detail || "Merge failed",
+                      severity: "error",
+                    });
+                  } finally {
+                    setMergeLoading(false);
+                    setMergeProgress(0);
+                  }
+                }}
+              >
+                {mergeLoading ? "Merging…" : "Merge file"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="zoho-merge-actions">
-        <button
-          className="zoho-btn-secondary"
-          onClick={() => setMergeOpen(false)}
-          disabled={mergeLoading}
-        >
-          Cancel
-        </button>
 
-        <button
-          className="zoho-btn-primary"
-          disabled={!file || mergeLoading}
-          onClick={async () => {
-            try {
-              setMergeLoading(true);
-              setMergeProgress(0);
+      {/* Success Dialog after Upload - JSX */}
+      {showSuccessDialog && (
+        <div className="success-backdrop">
+          <div className="success-modal">
 
-              await addFileToDocument(
-                mergeDoc.id,
-                file,
-                setMergeProgress
-              );
-
-              setSnackbar({
-                open: true,
-                message: "File merged successfully",
-                severity: "success",
-              });
-
-              setMergeOpen(false);
-              setFile(null);
-              loadDocs();
-            } catch (err) {
-              setSnackbar({
-                open: true,
-                message:
-                  err.response?.data?.detail || "Merge failed",
-                severity: "error",
-              });
-            } finally {
-              setMergeLoading(false);
-              setMergeProgress(0);
-            }
-          }}
-        >
-          {mergeLoading ? "Merging…" : "Merge file"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-
-{/* Success Dialog after Upload - JSX */}
-{showSuccessDialog && (
-  <div className="success-backdrop">
-    <div className="success-modal">
-
-      <div className="success-head">
-        {/* <div className="success-icon-circle">
+            <div className="success-head">
+              {/* <div className="success-icon-circle">
           <svg width="34" height="34" fill="#fff" viewBox="0 0 24 24">
             <path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z" />
           </svg>
         </div> */}
 
-        
-  <img
-    src="/images/tick.gif"   // 👈 your tick GIF path
-    alt="Success"
-    className="success-tick-gif"
-  />
+
+              <img
+                src="/images/tick.gif"   // 👈 your tick GIF path
+                alt="Success"
+                className="success-tick-gif"
+              />
 
 
 
-        <div className="success-title">
-          Upload Successful
-        </div>
+              <div className="success-title">
+                Upload Successful
+              </div>
 
-        <div className="success-sub">
-          Your document is uploaded and ready to proceed.
-        </div>
-      </div>
+              <div className="success-sub">
+                Your document is uploaded and ready to proceed.
+              </div>
+            </div>
 
-      <div className="success-body">
-        <div className="info-box">
+            <div className="success-body">
+              <div className="info-box">
 
-          <div className="info-item">
-            <span className="info-key">Document Name</span>
-            <span className="info-value">
-              {uploadedDocument?.filename || 'Untitled'}
-            </span>
+                <div className="info-item">
+                  <span className="info-key">Document Name</span>
+                  <span className="info-value">
+                    {uploadedDocument?.filename || 'Untitled'}
+                  </span>
+                </div>
+
+                <div className="info-item">
+                  <span className="info-key">File Type</span>
+                  <span className="info-value">
+                    {uploadedDocument?.mime_type
+                      ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() ||
+                        uploadedDocument.filename?.split('.').pop()?.toUpperCase() ||
+                        "FILE")
+                      : uploadedDocument?.filename?.split('.').pop()?.toUpperCase() || "FILE"}
+                  </span>
+                </div>
+
+                <div className="info-item">
+                  <span className="info-key">Size</span>
+                  <span className="info-value">
+                    {uploadedDocument?.size
+                      ? uploadedDocument.size > 1024 * 1024
+                        ? `${(uploadedDocument.size / 1024 / 1024).toFixed(1)} MB`
+                        : `${Math.round(uploadedDocument.size / 1024)} KB`
+                      : "—"}
+                  </span>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="success-foot">
+              <button
+                className="btn-modern btn-ghost"
+                onClick={() => {
+                  setShowSuccessDialog(false);
+                  setUploadedDocument(null);
+                }}
+              >
+                Close
+              </button>
+
+              <button
+                style={{
+                  backgroundColor: "#0d9488",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = "#16a34a")}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = "#0d9488")}
+                onClick={() => {
+                  navigate(`/user/prepare-send/${uploadedDocument.id}`, {
+                    state: {
+                      document: uploadedDocument,
+                      fromUpload: true,
+                    },
+                  });
+
+                  setShowSuccessDialog(false);
+                  setUploadedDocument(null);
+                }}
+              >
+                Continue
+              </button>
+            </div>
+
           </div>
-
-          <div className="info-item">
-            <span className="info-key">File Type</span>
-            <span className="info-value">
-    {uploadedDocument?.mime_type 
-      ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() || 
-         uploadedDocument.filename?.split('.').pop()?.toUpperCase() || 
-         "FILE")
-      : uploadedDocument?.filename?.split('.').pop()?.toUpperCase() || "FILE"}
-  </span>
-          </div>
-
-          <div className="info-item">
-            <span className="info-key">Size</span>
-            <span className="info-value">
-              {uploadedDocument?.size
-  ? uploadedDocument.size > 1024 * 1024
-    ? `${(uploadedDocument.size / 1024 / 1024).toFixed(1)} MB`
-    : `${Math.round(uploadedDocument.size / 1024)} KB`
-  : "—"}
-            </span>
-          </div>
-
         </div>
-      </div>
+      )}
 
-      <div className="success-foot">
-        <button
-          className="btn-modern btn-ghost"
-          onClick={() => {
-            setShowSuccessDialog(false);
-            setUploadedDocument(null);
-          }}
-        >
-          Close
-        </button>
+      {renameOpen && (
+        <div className="rename-dialog-backdrop">
+          <div className="rename-dialog">
+            <h3>Rename Document</h3>
 
-        <button
-          style={{
-    backgroundColor: "#0d9488",
-    color: "white",
-    border: "none",
-    padding: "10px 18px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "16px",
-    fontWeight: "600",
-    transition: "all 0.2s ease",
-  }}
-  onMouseEnter={(e) => (e.target.style.backgroundColor = "#16a34a")}
-  onMouseLeave={(e) => (e.target.style.backgroundColor = "#0d9488")}
-          onClick={() => {
-  navigate(`/user/prepare-send/${uploadedDocument.id}`, {
-    state: {
-      document: uploadedDocument,
-      fromUpload: true,
-    },
-  });
-
-  setShowSuccessDialog(false);
-  setUploadedDocument(null);
-}}
-        >
-          Continue
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
-
-{renameOpen && (
-  <div className="rename-dialog-backdrop">
-    <div className="rename-dialog">
-      <h3>Rename Document</h3>
-
-      <div className="rename-input-wrapper">
-        <input
-          type="text"
-          value={newFilename}
-          onChange={(e) =>
-            setNewFilename(
-              (e.target.value || "").replace(/\.pdf$/i, "")
-            )
-          }
-          placeholder="Enter document name"
-          autoFocus
-        />
-        <span className="rename-suffix">.pdf</span>
-      </div>
-
-      <div className="rename-dialog-actions">
-        <button
-          className="rename-btn-cancel"
-          onClick={() => setRenameOpen(false)}
-          disabled={renaming}
-        >
-          Cancel
-        </button>
-
-        <button
-          className="rename-btn-primary"
-          disabled={!newFilename.trim() || renaming}
-          onClick={async () => {
-            try {
-              setRenaming(true);
-
-              const finalFilename = `${newFilename.trim()}.pdf`;
-
-              await fetch(
-                `${API_BASE_URL}/documents/${activeDocId}/rename`,
-                {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    filename: finalFilename,
-                  }),
+            <div className="rename-input-wrapper">
+              <input
+                type="text"
+                value={newFilename}
+                onChange={(e) =>
+                  setNewFilename(
+                    (e.target.value || "").replace(/\.pdf$/i, "")
+                  )
                 }
-              );
+                placeholder="Enter document name"
+                autoFocus
+              />
+              <span className="rename-suffix">.pdf</span>
+            </div>
 
-              // Update UI immediately
-              setDocuments(prev =>
-                prev.map(d =>
-                  d.id === activeDocId
-                    ? { ...d, filename: finalFilename }
-                    : d
-                )
-              );
+            <div className="rename-dialog-actions">
+              <button
+                className="rename-btn-cancel"
+                onClick={() => setRenameOpen(false)}
+                disabled={renaming}
+              >
+                Cancel
+              </button>
 
-              setRenameOpen(false);
-            } catch (err) {
-              alert("Rename failed");
-            } finally {
-              setRenaming(false);
-            }
-          }}
-        >
-          {renaming ? "Renaming…" : "Rename"}
-        </button>
-      </div>
+              <button
+                className="rename-btn-primary"
+                disabled={!newFilename.trim() || renaming}
+                onClick={async () => {
+                  try {
+                    setRenaming(true);
+
+                    const finalFilename = `${newFilename.trim()}.pdf`;
+
+                    await fetch(
+                      `${API_BASE_URL}/documents/${activeDocId}/rename`,
+                      {
+                        method: "PUT",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          filename: finalFilename,
+                        }),
+                      }
+                    );
+
+                    // Update UI immediately
+                    setDocuments(prev =>
+                      prev.map(d =>
+                        d.id === activeDocId
+                          ? { ...d, filename: finalFilename }
+                          : d
+                      )
+                    );
+
+                    setRenameOpen(false);
+                  } catch (err) {
+                    alert("Rename failed");
+                  } finally {
+                    setRenaming(false);
+                  }
+                }}
+              >
+                {renaming ? "Renaming…" : "Rename"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* <PremiumBannerSlider /> */}
+
+
+
+      <Dialog
+        open={voidDialogOpen}
+        onClose={() => !voiding && setVoidDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Void Document?
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            This will immediately stop all signing activity for:
+          </Typography>
+
+          <Typography sx={{ mt: 1, fontWeight: 500 }}>
+            {docToVoid?.filename}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{ mt: 2, color: "error.main" }}
+          >
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setVoidDialogOpen(false)}
+            disabled={voiding}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            disabled={voiding}
+            onClick={async () => {
+              try {
+                setVoiding(true);
+                await voidDocument(docToVoid.id);
+
+                setSnackbar({
+                  open: true,
+                  message: "Document voided successfully",
+                  severity: "success",
+                });
+
+                setVoidDialogOpen(false);
+                setDocToVoid(null);
+                loadDocs();
+              } catch (err) {
+                setSnackbar({
+                  open: true,
+                  message: err.response?.data?.detail || "Failed to void document",
+                  severity: "error",
+                });
+              } finally {
+                setVoiding(false);
+              }
+            }}
+          >
+            {voiding ? "Voiding…" : "Void Document"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Move to Trash?
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            This document will be moved to Trash:
+          </Typography>
+
+          <Typography sx={{ mt: 1, fontWeight: 500 }}>
+            {docToDelete?.filename}
+          </Typography>
+
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            You can restore it later from Trash.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleting}
+            onClick={async () => {
+              try {
+                setDeleting(true);
+                await softDeleteDocument(docToDelete.id);
+
+                setSnackbar({
+                  open: true,
+                  message: "Document moved to trash",
+                  severity: "success",
+                });
+
+                setDeleteDialogOpen(false);
+                setDocToDelete(null);
+                loadDocs();
+              } catch (err) {
+                setSnackbar({
+                  open: true,
+                  message: err.response?.data?.detail || "Delete failed",
+                  severity: "error",
+                });
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "Deleting…" : "Move to Trash"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={permanentDeleteOpen}
+        onClose={() => !permanentDeleting && setPermanentDeleteOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: "error.main" }}>
+          Permanently delete document?
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            You are about to permanently delete:
+          </Typography>
+
+          <Typography sx={{ mt: 1, fontWeight: 600 }}>
+            {docToPermanentDelete?.filename}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 2,
+              color: "error.main",
+              fontWeight: 500,
+            }}
+          >
+            This action is irreversible.
+            <br />
+            The document, audit logs, and signing history will be permanently removed.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setPermanentDeleteOpen(false)}
+            disabled={permanentDeleting}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            disabled={permanentDeleting}
+            onClick={async () => {
+              try {
+                setPermanentDeleting(true);
+                await permanentDeleteDocument(docToPermanentDelete.id);
+
+                setSnackbar({
+                  open: true,
+                  message: "Document permanently deleted",
+                  severity: "success",
+                });
+
+                setPermanentDeleteOpen(false);
+                setDocToPermanentDelete(null);
+                loadDocs();
+              } catch (err) {
+                setSnackbar({
+                  open: true,
+                  message:
+                    err.response?.data?.detail ||
+                    "Failed to permanently delete document",
+                  severity: "error",
+                });
+              } finally {
+                setPermanentDeleting(false);
+              }
+            }}
+          >
+            {permanentDeleting ? "Deleting…" : "Delete Permanently"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+
     </div>
-  </div>
-)}
-
-
-{/* <PremiumBannerSlider /> */}
-
-
-
-<Dialog
-  open={voidDialogOpen}
-  onClose={() => !voiding && setVoidDialogOpen(false)}
-  maxWidth="xs"
-  fullWidth
->
-  <DialogTitle sx={{ fontWeight: 600 }}>
-    Void Document?
-  </DialogTitle>
-
-  <DialogContent dividers>
-    <Typography variant="body2" color="text.secondary">
-      This will immediately stop all signing activity for:
-    </Typography>
-
-    <Typography sx={{ mt: 1, fontWeight: 500 }}>
-      {docToVoid?.filename}
-    </Typography>
-
-    <Typography
-      variant="body2"
-      sx={{ mt: 2, color: "error.main" }}
-    >
-      This action cannot be undone.
-    </Typography>
-  </DialogContent>
-
-  <DialogActions sx={{ px: 3, py: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setVoidDialogOpen(false)}
-      disabled={voiding}
-    >
-      Cancel
-    </Button>
-
-    <Button
-      variant="contained"
-      color="error"
-      disabled={voiding}
-      onClick={async () => {
-        try {
-          setVoiding(true);
-          await voidDocument(docToVoid.id);
-
-          setSnackbar({
-            open: true,
-            message: "Document voided successfully",
-            severity: "success",
-          });
-
-          setVoidDialogOpen(false);
-          setDocToVoid(null);
-          loadDocs();
-        } catch (err) {
-          setSnackbar({
-            open: true,
-            message: err.response?.data?.detail || "Failed to void document",
-            severity: "error",
-          });
-        } finally {
-          setVoiding(false);
-        }
-      }}
-    >
-      {voiding ? "Voiding…" : "Void Document"}
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-<Dialog
-  open={deleteDialogOpen}
-  onClose={() => !deleting && setDeleteDialogOpen(false)}
-  maxWidth="xs"
-  fullWidth
->
-  <DialogTitle sx={{ fontWeight: 600 }}>
-    Move to Trash?
-  </DialogTitle>
-
-  <DialogContent dividers>
-    <Typography variant="body2" color="text.secondary">
-      This document will be moved to Trash:
-    </Typography>
-
-    <Typography sx={{ mt: 1, fontWeight: 500 }}>
-      {docToDelete?.filename}
-    </Typography>
-
-    <Typography variant="body2" sx={{ mt: 2 }}>
-      You can restore it later from Trash.
-    </Typography>
-  </DialogContent>
-
-  <DialogActions sx={{ px: 3, py: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setDeleteDialogOpen(false)}
-      disabled={deleting}
-    >
-      Cancel
-    </Button>
-
-    <Button
-      variant="contained"
-      color="error"
-      disabled={deleting}
-      onClick={async () => {
-        try {
-          setDeleting(true);
-          await softDeleteDocument(docToDelete.id);
-
-          setSnackbar({
-            open: true,
-            message: "Document moved to trash",
-            severity: "success",
-          });
-
-          setDeleteDialogOpen(false);
-          setDocToDelete(null);
-          loadDocs();
-        } catch (err) {
-          setSnackbar({
-            open: true,
-            message: err.response?.data?.detail || "Delete failed",
-            severity: "error",
-          });
-        } finally {
-          setDeleting(false);
-        }
-      }}
-    >
-      {deleting ? "Deleting…" : "Move to Trash"}
-    </Button>
-  </DialogActions>
-</Dialog>
-
-<Dialog
-  open={permanentDeleteOpen}
-  onClose={() => !permanentDeleting && setPermanentDeleteOpen(false)}
-  maxWidth="xs"
-  fullWidth
->
-  <DialogTitle sx={{ fontWeight: 700, color: "error.main" }}>
-    Permanently delete document?
-  </DialogTitle>
-
-  <DialogContent dividers>
-    <Typography variant="body2" color="text.secondary">
-      You are about to permanently delete:
-    </Typography>
-
-    <Typography sx={{ mt: 1, fontWeight: 600 }}>
-      {docToPermanentDelete?.filename}
-    </Typography>
-
-    <Typography
-      variant="body2"
-      sx={{
-        mt: 2,
-        color: "error.main",
-        fontWeight: 500,
-      }}
-    >
-      This action is irreversible.
-      <br />
-      The document, audit logs, and signing history will be permanently removed.
-    </Typography>
-  </DialogContent>
-
-  <DialogActions sx={{ px: 3, py: 2 }}>
-    <Button
-      variant="outlined"
-      onClick={() => setPermanentDeleteOpen(false)}
-      disabled={permanentDeleting}
-    >
-      Cancel
-    </Button>
-
-    <Button
-      variant="contained"
-      color="error"
-      disabled={permanentDeleting}
-      onClick={async () => {
-        try {
-          setPermanentDeleting(true);
-          await permanentDeleteDocument(docToPermanentDelete.id);
-
-          setSnackbar({
-            open: true,
-            message: "Document permanently deleted",
-            severity: "success",
-          });
-
-          setPermanentDeleteOpen(false);
-          setDocToPermanentDelete(null);
-          loadDocs();
-        } catch (err) {
-          setSnackbar({
-            open: true,
-            message:
-              err.response?.data?.detail ||
-              "Failed to permanently delete document",
-            severity: "error",
-          });
-        } finally {
-          setPermanentDeleting(false);
-        }
-      }}
-    >
-      {permanentDeleting ? "Deleting…" : "Delete Permanently"}
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-
-    </div>
 
 
 
 
-        
+
   );
 }
