@@ -23,10 +23,10 @@ import {
 } from '@mui/icons-material';
 import { FIELD_ROLES, FIELD_TYPES, ROLE_FIELD_RULES, getRecipientColor } from '../../../config/fieldConfig';
 
-const AddRecipientDialog = ({ 
-  open, 
-  onClose, 
-  onAddRecipient, 
+const AddRecipientDialog = ({
+  open,
+  onClose,
+  onAddRecipient,
   existingRecipients = [],
   documentId,
   disabled = false
@@ -36,19 +36,29 @@ const AddRecipientDialog = ({
   const [recipientForm, setRecipientForm] = useState({
     name: '',
     email: '',
-    signing_order: 1,
+    signing_order: existingRecipients.length + 1,
     role: 'signer',
     form_fields: [],
     witness_for: ''
   });
 
+  // Update order when dialog opens or recipients change
+  useEffect(() => {
+    if (open) {
+      setRecipientForm(prev => ({
+        ...prev,
+        signing_order: existingRecipients.length + 1
+      }));
+    }
+  }, [open, existingRecipients.length]);
+
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!recipientForm.name.trim()) {
       newErrors.name = 'Name is required';
     }
-    
+
     if (!recipientForm.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(recipientForm.email)) {
@@ -58,11 +68,11 @@ const AddRecipientDialog = ({
     if (existingRecipients.some(r => r.email.toLowerCase() === recipientForm.email.toLowerCase())) {
       newErrors.email = 'This email is already added';
     }
-    
+
     if (recipientForm.role === 'witness' && !recipientForm.witness_for) {
       newErrors.witness_for = 'Please select a signer to witness';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -73,7 +83,7 @@ const AddRecipientDialog = ({
       ...prev,
       [name]: name === 'signing_order' ? parseInt(value) || 1 : value
     }));
-    
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -81,13 +91,13 @@ const AddRecipientDialog = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
     try {
       await onAddRecipient(recipientForm);
-      
+
       setRecipientForm({
         name: '',
         email: '',
@@ -97,9 +107,9 @@ const AddRecipientDialog = ({
         witness_for: ''
       });
       setErrors({});
-      
+
       onClose();
-      
+
     } catch (error) {
       console.error('Error adding recipient:', error);
       setErrors({ submit: error.message || 'Failed to add recipient' });
@@ -109,7 +119,7 @@ const AddRecipientDialog = ({
   };
 
   const getSigners = () => {
-    return existingRecipients.filter(r => 
+    return existingRecipients.filter(r =>
       r.role === 'signer' || r.role === 'in_person_signer'
     );
   };
@@ -133,7 +143,7 @@ const AddRecipientDialog = ({
           Add New Recipient
         </Box>
       </DialogTitle>
-      
+
       <form onSubmit={handleSubmit}>
         <DialogContent>
           {errors.submit && (
@@ -146,7 +156,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom>
               Basic Information
             </Typography>
-            
+
             <TextField
               fullWidth
               label="Full Name *"
@@ -158,7 +168,7 @@ const AddRecipientDialog = ({
               disabled={loading}
               sx={{ mb: 2.5 }}
             />
-            
+
             <TextField
               fullWidth
               label="Email Address *"
@@ -177,7 +187,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom>
               Role & Settings
             </Typography>
-            
+
             <Box sx={{ display: 'flex', gap: 2, mb: 2.5 }}>
               <TextField
                 select
@@ -204,7 +214,7 @@ const AddRecipientDialog = ({
                   </MenuItem>
                 ))}
               </TextField>
-              
+
               <TextField
                 label="Order"
                 name="signing_order"
@@ -223,7 +233,7 @@ const AddRecipientDialog = ({
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                 Witness Assignment
               </Typography>
-              
+
               <TextField
                 select
                 fullWidth
@@ -241,8 +251,8 @@ const AddRecipientDialog = ({
                 {signers.map((signer) => (
                   <MenuItem key={signer.id} value={signer.id}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar sx={{ 
-                        width: 24, 
+                      <Avatar sx={{
+                        width: 24,
                         height: 24,
                         bgcolor: getRecipientColor(signer)
                       }}>
@@ -258,7 +268,7 @@ const AddRecipientDialog = ({
                   </MenuItem>
                 ))}
               </TextField>
-              
+
               {signers.length === 0 && (
                 <Alert severity="info" sx={{ mt: 1.5 }}>
                   Add a signer first to assign a witness
@@ -271,7 +281,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom>
               Role Permissions
             </Typography>
-            
+
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                 <InfoIcon sx={{ color: 'primary.main', mt: 0.25 }} />
@@ -282,7 +292,7 @@ const AddRecipientDialog = ({
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {FIELD_ROLES[recipientForm.role]?.description}
                   </Typography>
-                  
+
                   <Typography variant="caption" color="text.secondary">
                     Allowed fields: {getRolePermissions(recipientForm.role)}
                   </Typography>
@@ -291,14 +301,14 @@ const AddRecipientDialog = ({
             </Paper>
           </Box>
         </DialogContent>
-        
+
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
+          <Button
+            type="submit"
+            variant="contained"
             disabled={loading || disabled}
             startIcon={loading ? <CircularProgress size={20} /> : <PersonAddIcon />}
           >

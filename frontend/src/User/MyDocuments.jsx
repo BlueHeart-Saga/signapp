@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import {
   uploadDocument,
@@ -90,7 +90,8 @@ export default function MyDocuments() {
   const [documents, setDocuments] = useState([]);
   const [file, setFile] = useState(null);
   const [activeDocument, setActiveDocument] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // For uploads
+  const [listLoading, setListLoading] = useState(false); // For document list fetching
   const [templateLoading, setTemplateLoading] = useState(false);
   const [showUploadDropdown, setShowUploadDropdown] = useState(false);
   const [showCloudProviders, setShowCloudProviders] = useState(false);
@@ -109,6 +110,7 @@ export default function MyDocuments() {
   const [previewFile, setPreviewFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
 
 
   const [renameOpen, setRenameOpen] = useState(false);
@@ -215,6 +217,20 @@ export default function MyDocuments() {
     }
   }, []);
 
+  // Synchronize URL status filter with state
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const statusParam = urlParams.get("status");
+
+    if (statusParam) {
+      setFilters(prev => ({
+        ...prev,
+        status: statusParam === "all" ? "" : statusParam
+      }));
+      setCurrentPage(1); // Reset to first page when filter changes
+    }
+  }, [location.search]);
+
   useEffect(() => {
     if (!mergeLoading) return;
 
@@ -228,15 +244,22 @@ export default function MyDocuments() {
 
   // Load user's documents
   const loadDocs = async () => {
-    const res = await getDocumentsPaged(currentPage, pageSize);
-    setDocuments(res.documents);
-    setTotalDocs(res.total);
-    setTotalPages(res.total_pages);
+    setListLoading(true);
+    try {
+      const res = await getDocumentsPaged(currentPage, pageSize, filters.status);
+      setDocuments(res.documents);
+      setTotalDocs(res.total);
+      setTotalPages(res.total_pages);
+    } catch (error) {
+      console.error("Failed to load documents:", error);
+    } finally {
+      setListLoading(false);
+    }
   };
 
   useEffect(() => {
     loadDocs();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, filters.status]);
 
   // =============================================
   // UPLOAD HANDLERS
@@ -1480,7 +1503,25 @@ export default function MyDocuments() {
 
 
 
-        {documents.length === 0 ? (
+        {listLoading ? (
+          <div className="ss-content-wrapper-list">
+            <div className="ss-loading-overlay">
+              <div className="ss-spinner-container">
+                <div className="ss-loading-spinner"></div>
+                <div className="ss-loader-text">
+                  <p>Loading</p>
+                  <div className="ss-rotating-words">
+                    <span className="ss-word">Status</span>
+                    <span className="ss-word">Reports</span>
+                    <span className="ss-word">Features</span>
+                    <span className="ss-word">Documents</span>
+                    <span className="ss-word">Signatures</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : documents.length === 0 ? (
           <div className="empty-documents">
             <FaFileAlt className="empty-icon" />
             <h4>No documents uploaded yet</h4>
@@ -1553,7 +1594,7 @@ export default function MyDocuments() {
                       {/* {doc.status === "draft" && ( */}
                       <button
                         className="btn btn-primary2"
-                        onClick={() => navigate(`/user/prepare-send/${doc.id}`)}
+                        onClick={() => navigate(`/user/prepare-send/${doc.id}`, { state: { document: doc } })}
                         disabled={doc.status !== "draft"}
                       >
                         Prepare & Send

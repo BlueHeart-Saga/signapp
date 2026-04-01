@@ -28,11 +28,11 @@
 //     try {
 //       setLoading(true);
 //       setError('');
-      
+
 //       const data = await documentsAPI.getDocuments();
 //       console.log('Documents loaded:', data);
 //       setDocuments(data);
-      
+
 //     } catch (err) {
 //       console.error('Error loading documents:', err);
 //       setError(err.message || 'Failed to load documents');
@@ -252,7 +252,7 @@
 //                 <h3 className="document-name" title={document.filename}>
 //                   {document.filename}
 //                 </h3>
-                
+
 //                 <div className="document-meta">
 //                   <div className="meta-item">
 //                     <FaClock className="meta-icon" />
@@ -351,12 +351,12 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from "react-router-dom";
-import { 
-  FaFilePdf, 
-  FaFileImage, 
-  FaFileAlt, 
-  FaTrash, 
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  FaFilePdf,
+  FaFileImage,
+  FaFileAlt,
+  FaTrash,
   FaDownload,
   FaUsers,
   FaSearch,
@@ -388,7 +388,7 @@ export default function DocumentsAndTemplates() {
   const [documentsError, setDocumentsError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  
+
   // ============ TEMPLATES STATE ============
   const [templates, setTemplates] = useState([]);
   const [page, setPage] = useState(1);
@@ -409,36 +409,46 @@ export default function DocumentsAndTemplates() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const [showPdfViewer, setShowPdfViewer] = useState(false);
-const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
 
-const [trashDocuments, setTrashDocuments] = useState([]);
-const [trashLoading, setTrashLoading] = useState(false);
+  const [trashDocuments, setTrashDocuments] = useState([]);
+  const [trashLoading, setTrashLoading] = useState(false);
 
-const [confirmDialog, setConfirmDialog] = useState({
-  open: false,
-  title: "",
-  message: "",
-  confirmText: "",
-  danger: false,
-  onConfirm: null,
-});
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    danger: false,
+    onConfirm: null,
+  });
 
 
-  
+
   // ============ UI STATE ============
   const [activeTab, setActiveTab] = useState('templates'); // 'documents' or 'templates'
   const token = localStorage.getItem("token");
 
   const navigate = useNavigate();
+  const location = useLocation();
 
 
   const [snackbar, setSnackbar] = useState({
-  open: false,
-  message: "",
-  severity: "success",
-});
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  // Sync activeTab with URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['templates', 'documents', 'trash'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
 
   // ============ DOCUMENTS FUNCTIONS ============
   const loadDocuments = async () => {
@@ -458,49 +468,49 @@ const [confirmDialog, setConfirmDialog] = useState({
 
 
   const loadTrashDocuments = async () => {
-  try {
-    setTrashLoading(true);
-    const res = await fetch(
-      `${API_BASE}/documents/paged?status=deleted`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    try {
+      setTrashLoading(true);
+      const res = await fetch(
+        `${API_BASE}/documents/paged?status=deleted`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-    if (!res.ok) throw new Error("Failed to load trash");
+      if (!res.ok) throw new Error("Failed to load trash");
 
-    const data = await res.json();
-    setTrashDocuments(data.documents || []);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setTrashLoading(false);
-  }
-};
+      const data = await res.json();
+      setTrashDocuments(data.documents || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTrashLoading(false);
+    }
+  };
 
-const getDeletedDate = (doc) => {
-  const date =
-    doc.deleted_at ||
-    doc.deletedAt ||
-    doc.updated_at ||
-    doc.updatedAt ||
-    doc.created_at ||
-    doc.createdAt;
+  const getDeletedDate = (doc) => {
+    const date =
+      doc.deleted_at ||
+      doc.deletedAt ||
+      doc.updated_at ||
+      doc.updatedAt ||
+      doc.created_at ||
+      doc.createdAt;
 
-  if (!date) return "—";
+    if (!date) return "—";
 
-  const parsed = new Date(date);
-  return isNaN(parsed.getTime())
-    ? "—"
-    : parsed.toLocaleString();
-};
+    const parsed = new Date(date);
+    return isNaN(parsed.getTime())
+      ? "—"
+      : parsed.toLocaleString();
+  };
 
 
-useEffect(() => {
-  if (activeTab === "trash") {
-    loadTrashDocuments();
-  }
-}, [activeTab]);
+  useEffect(() => {
+    if (activeTab === "trash") {
+      loadTrashDocuments();
+    }
+  }, [activeTab]);
 
 
   const handleDelete = async (documentId) => {
@@ -524,73 +534,73 @@ useEffect(() => {
   };
 
   const handleViewPdf = async (templateId) => {
-  if (!templateId) {
-    console.error("Template ID is missing");
-    alert("Template ID not available");
-    return;
-  }
-
-  try {
-    const res = await fetch(
-      `${API_BASE}/admin/templates/user/download/${templateId}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!res.ok) throw new Error("Failed to load PDF");
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-
-    setPdfUrl(url);
-    setShowPdfViewer(true);
-  } catch (err) {
-    alert("Unable to open PDF");
-  }
-};
-
-const handleViewDocumentPdf = async (document) => {
-  try {
-    if (!document?.id) {
-      alert("Document ID missing");
+    if (!templateId) {
+      console.error("Template ID is missing");
+      alert("Template ID not available");
       return;
     }
 
-    const res = await fetch(
-      `${API_BASE}/documents/${document.id}/download`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const res = await fetch(
+        `${API_BASE}/admin/templates/user/download/${templateId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to load PDF");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      setPdfUrl(url);
+      setShowPdfViewer(true);
+    } catch (err) {
+      alert("Unable to open PDF");
+    }
+  };
+
+  const handleViewDocumentPdf = async (document) => {
+    try {
+      if (!document?.id) {
+        alert("Document ID missing");
+        return;
       }
-    );
 
-    if (!res.ok) throw new Error("Failed to load document PDF");
+      const res = await fetch(
+        `${API_BASE}/documents/${document.id}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+      if (!res.ok) throw new Error("Failed to load document PDF");
 
-    setPdfUrl(url);
-    setShowPdfViewer(true);
-  } catch (err) {
-    console.error(err);
-    alert("Unable to open document PDF");
-  }
-};
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      setPdfUrl(url);
+      setShowPdfViewer(true);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open document PDF");
+    }
+  };
 
 
 
-useEffect(() => {
-  if (showPdfViewer) {
-    document.body.classList.add("dt-no-scroll");
-  } else {
-    document.body.classList.remove("dt-no-scroll");
-  }
-}, [showPdfViewer]);
+  useEffect(() => {
+    if (showPdfViewer) {
+      document.body.classList.add("dt-no-scroll");
+    } else {
+      document.body.classList.remove("dt-no-scroll");
+    }
+  }, [showPdfViewer]);
 
 
 
@@ -657,13 +667,13 @@ useEffect(() => {
       });
 
       if (!res.ok) throw new Error("Failed to load templates");
-      
+
       const data = await res.json();
       const processedTemplates = (data.templates || []).map(template => ({
         ...template,
         id: getTemplateId(template),
       }));
-      
+
       setTemplates(processedTemplates);
       setTotalPages(data.pagination?.pages || 1);
       setTotalTemplates(data.pagination?.total || 0);
@@ -739,97 +749,97 @@ useEffect(() => {
   };
 
   const handleUseTemplate = async (templateId, templateTitle) => {
-  try {
-    if (!templateId) {
-      alert("Template ID is missing");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    // Step 1: Download template
-    const downloadRes = await fetch(
-      `${API_BASE}/admin/templates/user/download/${templateId}`,
-      { 
-        method: "POST", 
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
+    try {
+      if (!templateId) {
+        alert("Template ID is missing");
+        return;
       }
-    );
 
-    if (!downloadRes.ok) {
-      const errorText = await downloadRes.text();
-      console.error("Download error response:", errorText);
-      throw new Error(`Failed to download template: ${downloadRes.status}`);
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Step 1: Download template
+      const downloadRes = await fetch(
+        `${API_BASE}/admin/templates/user/download/${templateId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!downloadRes.ok) {
+        const errorText = await downloadRes.text();
+        console.error("Download error response:", errorText);
+        throw new Error(`Failed to download template: ${downloadRes.status}`);
+      }
+
+      const blob = await downloadRes.blob();
+
+      // Create FormData for upload
+      const formData = new FormData();
+      const file = new File([blob], `${templateTitle}.pdf`, {
+        type: blob.type || "application/pdf",
+      });
+      formData.append("file", file);
+
+      // Step 2: Upload to documents endpoint
+      const uploadRes = await fetch(`${API_BASE}/documents/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Don't set Content-Type - let browser set it with boundary
+        },
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        console.error("Upload error response:", errorText);
+        throw new Error(`Upload failed: ${uploadRes.status}`);
+      }
+
+      const uploadResult = await uploadRes.json();
+      console.log("Upload result:", uploadResult);
+
+      // Extract document from response
+      const uploadedDocument = uploadResult.document || uploadResult.data || uploadResult;
+
+      if (!uploadedDocument) {
+        throw new Error("No document data in upload response");
+      }
+
+      // Show success
+      setSnackbar({
+        open: true,
+        message: "Template uploaded successfully!",
+        severity: "success",
+      });
+
+      // Navigate to prepare-send
+      navigate('/user/prepare-send', {
+        state: {
+          document: uploadedDocument,
+          fromTemplate: true,
+          templateName: templateTitle,
+        },
+      });
+
+    } catch (err) {
+      console.error("Use template error:", err);
+
+      setSnackbar({
+        open: true,
+        message: err.message || "Failed to use template",
+        severity: "error",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
-
-    const blob = await downloadRes.blob();
-    
-    // Create FormData for upload
-    const formData = new FormData();
-    const file = new File([blob], `${templateTitle}.pdf`, {
-      type: blob.type || "application/pdf",
-    });
-    formData.append("file", file);
-
-    // Step 2: Upload to documents endpoint
-    const uploadRes = await fetch(`${API_BASE}/documents/upload`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type - let browser set it with boundary
-      },
-      body: formData,
-    });
-
-    if (!uploadRes.ok) {
-      const errorText = await uploadRes.text();
-      console.error("Upload error response:", errorText);
-      throw new Error(`Upload failed: ${uploadRes.status}`);
-    }
-
-    const uploadResult = await uploadRes.json();
-    console.log("Upload result:", uploadResult);
-
-    // Extract document from response
-    const uploadedDocument = uploadResult.document || uploadResult.data || uploadResult;
-    
-    if (!uploadedDocument) {
-      throw new Error("No document data in upload response");
-    }
-
-    // Show success
-    setSnackbar({
-      open: true,
-      message: "Template uploaded successfully!",
-      severity: "success",
-    });
-
-    // Navigate to prepare-send
-    navigate('/user/prepare-send', {
-      state: {
-        document: uploadedDocument,
-        fromTemplate: true,
-        templateName: templateTitle,
-      },
-    });
-
-  } catch (err) {
-    console.error("Use template error:", err);
-    
-    setSnackbar({
-      open: true,
-      message: err.message || "Failed to use template",
-      severity: "error",
-    });
-  } finally {
-    setIsUploading(false);
-    setUploadProgress(0);
-  }
-};
+  };
 
   const handleDownloadTemplate = async (templateId, templateTitle, isFree) => {
     try {
@@ -856,7 +866,7 @@ useEffect(() => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      
+
       const contentDisposition = res.headers.get("Content-Disposition");
       let filename = templateTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".pdf";
       if (contentDisposition) {
@@ -865,7 +875,7 @@ useEffect(() => {
           filename = filenameMatch[1];
         }
       }
-      
+
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -947,50 +957,50 @@ useEffect(() => {
   };
 
   const handleUseDocument = async (document) => {
-  try {
-    const token = localStorage.getItem("token");
+    try {
+      const token = localStorage.getItem("token");
 
-    // Download existing document
-    const res = await fetch(`${API_BASE}/documents/${document.id}/download`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      // Download existing document
+      const res = await fetch(`${API_BASE}/documents/${document.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    if (!res.ok) throw new Error("Failed to download document");
+      if (!res.ok) throw new Error("Failed to download document");
 
-    const blob = await res.blob();
+      const blob = await res.blob();
 
-    // Create File object
-    const file = new File([blob], document.filename, {
-      type: document.mime_type || "application/pdf",
-    });
+      // Create File object
+      const file = new File([blob], document.filename, {
+        type: document.mime_type || "application/pdf",
+      });
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    // Upload again (same as template use)
-    const uploadRes = await fetch(`${API_BASE}/documents/upload`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+      // Upload again (same as template use)
+      const uploadRes = await fetch(`${API_BASE}/documents/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-    if (!uploadRes.ok) throw new Error("Upload failed");
+      if (!uploadRes.ok) throw new Error("Upload failed");
 
-    const result = await uploadRes.json();
-    const uploadedDocument = result.document || result;
+      const result = await uploadRes.json();
+      const uploadedDocument = result.document || result;
 
-    navigate("/user/prepare-send", {
-      state: {
-        document: uploadedDocument,
-        fromDocument: true,
-      },
-    });
-  } catch (err) {
-    alert(err.message || "Failed to use document");
-  }
-};
+      navigate("/user/prepare-send", {
+        state: {
+          document: uploadedDocument,
+          fromDocument: true,
+        },
+      });
+    } catch (err) {
+      alert(err.message || "Failed to use document");
+    }
+  };
 
 
   // ============ EFFECTS ============
@@ -1021,11 +1031,11 @@ useEffect(() => {
           </p>
         </div>
         <div className="dt-header-actions">
-          <button 
+          <button
             className="dt-btn dt-btn-primary"
             onClick={() => navigate("/user/documents")}
           >
-            <FaCloudUploadAlt  />
+            <FaCloudUploadAlt />
             Upload Document
           </button>
         </div>
@@ -1033,31 +1043,31 @@ useEffect(() => {
 
       {/* Tabs Navigation */}
       <div className="dt-tabs">
-        <button 
+        <button
           className={`dt-tab ${activeTab === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveTab('templates')}
+          onClick={() => navigate(`${location.pathname}?tab=templates`)}
         >
           <FaFileAlt className="dt-tab-icon" />
           Templates
           <span className="dt-tab-badge">{totalTemplates}</span>
         </button>
-        <button 
+        <button
           className={`dt-tab ${activeTab === 'documents' ? 'active' : ''}`}
-          onClick={() => setActiveTab('documents')}
+          onClick={() => navigate(`${location.pathname}?tab=documents`)}
         >
           <FaFolderOpen className="dt-tab-icon" />
           My Documents
           <span className="dt-tab-badge">{documents.length}</span>
         </button>
 
-        <button 
-  className={`dt-tab ${activeTab === 'trash' ? 'active' : ''}`}
-  onClick={() => setActiveTab('trash')}
->
-  <FaTrash className="dt-tab-icon" />
-  Trash
-</button>
-        
+        <button
+          className={`dt-tab ${activeTab === 'trash' ? 'active' : ''}`}
+          onClick={() => navigate(`${location.pathname}?tab=trash`)}
+        >
+          <FaTrash className="dt-tab-icon" />
+          Trash
+        </button>
+
       </div>
 
       {/* Content Area */}
@@ -1095,7 +1105,7 @@ useEffect(() => {
                     className="dt-search-input"
                   />
                   {searchTerm && (
-                    <button 
+                    <button
                       className="dt-clear-search"
                       onClick={() => setSearchTerm('')}
                     >
@@ -1124,7 +1134,7 @@ useEffect(() => {
                     <FaSearch className="dt-empty-icon" />
                     <h3>No documents found</h3>
                     <p>No documents match your search criteria</p>
-                    <button 
+                    <button
                       className="dt-btn dt-btn-outline"
                       onClick={() => setSearchTerm('')}
                     >
@@ -1137,12 +1147,12 @@ useEffect(() => {
                     <h3>No documents yet</h3>
                     <p>Upload your first document to get started</p>
                     <button
-  className="dt-btn dt-btn-primary"
-  onClick={() => navigate("/user/documents")}
->
-  <FaCloudUploadAlt className="dt-btn-icon" />
-  Upload a Document to Get Started
-</button>
+                      className="dt-btn dt-btn-primary"
+                      onClick={() => navigate("/user/documents")}
+                    >
+                      <FaCloudUploadAlt className="dt-btn-icon" />
+                      Upload a Document to Get Started
+                    </button>
 
                   </>
                 )}
@@ -1156,14 +1166,14 @@ useEffect(() => {
                         {getFileIcon(document.mime_type, document.filename)}
                       </div>
                       <div className="dt-document-actions">
-                        <button 
+                        <button
                           className="dt-btn-icon"
                           onClick={() => handleDownload(document.id, document.filename)}
                           title="Download Document"
                         >
                           <FaDownload />
                         </button>
-                        <button 
+                        <button
                           className="dt-btn-icon dt-danger"
                           onClick={() => setDeleteConfirm(document.id)}
                           title="Delete Document"
@@ -1177,7 +1187,7 @@ useEffect(() => {
                       <h3 className="dt-document-name" title={document.filename}>
                         {document.filename}
                       </h3>
-                      
+
                       <div className="dt-document-meta">
                         <div className="dt-meta-item">
                           <FaClock className="dt-meta-icon" />
@@ -1209,15 +1219,15 @@ useEffect(() => {
                     </div>
 
                     <div className="dt-document-card-footer">
-  <button 
-    className="dt-btn dt-btn-outline dt-btn-sm"
-    onClick={() => handleViewDocumentPdf(document)}
-  >
-    {/* <FaEye className="dt-btn-icon" /> */}
-    View PDF
-  </button>
+                      <button
+                        className="dt-btn dt-btn-outline dt-btn-sm"
+                        onClick={() => handleViewDocumentPdf(document)}
+                      >
+                        {/* <FaEye className="dt-btn-icon" /> */}
+                        View PDF
+                      </button>
 
-  {/* <button 
+                      {/* <button 
     className="dt-btn dt-btn-primary dt-btn-sm"
     onClick={() => handleDownload(document.id, document.filename)}
   >
@@ -1225,14 +1235,14 @@ useEffect(() => {
     Download
   </button> */}
 
-  <button
-    className="dt-btn dt-btn-primary dt-btn-sm"
-    onClick={() => handleUseDocument(document)}
-  >
-    <FaCloudUploadAlt/>
-    Use Document
-  </button>
-</div>
+                      <button
+                        className="dt-btn dt-btn-primary dt-btn-sm"
+                        onClick={() => handleUseDocument(document)}
+                      >
+                        <FaCloudUploadAlt />
+                        Use Document
+                      </button>
+                    </div>
 
                   </div>
                 ))}
@@ -1240,10 +1250,10 @@ useEffect(() => {
             )}
           </div>
 
-          )}
+        )}
 
         {/* TEMPLATES TAB */}
-  {activeTab === "templates" && (
+        {activeTab === "templates" && (
           <div className="dt-templates-section">
             <div className="dt-templates-layout">
               {/* Templates Sidebar */}
@@ -1253,11 +1263,11 @@ useEffect(() => {
                     <FaFilter className="dt-filter-icon" />
                     Filter Templates
                   </h3>
-                  
+
                   <div className="dt-filter-group">
                     <label className="dt-filter-label">Category</label>
-                    <select 
-                      value={categoryId} 
+                    <select
+                      value={categoryId}
                       onChange={(e) => {
                         setCategoryId(e.target.value);
                         setPage(1);
@@ -1359,7 +1369,7 @@ useEffect(() => {
                     <button className="dt-search-btn">
                       <FaSearch />
                     </button>
-                    
+
                     {showSuggestions && suggestions.length > 0 && (
                       <div className="dt-suggestions-dropdown">
                         {suggestions.map((suggestion, index) => (
@@ -1378,7 +1388,7 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="dt-results-info">
                     Showing {templates.length} of {totalTemplates} templates
                     {templateSearch && ` for "${templateSearch}"`}
@@ -1389,8 +1399,8 @@ useEffect(() => {
                 {isUploading && (
                   <div className="dt-upload-progress">
                     <div className="dt-upload-progress-bar">
-                      <div 
-                        className="dt-upload-progress-fill" 
+                      <div
+                        className="dt-upload-progress-fill"
                         style={{ width: `${uploadProgress}%` }}
                       ></div>
                     </div>
@@ -1431,7 +1441,7 @@ useEffect(() => {
                   <div className="dt-templates-grid">
                     {templates.map((template) => {
                       const templateId = getTemplateId(template);
-                      
+
                       return (
                         <div key={templateId} className="dt-template-card">
                           <div className="dt-card-header">
@@ -1442,17 +1452,17 @@ useEffect(() => {
                               <FaDownload /> {template.download_count || 0}
                             </span>
                           </div>
-                          
+
                           <div className="dt-card-body">
                             <h3 className="dt-template-title">{template.title}</h3>
                             <p className="dt-template-description">
                               {template.description || "No description"}
                             </p>
-                            
+
                             <div className="dt-category">
                               <FaFolder /> {template.category_name}
                             </div>
-                            
+
                             {template.tags && template.tags.length > 0 && (
                               <div className="dt-tags">
                                 {template.tags.slice(0, 3).map((tag, index) => (
@@ -1461,7 +1471,7 @@ useEffect(() => {
                               </div>
                             )}
                           </div>
-                          
+
                           <div className="dt-card-footer">
                             <button
                               onClick={() => handlePreview(templateId)}
@@ -1482,9 +1492,9 @@ useEffect(() => {
                               <FaDownload /> Download
                             </button> */}
 
-                           {/* const templateId = getTemplateId(template); */}
+                            {/* const templateId = getTemplateId(template); */}
 
-{/* <button
+                            {/* <button
   disabled={!templateId}
   onClick={() => handleViewPdf(templateId)}
   className="dt-btn dt-btn-outline dt-btn-sm"
@@ -1520,7 +1530,7 @@ useEffect(() => {
                       <tbody>
                         {templates.map((template) => {
                           const templateId = getTemplateId(template);
-                          
+
                           return (
                             <tr key={templateId}>
                               <td>
@@ -1568,7 +1578,7 @@ useEffect(() => {
                     >
                       ← Previous
                     </button>
-                    
+
                     <div className="dt-page-numbers">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum;
@@ -1581,7 +1591,7 @@ useEffect(() => {
                         } else {
                           pageNum = page - 2 + i;
                         }
-                        
+
                         return (
                           <button
                             key={pageNum}
@@ -1593,7 +1603,7 @@ useEffect(() => {
                         );
                       })}
                     </div>
-                    
+
                     <button
                       disabled={page === totalPages}
                       onClick={() => setPage(page + 1)}
@@ -1608,137 +1618,137 @@ useEffect(() => {
           </div>
         )}
         {/* TRASH TAB */}
-  {activeTab === "trash" && (
-    <div className="dt-documents-section">
-      <h3 style={{ marginBottom: 12 }}>Deleted Documents</h3>
+        {activeTab === "trash" && (
+          <div className="dt-documents-section">
+            <h3 style={{ marginBottom: 12 }}>Deleted Documents</h3>
 
-      {trashLoading ? (
-        <div className="dt-loading-state">
-          <div className="dt-spinner"></div>
-          <p>Loading trash…</p>
-        </div>
-      ) : trashDocuments.length === 0 ? (
-        <div className="dt-empty-state">
-          <FaTrash className="dt-empty-icon" />
-          <h3>Trash is empty</h3>
-          <p>Deleted documents will appear here</p>
-        </div>
-      ) : (
-        <div className="dt-documents-grid">
-          {trashDocuments.map((doc) => (
-            <div key={doc.id} className="dt-document-card">
-              <div className="dt-document-card-body">
-  <h3 className="dt-document-name" title={doc.filename}>
-    {doc.filename}
-  </h3>
+            {trashLoading ? (
+              <div className="dt-loading-state">
+                <div className="dt-spinner"></div>
+                <p>Loading trash…</p>
+              </div>
+            ) : trashDocuments.length === 0 ? (
+              <div className="dt-empty-state">
+                <FaTrash className="dt-empty-icon" />
+                <h3>Trash is empty</h3>
+                <p>Deleted documents will appear here</p>
+              </div>
+            ) : (
+              <div className="dt-documents-grid">
+                {trashDocuments.map((doc) => (
+                  <div key={doc.id} className="dt-document-card">
+                    <div className="dt-document-card-body">
+                      <h3 className="dt-document-name" title={doc.filename}>
+                        {doc.filename}
+                      </h3>
 
-  <div className="dt-document-meta">
-    <div className="dt-meta-row">
-      <span className="dt-meta-label">Deleted on</span>
-      <strong>{getDeletedDate(doc)}</strong>
-    </div>
+                      <div className="dt-document-meta">
+                        <div className="dt-meta-row">
+                          <span className="dt-meta-label">Deleted on</span>
+                          <strong>{getDeletedDate(doc)}</strong>
+                        </div>
 
-    <div className="dt-meta-row">
-      <span className="dt-meta-label">Status</span>
-      <span className={`dt-status-badge dt-status-${doc.status}`}>
-        {doc.status}
-      </span>
-    </div>
+                        <div className="dt-meta-row">
+                          <span className="dt-meta-label">Status</span>
+                          <span className={`dt-status-badge dt-status-${doc.status}`}>
+                            {doc.status}
+                          </span>
+                        </div>
 
-    {doc.size && (
-      <div className="dt-meta-row">
-        <span className="dt-meta-label">Size</span>
-        <span>{formatFileSize(doc.size)}</span>
-      </div>
-    )}
+                        {doc.size && (
+                          <div className="dt-meta-row">
+                            <span className="dt-meta-label">Size</span>
+                            <span>{formatFileSize(doc.size)}</span>
+                          </div>
+                        )}
 
-    {doc.source && (
-      <div className="dt-meta-row">
-        <span className="dt-meta-label">Source</span>
-        <span className={`dt-source-badge dt-source-${doc.source}`}>
-          {doc.source}
-        </span>
-      </div>
-    )}
-  </div>
-</div>
-
-
-             <div className="dt-document-card-footer">
-
-  {/* 👁 View PDF – always allowed */}
-  <button
-    className="dt-btn dt-btn-outline dt-btn-sm"
-    onClick={() => handleViewDocumentPdf(doc)}
-  >
-    <FaEye />
-    View PDF
-  </button>
-
-  {/* ♻️ Restore – ONLY if voided */}
-{doc.status === "deleted" && (
-  <button
-    className="dt-btn dt-btn-outline dt-btn-sm"
-    onClick={() =>
-      setConfirmDialog({
-        open: true,
-        title: "Restore document?",
-        message:
-          "This document will be restored to your documents list.",
-        confirmText: "Restore Document",
-        danger: false,
-        onConfirm: async () => {
-          await restoreDocument(doc.id);
-          loadTrashDocuments();
-          loadDocuments();
-        },
-      })
-    }
-  >
-    ♻️ Restore
-  </button>
-)}
+                        {doc.source && (
+                          <div className="dt-meta-row">
+                            <span className="dt-meta-label">Source</span>
+                            <span className={`dt-source-badge dt-source-${doc.source}`}>
+                              {doc.source}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
 
-  {/* 🔥 Permanent delete */}
-  <button
-    className="dt-btn dt-btn-danger dt-btn-sm"
-    onClick={() =>
-      setConfirmDialog({
-        open: true,
-        title: "Permanently delete document?",
-        message: (
-          <>
-            <p>
-              This action <strong>cannot be undone</strong>.
-            </p>
-            <p>
-              The document, signatures, recipients, and audit trail will be
-              permanently removed.
-            </p>
-          </>
-        ),
-        confirmText: "Delete Permanently",
-        danger: true,
-        onConfirm: async () => {
-          await permanentDeleteDocument(doc.id);
-          loadTrashDocuments();
-        },
-      })
-    }
-  >
-  Delete Forever
-  </button>
+                    <div className="dt-document-card-footer">
 
-</div>
+                      {/* 👁 View PDF – always allowed */}
+                      <button
+                        className="dt-btn dt-btn-outline dt-btn-sm"
+                        onClick={() => handleViewDocumentPdf(doc)}
+                      >
+                        <FaEye />
+                        View PDF
+                      </button>
+
+                      {/* ♻️ Restore – ONLY if voided */}
+                      {doc.status === "deleted" && (
+                        <button
+                          className="dt-btn dt-btn-outline dt-btn-sm"
+                          onClick={() =>
+                            setConfirmDialog({
+                              open: true,
+                              title: "Restore document?",
+                              message:
+                                "This document will be restored to your documents list.",
+                              confirmText: "Restore Document",
+                              danger: false,
+                              onConfirm: async () => {
+                                await restoreDocument(doc.id);
+                                loadTrashDocuments();
+                                loadDocuments();
+                              },
+                            })
+                          }
+                        >
+                          ♻️ Restore
+                        </button>
+                      )}
 
 
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )}
+                      {/* 🔥 Permanent delete */}
+                      <button
+                        className="dt-btn dt-btn-danger dt-btn-sm"
+                        onClick={() =>
+                          setConfirmDialog({
+                            open: true,
+                            title: "Permanently delete document?",
+                            message: (
+                              <>
+                                <p>
+                                  This action <strong>cannot be undone</strong>.
+                                </p>
+                                <p>
+                                  The document, signatures, recipients, and audit trail will be
+                                  permanently removed.
+                                </p>
+                              </>
+                            ),
+                            confirmText: "Delete Permanently",
+                            danger: true,
+                            onConfirm: async () => {
+                              await permanentDeleteDocument(doc.id);
+                              loadTrashDocuments();
+                            },
+                          })
+                        }
+                      >
+                        Delete Forever
+                      </button>
+
+                    </div>
+
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -1747,7 +1757,7 @@ useEffect(() => {
           <div className="dt-modal">
             <div className="dt-modal-header">
               <h3>Delete Document</h3>
-              <button 
+              <button
                 className="dt-close-btn"
                 onClick={() => setDeleteConfirm(null)}
               >
@@ -1758,13 +1768,13 @@ useEffect(() => {
               <p>Are you sure you want to delete this document? This action cannot be undone.</p>
             </div>
             <div className="dt-modal-footer">
-              <button 
+              <button
                 className="dt-btn dt-btn-secondary"
                 onClick={() => setDeleteConfirm(null)}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="dt-btn dt-btn-danger"
                 onClick={() => handleDelete(deleteConfirm)}
               >
@@ -1819,11 +1829,11 @@ useEffect(() => {
                   {isUploading ? "Processing..." : "Use This Template"}
                 </button>
                 <button
-  onClick={() => handleViewPdf(getTemplateId(selectedTemplate))}
-  className="dt-btn dt-btn-outline"
->
-  View PDF
-</button>
+                  onClick={() => handleViewPdf(getTemplateId(selectedTemplate))}
+                  className="dt-btn dt-btn-outline"
+                >
+                  View PDF
+                </button>
 
                 <button
                   onClick={downloadSelectedTemplate}
@@ -1842,159 +1852,158 @@ useEffect(() => {
       )}
 
       {/* Upload Progress Overlay */}
-{isUploading && (
-  <div className="upload-overlay">
-    <div className="upload-card">
-      <div className="loader-ring">
-        <div className="inner-ring" />
-      </div>
+      {isUploading && (
+        <div className="upload-overlay">
+          <div className="upload-card">
+            <div className="loader-ring">
+              <div className="inner-ring" />
+            </div>
 
-      <h3>Uploading template…</h3>
+            <h3>Uploading template…</h3>
 
-      <p className="filename">{templateSearch || "Template document"}</p>
+            <p className="filename">{templateSearch || "Template document"}</p>
 
-      <div className="percent">{uploadProgress}%</div>
+            <div className="percent">{uploadProgress}%</div>
 
-      <div className="progress-bar">
-        <div
-          className="progress-fill"
-          style={{ width: `${uploadProgress}%` }}
-        />
-      </div>
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
 
-      <button
-        className="cancel-btn"
-        onClick={() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-        }}
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
-
-{/* Snackbar for Notifications */}
-{snackbar.open && (
-  <div className="snackbar" style={{
-    position: 'fixed',
-    bottom: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: snackbar.severity === 'success' ? '#4caf50' : '#f44336',
-    color: 'white',
-    padding: '12px 24px',
-    borderRadius: '4px',
-    zIndex: 9999,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-    animation: 'slideUp 0.3s ease'
-  }}>
-    {snackbar.message}
-    <button 
-      onClick={() => setSnackbar({...snackbar, open: false})}
-      style={{
-        background: 'transparent',
-        border: 'none',
-        color: 'white',
-        marginLeft: '16px',
-        cursor: 'pointer'
-      }}
-    >
-      ×
-    </button>
-  </div>
-)}
-
-
-{showPdfViewer && (
-  <div className="dt-preview-modal">
-    <div
-      className="dt-preview-overlay"
-      onClick={() => {
-        setShowPdfViewer(false);
-        URL.revokeObjectURL(pdfUrl);
-        setPdfUrl("");
-      }}
-    />
-
-    <div className="dt-preview-content" style={{ width: "80%", height: "85%" }}>
-      <div className="dt-preview-header">
-        <h2>Template Preview</h2>
-        <button
-          className="dt-close-btn"
-          onClick={() => {
-            setShowPdfViewer(false);
-            URL.revokeObjectURL(pdfUrl);
-            setPdfUrl("");
-          }}
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="dt-preview-body" style={{ height: "100%" }}>
-        <iframe
-          src={pdfUrl}
-          title="PDF Preview"
-          width="100%"
-          height="100%"
-          style={{ border: "none" }}
-        />
-      </div>
-    </div>
-  </div>
-)}
-
-{confirmDialog.open && (
-  <div className="dt-modal-backdrop">
-    <div className={`dt-modal ${confirmDialog.danger ? "dt-modal-danger" : ""}`}>
-      
-      <div className="dt-modal-header">
-        <h3>{confirmDialog.title}</h3>
-        <button
-          className="dt-close-btn"
-          onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
-        >
-          <FaTimes />
-        </button>
-      </div>
-
-      <div className="dt-modal-content">
-        <p>{confirmDialog.message}</p>
-
-        {confirmDialog.danger && (
-          <div className="dt-danger-box">
-            <FaExclamationTriangle />
-            <span>This action cannot be undone</span>
+            <button
+              className="cancel-btn"
+              onClick={() => {
+                setIsUploading(false);
+                setUploadProgress(0);
+              }}
+            >
+              Cancel
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="dt-modal-footer">
-        <button
-          className="dt-btn dt-btn-secondary"
-          onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
-        >
-          Cancel
-        </button>
+      {/* Snackbar for Notifications */}
+      {snackbar.open && (
+        <div className="snackbar" style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: snackbar.severity === 'success' ? '#4caf50' : '#f44336',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: '4px',
+          zIndex: 9999,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          animation: 'slideUp 0.3s ease'
+        }}>
+          {snackbar.message}
+          <button
+            onClick={() => setSnackbar({ ...snackbar, open: false })}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              marginLeft: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
-        <button
-          className={`dt-btn ${
-            confirmDialog.danger ? "dt-btn-danger" : "dt-btn-primary"
-          }`}
-          onClick={async () => {
-            await confirmDialog.onConfirm();
-            setConfirmDialog({ ...confirmDialog, open: false });
-          }}
-        >
-          {confirmDialog.confirmText}
-        </button>
-      </div>
 
-    </div>
-  </div>
-)}
+      {showPdfViewer && (
+        <div className="dt-preview-modal">
+          <div
+            className="dt-preview-overlay"
+            onClick={() => {
+              setShowPdfViewer(false);
+              URL.revokeObjectURL(pdfUrl);
+              setPdfUrl("");
+            }}
+          />
+
+          <div className="dt-preview-content" style={{ width: "80%", height: "85%" }}>
+            <div className="dt-preview-header">
+              <h2>Template Preview</h2>
+              <button
+                className="dt-close-btn"
+                onClick={() => {
+                  setShowPdfViewer(false);
+                  URL.revokeObjectURL(pdfUrl);
+                  setPdfUrl("");
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="dt-preview-body" style={{ height: "100%" }}>
+              <iframe
+                src={pdfUrl}
+                title="PDF Preview"
+                width="100%"
+                height="100%"
+                style={{ border: "none" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog.open && (
+        <div className="dt-modal-backdrop">
+          <div className={`dt-modal ${confirmDialog.danger ? "dt-modal-danger" : ""}`}>
+
+            <div className="dt-modal-header">
+              <h3>{confirmDialog.title}</h3>
+              <button
+                className="dt-close-btn"
+                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="dt-modal-content">
+              <p>{confirmDialog.message}</p>
+
+              {confirmDialog.danger && (
+                <div className="dt-danger-box">
+                  <FaExclamationTriangle />
+                  <span>This action cannot be undone</span>
+                </div>
+              )}
+            </div>
+
+            <div className="dt-modal-footer">
+              <button
+                className="dt-btn dt-btn-secondary"
+                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+              >
+                Cancel
+              </button>
+
+              <button
+                className={`dt-btn ${confirmDialog.danger ? "dt-btn-danger" : "dt-btn-primary"
+                  }`}
+                onClick={async () => {
+                  await confirmDialog.onConfirm();
+                  setConfirmDialog({ ...confirmDialog, open: false });
+                }}
+              >
+                {confirmDialog.confirmText}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
 
 

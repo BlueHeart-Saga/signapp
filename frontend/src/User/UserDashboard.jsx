@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Clock, FileText, CheckCircle, XCircle, AlertCircle, 
-  Upload, Send, FileCheck, Search, Filter, Bell, 
-  User, Settings, Menu, MoreVertical, Download, 
-  Eye, Trash2, TrendingUp, Users, Clock3, 
+import {
+  Clock, FileText, CheckCircle, XCircle, AlertCircle,
+  Upload, Send, FileCheck, Search, Filter, Bell,
+  User, Settings, Menu, MoreVertical, Download,
+  Eye, Trash2, TrendingUp, Users, Clock3,
   Mail, Calendar, FilePlus, RefreshCw, AlertTriangle,
   History, Plus, X, Edit, Shield, FilePlus2, MailWarning
 } from 'lucide-react';
-import {FaEdit} from 'react-icons/fa';
+import { FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import '../style/UserDashboard.css';
-import { 
+import {
   getDocumentStats,
-  getRecentActivities, 
+  getRecentActivities,
   downloadDocument,
   voidDocument,
   restoreDocument,
@@ -62,18 +62,18 @@ const UserDashboard = () => {
   const [activities, setActivities] = useState([]);
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);
-  
+
   // Modal states
   const [viewerOpen, setViewerOpen] = useState(false);
   const [signedOpen, setSignedOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [activeDocId, setActiveDocId] = useState(null);
   const [activeDocument, setActiveDocument] = useState(null);
-  
+
   // Recipient Manager state
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showRecipientManager, setShowRecipientManager] = useState(false);
-  
+
   // Upload states
   const [file, setFile] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -84,35 +84,35 @@ const UserDashboard = () => {
 
   const [defaultRecipientTab, setDefaultRecipientTab] = useState("recipients");
 
-  const [statsOpen, setStatsOpen] = useState(false); 
+  const [statsOpen, setStatsOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [activitiesOpen, setActivitiesOpen] = useState(false); 
+  const [activitiesOpen, setActivitiesOpen] = useState(false);
 
-const [renameOpen, setRenameOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
-const [renaming, setRenaming] = useState(false);
-const [renameDocId, setRenameDocId] = useState(null);
-const [newFilename, setNewFilename] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameDocId, setRenameDocId] = useState(null);
+  const [newFilename, setNewFilename] = useState("");
 
-const [analyticsData, setAnalyticsData] = useState({
-  documents: {},
-  recipients: {},
-  fields: {},
-  activities: {},
-  subscription: {},
-  contacts: {}
-});
+  const [analyticsData, setAnalyticsData] = useState({
+    documents: {},
+    recipients: {},
+    fields: {},
+    activities: {},
+    subscription: {},
+    contacts: {}
+  });
 
-const [analyticsLoading, setAnalyticsLoading] = useState(false);
-const [expandedSections, setExpandedSections] = useState({
-  documents: true,
-  recipients: true,
-  fields: true,
-  activity: true,
-  subscription: true,
-  contacts: true
-});
-  
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    documents: true,
+    recipients: true,
+    fields: true,
+    activity: true,
+    subscription: true,
+    contacts: true
+  });
+
   // Merge state
   const [mergeDoc, setMergeDoc] = useState(null);
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -126,11 +126,11 @@ const [expandedSections, setExpandedSections] = useState({
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-  setPageTitle(
-    "User Dashboard",
-    "Manage your documents, templates, and signatures from your SafeSign user dashboard."
-  );
-}, []);  
+    setPageTitle(
+      "User Dashboard",
+      "Manage your documents, templates, and signatures from your SafeSign user dashboard."
+    );
+  }, []);
 
   // Load real data
   useEffect(() => {
@@ -142,30 +142,30 @@ const [expandedSections, setExpandedSections] = useState({
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setOpenMenuId(null);
       }
-      if (!e.target.closest('.signapp-dropdown-menu') ) {
+      if (!e.target.closest('.signapp-dropdown-menu')) {
         setOpenMenuId(null);
       }
     };
-    
+
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
 
 
-//   const analyticsData = stats.map(s => ({
-//   name: s.label.replace("_", " "),
-//   value: Number(s.value),
-// }));
+  //   const analyticsData = stats.map(s => ({
+  //   name: s.label.replace("_", " "),
+  //   value: Number(s.value),
+  // }));
 
-const chartColors = [
-  "#6366f1", // indigo
-  "#22c55e", // green
-  "#f97316", // orange
-  "#ef4444", // red
-  "#0ea5e9", // blue
-  "#a855f7"  // purple
-];
+  const chartColors = [
+    "#6366f1", // indigo
+    "#22c55e", // green
+    "#f97316", // orange
+    "#ef4444", // red
+    "#0ea5e9", // blue
+    "#a855f7"  // purple
+  ];
 
 
 
@@ -288,7 +288,7 @@ const chartColors = [
       setActivities(processedActivities);
 
       // Fetch analytics data
-    await fetchAnalyticsData();
+      await fetchAnalyticsData();
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -423,12 +423,12 @@ const chartColors = [
 
   // Prepare & Send - navigate with document data
   const handlePrepareSend = (documentId, title) => {
-  navigate('/user/prepare-send', { 
-    state: { 
-      document: { id: documentId, title } 
-    } 
-  });
-};
+    navigate('/user/prepare-send', {
+      state: {
+        document: { id: documentId, title }
+      }
+    });
+  };
 
 
   const handleViewTimeline = (documentId) => {
@@ -437,10 +437,10 @@ const chartColors = [
   };
 
   const handleManageRecipients = (documentId, title) => {
-  setSelectedDocument({ id: documentId, title });
-  setShowRecipientManager(true);
-  setDefaultRecipientTab("manage");
-};
+    setSelectedDocument({ id: documentId, title });
+    setShowRecipientManager(true);
+    setDefaultRecipientTab("manage");
+  };
 
 
   const handleBuildTemplate = (documentId) => {
@@ -524,20 +524,20 @@ const chartColors = [
   };
 
   const handleSendReminder = (documentId, title) => {
-  setSelectedDocument({ id: documentId, title });
-  setShowRecipientManager(true);
-  setDefaultRecipientTab("send");
+    setSelectedDocument({ id: documentId, title });
+    setShowRecipientManager(true);
+    setDefaultRecipientTab("send");
 
-  
 
-  // Open directly in SEND tab
-  setTimeout(() => {
-    const modal = document.querySelector('.recipient-manager-modal');
-    if (modal) {
-      // no-op, just ensuring modal mounted before props update
-    }
-  }, 50);
-};
+
+    // Open directly in SEND tab
+    setTimeout(() => {
+      const modal = document.querySelector('.recipient-manager-modal');
+      if (modal) {
+        // no-op, just ensuring modal mounted before props update
+      }
+    }, 50);
+  };
 
 
   const handleAddMergeFile = (documentId, title) => {
@@ -555,21 +555,21 @@ const chartColors = [
   const handleTemplateSelect = async (template) => {
     try {
       setLoading(true);
-      
+
       const result = await templatesAPI.createFromTemplate(
-        template.originalData.id, 
+        template.originalData.id,
         `Copy of ${template.name}`
       );
-      
+
       setSnackbar({
         open: true,
         message: `Document created successfully from "${template.name}" template!`,
         severity: "success",
       });
-      
+
       loadDashboardData();
       setShowTemplateBrowser(false);
-      
+
     } catch (error) {
       console.error('Error creating from template:', error);
       setSnackbar({
@@ -648,88 +648,88 @@ const chartColors = [
   };
 
   const fetchAnalyticsData = async () => {
-  setAnalyticsLoading(true);
-  try {
-    // Document Analytics
-    const docStats = await getDocumentStats();
-    const { getCompleteAnalytics } = await import('../services/DocumentAPI');
-    // You'll need to implement these API functions in your DocumentAPI service
-    // For now, using placeholder data
-    setAnalyticsData({
-      documents: {
-        total: docStats.total || 0,
-        draft: docStats.draft || 0,
-        sent: docStats.sent || 0,
-        in_progress: docStats.in_progress || 0,
-        completed: docStats.completed || 0,
-        declined: docStats.declined || 0,
-        expired: docStats.expired || 0,
-        voided: docStats.voided || 0,
-        deleted: docStats.deleted || 0
-      },
-      recipients: {
-        total: 0,
-        invited: 0,
-        viewed: 0,
-        in_progress: 0,
-        completed: 0,
-        declined: 0,
-        avg_signing_time: 0,
-        completion_rate: 0
-      },
-      fields: {
-        total_fields: 0,
-        completed_fields: 0,
-        completion_percentage: 0,
-        signatures: { total: 0, completed: 0, percentage: 0 },
-        initials: { total: 0, completed: 0, percentage: 0 },
-        form_fields: { total: 0, completed: 0, percentage: 0 },
-        checkboxes: { total: 0, completed: 0, percentage: 0 }
-      },
-      activities: {
-        total_activities: activities.length,
-        counts: {
+    setAnalyticsLoading(true);
+    try {
+      // Document Analytics
+      const docStats = await getDocumentStats();
+      const { getCompleteAnalytics } = await import('../services/DocumentAPI');
+      // You'll need to implement these API functions in your DocumentAPI service
+      // For now, using placeholder data
+      setAnalyticsData({
+        documents: {
+          total: docStats.total || 0,
+          draft: docStats.draft || 0,
+          sent: docStats.sent || 0,
+          in_progress: docStats.in_progress || 0,
+          completed: docStats.completed || 0,
+          declined: docStats.declined || 0,
+          expired: docStats.expired || 0,
+          voided: docStats.voided || 0,
+          deleted: docStats.deleted || 0
+        },
+        recipients: {
+          total: 0,
+          invited: 0,
           viewed: 0,
-          downloaded: 0,
-          signed: 0,
+          in_progress: 0,
           completed: 0,
           declined: 0,
-          voided: 0,
-          other: 0
+          avg_signing_time: 0,
+          completion_rate: 0
         },
-        timeline: []
-      },
-      subscription: {
-        has_active: false,
-        status: 'inactive',
-        plan_name: 'No Active Plan',
-        days_remaining: 0,
-        total_revenue: 0,
-        total_payments: 0,
-        payment_success_rate: 0,
-        is_trial: false
-      },
-      contacts: {
-        total_contacts: 0,
-        frequent_recipients: 0,
-        unique_contacts: 0,
-        recent_contacts: 0
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching analytics:', error);
-  } finally {
-    setAnalyticsLoading(false);
-  }
-};
+        fields: {
+          total_fields: 0,
+          completed_fields: 0,
+          completion_percentage: 0,
+          signatures: { total: 0, completed: 0, percentage: 0 },
+          initials: { total: 0, completed: 0, percentage: 0 },
+          form_fields: { total: 0, completed: 0, percentage: 0 },
+          checkboxes: { total: 0, completed: 0, percentage: 0 }
+        },
+        activities: {
+          total_activities: activities.length,
+          counts: {
+            viewed: 0,
+            downloaded: 0,
+            signed: 0,
+            completed: 0,
+            declined: 0,
+            voided: 0,
+            other: 0
+          },
+          timeline: []
+        },
+        subscription: {
+          has_active: false,
+          status: 'inactive',
+          plan_name: 'No Active Plan',
+          days_remaining: 0,
+          total_revenue: 0,
+          total_payments: 0,
+          payment_success_rate: 0,
+          is_trial: false
+        },
+        contacts: {
+          total_contacts: 0,
+          frequent_recipients: 0,
+          unique_contacts: 0,
+          recent_contacts: 0
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
 
-const toggleSection = (section) => {
-  setExpandedSections(prev => ({
-    ...prev,
-    [section]: !prev[section]
-  }));
-};
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   // Navigation handlers
   const handleUploadDocument = () => navigate('/user/documents');
@@ -737,8 +737,8 @@ const toggleSection = (section) => {
   const handleViewTemplates = () => navigate('/user/templates');
   const handleViewAITemplates = () => navigate('/user/ai-template');
 
-  const filteredActivities = activeFilter === 'all' 
-    ? activities 
+  const filteredActivities = activeFilter === 'all'
+    ? activities
     : activities.filter(activity => activity.status === activeFilter);
 
   const displayedActivities = showAllActivities ? filteredActivities : filteredActivities.slice(0, 4);
@@ -777,38 +777,23 @@ const toggleSection = (section) => {
             </div>
             <div className="signapp-welcome-header">
 
-            <button 
-              onClick={loadDashboardData}
-              className="signapp-refresh-btn"
-              title="Refresh dashboard"
-            >
-              <RefreshCw className="signapp-refresh-icon" />
-              Refresh
-            </button>
+              <button
+                onClick={loadDashboardData}
+                className="ss-refresh-dashboard-btn"
+                title="Refresh dashboard"
+              >
+                <RefreshCw size={16} className="ss-refresh-icon-animate" />
+                Refresh
+              </button>
 
-            <button 
-  onClick={() => setAnalyticsOpen(true)}
-  className="signapp-analytics-btn"
-  style={{
-    marginLeft: '12px',
-    padding: '8px 16px',
-    background: '#6366f1',
-    color: 'white',
-    border: 'none',
-    borderRadius: '40px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
-  }}
->
-  <TrendingUp size={16} />
-  Analytics
-</button>
-</div>
+              <button
+                onClick={() => setAnalyticsOpen(!analyticsOpen)}
+                className="ss-analytics-toggle-btn"
+              >
+                <TrendingUp size={16} />
+                Analytics
+              </button>
+            </div>
           </div>
         </div>
         {/* <div className="signapp-ai-spotlight" onClick={handleViewAITemplates}>
@@ -822,55 +807,55 @@ const toggleSection = (section) => {
         {/* Quick Actions */}
         <div className="signapp-quick-actions">
 
-  {/* Upload */}
-  <button className="signapp-action-btn signapp-video-bg" onClick={handleUploadDocument}>
-    <video className="signapp-bg-video" autoPlay muted loop playsInline>
-      <source src="/videos/upload.mp4" type="video/mp4" />
-    </video>
+          {/* Upload */}
+          <button className="signapp-action-btn signapp-video-bg" onClick={handleUploadDocument}>
+            <video className="signapp-bg-video" autoPlay muted loop playsInline>
+              <source src="/videos/upload.mp4" type="video/mp4" />
+            </video>
 
-    <div className="signapp-action-icon-wrapper">
-      <Upload className="signapp-action-icon" />
-    </div>
+            <div className="signapp-action-icon-wrapper">
+              <Upload className="signapp-action-icon" />
+            </div>
 
-    <div className="signapp-action-content">
-      <div className="signapp-action-title">Upload Document</div>
-      <div className="signapp-action-description">Add new document to sign</div>
-    </div>
-  </button>
+            <div className="signapp-action-content">
+              <div className="signapp-action-title">Upload Document</div>
+              <div className="signapp-action-description">Add new document to sign</div>
+            </div>
+          </button>
 
-  {/* Request Signature */}
-  <button className="signapp-action-btn signapp-video-bg" onClick={handleRequestSignature}>
-    <video className="signapp-bg-video" autoPlay muted loop playsInline>
-      <source src="/videos/send.mp4" type="video/mp4" />
-    </video>
+          {/* Request Signature */}
+          <button className="signapp-action-btn signapp-video-bg" onClick={handleRequestSignature}>
+            <video className="signapp-bg-video" autoPlay muted loop playsInline>
+              <source src="/videos/send.mp4" type="video/mp4" />
+            </video>
 
-    <div className="signapp-action-icon-wrapper">
-      <Send className="signapp-action-icon" />
-    </div>
+            <div className="signapp-action-icon-wrapper">
+              <Send className="signapp-action-icon" />
+            </div>
 
-    <div className="signapp-action-content">
-      <div className="signapp-action-title">Request Signature</div>
-      <div className="signapp-action-description">Send document for signing</div>
-    </div>
-  </button>
+            <div className="signapp-action-content">
+              <div className="signapp-action-title">Request Signature</div>
+              <div className="signapp-action-description">Send document for signing</div>
+            </div>
+          </button>
 
-  {/* Templates */}
-  <button className="signapp-action-btn signapp-video-bg" onClick={handleViewTemplates}>
-    <video className="signapp-bg-video" autoPlay muted loop playsInline>
-      <source src="/videos/templates.mp4" type="video/mp4" />
-    </video>
+          {/* Templates */}
+          <button className="signapp-action-btn signapp-video-bg" onClick={handleViewTemplates}>
+            <video className="signapp-bg-video" autoPlay muted loop playsInline>
+              <source src="/videos/templates.mp4" type="video/mp4" />
+            </video>
 
-    <div className="signapp-action-icon-wrapper">
-      <FileCheck className="signapp-action-icon" />
-    </div>
+            <div className="signapp-action-icon-wrapper">
+              <FileCheck className="signapp-action-icon" />
+            </div>
 
-    <div className="signapp-action-content">
-      <div className="signapp-action-title">View Templates</div>
-      <div className="signapp-action-description">Browse document templates</div>
-    </div>
-  </button>
+            <div className="signapp-action-content">
+              <div className="signapp-action-title">View Templates</div>
+              <div className="signapp-action-description">Browse document templates</div>
+            </div>
+          </button>
 
-</div>
+        </div>
 
 
         {/* AI Spotlight Card */}
@@ -883,669 +868,608 @@ const toggleSection = (section) => {
         </div>
 
         {/* Stats Grid */}
-        <div className="signapp-stats-wrapper">
+        <div className="ss-ra-section-wrapper">
+          <div
+            className={`ss-ra-collapsible-header ${statsOpen ? 'ss-ra-header-open' : ''}`}
+            onClick={() => setStatsOpen(!statsOpen)}
+          >
+            <div className="ss-ra-header-left">
+              <TrendingUp size={18} />
+              <span>Document Statistics</span>
+            </div>
 
-  <div 
-    className="signapp-stats-toggle"
-    onClick={() => setStatsOpen(!statsOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <TrendingUp size={18} />
-      <span>Document Statistics</span>
-    </div>
+            <div className="ss-ra-header-right">
+              {statsOpen ? "Hide" : "Show"}
+            </div>
+          </div>
 
-    <div className="signapp-stats-toggle-right">
-      {statsOpen ? "Hide" : "Show"}
-    </div>
-  </div>
+          {statsOpen && (
+            <div className="ss-ra-collapsible-content">
+              <div className="signapp-stats-grid">
+                {stats.map((stat, index) => (
+                  <div
+                    key={index}
+                    className="signapp-stat-card signapp-video-bg"
+                    onClick={stat.onClick}
+                  >
+                    <video
+                      className="signapp-bg-video"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                    >
+                      <source src="/videos/Target_Arrow.mp4" type="video/mp4" />
+                    </video>
 
-  {statsOpen && (
-    <div className="signapp-stats-grid">
-          {stats.map((stat, index) => (
-            <div 
-  key={index} 
-  className="signapp-stat-card signapp-video-bg"
-  onClick={stat.onClick}
->
-  <video
-    className="signapp-bg-video"
-    autoPlay
-    muted
-    loop
-    playsInline
-  >
-    <source src="/videos/Target_Arrow.mp4" type="video/mp4" />
-  </video>
 
-              
-              <div className="signapp-stat-header">
-                <div className={`signapp-stat-icon-container ${stat.lightBg}`}>
-                  <div className={stat.textColor}>
-                    {stat.icon}
+                    <div className="signapp-stat-header">
+                      <div className={`signapp-stat-icon-container ${stat.lightBg}`}>
+                        <div className={stat.textColor}>
+                          {stat.icon}
+                        </div>
+                      </div>
+                      <span className={`signapp-stat-change ${stat.textColor} ${stat.lightBg}`}>
+                        {stat.change}
+                      </span>
+                    </div>
+                    <div className="signapp-stat-value">{stat.value}</div>
+                    <div className="signapp-stat-label">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+
+        {/* Analytics Overview Section */}
+        <div className="ss-ra-section-wrapper">
+          <div
+            className={`ss-ra-collapsible-header ${analyticsOpen ? 'ss-ra-header-open' : ''}`}
+            onClick={() => setAnalyticsOpen(!analyticsOpen)}
+          >
+            <div className="ss-ra-header-left">
+              <TrendingUp size={18} />
+              <span>Analytics Overview</span>
+            </div>
+            <div className="ss-ra-header-right">
+              {analyticsOpen ? "Hide" : "Show"}
+            </div>
+          </div>
+
+          {analyticsOpen && (
+            <div className="ss-ra-collapsible-content">
+              {/* Detailed Analytics Cards Component */}
+              <DashboardAnalyticsInline
+                analyticsData={analyticsData}
+                loading={analyticsLoading}
+                expandedSections={expandedSections}
+                onToggleSection={toggleSection}
+              />
+
+              {/* Chart Grid Section */}
+              <div className="signapp-analytics-section">
+                <h4 className="signapp-analytics-title">Document Analytics Charts</h4>
+
+                <div className="signapp-analytics-grid">
+                  {/* 1 — Bar Chart - Using document stats */}
+                  <div className="signapp-chart-card">
+                    <h4>Status Distribution</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        data={[
+                          { name: 'Draft', value: analyticsData.documents?.draft || 0 },
+                          { name: 'Sent', value: analyticsData.documents?.sent || 0 },
+                          { name: 'In Progress', value: analyticsData.documents?.in_progress || 0 },
+                          { name: 'Completed', value: analyticsData.documents?.completed || 0 },
+                          { name: 'Declined', value: analyticsData.documents?.declined || 0 },
+                          { name: 'Expired', value: analyticsData.documents?.expired || 0 },
+                          { name: 'Voided', value: analyticsData.documents?.voided || 0 }
+                        ].filter(item => item.value > 0)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                        <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#0d9488" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 2 — Line Chart - Activity Timeline */}
+                  <div className="signapp-chart-card">
+                    <h4>Activity Timeline</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart
+                        data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : [
+                          { date: 'Day 1', count: 0 },
+                          { date: 'Day 2', count: 0 },
+                          { date: 'Day 3', count: 0 },
+                          { date: 'Day 4', count: 0 },
+                          { date: 'Day 5', count: 0 }
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          stroke="#0d9488"
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 2, fill: "#0d9488" }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 3 — Pie Chart - Recipient Status */}
+                  <div className="signapp-chart-card">
+                    <h4>Recipient Status</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
+                            { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
+                            { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
+                            { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
+                          ].filter(item => item.value > 0)}
+                          dataKey="value"
+                          nameKey="name"
+                          outerRadius={80}
+                          fill="#0d9488"
+                          label
+                        >
+                          {[
+                            { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
+                            { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
+                            { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
+                            { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
+                          ].filter(item => item.value > 0).map((entry, index) => (
+                            <Cell
+                              key={index}
+                              fill={chartColors[index % chartColors.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 4 — Area Chart - Document Growth */}
+                  <div className="signapp-chart-card">
+                    <h4>Document Volume</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <AreaChart
+                        data={[
+                          { month: 'Jan', count: Math.floor(Math.random() * 10) + 1 },
+                          { month: 'Feb', count: Math.floor(Math.random() * 10) + 1 },
+                          { month: 'Mar', count: Math.floor(Math.random() * 10) + 1 },
+                          { month: 'Apr', count: Math.floor(Math.random() * 10) + 1 },
+                          { month: 'May', count: Math.floor(Math.random() * 10) + 1 },
+                          { month: 'Jun', count: Math.floor(Math.random() * 10) + 1 }
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0d9488" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area
+                          dataKey="count"
+                          stroke="#0d9488"
+                          fill="url(#areaGradient)"
+                          strokeWidth={3}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 5 — Radar Chart - Field Completion */}
+                  <div className="signapp-chart-card">
+                    <h4>Field Completion</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <RadarChart
+                        data={[
+                          { type: 'Signatures', value: analyticsData.fields?.signatures?.percentage || 0 },
+                          { type: 'Initials', value: analyticsData.fields?.initials?.percentage || 0 },
+                          { type: 'Form Fields', value: analyticsData.fields?.form_fields?.percentage || 0 },
+                          { type: 'Checkboxes', value: analyticsData.fields?.checkboxes?.percentage || 0 }
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="type" />
+                        <Radar
+                          dataKey="value"
+                          stroke="#0d9488"
+                          fill="#0d9488"
+                          fillOpacity={0.15}
+                          strokeWidth={2}
+                        />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 6 — Horizontal Bar - Performance */}
+                  <div className="signapp-chart-card">
+                    <h4>Performance Metrics</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        data={[
+                          { name: 'Completion Rate', value: analyticsData.recipients?.completion_rate || 0 },
+                          { name: 'Field Completion', value: analyticsData.fields?.completion_percentage || 0 },
+                          { name: 'Active Documents', value: analyticsData.documents?.in_progress || 0 },
+                          { name: 'Total Signatures', value: analyticsData.fields?.signatures?.total || 0 }
+                        ]}
+                        layout="vertical"
+                        margin={{ top: 20, right: 30, left: 40, bottom: 40 }}
+                      >
+                        <XAxis type="number" domain={[0, 100]} />
+                        <YAxis dataKey="name" type="category" width={100} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 12, border: "none" }}
+                          wrapperClassName="signapp-chart-tooltip"
+                        />
+                        <Bar dataKey="value" fill="#f97316" radius={[0, 8, 8, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-                <span className={`signapp-stat-change ${stat.textColor} ${stat.lightBg}`}>
-                  {stat.change}
-                </span>
               </div>
-              <div className="signapp-stat-value">{stat.value}</div>
-              <div className="signapp-stat-label">{stat.label}</div>
             </div>
-          ))}
+          )}
         </div>
-        )}
-</div>
-
-
-{/* <div className="signapp-analytics-wrapper">
-
-  <div
-    className="signapp-stats-toggle"
-    onClick={() => setAnalyticsOpen(!analyticsOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <TrendingUp size={18} />
-      <span>Analytics</span>
-    </div>
-    <div className="signapp-stats-toggle-right">
-      {analyticsOpen ? "Hide" : "Show"}
-    </div>
-  </div> */}
-
-  {/* <div className="signapp-analytics-wrapper">
-  <div
-    className="signapp-stats-toggle"
-    onClick={() => setAnalyticsOpen(!analyticsOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <TrendingUp size={18} />
-      <span>Analytics Overview</span>
-    </div>
-    <div className="signapp-stats-toggle-right">
-      {analyticsOpen ? "Hide" : "Show"}
-    </div>
-  </div> */}
-
-
-  
-  {/* <div
-    className="signapp-stats-toggle"
-    onClick={() => setAnalyticsOpen(!analyticsOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <TrendingUp size={18} />
-      <span>Analytics Overview</span>
-    </div>
-    <div className="signapp-stats-toggle-right">
-      {analyticsOpen ? "Hide" : "Show"}
-    </div>
-  </div> */}
-
-{/* Analytics Overview Section */}
-<div className="signapp-analytics-wrapper">
-  <div
-    className="signapp-stats-toggle"
-    onClick={() => setAnalyticsOpen(!analyticsOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <TrendingUp size={18} />
-      <span>Analytics Overview</span>
-    </div>
-    <div className="signapp-stats-toggle-right">
-      {analyticsOpen ? "Hide" : "Show"}
-    </div>
-  </div>
-
-  {analyticsOpen && (
-    <>
-      {/* Detailed Analytics Cards Component */}
-      <DashboardAnalyticsInline
-        analyticsData={analyticsData}
-        loading={analyticsLoading}
-        expandedSections={expandedSections}
-        onToggleSection={toggleSection}
-      />
-
-      {/* Chart Grid Section */}
-      <div className="signapp-analytics-section">
-        <h3 className="signapp-analytics-title">Document Analytics Charts</h3>
-        
-        <div className="signapp-analytics-grid">
-          {/* 1 — Bar Chart - Using document stats */}
-          <div className="signapp-chart-card">
-            <h4>Status Distribution</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart 
-                data={[
-                  { name: 'Draft', value: analyticsData.documents?.draft || 0 },
-                  { name: 'Sent', value: analyticsData.documents?.sent || 0 },
-                  { name: 'In Progress', value: analyticsData.documents?.in_progress || 0 },
-                  { name: 'Completed', value: analyticsData.documents?.completed || 0 },
-                  { name: 'Declined', value: analyticsData.documents?.declined || 0 },
-                  { name: 'Expired', value: analyticsData.documents?.expired || 0 },
-                  { name: 'Voided', value: analyticsData.documents?.voided || 0 }
-                ].filter(item => item.value > 0)} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-              >
-                <XAxis dataKey="name"/>
-                <YAxis/>
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-                <Bar dataKey="value" radius={[10,10,0,0]} fill="#0d9488" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 2 — Line Chart - Activity Timeline */}
-          <div className="signapp-chart-card">
-            <h4>Activity Timeline</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart 
-                data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : [
-                  { date: 'Day 1', count: 0 },
-                  { date: 'Day 2', count: 0 },
-                  { date: 'Day 3', count: 0 },
-                  { date: 'Day 4', count: 0 },
-                  { date: 'Day 5', count: 0 }
-                ]} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-              >
-                <XAxis dataKey="date"/>
-                <YAxis/>
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#0d9488"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2, fill: "#0d9488" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 3 — Pie Chart - Recipient Status */}
-          <div className="signapp-chart-card">
-            <h4>Recipient Status</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
-                    { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
-                    { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
-                    { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
-                  ].filter(item => item.value > 0)}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={80}
-                  fill="#0d9488"
-                  label
-                >
-                  {[
-                    { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
-                    { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
-                    { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
-                    { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
-                  ].filter(item => item.value > 0).map((entry, index) => (
-                    <Cell 
-                      key={index} 
-                      fill={chartColors[index % chartColors.length]} 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 4 — Area Chart - Document Growth */}
-          <div className="signapp-chart-card">
-            <h4>Document Volume</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart 
-                data={[
-                  { month: 'Jan', count: Math.floor(Math.random() * 10) + 1 },
-                  { month: 'Feb', count: Math.floor(Math.random() * 10) + 1 },
-                  { month: 'Mar', count: Math.floor(Math.random() * 10) + 1 },
-                  { month: 'Apr', count: Math.floor(Math.random() * 10) + 1 },
-                  { month: 'May', count: Math.floor(Math.random() * 10) + 1 },
-                  { month: 'Jun', count: Math.floor(Math.random() * 10) + 1 }
-                ]} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-              >
-                <XAxis dataKey="month"/>
-                <YAxis/>
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-                <defs>
-                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d9488" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#0d9488" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area
-                  dataKey="count"
-                  stroke="#0d9488"
-                  fill="url(#areaGradient)"
-                  strokeWidth={3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 5 — Radar Chart - Field Completion */}
-          <div className="signapp-chart-card">
-            <h4>Field Completion</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <RadarChart 
-                data={[
-                  { type: 'Signatures', value: analyticsData.fields?.signatures?.percentage || 0 },
-                  { type: 'Initials', value: analyticsData.fields?.initials?.percentage || 0 },
-                  { type: 'Form Fields', value: analyticsData.fields?.form_fields?.percentage || 0 },
-                  { type: 'Checkboxes', value: analyticsData.fields?.checkboxes?.percentage || 0 }
-                ]} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-              >
-                <PolarGrid/>
-                <PolarAngleAxis dataKey="type"/>
-                <Radar
-                  dataKey="value"
-                  stroke="#0d9488"
-                  fill="#0d9488"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 6 — Horizontal Bar - Performance */}
-          <div className="signapp-chart-card">
-            <h4>Performance Metrics</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart 
-                data={[
-                  { name: 'Completion Rate', value: analyticsData.recipients?.completion_rate || 0 },
-                  { name: 'Field Completion', value: analyticsData.fields?.completion_percentage || 0 },
-                  { name: 'Active Documents', value: analyticsData.documents?.in_progress || 0 },
-                  { name: 'Total Signatures', value: analyticsData.fields?.signatures?.total || 0 }
-                ]} 
-                layout="vertical" 
-                margin={{ top: 20, right: 30, left: 40, bottom: 40 }}
-              >
-                <XAxis type="number" domain={[0, 100]}/>
-                <YAxis dataKey="name" type="category" width={100}/>
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "none" }}
-                  wrapperClassName="signapp-chart-tooltip"
-                />
-                <Bar dataKey="value" fill="#f97316" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </>
-  )}
-</div>
 
 
 
 
 
         {/* Recent Activities Section */}
-        <div className="signapp-activities-wrapper">
-
-  <div
-    className="signapp-stats-toggle"
-    onClick={() => setActivitiesOpen(!activitiesOpen)}
-  >
-    <div className="signapp-stats-toggle-left">
-      <History size={18} />
-      <span>Recent Activities</span>
-    </div>
-
-    <div className="signapp-stats-toggle-right">
-      {activitiesOpen ? "Hide" : "Show"}
-    </div>
-  </div>
-{activitiesOpen && (
-        <div className="signapp-activities-card signapp-bg-card">
-
-          <div className="signapp-activities-header">
-            <div className="signapp-activities-title-section">
-              <h3 className="signapp-activities-title">Recent Activities</h3>
-              <p className="signapp-activities-subtitle">Track your latest document activities</p>
+        <div className="ss-ra-section-wrapper">
+          <div
+            className="ss-ra-collapsible-header"
+            onClick={() => setActivitiesOpen(!activitiesOpen)}
+          >
+            <div className="ss-ra-header-left">
+              <History size={18} />
+              <span>Recent Activities</span>
             </div>
-            <div className="signapp-activities-controls">
-              <button 
-                className="signapp-filter-btn"
-                onClick={() => loadDashboardData()}
-              >
-                <RefreshCw className="signapp-filter-icon" />
-                <span className="signapp-filter-text">Refresh</span>
-              </button>
+            <div className="ss-ra-header-right">
+              {activitiesOpen ? "Hide" : "Show"}
             </div>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="signapp-filter-tabs">
-            {['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'expired', 'voided', 'deleted'].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`signapp-filter-tab ${
-                  activeFilter === filter ? 'signapp-filter-tab-active' : 'signapp-filter-tab-inactive'
-                }`}
-              >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div className="signapp-activities-list">
-            {displayedActivities.length === 0 ? (
-              <div className="signapp-empty-activities">
-                <FileText className="signapp-empty-icon" />
-                <p className="signapp-empty-text">No activities found</p>
-                <p className="signapp-empty-subtext">Upload a document to get started</p>
+          {activitiesOpen && (
+            <div className="ss-ra-container-card">
+              <div className="ss-ra-card-header">
+                <div className="ss-ra-title-group">
+                  <h3 className="ss-ra-title">Recent Activities</h3>
+                  <p className="ss-ra-subtitle">Track your latest document activities</p>
+                </div>
+                <div className="ss-ra-header-actions">
+                  <button
+                    className="ss-ra-refresh-btn"
+                    onClick={() => loadDashboardData()}
+                  >
+                    <RefreshCw size={14} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
               </div>
-            ) : (
-              displayedActivities.map((activity) => {
-                const statusBadge = getStatusBadge(activity.status);
-                return (
-                  <div key={activity.id} className="signapp-activity-item signapp-bg-card">
-                    <div className="signapp-activity-content">
-                      <div className="signapp-activity-main">
-                        <div className={`signapp-activity-status-icon ${statusBadge.bg}`}>
-                          {statusBadge.icon}
-                        </div>
-                        <div className="signapp-activity-details">
-                          <div className="signapp-activity-header">
-                            <h4 className="signapp-activity-title">
-                              {activity.title}
-                            </h4>
-                            <span className={`signapp-activity-badge ${statusBadge.bg} ${statusBadge.text}`}>
-                              {statusBadge.label}
-                            </span>
-                          </div>
-                          <p className="signapp-activity-description">{activity.description}</p>
-                          <div className="signapp-activity-meta">
-                            <span className="signapp-activity-meta-item">
-                              <Clock3 className="signapp-meta-icon" />
-                              <span>{activity.date}</span>
-                            </span>
-                            <span className="signapp-activity-meta-item">
-                              <User className="signapp-meta-icon" />
-                              <span>From: {activity.sender}</span>
-                            </span>
-                            <span className="signapp-activity-meta-item">
-                              <Users className="signapp-meta-icon" />
-                              <span>{activity.signersCompleted} / {activity.signersTotal} signers</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Enhanced Action Dropdown */}
-                      <div className="signapp-activity-actions">
-                        {/* Prepare & Send Button - Main Action (for draft documents) */}
-                        {activity.status === 'draft' && (
-                          <button
-                            className="signapp-action-icon-btn"
-                            onClick={() => handlePrepareSend(activity.documentId, activity.title)}
-                          >
-                            Prepare & Send
-                          </button>
-                        )}
-                        <button
-  className="signapp-action-icon-btn"
-  onClick={() => {
-  setRenameDocId(activity.documentId);
-  setNewFilename(
-    (activity.title || "").replace(/\.pdf$/i, "")
-  );
-  setRenameOpen(true);
-}}
->
-  <FaEdit size={14} />
-  <span>Rename</span>
-</button>
+              {/* Filter Row */}
+              <div className="ss-ra-filter-row">
+                {['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'expired', 'voided', 'deleted'].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`ss-ra-filter-chip ${activeFilter === filter ? 'ss-ra-filter-chip-active' : ''
+                      }`}
+                  >
+                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  </button>
+                ))}
+              </div>
 
-
-                        <button
-                          className="signapp-action-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === activity.id ? null : activity.id);
-                          }}
-                        >
-                          <MoreVertical className="signapp-action-icon-sm" />
-                        </button>
-
-                        {openMenuId === activity.id && (
-                          <div className="signapp-dropdown-menu" ref={dropdownRef}>
-                            {/* Always Available Options */}
-                            <button
-                              className="signapp-dropdown-item"
-                              onClick={() => handleViewDocument(activity.documentId, activity.title)}
-                            >
-                              <Eye className="signapp-dropdown-icon" size={16} />
-                              <span>View Document</span>
-                            </button>
-
-                            <button
-                              className="signapp-dropdown-item"
-                              onClick={() => handleDownloadDocument(activity.documentId, activity.title)}
-                            >
-                              <Download className="signapp-dropdown-icon" size={16} />
-                              <span>Download</span>
-                            </button>
-
-                            <button
-                              className="signapp-dropdown-item"
-                              onClick={() => handleViewTimeline(activity.documentId)}
-                            >
-                              <History className="signapp-dropdown-icon" size={16} />
-                              <span>View Timeline</span>
-                            </button>
-
-                            {/* Add Signed Preview option */}
-                            <button
-                              className="signapp-dropdown-item"
-                              onClick={() => handleViewSignedPreview(activity.documentId, activity.title)}
-                            >
-                              <Eye className="signapp-dropdown-icon" size={16} />
-                              <span>Signed Preview</span>
-                            </button>
-
-                            {/* <button
-                              className="signapp-dropdown-item"
-                              onClick={() => handleManageRecipients(activity.documentId, activity.title)}
-                            >
-                              <Users className="signapp-dropdown-icon" size={16} />
-                              <span>Manage Recipients</span>
-                            </button> */}
-
-                            {/* Status-Specific Options */}
-                            {['draft', 'sent', 'in_progress'].includes(activity.status) && (
-                              <>
-                                <div className="signapp-dropdown-divider" />
-                                
-                                {activity.status === 'draft' && (
-                                  <>
-                                    <button
-                                      className="signapp-dropdown-item"
-                                      onClick={() => handlePrepareSend(activity.documentId, activity.title)}
-                                    >
-                                      <Send className="signapp-dropdown-icon" size={16} />
-                                      <span>Prepare & Send</span>
-                                    </button>
-
-                                    <button
-                                      className="signapp-dropdown-item"
-                                      onClick={() => handleBuildTemplate(activity.documentId)}
-                                    >
-                                      <Edit className="signapp-dropdown-icon" size={16} />
-                                      <span>Build Template</span>
-                                    </button>
-
-                                    <button
-                                      className="signapp-dropdown-item"
-                                      onClick={() => handleAddMergeFile(activity.documentId, activity.title)}
-                                    >
-                                      <Plus className="signapp-dropdown-icon" size={16} />
-                                      <span>Add/Merge File</span>
-                                    </button>
-                                  </>
-                                )}
-
-                                {['sent', 'in_progress'].includes(activity.status) && (
-                                  <button
-                                    className="signapp-dropdown-item"
-                                    onClick={() => handleSendReminder(activity.documentId, activity.title)}
-
-                                  >
-                                    <MailWarning className="signapp-dropdown-icon" size={16} />
-                                    <span>Send Reminder</span>
-                                  </button>
-                                )}
-
-                                <div className="signapp-dropdown-divider" />
-
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-warning"
-                                  onClick={() => handleVoidDocument(activity.documentId, activity.title)}
-                                >
-                                  <X className="signapp-dropdown-icon" size={16} />
-                                  <span>Void Document</span>
-                                </button>
-
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-danger"
-                                  onClick={() => handleSoftDelete(activity.documentId, activity.title)}
-                                >
-                                  <Trash2 className="signapp-dropdown-icon" size={16} />
-                                  <span>Move to Trash</span>
-                                </button>
-                              </>
-                            )}
-
-                            {activity.status === 'voided' && (
-                              <>
-                                <div className="signapp-dropdown-divider" />
-                                
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-success"
-                                  onClick={() => handleRestoreDocument(activity.documentId, activity.title)}
-                                >
-                                  <RefreshCw className="signapp-dropdown-icon" size={16} />
-                                  <span>Cancel Void</span>
-                                </button>
-
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-danger"
-                                  onClick={() => handleSoftDelete(activity.documentId, activity.title)}
-                                >
-                                  <Trash2 className="signapp-dropdown-icon" size={16} />
-                                  <span>Move to Trash</span>
-                                </button>
-                              </>
-                            )}
-
-                            {activity.status === 'deleted' && (
-                              <>
-                                <div className="signapp-dropdown-divider" />
-                                
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-success"
-                                  onClick={() => handleRestoreDocument(activity.documentId, activity.title)}
-                                >
-                                  <RefreshCw className="signapp-dropdown-icon" size={16} />
-                                  <span>Restore</span>
-                                </button>
-
-                                <button
-                                  className="signapp-dropdown-item signapp-dropdown-item-danger"
-                                  onClick={() => handlePermanentDelete(activity.documentId, activity.title)}
-                                >
-                                  <Trash2 className="signapp-dropdown-icon" size={16} />
-                                  <span>Permanent Delete</span>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              <div className="ss-ra-items-list">
+                {displayedActivities.length === 0 ? (
+                  <div className="ss-ra-empty-state">
+                    <FileText className="ss-ra-empty-icon" />
+                    <p className="ss-ra-empty-text">No activities found</p>
+                    <p className="ss-ra-empty-subtext">Upload a document to get started</p>
                   </div>
-                );
-              })
-            )}
-          </div>
+                ) : (
+                  displayedActivities.map((activity) => {
+                    const statusBadge = getStatusBadge(activity.status);
+                    return (
+                      <div key={activity.id} className="ss-ra-item-row">
+                        <div className="ss-ra-item-content">
+                          <div className="ss-ra-item-info-main">
+                            <div className={`ss-ra-status-icon-box ${statusBadge.bg}`}>
+                              {statusBadge.icon}
+                            </div>
+                            <div className="ss-ra-item-details-box">
+                              <div className="ss-ra-item-header-line">
+                                <h4 className="ss-ra-item-title">
+                                  {activity.title}
+                                </h4>
+                                <span className={`ss-ra-status-tag ${statusBadge.bg} ${statusBadge.text}`}>
+                                  {statusBadge.label}
+                                </span>
+                              </div>
+                              <p className="ss-ra-item-description">{activity.description}</p>
+                              <div className="ss-ra-item-meta-footer">
+                                <span className="ss-ra-meta-pill">
+                                  <Clock3 size={12} />
+                                  <span>{activity.date}</span>
+                                </span>
+                                <span className="ss-ra-meta-pill">
+                                  <User size={12} />
+                                  <span>{activity.sender}</span>
+                                </span>
+                                <span className="ss-ra-meta-pill">
+                                  <Users size={12} />
+                                  <span>{activity.signersCompleted} / {activity.signersTotal}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-          {!showAllActivities && filteredActivities.length > 4 && (
-            <div className="signapp-activities-footer">
-              <button
-                onClick={() => setShowAllActivities(true)}
-                className="signapp-view-more-btn"
-              >
-                View More Activities ({filteredActivities.length - 4} more)
-              </button>
+                          <div className="ss-ra-item-action-buttons">
+                            {activity.status === 'draft' && (
+                              <button
+                                className="ss-ra-btn-primary-action"
+                                onClick={() => handlePrepareSend(activity.documentId, activity.title)}
+                                title="Prepare & Send"
+                              >
+                                <Send size={14} />
+                                <span>Prepare & Send</span>
+                              </button>
+                            )}
+                            <button
+                              className="ss-ra-btn-subtle-action"
+                              onClick={() => {
+                                setRenameDocId(activity.documentId);
+                                setNewFilename((activity.title || "").replace(/\.pdf$/i, ""));
+                                setRenameOpen(true);
+                              }}
+                              title="Rename"
+                            >
+                              <FaEdit size={14} />
+                              <span>Rename</span>
+                            </button>
+
+                            <div className="ss-ra-more-wrapper">
+                              <button
+                                className="ss-ra-btn-more"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === activity.id ? null : activity.id);
+                                }}
+                                title="More actions"
+                              >
+                                <MoreVertical size={18} />
+                              </button>
+
+                              {openMenuId === activity.id && (
+                                <div className="ss-ra-dropdown-portal" ref={dropdownRef}>
+                                  <button
+                                    className="ss-ra-dropdown-item"
+                                    onClick={() => handleViewDocument(activity.documentId, activity.title)}
+                                  >
+                                    <Eye size={16} />
+                                    <span>View Document</span>
+                                  </button>
+
+                                  <button
+                                    className="ss-ra-dropdown-item"
+                                    onClick={() => handleDownloadDocument(activity.documentId, activity.title)}
+                                  >
+                                    <Download size={16} />
+                                    <span>Download</span>
+                                  </button>
+
+                                  <button
+                                    className="ss-ra-dropdown-item"
+                                    onClick={() => handleViewTimeline(activity.documentId)}
+                                  >
+                                    <History size={16} />
+                                    <span>View Timeline</span>
+                                  </button>
+
+                                  <button
+                                    className="ss-ra-dropdown-item"
+                                    onClick={() => handleViewSignedPreview(activity.documentId, activity.title)}
+                                  >
+                                    <Eye size={16} />
+                                    <span>Signed Preview</span>
+                                  </button>
+
+                                  {['draft', 'sent', 'in_progress'].includes(activity.status) && (
+                                    <>
+                                      <div className="ss-ra-dropdown-divider" />
+
+                                      {activity.status === 'draft' && (
+                                        <>
+                                          <button
+                                            className="ss-ra-dropdown-item"
+                                            onClick={() => handlePrepareSend(activity.documentId, activity.title)}
+                                          >
+                                            <Send size={16} />
+                                            <span>Prepare & Send</span>
+                                          </button>
+
+                                          <button
+                                            className="ss-ra-dropdown-item"
+                                            onClick={() => handleBuildTemplate(activity.documentId)}
+                                          >
+                                            <Edit size={16} />
+                                            <span>Build Template</span>
+                                          </button>
+
+                                          <button
+                                            className="ss-ra-dropdown-item"
+                                            onClick={() => handleAddMergeFile(activity.documentId, activity.title)}
+                                          >
+                                            <Plus size={16} />
+                                            <span>Add/Merge File</span>
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {['sent', 'in_progress'].includes(activity.status) && (
+                                        <button
+                                          className="ss-ra-dropdown-item"
+                                          onClick={() => handleSendReminder(activity.documentId, activity.title)}
+                                        >
+                                          <MailWarning size={16} />
+                                          <span>Send Reminder</span>
+                                        </button>
+                                      )}
+
+                                      <div className="ss-ra-dropdown-divider" />
+
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-warning"
+                                        onClick={() => handleVoidDocument(activity.documentId, activity.title)}
+                                      >
+                                        <X size={16} />
+                                        <span>Void Document</span>
+                                      </button>
+
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-danger"
+                                        onClick={() => handleSoftDelete(activity.documentId, activity.title)}
+                                      >
+                                        <Trash2 size={16} />
+                                        <span>Move to Trash</span>
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {activity.status === 'voided' && (
+                                    <>
+                                      <div className="ss-ra-dropdown-divider" />
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-success"
+                                        onClick={() => handleRestoreDocument(activity.documentId, activity.title)}
+                                      >
+                                        <RefreshCw size={16} />
+                                        <span>Cancel Void</span>
+                                      </button>
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-danger"
+                                        onClick={() => handleSoftDelete(activity.documentId, activity.title)}
+                                      >
+                                        <Trash2 size={16} />
+                                        <span>Move to Trash</span>
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {activity.status === 'deleted' && (
+                                    <>
+                                      <div className="ss-ra-dropdown-divider" />
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-success"
+                                        onClick={() => handleRestoreDocument(activity.documentId, activity.title)}
+                                      >
+                                        <RefreshCw size={16} />
+                                        <span>Restore</span>
+                                      </button>
+                                      <button
+                                        className="ss-ra-dropdown-item ss-ra-dropdown-item-danger"
+                                        onClick={() => handlePermanentDelete(activity.documentId, activity.title)}
+                                      >
+                                        <Trash2 size={16} />
+                                        <span>Permanent Delete</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {!showAllActivities && filteredActivities.length > 4 && (
+                <div className="ss-ra-footer-area">
+                  <button
+                    onClick={() => setShowAllActivities(true)}
+                    className="ss-ra-view-all-btn"
+                  >
+                    View More Activities ({filteredActivities.length - 4} more)
+                  </button>
+                </div>
+              )}
+
+              {showAllActivities && (
+                <div className="ss-ra-footer-area">
+                  <button
+                    onClick={() => setShowAllActivities(false)}
+                    className="ss-ra-view-less-btn"
+                  >
+                    Show Less
+                  </button>
+                </div>
+              )}
             </div>
           )}
-
-          {showAllActivities && (
-            <div className="signapp-activities-footer">
-              <button
-                onClick={() => setShowAllActivities(false)}
-                className="signapp-view-less-btn"
-              >
-                Show Less
-              </button>
-            </div>
-          )}
-        </div>
-        )}
         </div>
       </main>
 
       {/* Modals and Drawers */}
-      <DocumentViewerModal 
-        open={viewerOpen} 
-        onClose={() => setViewerOpen(false)} 
+      <DocumentViewerModal
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
         documentId={activeDocId}
         title={activeDocument?.title}
-        url={viewDocumentUrl(activeDocId)} 
+        url={viewDocumentUrl(activeDocId)}
       />
 
-      <SignedPreviewModal 
-        open={signedOpen} 
-        onClose={() => setSignedOpen(false)} 
+      <SignedPreviewModal
+        open={signedOpen}
+        onClose={() => setSignedOpen(false)}
         documentId={activeDocId}
         title={activeDocument?.title}
-        url={signedPreviewUrl(activeDocId)} 
+        url={signedPreviewUrl(activeDocId)}
       />
 
-      <TimelineDrawer 
-        open={timelineOpen} 
-        onClose={() => setTimelineOpen(false)} 
+      <TimelineDrawer
+        open={timelineOpen}
+        onClose={() => setTimelineOpen(false)}
         documentId={activeDocId}
       />
 
@@ -1555,7 +1479,7 @@ const toggleSection = (section) => {
           <div className="modal recipient-manager-modal">
             <div className="modal-header">
               <h3>Manage Recipients - {selectedDocument.title}</h3>
-              <button 
+              <button
                 className="close-btn"
                 onClick={() => setShowRecipientManager(false)}
               >
@@ -1564,13 +1488,13 @@ const toggleSection = (section) => {
             </div>
             <div className="modal-content">
               <RecipientManager
-  document={selectedDocument}
-  defaultTab={defaultRecipientTab}
-  onUpdate={() => {
-    loadDashboardData();
-    setShowRecipientManager(false);
-  }}
-/>
+                document={selectedDocument}
+                defaultTab={defaultRecipientTab}
+                onUpdate={() => {
+                  loadDashboardData();
+                  setShowRecipientManager(false);
+                }}
+              />
 
             </div>
           </div>
@@ -1608,7 +1532,7 @@ const toggleSection = (section) => {
           <div className="modal merge-modal">
             <div className="modal-header">
               <h3>Add / Merge File</h3>
-              <button 
+              <button
                 className="close-btn"
                 onClick={() => setMergeOpen(false)}
               >
@@ -1629,7 +1553,7 @@ const toggleSection = (section) => {
               />
 
               <div className="modal-actions">
-                <button 
+                <button
                   className="btn btn-secondary"
                   onClick={() => setMergeOpen(false)}
                 >
@@ -1648,86 +1572,86 @@ const toggleSection = (section) => {
         </div>
       )}
 
-{renameOpen && (
-  <div className="rename-dialog-backdrop">
-    <div className="rename-dialog">
-      <h3>Rename Document</h3>
+      {renameOpen && (
+        <div className="rename-dialog-backdrop">
+          <div className="rename-dialog">
+            <h3>Rename Document</h3>
 
-      <div className="rename-input-wrapper">
-        <input
-          type="text"
-          value={newFilename}
-          onChange={(e) =>
-            setNewFilename(
-              (e.target.value || "").replace(/\.pdf$/i, "")
-            )
-          }
-          placeholder="Enter document name"
-          autoFocus
-        />
-        <span className="rename-suffix">.pdf</span>
-      </div>
-
-      <div className="rename-dialog-actions">
-        <button
-          className="rename-btn-cancel"
-          onClick={() => setRenameOpen(false)}
-          disabled={renaming}
-        >
-          Cancel
-        </button>
-
-        <button
-          className="rename-btn-primary"
-          disabled={!newFilename.trim() || renaming}
-          onClick={async () => {
-            try {
-              setRenaming(true);
-
-              const finalFilename = `${newFilename.trim()}.pdf`;
-
-              await fetch(
-                `${API_BASE_URL}/documents/${renameDocId}/rename`,
-                {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    filename: finalFilename,
-                  }),
+            <div className="rename-input-wrapper">
+              <input
+                type="text"
+                value={newFilename}
+                onChange={(e) =>
+                  setNewFilename(
+                    (e.target.value || "").replace(/\.pdf$/i, "")
+                  )
                 }
-              );
+                placeholder="Enter document name"
+                autoFocus
+              />
+              <span className="rename-suffix">.pdf</span>
+            </div>
 
-              setSnackbar({
-                open: true,
-                message: "Document renamed successfully",
-                severity: "success",
-              });
+            <div className="rename-dialog-actions">
+              <button
+                className="rename-btn-cancel"
+                onClick={() => setRenameOpen(false)}
+                disabled={renaming}
+              >
+                Cancel
+              </button>
 
-              setRenameOpen(false);
-              loadDashboardData(); // refresh dashboard
-            } catch (err) {
-              setSnackbar({
-                open: true,
-                message: "Rename failed",
-                severity: "error",
-              });
-            } finally {
-              setRenaming(false);
-            }
-          }}
-        >
-          {renaming ? "Renaming…" : "Rename"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <button
+                className="rename-btn-primary"
+                disabled={!newFilename.trim() || renaming}
+                onClick={async () => {
+                  try {
+                    setRenaming(true);
+
+                    const finalFilename = `${newFilename.trim()}.pdf`;
+
+                    await fetch(
+                      `${API_BASE_URL}/documents/${renameDocId}/rename`,
+                      {
+                        method: "PUT",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          filename: finalFilename,
+                        }),
+                      }
+                    );
+
+                    setSnackbar({
+                      open: true,
+                      message: "Document renamed successfully",
+                      severity: "success",
+                    });
+
+                    setRenameOpen(false);
+                    loadDashboardData(); // refresh dashboard
+                  } catch (err) {
+                    setSnackbar({
+                      open: true,
+                      message: "Rename failed",
+                      severity: "error",
+                    });
+                  } finally {
+                    setRenaming(false);
+                  }
+                }}
+              >
+                {renaming ? "Renaming…" : "Rename"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
-{/* {analyticsOpen && (
+      {/* {analyticsOpen && (
   <DashboardAnalytics onClose={() => setAnalyticsOpen(false)} />
 )} */}
 

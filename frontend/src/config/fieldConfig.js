@@ -161,7 +161,7 @@ export const FIELD_ROLES = {
     name: 'Form Filler',
     icon: <EditIcon />,
     description: 'Can fill form fields',
-    allowedFields: ['textbox', 'date', 'checkbox', 'radio', 'dropdown', 'attachment']
+    allowedFields: ['signature', 'initials', 'stamp', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail', 'approval', 'witness_signature']
   },
   witness: {
     id: 'witness',
@@ -192,7 +192,7 @@ export const ROLE_FIELD_RULES = {
   in_person_signer: ['signature', 'initials', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
   witness: ['witness_signature', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
   approver: ['approval', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
-  form_filler: ['date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
+  form_filler: 'ALL',
   viewer: []
 };
 
@@ -202,7 +202,7 @@ export const UNIVERSAL_FIELDS = ['date', 'textbox', 'checkbox', 'radio', 'dropdo
 // Color generation function
 export const generateRecipientColor = (email) => {
   if (!email) return '#808080';
-  
+
   const hash = (str) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -211,56 +211,56 @@ export const generateRecipientColor = (email) => {
     }
     return Math.abs(hash);
   };
-  
+
   const hashInt = hash(email);
   const hue = hashInt % 360;
   const saturation = 65 + (hashInt % 15);
   const lightness = 85 + (hashInt % 10);
-  
+
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 };
 
 // Get recipient color
 export const getRecipientColor = (recipient) => {
   if (!recipient) return '#808080';
-  
+
   if (recipient.color) return recipient.color;
   if (recipient.email) return generateRecipientColor(recipient.email);
   if (recipient.name) return generateRecipientColor(recipient.name);
-  
+
   return '#808080';
 };
 
 // Validate field assignment
 export const validateFieldAssignment = (fieldType, recipientRole) => {
   const rules = ROLE_FIELD_RULES[recipientRole];
-  
+
   if (rules === 'ALL') {
     return true;
   }
-  
+
   if (Array.isArray(rules)) {
     return rules.includes(fieldType);
   }
-  
+
   return false;
 };
 
 // Get available field types for role
 export const getAvailableFieldTypesForRole = (role) => {
   if (role === 'viewer') return [];
-  
+
   const rules = ROLE_FIELD_RULES[role];
-  
+
   if (rules === 'ALL') {
     return Object.entries(FIELD_TYPES).map(([type, config]) => ({ type, ...config }));
   }
-  
+
   if (Array.isArray(rules)) {
     return rules
       .map(type => ({ type, ...FIELD_TYPES[type] }))
       .filter(Boolean);
   }
-  
+
   return [];
 };

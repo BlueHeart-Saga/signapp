@@ -4,7 +4,7 @@ import { FIELD_TYPES, getRecipientColor } from '../../config/fieldConfig';
 
 // Map field types to display text
 const getFieldDisplayText = (field) => {
-  switch(field.type) {
+  switch (field.type) {
     case 'signature': return 'SIGNATURE';
     case 'initials': return 'INI';
     case 'date': return 'DATE';
@@ -59,7 +59,7 @@ const CanvasField = ({
     const dx = e.target.x() - (field.x * scale);
     const dy = e.target.y() - (field.y * scale + pageOffsetY);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
+
     if (distance > 2) {
       isDraggingRef.current = true;
     }
@@ -68,55 +68,55 @@ const CanvasField = ({
   const handleDragEnd = (e) => {
     const newX = e.target.x() / scale;
     const newY = (e.target.y() - pageOffsetY) / scale;
-    
+
     // Constrain to canvas boundaries
     const constrainedX = Math.max(0, Math.min(newX, 794 - field.width));
     const constrainedY = Math.max(0, Math.min(newY, 1123 - field.height));
-    
+
     onDragEnd(field.id, Math.round(constrainedX), Math.round(constrainedY));
   };
 
- const handleTransformEnd = () => {
-  const node = shapeRef.current;
+  const handleTransformEnd = () => {
+    const node = shapeRef.current;
 
-  const scaleX = node.scaleX();
-  const scaleY = node.scaleY();
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
 
-  const newWidth = Math.max(30, node.width() * scaleX);
-  const newHeight = Math.max(30, node.height() * scaleY);
+    const newWidth = Math.max(30, node.width() * scaleX);
+    const newHeight = Math.max(30, node.height() * scaleY);
 
-  // reset scale BEFORE saving
-  node.scaleX(1);
-  node.scaleY(1);
+    // reset scale BEFORE saving
+    node.scaleX(1);
+    node.scaleY(1);
 
-  node.width(newWidth);
-  node.height(newHeight);
+    node.width(newWidth);
+    node.height(newHeight);
 
-  const newX = node.x();
-  const newY = node.y();
+    const newX = node.x();
+    const newY = node.y();
 
-  onTransform(field.id, {
-    width: Math.round(newWidth / scale),
-    height: Math.round(newHeight / scale),
-    x: Math.round(newX / scale),
-    y: Math.round((newY - pageOffsetY) / scale)
-  });
-};
+    onTransform(field.id, {
+      width: Math.round(newWidth / scale),
+      height: Math.round(newHeight / scale),
+      x: Math.round(newX / scale),
+      y: Math.round((newY - pageOffsetY) / scale)
+    });
+  };
 
-useEffect(() => {
-  if (isSelected && transformerRef.current && shapeRef.current) {
-    transformerRef.current.nodes([shapeRef.current]);
-    transformerRef.current.getLayer().batchDraw();
-  }
-}, [isSelected, field.width, field.height]);
+  useEffect(() => {
+    if (isSelected && transformerRef.current && shapeRef.current) {
+      transformerRef.current.nodes([shapeRef.current]);
+      transformerRef.current.getLayer().batchDraw();
+    }
+  }, [isSelected, field.width, field.height]);
 
   const dragBoundFunc = useCallback((pos) => {
     const fieldWidth = field.width * scale;
     const fieldHeight = field.height * scale;
-    
+
     const constrainedX = Math.max(0, Math.min(pos.x, 794 * scale - fieldWidth));
     const constrainedY = Math.max(pageOffsetY, Math.min(pos.y, pageOffsetY + 1123 * scale - fieldHeight));
-    
+
     return {
       x: constrainedX,
       y: constrainedY
@@ -127,10 +127,10 @@ useEffect(() => {
   const isCurrentPage = field.page === currentPage;
   const isOtherPage = field.page !== currentPage;
   const opacity = showAllFields && !isCurrentPage ? 0.3 : 1;
-  
-  const assignedRecipient = field.assignedRecipient || 
+
+  const assignedRecipient = field.assignedRecipient ||
     (field.recipient_id ? recipients.find(r => r.id === field.recipient_id) : null);
-  
+
   const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldType.color;
 
   // Helper to add alpha to hex color
@@ -155,51 +155,51 @@ useEffect(() => {
 
   // Render field content based on type with Zoho-like design
   const renderFieldContent = () => {
-    
+
     const textColor = validationError ? '#FF0000' : (assignedRecipient ? recipientColor : '#666666');
     const displayText = getFieldDisplayText(field);
 
-  const borderColor = validationError
-  ? '#d32f2f'
-  : recipientColor;
+    const borderColor = validationError
+      ? '#d32f2f'
+      : recipientColor;
 
-  const bgColor = validationError
-  ? '#fff5f5'
-  : assignedRecipient
-  ? addAlphaToHex(recipientColor, '15') // light tint
-  : '#ffffff';
+    const bgColor = validationError
+      ? '#fff5f5'
+      : assignedRecipient
+        ? addAlphaToHex(recipientColor, '15') // light tint
+        : '#ffffff';
 
-  const fitFontSize = Math.min(
-  14 * scale,
-  (field.width * scale) / (displayText.length * 0.6)
-);
+    const fitFontSize = Math.min(
+      14 * scale,
+      (field.width * scale) / (displayText.length * 0.6)
+    );
 
     // Base rectangle for all fields
     const baseRect = (
-       <Group>
-      {/* Main field box */}
-      <Rect
-        width={Math.max(30, field.width * scale)}
-height={Math.max(30, field.height * scale)}
-        fill={bgColor}
-        stroke={borderColor}
-        strokeWidth={isSelected ? 2.5 : 1.6}
-        cornerRadius={8}
-        
-      />
+      <Group>
+        {/* Main field box */}
+        <Rect
+          width={Math.max(30, field.width * scale)}
+          height={Math.max(30, field.height * scale)}
+          fill={bgColor}
+          stroke={borderColor}
+          strokeWidth={isSelected ? 2.5 : 1.6}
+          cornerRadius={8}
 
-      {/* Field label */}
-      <Text
-        text={displayText}
-        width={field.width * scale}
-        height={field.height * scale}
-        align="center"
-        verticalAlign="middle"
-        fontSize={fitFontSize}
-        fontStyle="bold"
-        fill="#344054"
-      />
-    </Group>
+        />
+
+        {/* Field label */}
+        <Text
+          text={displayText}
+          width={field.width * scale}
+          height={field.height * scale}
+          align="center"
+          verticalAlign="middle"
+          fontSize={fitFontSize}
+          fontStyle="bold"
+          fill="#344054"
+        />
+      </Group>
     );
 
     // Type-specific content
@@ -520,27 +520,6 @@ height={Math.max(30, field.height * scale)}
         )}
 
         {/* Recipient indicator */}
-        {assignedRecipient && (
-          <Group x={field.width * scale - 40} y={5 * scale}>
-            <Circle
-              x={0}
-              y={0}
-              radius={8}
-              fill={recipientColor}
-              stroke="#FFFFFF"
-              strokeWidth={1.5}
-            />
-            <Text
-              x={-3 * scale}
-              y={-5 * scale}
-              text={assignedRecipient.name.charAt(0)}
-              fontSize={10 * scale}
-              fontFamily="Arial"
-              fill="#FFFFFF"
-              fontStyle="bold"
-            />
-          </Group>
-        )}
       </Group>
 
       {/* Transformer for selected field */}
@@ -558,7 +537,7 @@ height={Math.max(30, field.height * scale)}
           keepRatio={false}
           borderDash={[4, 4]}
           borderStroke={recipientColor}
-anchorFill={recipientColor}
+          anchorFill={recipientColor}
           anchorStroke="#ffffff"
           anchorSize={8}
         />

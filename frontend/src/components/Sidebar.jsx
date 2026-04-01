@@ -1,14 +1,30 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Home, Users, FileText, Layers, LogOut, Image, Wand2, Brain, FilePlus, Shield, LayoutDashboard, Sparkles, Zap, Activity, Images, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Home,
+  Users,
+  FileText,
+  Layers,
+  LogOut,
+  Image,
+  Wand2,
+  FilePlus,
+  Shield,
+  LayoutDashboard,
+  Activity,
+  Images,
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  Circle
+} from "lucide-react";
 import axios from "axios";
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 const menuItems = {
   admin: [
-
     { name: "Dashboard", path: "/admin/dashboard", icon: <Home size={18} /> },
     { name: "Manage Users", path: "/admin/users", icon: <Users size={18} /> },
     { name: "Templates", path: "/admin/templates", icon: <FileText size={18} /> },
@@ -16,18 +32,37 @@ const menuItems = {
     { name: "Banners", path: "/admin/banner", icon: <Images size={18} /> }
   ],
   user: [
-    {
-      name: "Overview",
-      path: "/user",
-      icon: <Activity size={18} />,
-    },
+    { name: "Overview", path: "/user", icon: <Activity size={18} /> },
     { name: "Dashboard", path: "/user/dashboard", icon: <LayoutDashboard size={18} /> },
-    { name: "My Documents", path: "/user/documents", icon: <FileText size={18} /> },
-    { name: "Contacts", path: "/user/contacts", icon: <Users size={18} /> },
+    {
+      name: "My Documents",
+      path: "/user/documents",
+      icon: <FileText size={18} />,
+      hasSubmenu: true,
+      subItems: [
+        { name: "All Documents", path: "/user/documents", filter: "all" },
+        { name: "Draft", path: "/user/documents", filter: "draft" },
+        { name: "Sent", path: "/user/documents", filter: "sent" },
+        { name: "Completed", path: "/user/documents", filter: "completed" },
+        { name: "Declined", path: "/user/documents", filter: "declined" },
+        { name: "Expired", path: "/user/documents", filter: "expired" },
+        { name: "Voided", path: "/user/documents", filter: "voided" },
 
+      ]
+    },
+    { name: "Contacts", path: "/user/contacts", icon: <Users size={18} /> },
     { name: "AI Templates", path: "/user/ai-template", icon: <Wand2 size={18} /> },
-    { name: "Templates", path: "/user/templates", icon: <FilePlus size={18} /> },
-    // { name: "D-Sign", path: "/user/d-sign", icon: <Edit3 size={18} /> },
+    {
+      name: "Templates",
+      path: "/user/templates",
+      icon: <FilePlus size={18} />,
+      hasSubmenu: true,
+      subItems: [
+        { name: "Browse Templates", path: "/user/templates", filter: "templates", param: "tab" },
+        { name: "Documents", path: "/user/templates", filter: "documents", param: "tab" },
+        { name: "Trash", path: "/user/templates", filter: "trash", param: "tab" },
+      ]
+    },
   ],
   recipient: [
     { name: "Dashboard", path: "/recipient/home", icon: <Home size={18} /> },
@@ -41,43 +76,40 @@ export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
   const [brandName, setBrandName] = useState("SafeSign");
   const [logoUrl, setLogoUrl] = useState(null);
+  const [openSubmenus, setOpenSubmenus] = useState({ "/user/documents": true });
+  const [hoveredPath, setHoveredPath] = useState(null);
 
   useEffect(() => {
     const loadBranding = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/branding/config`);
-
         if (res.data.platform_name) setBrandName(res.data.platform_name);
-
         if (res.data.logo_url !== null)
           setLogoUrl(`${API_BASE_URL}/branding/logo/file`);
-
       } catch (e) {
         console.log("Branding fetch failed");
       }
     };
-
     loadBranding();
   }, []);
-
-
 
   const role = useMemo(() => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        return JSON.parse(storedUser).role?.toLowerCase() || "user";
-      }
-
+      if (storedUser) return JSON.parse(storedUser).role?.toLowerCase() || "user";
       const token = localStorage.getItem("token");
       if (!token) return "user";
-
       return jwtDecode(token).role?.toLowerCase() || "user";
     } catch {
       return "user";
     }
   }, []);
 
+  const toggleSubmenu = (path, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpenSubmenus(prev => ({ ...prev, [path]: !prev[path] }));
+  };
 
   const items = menuItems[role] || [];
 
@@ -88,7 +120,6 @@ export default function Sidebar({ collapsed, onToggle }) {
     >
       <div className="safesign-sidebar__header">
         <div className="safesign-sidebar__logo">
-
           {logoUrl ? (
             <img
               src={logoUrl}
@@ -98,38 +129,87 @@ export default function Sidebar({ collapsed, onToggle }) {
           ) : (
             <Shield size={collapsed ? 20 : 24} className="safesign-sidebar__logo-icon" />
           )}
-
-          {!collapsed && (
-            <span className="safesign-sidebar__logo-text">
-              {brandName}
-            </span>
-          )}
+          {!collapsed && <span className="safesign-sidebar__logo-text">{brandName}</span>}
         </div>
-
       </div>
 
       <nav className="safesign-sidebar__nav">
-        {items.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            title={collapsed ? item.name : ""}
-            onClick={(e) => e.stopPropagation()}
-            className={`safesign-sidebar__link ${location.pathname === item.path ||
-              (item.path === "/user" && location.pathname === "/user")
-              ? "safesign-sidebar__link--active"
-              : ""
-              }`}
-          >
+        {items.map((item) => {
+          const isParentActive = location.pathname.startsWith(item.path);
+          const isOpen = openSubmenus[item.path];
+          const isHovered = hoveredPath === item.path;
+          const showSub = (isOpen && !collapsed) || isHovered;
 
-            <span className="safesign-sidebar__link-icon">{item.icon}</span>
-            {!collapsed && <span className="safesign-sidebar__link-label">{item.name}</span>}
-          </Link>
-        ))}
+          if (item.hasSubmenu) {
+            return (
+              <div
+                key={item.path}
+                className="safesign-sidebar__menu-group"
+                onMouseEnter={() => setHoveredPath(item.path)}
+                onMouseLeave={() => setHoveredPath(null)}
+              >
+                <div
+                  className={`safesign-sidebar__link ${isParentActive ? "safesign-sidebar__link--active" : ""}`}
+                  onClick={(e) => !collapsed && toggleSubmenu(item.path, e)}
+                  title={collapsed ? item.name : ""}
+                >
+                  <span className="safesign-sidebar__link-icon">{item.icon}</span>
+                  {!collapsed && (
+                    <>
+                      <span className="safesign-sidebar__link-label">{item.name}</span>
+                      <span className="safesign-sidebar__chevron">
+                        {showSub ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {showSub && (
+                  <div className={`safesign-sidebar__submenu ${collapsed ? "safesign-sidebar__submenu--floating" : ""}`}>
+                    {collapsed && <div className="safesign-sidebar__submenu-header">{item.name}</div>}
+                    {item.subItems.map((sub) => {
+                      const params = new URLSearchParams(location.search);
+                      const isActive = location.pathname === sub.path &&
+                        params.get(sub.param || 'status') === sub.filter;
+
+                      return (
+                        <Link
+                          key={`${sub.path}-${sub.filter}`}
+                          to={`${sub.path}?${sub.param || 'status'}=${sub.filter}`}
+                          className={`safesign-sidebar__submenu-link ${isActive ? "active" : ""}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Circle size={collapsed ? 4 : 6} fill={isActive ? "#0d9488" : "transparent"} strokeWidth={3} />
+                          <span>{sub.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              title={collapsed ? item.name : ""}
+              onClick={(e) => e.stopPropagation()}
+              className={`safesign-sidebar__link ${location.pathname === item.path ||
+                (item.path === "/user" && location.pathname === "/user")
+                ? "safesign-sidebar__link--active"
+                : ""
+                }`}
+            >
+              <span className="safesign-sidebar__link-icon">{item.icon}</span>
+              {!collapsed && <span className="safesign-sidebar__link-label">{item.name}</span>}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="safesign-sidebar__footer">
-
         <Link
           to="/user/settings"
           className={`safesign-sidebar__settings ${location.pathname === "/user/settings" ? "safesign-sidebar__settings--active" : ""}`}
@@ -211,6 +291,14 @@ export default function Sidebar({ collapsed, onToggle }) {
           scrollbar-color: #cbd5e1 transparent;
         }
 
+        .safesign-sidebar--collapsed .safesign-sidebar__nav {
+          overflow: visible !important;
+        }
+
+        .safesign-sidebar__menu-group {
+          position: relative;
+        }
+
         .safesign-sidebar__nav::-webkit-scrollbar {
           width: 5px;
         }
@@ -276,8 +364,88 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__link-label {
           white-space: nowrap;
-          color: gray;
+          color: #475569;
           font-weight: 500;
+          flex: 1;
+        }
+
+        .safesign-sidebar__chevron {
+          display: flex;
+          align-items: center;
+          color: #64748b;
+          transition: transform 0.2s;
+        }
+
+        .safesign-sidebar__submenu {
+          margin-left: 28px;
+          padding-left: 12px;
+          border-left: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          margin-bottom: 8px;
+          animation: slideDownIn 0.2s ease-out;
+        }
+
+        @keyframes slideDownIn {
+          from { opacity: 0; transform: translateY(-5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .safesign-sidebar__submenu-link {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 12px;
+          color: #64748b;
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 500;
+          border-radius: 6px;
+          transition: all 0.15s ease;
+        }
+
+        .safesign-sidebar__submenu-link:hover {
+          background: #f1f5f9;
+          color: #1e293b;
+        }
+
+        .safesign-sidebar__submenu-link.active {
+          color: #0d9488;
+          background: #f0fdfa;
+          font-weight: 600;
+        }
+
+        .safesign-sidebar__submenu--floating {
+          position: absolute;
+          left: 54px;
+          top: -4px;
+          width: 170px;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          z-index: 1100;
+          padding: 8px;
+          margin-left: 0;
+          border-left: 1px solid #e2e8f0;
+          animation: popIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .safesign-sidebar__submenu-header {
+          padding: 6px 12px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #f1f5f9;
+          margin-bottom: 6px;
+        }
+
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.95) translateX(-10px); }
+          to { opacity: 1; transform: scale(1) translateX(0); }
         }
 
         .safesign-sidebar__footer {

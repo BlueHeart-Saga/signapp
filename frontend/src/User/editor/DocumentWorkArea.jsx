@@ -25,7 +25,7 @@ import {
   CheckCircle as CheckCircleIcon,
   DragIndicator as DragIndicatorIcon
 } from '@mui/icons-material';
-import { Stage, Layer } from 'react-konva';
+import { Stage, Layer, Line, Rect } from 'react-konva';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -57,7 +57,7 @@ const DocumentWorkArea = ({
   onFieldDragEnd,
   onFieldTransform,
   onFieldClick,
-  zoomLevel = 0.8,
+  zoomLevel = 1.0,
   onZoomChange,
   showGrid = false,
   onToggleGrid,
@@ -106,157 +106,162 @@ const DocumentWorkArea = ({
   }, [onSelectField]);
 
   // Handle drag and drop
-// In DocumentWorkArea.jsx, replace the handleDrop function with this enhanced version:
+  // In DocumentWorkArea.jsx, replace the handleDrop function with this enhanced version:
 
-// In DocumentWorkArea.jsx, replace the handleDrop function with this fixed version:
+  // In DocumentWorkArea.jsx, replace the handleDrop function with this fixed version:
 
-const handleDrop = useCallback((e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-  // Get field type from data transfer
-  let fieldType = null;
-  
-  // Try to get from custom JSON
-  try {
-    const jsonData = e.dataTransfer.getData('application/json');
-    if (jsonData) {
-      const parsed = JSON.parse(jsonData);
-      fieldType = parsed.type;
+    // Get field type from data transfer
+    let fieldType = null;
+
+    // Try to get from custom JSON
+    try {
+      const jsonData = e.dataTransfer.getData('application/json');
+      if (jsonData) {
+        const parsed = JSON.parse(jsonData);
+        fieldType = parsed.type;
+      }
+    } catch (err) {
+      // Ignore JSON parse errors
     }
-  } catch (err) {
-    // Ignore JSON parse errors
-  }
 
-  // Try plain text
-  if (!fieldType) {
-    fieldType = e.dataTransfer.getData('text/plain');
-  }
+    // Try plain text
+    if (!fieldType) {
+      fieldType = e.dataTransfer.getData('text/plain');
+    }
 
-  // Try other text formats
-  if (!fieldType) {
-    const types = e.dataTransfer.types;
-    for (let type of types) {
-      if (type === 'text/plain' || type === 'text') {
-        fieldType = e.dataTransfer.getData(type);
-        break;
+    // Try other text formats
+    if (!fieldType) {
+      const types = e.dataTransfer.types;
+      for (let type of types) {
+        if (type === 'text/plain' || type === 'text') {
+          fieldType = e.dataTransfer.getData(type);
+          break;
+        }
       }
     }
-  }
 
-  // Validate field type
-  if (!fieldType || !FIELD_TYPES[fieldType]) {
-    console.warn('Invalid or missing field type:', fieldType);
-    return;
-  }
+    // Validate field type
+    if (!fieldType || !FIELD_TYPES[fieldType]) {
+      console.warn('Invalid or missing field type:', fieldType);
+      return;
+    }
 
-  const stage = stageRef.current;
-  if (!stage) return;
+    const stage = stageRef.current;
+    if (!stage) return;
 
-  // Get the container element
-  const container = containerRef.current;
-  if (!container) return;
+    // Get the container element
+    const container = containerRef.current;
+    if (!container) return;
 
-  // Get the drop coordinates relative to the viewport
-  const dropX = e.clientX;
-  const dropY = e.clientY;
+    // Get the drop coordinates relative to the viewport
+    const dropX = e.clientX;
+    const dropY = e.clientY;
 
-  // Get the container's bounding rectangle
-  const containerRect = container.getBoundingClientRect();
-  
-  // Get the stage's position relative to the container
-  const stageElement = stage.container();
-  const stageRect = stageElement.getBoundingClientRect();
+    // Get the container's bounding rectangle
+    const containerRect = container.getBoundingClientRect();
 
-  // Calculate the position relative to the stage (accounting for container scroll)
-  const relativeX = (dropX - stageRect.left) / zoomLevel;
-  const relativeY = (dropY - stageRect.top + container.scrollTop) / zoomLevel;
+    // Get the stage's position relative to the container
+    const stageElement = stage.container();
+    const stageRect = stageElement.getBoundingClientRect();
 
-  // Calculate which page we're on
-  const pageHeight = BASE_HEIGHT + PAGE_GAP; // Use base height, not scaled
-  const pageIndex = Math.floor(relativeY / pageHeight);
-  const validPage = Math.max(0, Math.min(pageIndex, numPages - 1));
-  
-  // Calculate position within the page
-  const pageY = relativeY - (validPage * pageHeight);
-  
-  // Ensure coordinates are within page bounds
-  const finalX = Math.max(20, Math.min(relativeX, BASE_WIDTH - 100));
-  const finalY = Math.max(20, Math.min(pageY, BASE_HEIGHT - 60));
+    // Calculate the position relative to the stage in BASE document pixels
+    // stageRect.top/left already account for container scroll in viewport space
+    const relativeX = (dropX - stageRect.left) / zoomLevel;
+    const relativeY = (dropY - stageRect.top) / zoomLevel;
 
-  console.log('Drop calculation:', {
-    dropX,
-    dropY,
-    containerScrollTop: container.scrollTop,
-    stageRect: {
-      left: stageRect.left,
-      top: stageRect.top,
-      width: stageRect.width,
-      height: stageRect.height
-    },
-    relativeX,
-    relativeY,
-    pageHeight,
-    pageIndex,
-    validPage,
-    pageY,
-    finalX,
-    finalY
-  });
+    // Adjust for the top padding (PAGE_GAP / 2) used in renderPdfPages
+    const adjustedY = relativeY - (PAGE_GAP / 2);
 
-  // Dispatch event
-  window.dispatchEvent(
-    new CustomEvent('canvasDrop', {
-      detail: { 
-        fieldType, 
-        x: finalX, 
-        y: finalY,
-        page: validPage
-      }
-    })
-  );
-}, [zoomLevel, numPages, BASE_HEIGHT, BASE_WIDTH, PAGE_GAP]);
+    // Calculate which page we're on using BASE page dimensions
+    const pageHeight = BASE_HEIGHT + PAGE_GAP;
+    const pageIndex = Math.floor(adjustedY / pageHeight);
+    const validPage = Math.max(0, Math.min(pageIndex, numPages - 1));
+
+    // Calculate position within the page, subtracting half field size (160x38) to center it
+    const pageY = adjustedY - (validPage * pageHeight);
+
+    // Ensure coordinates are within page bounds (BASE document pixels)
+    // Subtracting half width (80) and height (19) to center the field on drop
+    const finalX = Math.max(5, Math.min(relativeX - 80, BASE_WIDTH - 165));
+    const finalY = Math.max(5, Math.min(pageY - 19, BASE_HEIGHT - 45));
+
+    console.log('Drop calculation:', {
+      dropX,
+      dropY,
+      containerScrollTop: container.scrollTop,
+      stageRect: {
+        left: stageRect.left,
+        top: stageRect.top,
+        width: stageRect.width,
+        height: stageRect.height
+      },
+      relativeX,
+      relativeY,
+      pageHeight,
+      pageIndex,
+      validPage,
+      pageY,
+      finalX,
+      finalY
+    });
+
+    // Dispatch event
+    window.dispatchEvent(
+      new CustomEvent('canvasDrop', {
+        detail: {
+          fieldType,
+          x: finalX,
+          y: finalY,
+          page: validPage
+        }
+      })
+    );
+  }, [zoomLevel, numPages, BASE_HEIGHT, BASE_WIDTH, PAGE_GAP]);
 
   // In DocumentWorkArea.jsx, update handleDragOver:
 
-const handleDragOver = useCallback((e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  
-  // Check if dragging a valid field type
-  const types = e.dataTransfer.types;
-  const hasValidType = Array.from(types).some(type => 
-    type === 'text/plain' || type === 'application/json' || type === 'text'
-  );
-  
-  if (hasValidType) {
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragging(true);
-    
-    // Optional: Add visual feedback
-    if (containerRef.current) {
-      containerRef.current.style.backgroundColor = 'rgba(25, 118, 210, 0.05)';
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if dragging a valid field type
+    const types = e.dataTransfer.types;
+    const hasValidType = Array.from(types).some(type =>
+      type === 'text/plain' || type === 'application/json' || type === 'text'
+    );
+
+    if (hasValidType) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragging(true);
+
+      // Optional: Add visual feedback
+      if (containerRef.current) {
+        containerRef.current.style.backgroundColor = 'rgba(25, 118, 210, 0.05)';
+      }
     }
-  }
-}, []);
+  }, []);
 
-const handleDragLeave = useCallback(() => {
-  setIsDragging(false);
-  // Remove visual feedback
-  if (containerRef.current) {
-    containerRef.current.style.backgroundColor = '';
-  }
-}, []);
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false);
+    // Remove visual feedback
+    if (containerRef.current) {
+      containerRef.current.style.backgroundColor = '';
+    }
+  }, []);
 
-useEffect(() => {
-  const handleDebugDrop = (e) => {
-    console.log('Drop event received:', e.detail);
-  };
+  useEffect(() => {
+    const handleDebugDrop = (e) => {
+      console.log('Drop event received:', e.detail);
+    };
 
-  window.addEventListener('canvasDrop', handleDebugDrop);
-  return () => window.removeEventListener('canvasDrop', handleDebugDrop);
-}, []);
+    window.addEventListener('canvasDrop', handleDebugDrop);
+    return () => window.removeEventListener('canvasDrop', handleDebugDrop);
+  }, []);
 
   // const handleDragLeave = useCallback(() => {
   //   setIsDragging(false);
@@ -281,13 +286,13 @@ useEffect(() => {
   // Handle scroll to update current page
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
-    
+
     const scrollTop = containerRef.current.scrollTop;
     const pageHeight = scaledHeight + PAGE_GAP;
     const viewportMiddlePage = Math.floor((scrollTop + (containerRef.current.clientHeight / 2)) / pageHeight);
-    
+
     const newCurrentPage = Math.max(0, Math.min(viewportMiddlePage, numPages - 1));
-    
+
     if (newCurrentPage !== currentPage) {
       onPageChange(newCurrentPage);
     }
@@ -314,7 +319,7 @@ useEffect(() => {
   // Scroll to current page when changed programmatically
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     const scrollTop = currentPage * (scaledHeight + PAGE_GAP);
     containerRef.current.scrollTo({
       top: scrollTop,
@@ -338,7 +343,7 @@ useEffect(() => {
   const renderPdfPages = useMemo(() => {
     if (!pdfUrl) {
       return (
-        <Box sx={{ 
+        <Box sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -367,7 +372,7 @@ useEffect(() => {
 
     if (pdfError) {
       return (
-        <Box sx={{ 
+        <Box sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -393,7 +398,7 @@ useEffect(() => {
         onLoadSuccess={handlePdfLoadSuccess}
         onLoadError={handlePdfLoadError}
         loading={
-          <Box sx={{ 
+          <Box sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -413,14 +418,14 @@ useEffect(() => {
                   justifyContent: 'center'
                 }}
               >
-                
+
                 <CircularProgress />
               </Paper>
             ))}
           </Box>
         }
         error={
-          <Box sx={{ 
+          <Box sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -436,7 +441,7 @@ useEffect(() => {
           </Box>
         }
       >
-        <Box sx={{ 
+        <Box sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -446,74 +451,74 @@ useEffect(() => {
           {Array.from({ length: numPages }, (_, pageIndex) => {
             const pdfPageNumber = pageIndex + 1;
             const isCurrentPage = pageIndex === currentPage;
-            
+
             return (
-                <Box
-  key={`page-wrapper-${pageIndex}`}
-  sx={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center"
-  }}
->
-
-  {/* Header OUTSIDE the page */}
-  <Box
-    sx={{
-      width: `${scaledWidth}px`,
-      display: "flex",
-      justifyContent: "space-between",
-      px: 1,
-      mb: 0.5,
-      fontSize: "0.8rem",
-      color: "#555"
-    }}
-  >
-    <Typography variant="caption" fontWeight={500}>
-      {documentName || "Untitled Document"}
-    </Typography>
-
-    <Typography variant="caption">
-      Page {pdfPageNumber}
-    </Typography>
-  </Box>
-              <Paper
-                key={`page-${pageIndex}`}
-                elevation={isCurrentPage ? 3 : 1}
+              <Box
+                key={`page-wrapper-${pageIndex}`}
                 sx={{
-                  width: `${scaledWidth}px`,
-                  height: `${scaledHeight}px`,
-                  position: 'relative',
-                  borderRadius: 1,
-                  overflow: 'hidden',
-                  border: isCurrentPage ? '.4px solid #292f2da6' : '1px solid #e0e0e0',
-                  transition: 'border 0.2s ease'
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center"
                 }}
               >
-                
-               
-                <Page
-                  pageNumber={pdfPageNumber}
-                  scale={zoomLevel}
-                  width={BASE_WIDTH}
-                  height={BASE_HEIGHT}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  loading={
-                    <Box sx={{ 
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%'
-                    }}>
-                      <CircularProgress size={24} />
-                    </Box>
-                  }
-                />
-                
-                
-                {/* Page Number Badge */}
-                {/* <Box sx={{
+
+                {/* Header OUTSIDE the page */}
+                <Box
+                  sx={{
+                    width: `${scaledWidth}px`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    px: 1,
+                    mb: 0.5,
+                    fontSize: "0.8rem",
+                    color: "#555"
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={500}>
+                    {documentName || "Untitled Document"}
+                  </Typography>
+
+                  <Typography variant="caption">
+                    Page {pdfPageNumber}
+                  </Typography>
+                </Box>
+                <Paper
+                  key={`page-${pageIndex}`}
+                  elevation={isCurrentPage ? 3 : 1}
+                  sx={{
+                    width: `${scaledWidth}px`,
+                    height: `${scaledHeight}px`,
+                    position: 'relative',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: isCurrentPage ? '.4px solid #292f2da6' : '1px solid #e0e0e0',
+                    transition: 'border 0.2s ease'
+                  }}
+                >
+
+
+                  <Page
+                    pageNumber={pdfPageNumber}
+                    scale={zoomLevel}
+                    width={BASE_WIDTH}
+                    height={BASE_HEIGHT}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    loading={
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%'
+                      }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    }
+                  />
+
+
+                  {/* Page Number Badge */}
+                  {/* <Box sx={{
                   position: 'absolute',
                   top: 8,
                   right: 8,
@@ -528,7 +533,7 @@ useEffect(() => {
                 }}>
                   Page {pdfPageNumber}
                 </Box> */}
-              </Paper>
+                </Paper>
               </Box>
             );
           })}
@@ -536,6 +541,48 @@ useEffect(() => {
       </Document>
     );
   }, [pdfUrl, pdfError, numPages, scaledWidth, scaledHeight, zoomLevel, currentPage, handlePdfLoadSuccess, handlePdfLoadError]);
+
+  // Render Grid Layer
+  const renderGridLayer = useMemo(() => {
+    if (!showGrid) return null;
+
+    const gridGap = 50 * zoomLevel;
+    const lines = [];
+
+    // Vertical lines
+    for (let x = 0; x <= scaledWidth; x += gridGap) {
+      lines.push(
+        <Line
+          key={`v-${x}`}
+          points={[x, 0, x, totalHeight]}
+          stroke="#000000"
+          strokeWidth={0.3}
+          opacity={0.08}
+          listening={false}
+        />
+      );
+    }
+
+    // Horizontal lines
+    for (let y = 0; y <= totalHeight; y += gridGap) {
+      lines.push(
+        <Line
+          key={`h-${y}`}
+          points={[0, y, scaledWidth, y]}
+          stroke="#000000"
+          strokeWidth={0.3}
+          opacity={0.08}
+          listening={false}
+        />
+      );
+    }
+
+    return (
+      <Layer listening={false}>
+        {lines}
+      </Layer>
+    );
+  }, [showGrid, scaledWidth, totalHeight, zoomLevel]);
 
   // Render Konva overlay
   const renderKonvaStage = useMemo(() => {
@@ -555,10 +602,11 @@ useEffect(() => {
           pointerEvents: 'auto'
         }}
       >
+        {renderGridLayer}
         <Layer>
           {fields.map((field) => {
             const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
-            
+
             // Calculate Y offset for each page
             const pageOffsetY = field.page * (scaledHeight + PAGE_GAP) + (PAGE_GAP / 2);
 
@@ -582,10 +630,10 @@ useEffect(() => {
         </Layer>
       </Stage>
     );
-  }, [fields, scaledWidth, totalHeight, handleCanvasClick, selectedFieldId, onSelectField, onFieldDragEnd, onFieldTransform, zoomLevel, getFieldValidationError, currentPage, recipients]);
+  }, [fields, scaledWidth, totalHeight, handleCanvasClick, selectedFieldId, onSelectField, onFieldDragEnd, onFieldTransform, zoomLevel, getFieldValidationError, currentPage, recipients, renderGridLayer, scaledHeight]);
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       flex: 1,
       display: 'flex',
       flexDirection: 'column',
@@ -593,8 +641,8 @@ useEffect(() => {
       position: 'relative'
     }}>
       {/* Toolbar */}
-      <Paper sx={{ 
-        p: 1, 
+      <Paper sx={{
+        p: 1,
         mb: 1,
         display: 'flex',
         justifyContent: 'space-between',
@@ -604,29 +652,29 @@ useEffect(() => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {/* Page Navigation */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <IconButton 
-              size="small" 
+            <IconButton
+              size="small"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 0}
             >
               <NavigateBeforeIcon />
             </IconButton>
-            
+
             <Typography variant="body2" sx={{ minWidth: 100, textAlign: 'center' }}>
               Page {currentPage + 1} of {numPages}
             </Typography>
-            
-            <IconButton 
-              size="small" 
+
+            <IconButton
+              size="small"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= numPages - 1}
             >
               <NavigateNextIcon />
             </IconButton>
           </Box>
-          
+
           <Divider orientation="vertical" flexItem sx={{ mx: 1, height: 24 }} />
-          
+
           {/* Zoom Controls */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Tooltip title="Zoom Out">
@@ -648,9 +696,9 @@ useEffect(() => {
               </IconButton>
             </Tooltip>
           </Box>
-          
+
           <Divider orientation="vertical" flexItem sx={{ mx: 1, height: 24 }} />
-          
+
           {/* Grid Toggle */}
           <Tooltip title={showGrid ? "Hide Grid" : "Show Grid"}>
             <IconButton size="small" onClick={onToggleGrid}>
@@ -693,7 +741,7 @@ useEffect(() => {
 
       {/* Validation Summary */}
       {(invalidFields.length > 0 || unassignedFields.length > 0) && (
-        <Alert 
+        <Alert
           severity={invalidFields.length > 0 ? "error" : "warning"}
           sx={{ mb: 1 }}
           icon={invalidFields.length > 0 ? <ErrorIcon /> : <WarningIcon />}
@@ -719,7 +767,7 @@ useEffect(() => {
           overflow: 'auto',
           bgcolor: '#e0e0e0',
           borderRadius: 1,
-        //   border: isDragging ? '2px dashed #1976d2' : '1px solid #e0e0e0',
+          //   border: isDragging ? '2px dashed #1976d2' : '1px solid #e0e0e0',
           transition: 'border 0.2s ease',
           '&::-webkit-scrollbar': {
             width: 8,
@@ -739,7 +787,7 @@ useEffect(() => {
         }}
       >
         {/* PDF Content */}
-        <Box sx={{ 
+        <Box sx={{
           position: 'relative',
           minHeight: totalHeight,
           display: 'flex',
@@ -749,7 +797,7 @@ useEffect(() => {
           {renderKonvaStage}
         </Box>
 
-        
+
       </Paper>
 
       {/* Page Progress */}

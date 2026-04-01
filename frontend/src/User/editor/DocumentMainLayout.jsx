@@ -77,18 +77,18 @@ const DocumentMainLayout = () => {
   const [fields, setFields] = useState([]);
   const [selectedFieldId, setSelectedFieldId] = useState(null);
   const [selectedRecipientId, setSelectedRecipientId] = useState(null);
-  
+
   // UI State
-  const [zoomLevel, setZoomLevel] = useState(0.8);
+  const [zoomLevel, setZoomLevel] = useState(1.0);
   const [showGrid, setShowGrid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [numPages, setNumPages] = useState(1);
-  
+
   // Sidebar state
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
-  
+
   // Dialog states
   const [addRecipientDialogOpen, setAddRecipientDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -96,10 +96,10 @@ const DocumentMainLayout = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
-  
+
   // Snackbar state
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  
+
   // Auto-save and history
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState({
@@ -107,7 +107,7 @@ const DocumentMainLayout = () => {
     isSaving: false,
     hasUnsavedChanges: false
   });
-  
+
   const [historyService] = useState(() => new HistoryService(100));
   const [undoRedoInfo, setUndoRedoInfo] = useState({ canUndo: false, canRedo: false });
   const [autosaveService, setAutosaveService] = useState(null);
@@ -139,7 +139,7 @@ const DocumentMainLayout = () => {
     const fetchDocumentData = async () => {
       try {
         setLoading(true);
-        
+
         if (!documentId) {
           throw new Error('No document ID provided');
         }
@@ -149,11 +149,11 @@ const DocumentMainLayout = () => {
           documentAPI.getRecipients(documentId),
           documentAPI.getFields(documentId)
         ]);
-        
+
         setDocument(docData);
         setNumPages(docData.page_count || 1);
         setRecipients(recipientsData);
-        
+
         const fieldsWithRecipientInfo = fieldsData.map(field => {
           const recipient = recipientsData.find(r => r.id === field.recipient_id);
           return {
@@ -175,15 +175,15 @@ const DocumentMainLayout = () => {
             ...(field.type === 'mail' && { email_validation: field.email_validation !== false })
           };
         });
-        
+
         setFields(fieldsWithRecipientInfo);
         historyService.push(fieldsWithRecipientInfo);
         updateUndoRedoInfo();
-        
+
         // Set document name for rename dialog
         const displayName = docData.filename?.replace(/\.pdf$/i, '') || 'Untitled';
         setNewDocumentName(displayName);
-        
+
       } catch (error) {
         console.error('Error fetching document data:', error);
         showSnackbar(`Failed to load document: ${error.message}`, 'error');
@@ -201,7 +201,7 @@ const DocumentMainLayout = () => {
       documentId,
       async (fieldsToSave) => {
         if (!autoSaveEnabled) return fieldsToSave;
-        
+
         const payload = fieldsToSave.map(field => ({
           id: field.isNew ? undefined : field.id,
           page: field.page ?? 0,
@@ -270,313 +270,313 @@ const DocumentMainLayout = () => {
   const handleFieldDelete = useCallback((fieldId) => {
     const newFields = fields.filter(field => field.id !== fieldId);
     commitFieldChange(newFields);
-    
+
     if (selectedFieldId === fieldId) {
       setSelectedFieldId(null);
     }
   }, [fields, selectedFieldId, commitFieldChange]);
 
 
-   // ==================== SAVE OPERATIONS ====================
- // In DocumentMainLayout.js - Update handleSaveFields function
+  // ==================== SAVE OPERATIONS ====================
+  // In DocumentMainLayout.js - Update handleSaveFields function
 
-const handleSaveFields = async () => {
-  if (document?.status === 'sent') {
-    showSnackbar('Fields are locked after sending the document', 'warning');
-    return;
-  }
-
-  if (!documentId || saving) return;
-
-  try {
-    setSaving(true);
-    setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
-
-    // First, verify document is still in draft state
-    const docCheck = await documentAPI.getDocument(documentId);
-    if (docCheck.status !== 'draft') {
-      showSnackbar('Cannot save fields - document is no longer in draft state', 'error');
+  const handleSaveFields = async () => {
+    if (document?.status === 'sent') {
+      showSnackbar('Fields are locked after sending the document', 'warning');
       return;
     }
 
-    const PDF_PAGE_WIDTH = 612;
-    const PDF_PAGE_HEIGHT = 792;
-    const CANVAS_WIDTH = 794;
-    const CANVAS_HEIGHT = 1123;
+    if (!documentId || saving) return;
 
-    const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
-    const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
-
-    // Validate each field before sending
-    const validatedPayload = fields.map(field => {
-      const backendPage = Math.max(0, Math.min(field.page ?? 0, numPages - 1));
-
-      // Ensure recipient_id is valid
-      if (!field.recipient_id) {
-        throw new Error(`Field "${field.label || field.type}" has no recipient assigned`);
-      }
-
-      const recipient = recipients.find(r => r.id === field.recipient_id);
-      if (!recipient) {
-        throw new Error(`Recipient not found for field "${field.label || field.type}"`);
-      }
-
-      const normalizedX = field.x ?? 50;
-      const normalizedY = field.y ?? 50;
-      const normalizedWidth = field.width ?? 100;
-      const normalizedHeight = field.height ?? 40;
-
-      const pdfX = normalizedX * scaleX;
-      const pdfY = normalizedY * scaleY + backendPage * PDF_PAGE_HEIGHT;
-      const pdfWidth = normalizedWidth * scaleX;
-      const pdfHeight = normalizedHeight * scaleY;
-
-      const basePayload = {
-        id: field.isNew ? undefined : field.id,
-        page: backendPage,
-        x: normalizedX,
-        y: normalizedY,
-        width: normalizedWidth,
-        height: normalizedHeight,
-        pdf_x: pdfX,
-        pdf_y: pdfY,
-        pdf_width: pdfWidth,
-        pdf_height: pdfHeight,
-        page_width: PDF_PAGE_WIDTH,
-        page_height: PDF_PAGE_HEIGHT,
-        canvas_width: CANVAS_WIDTH,
-        canvas_height: CANVAS_HEIGHT,
-        type: field.type,
-        recipient_id: field.recipient_id,
-        required: Boolean(field.required),
-        label: field.label ?? '',
-        placeholder: field.placeholder ?? ''
-      };
-
-      // Add field-specific properties
-      if (field.type === 'dropdown') {
-        basePayload.dropdown_options = field.dropdown_options || ['Option 1', 'Option 2', 'Option 3'];
-      }
-      if (field.type === 'radio') {
-        basePayload.group_name = field.group_name || `group_${Date.now()}`;
-      }
-      if (field.type === 'mail') {
-        basePayload.email_validation = field.email_validation !== false;
-      }
-      if (field.type === 'checkbox') {
-        basePayload.checked = Boolean(field.checked);
-      }
-
-      return basePayload;
-    });
-
-    const response = await fetch(`${API_BASE_URL}/documents/${documentId}/fields`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(validatedPayload)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      
-      // Handle specific error cases
-      if (response.status === 403) {
-        throw new Error('Permission denied. The document may have been sent or you may not have access.');
-      } else if (response.status === 400) {
-        throw new Error(errorData.detail || 'Invalid field data');
-      } else {
-        throw new Error(errorData.detail || 'Failed to save fields');
-      }
-    }
-
-    const result = await response.json();
-
-    const updatedFields = fields.map(field => {
-      const matched = result.fields?.find(sf => 
-        sf.page === (field.page ?? 0) && 
-        sf.type === field.type &&
-        Math.abs(sf.x - (field.x ?? 0)) < 20 &&
-        Math.abs(sf.y - (field.y ?? 0)) < 20
-      );
-
-      return {
-        ...field,
-        isNew: false,
-        id: matched?.id ?? field.id
-      };
-    });
-
-    setFields(updatedFields);
-    historyService.push(updatedFields);
-    updateUndoRedoInfo();
-
-    setAutoSaveStatus({
-      lastSaved: new Date(),
-      isSaving: false,
-      hasUnsavedChanges: false
-    });
-
-    showSnackbar(`Saved ${result.count} fields successfully`, 'success');
-
-  } catch (err) {
-    console.error('Error saving fields:', err);
-    showSnackbar(err.message || 'Failed to save fields', 'error');
-    
-    // Refresh document status to check if it was sent
     try {
-      const updatedDoc = await documentAPI.getDocument(documentId);
-      setDocument(updatedDoc);
-      if (updatedDoc.status === 'sent') {
-        showSnackbar('Document has been sent. Fields cannot be edited.', 'warning');
+      setSaving(true);
+      setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
+
+      // First, verify document is still in draft state
+      const docCheck = await documentAPI.getDocument(documentId);
+      if (docCheck.status !== 'draft') {
+        showSnackbar('Cannot save fields - document is no longer in draft state', 'error');
+        return;
       }
-    } catch (refreshError) {
-      console.error('Error refreshing document:', refreshError);
+
+      const PDF_PAGE_WIDTH = 612;
+      const PDF_PAGE_HEIGHT = 792;
+      const CANVAS_WIDTH = 794;
+      const CANVAS_HEIGHT = 1123;
+
+      const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
+      const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
+
+      // Validate each field before sending
+      const validatedPayload = fields.map(field => {
+        const backendPage = Math.max(0, Math.min(field.page ?? 0, numPages - 1));
+
+        // Ensure recipient_id is valid
+        if (!field.recipient_id) {
+          throw new Error(`Field "${field.label || field.type}" has no recipient assigned`);
+        }
+
+        const recipient = recipients.find(r => r.id === field.recipient_id);
+        if (!recipient) {
+          throw new Error(`Recipient not found for field "${field.label || field.type}"`);
+        }
+
+        const normalizedX = field.x ?? 50;
+        const normalizedY = field.y ?? 50;
+        const normalizedWidth = field.width ?? 100;
+        const normalizedHeight = field.height ?? 40;
+
+        const pdfX = normalizedX * scaleX;
+        const pdfY = normalizedY * scaleY + backendPage * PDF_PAGE_HEIGHT;
+        const pdfWidth = normalizedWidth * scaleX;
+        const pdfHeight = normalizedHeight * scaleY;
+
+        const basePayload = {
+          id: field.isNew ? undefined : field.id,
+          page: backendPage,
+          x: normalizedX,
+          y: normalizedY,
+          width: normalizedWidth,
+          height: normalizedHeight,
+          pdf_x: pdfX,
+          pdf_y: pdfY,
+          pdf_width: pdfWidth,
+          pdf_height: pdfHeight,
+          page_width: PDF_PAGE_WIDTH,
+          page_height: PDF_PAGE_HEIGHT,
+          canvas_width: CANVAS_WIDTH,
+          canvas_height: CANVAS_HEIGHT,
+          type: field.type,
+          recipient_id: field.recipient_id,
+          required: Boolean(field.required),
+          label: field.label ?? '',
+          placeholder: field.placeholder ?? ''
+        };
+
+        // Add field-specific properties
+        if (field.type === 'dropdown') {
+          basePayload.dropdown_options = field.dropdown_options || ['Option 1', 'Option 2', 'Option 3'];
+        }
+        if (field.type === 'radio') {
+          basePayload.group_name = field.group_name || `group_${Date.now()}`;
+        }
+        if (field.type === 'mail') {
+          basePayload.email_validation = field.email_validation !== false;
+        }
+        if (field.type === 'checkbox') {
+          basePayload.checked = Boolean(field.checked);
+        }
+
+        return basePayload;
+      });
+
+      const response = await fetch(`${API_BASE_URL}/documents/${documentId}/fields`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(validatedPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle specific error cases
+        if (response.status === 403) {
+          throw new Error('Permission denied. The document may have been sent or you may not have access.');
+        } else if (response.status === 400) {
+          throw new Error(errorData.detail || 'Invalid field data');
+        } else {
+          throw new Error(errorData.detail || 'Failed to save fields');
+        }
+      }
+
+      const result = await response.json();
+
+      const updatedFields = fields.map(field => {
+        const matched = result.fields?.find(sf =>
+          sf.page === (field.page ?? 0) &&
+          sf.type === field.type &&
+          Math.abs(sf.x - (field.x ?? 0)) < 20 &&
+          Math.abs(sf.y - (field.y ?? 0)) < 20
+        );
+
+        return {
+          ...field,
+          isNew: false,
+          id: matched?.id ?? field.id
+        };
+      });
+
+      setFields(updatedFields);
+      historyService.push(updatedFields);
+      updateUndoRedoInfo();
+
+      setAutoSaveStatus({
+        lastSaved: new Date(),
+        isSaving: false,
+        hasUnsavedChanges: false
+      });
+
+      showSnackbar(`Saved ${result.count} fields successfully`, 'success');
+
+    } catch (err) {
+      console.error('Error saving fields:', err);
+      showSnackbar(err.message || 'Failed to save fields', 'error');
+
+      // Refresh document status to check if it was sent
+      try {
+        const updatedDoc = await documentAPI.getDocument(documentId);
+        setDocument(updatedDoc);
+        if (updatedDoc.status === 'sent') {
+          showSnackbar('Document has been sent. Fields cannot be edited.', 'warning');
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing document:', refreshError);
+      }
+
+      throw err;
+    } finally {
+      setSaving(false);
     }
-    
-    throw err;
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
 
-  
+
 
   // Auto-save when fields change
- // Update auto-save effect
+  // Update auto-save effect
 
-useEffect(() => {
-  if (!autosaveService || fields.length === 0 || !autoSaveEnabled) return;
-  
-  // Don't auto-save if document is sent
-  if (document?.status === 'sent') {
-    if (autoSaveEnabled) {
-      setAutoSaveEnabled(false);
-      showSnackbar('Auto-save disabled because document is sent', 'info');
-    }
-    return;
-  }
+  useEffect(() => {
+    if (!autosaveService || fields.length === 0 || !autoSaveEnabled) return;
 
-  const hasChanges = autosaveService.hasUnsavedChanges(fields);
-  
-  if (hasChanges) {
-    setAutoSaveStatus(prev => ({
-      ...prev,
-      hasUnsavedChanges: true,
-      isSaving: true
-    }));
-    autosaveService.scheduleSave(fields);
-  }
-}, [fields, autosaveService, autoSaveEnabled, document?.status, showSnackbar]);
-
-  
-
-  // ==================== FIELD OPERATIONS ====================
-// Update handleAddField function
-
-const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
-  // Check if document is editable
-  if (document?.status === 'sent') {
-    showSnackbar('Cannot add fields to a sent document', 'warning');
-    return;
-  }
-
-  const fieldConfig = FIELD_TYPES[fieldType];
-  const targetPage = Math.max(0, Math.min(page, numPages - 1));
-  
-  // Check if there are any recipients at all
-  if (recipients.length === 0) {
-    showSnackbar('Please add at least one recipient before adding fields', 'warning');
-    setAddRecipientDialogOpen(true);
-    return;
-  }
-  
-  // Find compatible recipient
-  let selectedRecipient = null;
-  
-  if (selectedRecipientId) {
-    const recipient = recipients.find(r => r.id === selectedRecipientId);
-    if (recipient && validateFieldAssignment(fieldType, recipient.role)) {
-      selectedRecipient = recipient;
-    } else if (selectedRecipientId) {
-      showSnackbar(`Selected recipient cannot have ${fieldType} fields`, 'warning');
-    }
-  }
-  
-  if (!selectedRecipient) {
-    selectedRecipient = recipients.find(recipient => 
-      validateFieldAssignment(fieldType, recipient.role)
-    );
-    
-    if (!selectedRecipient) {
-      showSnackbar(`No compatible recipient found for ${fieldType} fields`, 'warning');
+    // Don't auto-save if document is sent
+    if (document?.status === 'sent') {
+      if (autoSaveEnabled) {
+        setAutoSaveEnabled(false);
+        showSnackbar('Auto-save disabled because document is sent', 'info');
+      }
       return;
     }
-  }
-  
-  // Rest of the function remains the same...
-  const newField = {
-    id: uuidv4(),
-    name: `${fieldType}_${fields.length + 1}`,
-    type: fieldType,
-    label: `${fieldConfig.label} ${fields.length + 1}`,
-    placeholder: fieldConfig.placeholder,
-    x: Math.max(20, Math.min(x, 794 - (fieldConfig.defaultWidth || 100) - 20)),
-    y: Math.max(20, Math.min(y, 1123 - (fieldConfig.defaultHeight || 40) - 20)),
-    width: fieldConfig.defaultWidth || 100,
-    height: fieldConfig.defaultHeight || 40,
-    page: targetPage,
-    required: false,
-    recipient_id: selectedRecipient.id,
-    assignedRecipient: selectedRecipient,
-    isNew: true,
-    ...(fieldType === 'dropdown' && { dropdown_options: ['Option 1', 'Option 2', 'Option 3'] }),
-    ...(fieldType === 'radio' && { group_name: `group_${Date.now()}` }),
-    ...(fieldType === 'mail' && { placeholder: 'email@example.com', email_validation: true })
-  };
-  
-  const newFields = [...fields, newField];
-  commitFieldChange(newFields);
-  setSelectedFieldId(newField.id);
 
-  if (fieldType === 'radio' || fieldType === 'dropdown') {
-    setRightSidebarExpanded(true);
-  }
-  
-  if (targetPage !== currentPage) {
-    setCurrentPage(targetPage);
-  }
-  
-  showSnackbar(`Added ${fieldConfig.label} field for ${selectedRecipient.name}`, 'success');
-}, [recipients, fields, currentPage, commitFieldChange, selectedRecipientId, numPages, document?.status, showSnackbar]);
+    const hasChanges = autosaveService.hasUnsavedChanges(fields);
+
+    if (hasChanges) {
+      setAutoSaveStatus(prev => ({
+        ...prev,
+        hasUnsavedChanges: true,
+        isSaving: true
+      }));
+      autosaveService.scheduleSave(fields);
+    }
+  }, [fields, autosaveService, autoSaveEnabled, document?.status, showSnackbar]);
+
+
+
+  // ==================== FIELD OPERATIONS ====================
+  // Update handleAddField function
+
+  const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
+    // Check if document is editable
+    if (document?.status === 'sent') {
+      showSnackbar('Cannot add fields to a sent document', 'warning');
+      return;
+    }
+
+    const fieldConfig = FIELD_TYPES[fieldType];
+    const targetPage = Math.max(0, Math.min(page, numPages - 1));
+
+    // Check if there are any recipients at all
+    if (recipients.length === 0) {
+      showSnackbar('Please add at least one recipient before adding fields', 'warning');
+      setAddRecipientDialogOpen(true);
+      return;
+    }
+
+    // Find compatible recipient
+    let selectedRecipient = null;
+
+    if (selectedRecipientId) {
+      const recipient = recipients.find(r => r.id === selectedRecipientId);
+      if (recipient && validateFieldAssignment(fieldType, recipient.role)) {
+        selectedRecipient = recipient;
+      } else if (selectedRecipientId) {
+        showSnackbar(`Selected recipient cannot have ${fieldType} fields`, 'warning');
+      }
+    }
+
+    if (!selectedRecipient) {
+      selectedRecipient = recipients.find(recipient =>
+        validateFieldAssignment(fieldType, recipient.role)
+      );
+
+      if (!selectedRecipient) {
+        showSnackbar(`No compatible recipient found for ${fieldType} fields`, 'warning');
+        return;
+      }
+    }
+
+    // Rest of the function remains the same...
+    const newField = {
+      id: uuidv4(),
+      name: `${fieldType}_${fields.length + 1}`,
+      type: fieldType,
+      label: `${fieldConfig.label} ${fields.length + 1}`,
+      placeholder: fieldConfig.placeholder,
+      x: Math.max(20, Math.min(x, 794 - (fieldConfig.defaultWidth || 100) - 20)),
+      y: Math.max(20, Math.min(y, 1123 - (fieldConfig.defaultHeight || 40) - 20)),
+      width: fieldConfig.defaultWidth || 100,
+      height: fieldConfig.defaultHeight || 40,
+      page: targetPage,
+      required: false,
+      recipient_id: selectedRecipient.id,
+      assignedRecipient: selectedRecipient,
+      isNew: true,
+      ...(fieldType === 'dropdown' && { dropdown_options: ['Option 1', 'Option 2', 'Option 3'] }),
+      ...(fieldType === 'radio' && { group_name: `group_${Date.now()}` }),
+      ...(fieldType === 'mail' && { placeholder: 'email@example.com', email_validation: true })
+    };
+
+    const newFields = [...fields, newField];
+    commitFieldChange(newFields);
+    setSelectedFieldId(newField.id);
+
+    if (fieldType === 'radio' || fieldType === 'dropdown') {
+      setRightSidebarExpanded(true);
+    }
+
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage);
+    }
+
+    showSnackbar(`Added ${fieldConfig.label} field for ${selectedRecipient.name}`, 'success');
+  }, [recipients, fields, currentPage, commitFieldChange, selectedRecipientId, numPages, document?.status, showSnackbar]);
 
   const handleFieldChange = useCallback((fieldId, updates) => {
-    const updatedRecipient = updates.recipient_id ? 
-      recipients.find(r => r.id === updates.recipient_id) : 
+    const updatedRecipient = updates.recipient_id ?
+      recipients.find(r => r.id === updates.recipient_id) :
       undefined;
-    
-    const newFields = fields.map(field => 
-      field.id === fieldId ? { 
-        ...field, 
+
+    const newFields = fields.map(field =>
+      field.id === fieldId ? {
+        ...field,
         ...updates,
         assignedRecipient: updatedRecipient || field.assignedRecipient
       } : field
     );
-    
+
     commitFieldChange(newFields);
   }, [fields, recipients, commitFieldChange]);
 
-  
+
 
   const handleFieldDragEnd = useCallback((fieldId, newX, newY) => {
     const newFields = fields.map(field => {
       if (field.id === fieldId) {
         const constrainedX = Math.max(0, Math.min(newX, 794 - field.width));
         const constrainedY = Math.max(0, Math.min(newY, 1123 - field.height));
-        
+
         return {
           ...field,
           x: Math.round(constrainedX),
@@ -615,7 +615,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
 
   const handleSelectRecipient = useCallback((recipientId) => {
     setSelectedRecipientId(recipientId);
-    
+
     if (selectedFieldId) {
       const selectedField = fields.find(f => f.id === selectedFieldId);
       if (selectedField) {
@@ -635,7 +635,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
     const previousState = historyService.undo();
     setFields(previousState);
     updateUndoRedoInfo();
-    
+
     if (selectedFieldId && !previousState.find(f => f.id === selectedFieldId)) {
       setSelectedFieldId(null);
     }
@@ -650,7 +650,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
     showSnackbar('Redo successful', 'info');
   }, [historyService, updateUndoRedoInfo, showSnackbar]);
 
- 
+
 
   const handleForceSave = async () => {
     if (!autosaveService || fields.length === 0) return;
@@ -688,18 +688,20 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
       }
 
       const result = await response.json();
-      
+
+      const backendRecipient = result.recipients?.[0];
       const newRecipient = {
-        id: result.recipients?.[0]?.id || Date.now().toString(),
         ...recipientData,
+        ...backendRecipient,
+        id: backendRecipient?.id || result.id || Date.now().toString(),
         added_at: new Date().toISOString()
       };
-      
+
       setRecipients(prev => [...prev, newRecipient]);
       showSnackbar('Recipient added successfully!', 'success');
-      
+
       return newRecipient;
-      
+
     } catch (error) {
       console.error('Error adding recipient:', error);
       throw error;
@@ -732,11 +734,11 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
   const sendInvites = async () => {
     try {
       setSaving(true);
-      
+
       await handleSaveFields();
-      
+
       const recipientIds = recipients.map(r => r.id);
-      
+
       if (recipientIds.length === 0) {
         showSnackbar('Please add recipients first', 'warning');
         return;
@@ -746,14 +748,14 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
         recipient_ids: recipientIds,
         message: "Please review and sign the document"
       });
-      
+
       showSnackbar('Invites sent successfully!', 'success');
       setFinishDialogOpen(false);
-      
+
       setTimeout(() => {
         setSuccessDialogOpen(true);
       }, 500);
-      
+
     } catch (error) {
       console.error('Error sending invites:', error);
       showSnackbar(`Failed to send invites: ${error.message}`, 'error');
@@ -806,9 +808,9 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
 
     try {
       setSaving(true);
-      
-      const filename = newDocumentName.trim().endsWith('.pdf') 
-        ? newDocumentName.trim() 
+
+      const filename = newDocumentName.trim().endsWith('.pdf')
+        ? newDocumentName.trim()
         : `${newDocumentName.trim()}.pdf`;
 
       const response = await fetch(`${API_BASE_URL}/documents/${documentId}/rename`, {
@@ -827,7 +829,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
       setDocument(prev => prev ? { ...prev, filename } : null);
       setRenameDialogOpen(false);
       showSnackbar('Document renamed successfully!', 'success');
-      
+
     } catch (error) {
       console.error('Error renaming document:', error);
       showSnackbar('Failed to rename document', 'error');
@@ -902,18 +904,18 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
 
 
   useEffect(() => {
-  const handleCanvasDrop = (e) => {
-    console.log('Canvas drop received in main layout:', e.detail);
-    const { fieldType, x, y, page } = e.detail;
-    handleAddField(fieldType, x, y, page);
-  };
+    const handleCanvasDrop = (e) => {
+      console.log('Canvas drop received in main layout:', e.detail);
+      const { fieldType, x, y, page } = e.detail;
+      handleAddField(fieldType, x, y, page);
+    };
 
-  window.addEventListener('canvasDrop', handleCanvasDrop);
-  
-  return () => {
-    window.removeEventListener('canvasDrop', handleCanvasDrop);
-  };
-}, [handleAddField]);
+    window.addEventListener('canvasDrop', handleCanvasDrop);
+
+    return () => {
+      window.removeEventListener('canvasDrop', handleCanvasDrop);
+    };
+  }, [handleAddField]);
 
   // ==================== RENDER ====================
   if (loading) {
@@ -945,195 +947,195 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <AppBar position="static" color="default" elevation={1}>
-  <Toolbar>
-    <IconButton
-      edge="start"
-      color="inherit"
-      onClick={() => handleNavigateWithCheck('/user/documents')}
-      sx={{ mr: 2 }}
-    >
-      <ArrowBackIcon />
-    </IconButton>
+        <Toolbar>
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={() => handleNavigateWithCheck('/user/documents')}
+            sx={{ mr: 2 }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
 
-    <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="h6" noWrap>
-          {document.filename || 'Untitled Document'}
-        </Typography>
-        
-        <IconButton 
-          size="small" 
-          onClick={() => setRenameDialogOpen(true)}
-          sx={{ 
-            ml: 0.5,
-            color: '#0d9488',
-            '&:hover': {
-              backgroundColor: 'rgba(13, 148, 136, 0.04)'
-            }
-          }}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
+          <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" noWrap>
+                {document.filename || 'Untitled Document'}
+              </Typography>
 
-        {autoSaveStatus.isSaving && <CircularProgress size={16} sx={{ ml: 1, color: '#0d9488' }} />}
-        
-        {autoSaveStatus.lastSaved && !autoSaveStatus.isSaving && (
-          <Tooltip title={`Last saved: ${new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}`}>
+              <IconButton
+                size="small"
+                onClick={() => setRenameDialogOpen(true)}
+                sx={{
+                  ml: 0.5,
+                  color: '#0d9488',
+                  '&:hover': {
+                    backgroundColor: 'rgba(13, 148, 136, 0.04)'
+                  }
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+
+              {autoSaveStatus.isSaving && <CircularProgress size={16} sx={{ ml: 1, color: '#0d9488' }} />}
+
+              {autoSaveStatus.lastSaved && !autoSaveStatus.isSaving && (
+                <Tooltip title={`Last saved: ${new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}`}>
+                  <Chip
+                    label="Saved"
+                    size="small"
+                    variant="outlined"
+                    icon={<CheckCircleIcon fontSize="small" />}
+                    sx={{
+                      color: '#0d9488',
+                      borderColor: '#0d9488',
+                      '& .MuiChip-icon': { color: '#0d9488' }
+                    }}
+                  />
+                </Tooltip>
+              )}
+
+              {autoSaveStatus.hasUnsavedChanges && (
+                <Chip
+                  label="Unsaved"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  icon={<ErrorIcon fontSize="small" />}
+                />
+              )}
+            </Box>
+
+            <Typography variant="caption" color="text.secondary">
+              Role-Based Field Assignment • {recipients.length} Recipients
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AutoSaveIndicator
+              enabled={autoSaveEnabled}
+              onToggle={handleToggleAutoSave}
+              status={autoSaveStatus}
+              onForceSave={handleForceSave}
+            />
+
+            <Tooltip title="Undo (Ctrl+Z)">
+              <IconButton
+                size="small"
+                onClick={undo}
+                disabled={!undoRedoInfo.canUndo}
+                sx={{
+                  '&:hover': {
+                    color: '#0d9488'
+                  }
+                }}
+              >
+                <UndoIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Redo (Ctrl+Y)">
+              <IconButton
+                size="small"
+                onClick={redo}
+                disabled={!undoRedoInfo.canRedo}
+                sx={{
+                  '&:hover': {
+                    color: '#0d9488'
+                  }
+                }}
+              >
+                <RedoIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Divider orientation="vertical" flexItem />
+
             <Chip
-              label="Saved"
+              label={`${fields.length} fields`}
               size="small"
               variant="outlined"
-              icon={<CheckCircleIcon fontSize="small" />}
+              color={invalidFields.length > 0 ? "error" : "default"}
+              sx={invalidFields.length === 0 ? {
+                '&.MuiChip-outlined': {
+                  borderColor: '#0d9488',
+                  color: '#0d9488'
+                }
+              } : {}}
+            />
+
+            {invalidFields.length > 0 && (
+              <Chip
+                label={`${invalidFields.length} invalid`}
+                size="small"
+                color="error"
+                variant="filled"
+              />
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<VisibilityIcon />}
+              onClick={() => setPreviewDialogOpen(true)}
               sx={{
                 color: '#0d9488',
                 borderColor: '#0d9488',
-                '& .MuiChip-icon': { color: '#0d9488' }
+                '&:hover': {
+                  borderColor: '#0f766e',
+                  backgroundColor: 'rgba(13, 148, 136, 0.04)'
+                }
               }}
-            />
-          </Tooltip>
-        )}
-        
-        {autoSaveStatus.hasUnsavedChanges && (
-          <Chip
-            label="Unsaved"
-            size="small"
-            color="warning"
-            variant="outlined"
-            icon={<ErrorIcon fontSize="small" />}
-          />
-        )}
-      </Box>
-      
-      <Typography variant="caption" color="text.secondary">
-        Role-Based Field Assignment • {recipients.length} Recipients
-      </Typography>
-    </Box>
+            >
+              Preview
+            </Button>
 
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <AutoSaveIndicator
-        enabled={autoSaveEnabled}
-        onToggle={handleToggleAutoSave}
-        status={autoSaveStatus}
-        onForceSave={handleForceSave}
-      />
+            <Tooltip title={document?.status === 'sent' ? "Fields cannot be edited after sending" : ""}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<SaveIcon />}
+                onClick={handleSaveFields}
+                disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
+                sx={{
+                  color: '#0d9488',
+                  borderColor: '#0d9488',
+                  '&:hover': {
+                    borderColor: '#0f766e',
+                    backgroundColor: 'rgba(13, 148, 136, 0.04)'
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: 'rgba(13, 148, 136, 0.3)',
+                    color: 'rgba(13, 148, 136, 0.3)'
+                  }
+                }}
+              >
+                {saving ? 'Saving...' : document?.status === 'sent' ? 'Locked' : 'Save'}
+              </Button>
+            </Tooltip>
 
-      <Tooltip title="Undo (Ctrl+Z)">
-        <IconButton 
-          size="small" 
-          onClick={undo} 
-          disabled={!undoRedoInfo.canUndo}
-          sx={{
-            '&:hover': {
-              color: '#0d9488'
-            }
-          }}
-        >
-          <UndoIcon />
-        </IconButton>
-      </Tooltip>
-
-      <Tooltip title="Redo (Ctrl+Y)">
-        <IconButton 
-          size="small" 
-          onClick={redo} 
-          disabled={!undoRedoInfo.canRedo}
-          sx={{
-            '&:hover': {
-              color: '#0d9488'
-            }
-          }}
-        >
-          <RedoIcon />
-        </IconButton>
-      </Tooltip>
-      
-      <Divider orientation="vertical" flexItem />
-      
-      <Chip
-        label={`${fields.length} fields`}
-        size="small"
-        variant="outlined"
-        color={invalidFields.length > 0 ? "error" : "default"}
-        sx={invalidFields.length === 0 ? {
-          '&.MuiChip-outlined': {
-            borderColor: '#0d9488',
-            color: '#0d9488'
-          }
-        } : {}}
-      />
-      
-      {invalidFields.length > 0 && (
-        <Chip
-          label={`${invalidFields.length} invalid`}
-          size="small"
-          color="error"
-          variant="filled"
-        />
-      )}
-
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<VisibilityIcon />}
-        onClick={() => setPreviewDialogOpen(true)}
-        sx={{
-          color: '#0d9488',
-          borderColor: '#0d9488',
-          '&:hover': {
-            borderColor: '#0f766e',
-            backgroundColor: 'rgba(13, 148, 136, 0.04)'
-          }
-        }}
-      >
-        Preview
-      </Button>
-      
-      <Tooltip title={document?.status === 'sent' ? "Fields cannot be edited after sending" : ""}>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<SaveIcon />}
-          onClick={handleSaveFields}
-          disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
-          sx={{
-            color: '#0d9488',
-            borderColor: '#0d9488',
-            '&:hover': {
-              borderColor: '#0f766e',
-              backgroundColor: 'rgba(13, 148, 136, 0.04)'
-            },
-            '&.Mui-disabled': {
-              borderColor: 'rgba(13, 148, 136, 0.3)',
-              color: 'rgba(13, 148, 136, 0.3)'
-            }
-          }}
-        >
-          {saving ? 'Saving...' : document?.status === 'sent' ? 'Locked' : 'Save'}
-        </Button>
-      </Tooltip>
-      
-      <Button
-        variant="contained"
-        size="small"
-        startIcon={<SendIcon />}
-        onClick={handleFinishAndSend}
-        disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
-        color={invalidFields.length > 0 ? "warning" : "primary"}
-        sx={invalidFields.length === 0 ? {
-          bgcolor: '#0d9488',
-          '&:hover': {
-            bgcolor: '#0f766e'
-          },
-          '&.Mui-disabled': {
-            bgcolor: 'rgba(13, 148, 136, 0.3)'
-          }
-        } : {}}
-      >
-        Finish & Send
-      </Button>
-    </Box>
-  </Toolbar>
-</AppBar>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<SendIcon />}
+              onClick={handleFinishAndSend}
+              disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
+              color={invalidFields.length > 0 ? "warning" : "primary"}
+              sx={invalidFields.length === 0 ? {
+                bgcolor: '#0d9488',
+                '&:hover': {
+                  bgcolor: '#0f766e'
+                },
+                '&.Mui-disabled': {
+                  bgcolor: 'rgba(13, 148, 136, 0.3)'
+                }
+              } : {}}
+            >
+              Finish & Send
+            </Button>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
       {/* Main Content - Three Column Layout */}
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', p: 2, position: 'relative' }}>
@@ -1144,6 +1146,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
           selectedRecipientId={selectedRecipientId}
           onSelectRecipient={handleSelectRecipient}
           onAddRecipientClick={() => setAddRecipientDialogOpen(true)}
+          zoomLevel={zoomLevel}
         />
 
         {/* Center Work Area */}
@@ -1170,7 +1173,7 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
         />
 
         {/* Right Sidebar Toggle */}
-        <Box sx={{ 
+        <Box sx={{
           position: 'absolute',
           right: rightSidebarExpanded ? 360 : 0,
           top: '50%',
@@ -1306,8 +1309,8 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
           }} color="warning">
             Leave Without Saving
           </Button>
-          <Button 
-            onClick={handleForceSaveAndNavigate} 
+          <Button
+            onClick={handleForceSaveAndNavigate}
             variant="contained"
             disabled={autoSaveStatus.isSaving}
           >
@@ -1323,8 +1326,8 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          severity={snackbar.severity} 
+        <Alert
+          severity={snackbar.severity}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           sx={{ width: '100%' }}
         >
