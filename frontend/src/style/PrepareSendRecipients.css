@@ -3192,3 +3192,332 @@ border-color: transparent;
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   background: #ea580c;
 }
+/* More Settings Styles */
+.zoho-more-settings {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: #fdfdfd;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+
+.zoho-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.zoho-settings-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  font-size: 1.1rem;
+}
+
+.zoho-settings-title svg {
+  color: #0d9488;
+}
+
+.zoho-settings-toggle {
+  background: #f3f4f6;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.zoho-settings-toggle:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.zoho-settings-content {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.zoho-setting-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .zoho-setting-row {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.zoho-setting-control label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+}
+
+.zoho-setting-control select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 0.9rem;
+  color: #1f2937;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.zoho-setting-control select:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+}
+
+.zoho-setting-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.zoho-settings-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.zoho-settings-summary {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0 0.5rem;
+}
+
+.zoho-setting-chip {
+  background: #f0fdfa;
+  color: #0d9488;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #ccfbf1;
+  display: flex;
+  align-items: center;
+}
+
+
+.zoho-setting-control input.zoho-setting-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 0.9rem;
+  color: #1f2937;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.zoho-setting-control input.zoho-setting-input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+}
+
+.zoho-setting-control input.zoho-setting-input::-webkit-inner-spin-button,
+.zoho-setting-control input.zoho-setting-input::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+
+/* Minimal Settings Styles - Simple & Professional */
+.settings-minimal {
+  margin: 1.5rem 0;
+  max-width: 400px;
+  text-align: left;
+}
+
+.settings-minimal-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 500;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.settings-minimal-header:hover {
+  color: #0d9488;
+}
+
+.settings-minimal-arrow {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+  color: #9ca3af;
+}
+
+.settings-minimal-arrow.open {
+  transform: rotate(90deg);
+}
+
+.settings-minimal-content {
+  margin-top: 1.25rem;
+  padding-left: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.settings-minimal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.settings-minimal-field label {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.settings-minimal-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settings-minimal-input {
+  width: 70px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #111827;
+  outline: none;
+  transition: all 0.2s;
+  background: #fff;
+}
+
+.settings-minimal-input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.05);
+}
+
+.settings-minimal-unit {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.settings-minimal-actions {
+  margin-top: 0.25rem;
+}
+
+.settings-minimal-save {
+  background: transparent;
+  border: 1px solid #0d9488;
+  color: #0d9488;
+  padding: 0.4rem 1.25rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-minimal-save:hover:not(:disabled) {
+  background: #0d9488;
+  color: #fff;
+}
+
+.settings-minimal-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-minimal-summary {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.settings-minimal-status-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0d9488;
+  background: #f0fdfa;
+  padding: 0.15rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid #ccfbf1;
+}
+
+
+.settings-minimal-select {
+  width: 140px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #374151;
+  background: white;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-minimal-select:focus {
+  border-color: #0d9488;
+}
+
+.settings-minimal-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+  cursor: pointer;
+  margin-top: 0.25rem;
+  user-select: none;
+}
+
+.settings-minimal-checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #0d9488;
+}
+

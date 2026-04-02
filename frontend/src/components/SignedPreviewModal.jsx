@@ -14,7 +14,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { Document, Page, pdfjs } from "react-pdf";
 import { fetchPdfBlob } from "../services/DocumentAPI";
 
-pdfjs.GlobalWorkerOptions.workerSrc = 
+pdfjs.GlobalWorkerOptions.workerSrc =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function SignedPreviewModal({
@@ -79,9 +79,9 @@ export default function SignedPreviewModal({
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         borderBottom: '1px solid #e0e0e0',
         pr: 2,
@@ -90,8 +90,8 @@ export default function SignedPreviewModal({
           {title}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton 
-            size="small" 
+          <IconButton
+            size="small"
             onClick={() => setScale(s => Math.max(s - 0.2, 0.5))}
             disabled={scale <= 0.5}
           >
@@ -100,8 +100,8 @@ export default function SignedPreviewModal({
           <Typography variant="body2" color="text.secondary">
             {Math.round(scale * 100)}%
           </Typography>
-          <IconButton 
-            size="small" 
+          <IconButton
+            size="small"
             onClick={() => setScale(s => Math.min(s + 0.2, 3.0))}
             disabled={scale >= 3.0}
           >
@@ -113,8 +113,8 @@ export default function SignedPreviewModal({
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ 
-        p: 0, 
+      <DialogContent sx={{
+        p: 0,
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
@@ -174,59 +174,74 @@ export default function SignedPreviewModal({
               onLoadSuccess={onDocumentLoadSuccess}
               loading={null}
             >
-             {Array.from({ length: numPages || 0 }, (_, index) => (
-  <Box
-    key={`page_wrapper_${index + 1}`}
-    sx={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      mb: 4
-    }}
-  >
+              {Array.from({ length: numPages || 0 }, (_, index) => (
+                <Box
+                  key={`page_wrapper_${index + 1}`}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    mb: 6
+                  }}
+                >
+                  <Box sx={{ width: 'fit-content' }}>
+                    {/* Professional Header - Aligned to Page Width */}
+                    <Box
+                      sx={{
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1.5,
+                        px: 0.5,
+                        color: "#64748b",
+                        userSelect: 'none'
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: "0.75rem",
+                          fontWeight: 500,
+                          letterSpacing: '0.02em',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        {documentName || "Signed Document"}
+                      </Typography>
 
-    {/* Header ABOVE page */}
-    <Box
-      sx={{
-        width: "100%",
-        display: "flex",
-        justifyContent: "space-between",
-        
-        gap: 6,
-        mb: 1,
-        fontSize: "0.8rem",
-        color: "#555"
-      }}
-    >
-      <Typography variant="caption" fontWeight={600}>
-        {documentName || "Signed Document"}
-      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: "0.75rem",
+                          fontWeight: 500
+                        }}
+                      >
+                        Page {index + 1} of {numPages}
+                      </Typography>
+                    </Box>
 
-      <Typography variant="caption">
-        Page {index + 1} / {numPages}
-      </Typography>
-    </Box>
-
-    {/* Actual PDF Page */}
-    <Box
-      sx={{
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-        backgroundColor: "white",
-        borderRadius: 1,
-        overflow: "hidden"
-      }}
-    >
-      <Page
-        pageNumber={index + 1}
-        scale={scale}
-        renderTextLayer={true}
-        renderAnnotationLayer={true}
-        canvasBackground="white"
-      />
-    </Box>
-
-  </Box>
-))}
+                    {/* Actual PDF Page Container */}
+                    <Box
+                      sx={{
+                        backgroundColor: "white",
+                        borderRadius: "4px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)",
+                        overflow: "hidden",
+                        border: "1px solid #e2e8f0"
+                      }}
+                    >
+                      <Page
+                        pageNumber={index + 1}
+                        scale={scale}
+                        renderTextLayer={true}
+                        renderAnnotationLayer={true}
+                        canvasBackground="white"
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              ))}
             </Document>
           </Box>
         )}
@@ -237,8 +252,8 @@ export default function SignedPreviewModal({
           Close
         </Button>
         {pdfBlob && (
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={() => {
               const url = URL.createObjectURL(pdfBlob);
               const a = document.createElement('a');

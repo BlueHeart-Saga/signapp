@@ -274,25 +274,25 @@ async def _get_voided_document_preview(document, recipient, request):
     if not pdf_bytes:
         raise HTTPException(404, "Base PDF not found for voided document")
     
-    # Apply prominent VOIDED watermark
+    # Apply professional VOIDED watermark
     pdf_bytes = PDFEngine.apply_watermark(
         pdf_bytes,
         "VOIDED",
-        color="#FF0000",
-        opacity=0.3,
-        font_size=96,
+        color="#D32F2F", # Professional Red
+        opacity=0.15,
+        font_size=120,
         angle=45
     )
     
-    # Add status info
+    # Add professional status banner
     voided_at = document.get("voided_at", datetime.utcnow())
-    info_text = f"Document voided on {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    info_text = f"SafeView™ Verified • VOIDED ON {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
     pdf_bytes = PDFEngine.apply_watermark(
         pdf_bytes,
         info_text,
-        color="#666666",
-        opacity=0.5,
-        font_size=14,
+        color="#424242",
+        opacity=0.6,
+        font_size=10,
         position="bottom"
     )
     
@@ -3408,7 +3408,7 @@ async def download_professional_summary(
                 "terms_accepted": r.get("terms_accepted", False)
             })
         
-        # Prepare recent activity
+        # Prepare recent activity - High information density
         recent_activity = []
         for event in timeline[:15]:
             actor = event.get("actor", {})
@@ -3416,13 +3416,28 @@ async def download_professional_summary(
             
             event_date = event.get("timestamp")
             if event_date:
-                event_date = event_date.strftime("%Y-%m-%d %H:%M")
+                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Improve details if description is empty
+            details = event.get("description", "")
+            if not details:
+                # Build detail from metadata if description missing
+                meta = event.get("metadata", {})
+                action = event.get("type", event.get("action", ""))
+                if action == "recipient_viewed":
+                    details = f"Viewed by {participant_name}"
+                elif action == "document_downloaded":
+                    details = f"Downloaded {meta.get('filename', 'document')}"
+                elif action == "otp_verified":
+                    details = "Security verification completed"
+                else:
+                    details = event.get("title", action.replace("_", " ").title())
             
             recent_activity.append({
                 "date": event_date,
                 "event": event.get("title", event.get("action", "Activity")),
                 "participant": participant_name,
-                "details": event.get("description", "")
+                "details": details
             })
         
         # Get envelope ID
@@ -3663,11 +3678,46 @@ async def download_professional_certificate(
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
         
-        # Get document timeline for sent date
+        # Get document timeline (Full for certificate)
         sent_log = db.document_timeline.find_one({
             "document_id": recipient["document_id"],
             "action": "upload_document"
         })
+        
+        timeline = list(db.document_timeline.find({
+            "document_id": recipient["document_id"]
+        }).sort("timestamp", -1).limit(50))
+        
+        # Prepare recent activity - High information density
+        recent_activity_list = []
+        for event in timeline:
+            actor = event.get("actor", {})
+            participant_name = actor.get("name") or actor.get("email") or "System"
+            
+            event_date = event.get("timestamp")
+            if event_date:
+                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Improve details if description is empty
+            details = event.get("description", "")
+            if not details:
+                meta = event.get("metadata", {})
+                action = event.get("type", event.get("action", ""))
+                if action == "recipient_viewed":
+                    details = f"Viewed by {participant_name}"
+                elif action == "document_downloaded":
+                    details = f"Downloaded {meta.get('filename', 'document')}"
+                elif action == "otp_verified":
+                    details = "Security verification completed"
+                else:
+                    details = event.get("title", action.replace("_", " ").title())
+            
+            recent_activity_list.append({
+                "date": event_date,
+                "event": event.get("title", event.get("action", "Activity")),
+                "participant": participant_name,
+                "details": details
+            })
         
         # Calculate statistics
         total_signatures = len([f for f in all_fields if f.get("type") in ["signature", "witness_signature"]])
@@ -3792,6 +3842,9 @@ async def download_professional_certificate(
             
             # Recipients
             "recipients": recipients_data,
+            
+            # Document Activity (Full)
+            "recent_activity": recent_activity_list,
             
             # Field history
             "field_history": field_history if include_timeline else [],

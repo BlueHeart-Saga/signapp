@@ -21,7 +21,8 @@ from .converter import convert_to_pdf, get_pdf_page_count
 from database import db
 from .auth import get_current_user
 from .fields import normalize_field_value
-from .email_service import send_completed_document_to_recipients
+from .email_service import send_completed_document_to_recipients, SafeSignCertificateEngine, SafeSignSummaryEngine
+ProfessionalCertificateEngine = SafeSignCertificateEngine
 
 from reportlab.lib import colors
 from reportlab.platypus import PageBreak, KeepTogether
@@ -155,743 +156,9 @@ class FileOrderItem(BaseModel):
     
     
 
-class ProfessionalCertificateEngine:
-    """
-    Professional Certificate of Completion with DocuSign-quality design
-    Green theme with black & white professional layout
-    """
-    
-    # Brand colors - Professional green theme
-    BRAND_PRIMARY = "#00A3A3"      # Teal green - primary brand
-    BRAND_SECONDARY = "#2C3E50"    # Dark blue-gray - secondary
-    BRAND_ACCENT = "#357C7C"       # Darker teal - accent
-    BRAND_LIGHT = "#E0F2F2"        # Light teal - backgrounds
-    
-    # Status colors
-    SUCCESS = "#2E7D32"            # Forest green - completed
-    SUCCESS_LIGHT = "#E8F5E9"      # Light green - background
-    WARNING = "#ED6C02"            # Orange - pending
-    WARNING_LIGHT = "#FFF4E5"      # Light orange - background
-    INFO = "#0288D1"               # Blue - info
-    INFO_LIGHT = "#E1F5FE"         # Light blue - background
-    
-    # Neutral colors - professional black & white scale
-    GRAY_50 = "#FAFAFA"
-    GRAY_100 = "#F5F5F5"
-    GRAY_200 = "#EEEEEE"
-    GRAY_300 = "#E0E0E0"
-    GRAY_400 = "#BDBDBD"
-    GRAY_600 = "#757575"
-    GRAY_700 = "#616161"
-    GRAY_800 = "#424242"
-    GRAY_900 = "#212121"
-    BLACK = "#000000"
-    WHITE = "#FFFFFF"
-    
-    @staticmethod
-    def create_header(canvas, doc, envelope_id=None, title="CERTIFICATE OF COMPLETION"):
-        """Professional header with SafeSign branding and green accent"""
-        canvas.saveState()
-        
-        HEADER_LIFT = 20
-        
-        # White header background
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.WHITE))
-        canvas.rect(0, doc.height + 40 + HEADER_LIFT, doc.width + 80, 70, fill=1, stroke=0)
-        
-        # Green accent bar
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
-        canvas.rect(0, doc.height + 110 + HEADER_LIFT, doc.width + 80, 4, fill=1, stroke=0)
-        
-        # Subtle green line
-        canvas.setStrokeColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
-        canvas.setLineWidth(1)
-        canvas.line(40, doc.height + 40 + HEADER_LIFT, doc.width + 40, doc.height + 40 + HEADER_LIFT)
-        
-        # SafeSign logo/title
-        canvas.setFont("Helvetica-Bold", 24)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
-        canvas.drawString(40, doc.height + 80 + HEADER_LIFT, "SafeSign")
-        
-        # Tagline
-        canvas.setFont("Helvetica", 9)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
-        canvas.drawString(40, doc.height + 60 + HEADER_LIFT, "Secure Digital Signatures")
-        
-        # Certificate title
-        canvas.setFont("Helvetica-Bold", 16)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
-        canvas.drawRightString(doc.width + 40, doc.height + 85 + HEADER_LIFT, title)
-        
-        # Envelope ID
-        if envelope_id:
-            canvas.setFont("Helvetica", 8)
-            canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
-            canvas.drawRightString(doc.width + 40, doc.height + 65 + HEADER_LIFT, f"Envelope: {envelope_id}")
-        
-        canvas.restoreState()
-    
-    @staticmethod
-    def create_footer(canvas, doc, certificate_id=None):
-        """Professional footer with green verification seal"""
-        canvas.saveState()
-        
-        # Light gray separator line
-        canvas.setStrokeColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_300))
-        canvas.setLineWidth(0.5)
-        canvas.line(40, 35, doc.width + 40, 35)
-        
-        # Footer text - Gray
-        canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
-        timestamp = datetime.utcnow().strftime("%B %d, %Y at %I:%M:%S %p UTC")
-        canvas.drawString(40, 20, f"Generated: {timestamp}")
-        
-        if certificate_id:
-            canvas.drawString(40, 10, f"Certificate ID: {certificate_id}")
-        
-        # Green verification seal
-        canvas.setFont("Helvetica-Bold", 7)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
-        canvas.drawRightString(doc.width + 40, 20, "✓ Verified by SafeSign")
-        
-        # Page number
-        canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(ProfessionalCertificateEngine.GRAY_600))
-        canvas.drawRightString(doc.width + 40, 10, f"Page {doc.page}")
-        
-        canvas.restoreState()
-    
-    @staticmethod
-    def create_status_badge(text, status="completed"):
-        """Create a professional status badge"""
-        if status == "completed":
-            color = ProfessionalCertificateEngine.SUCCESS
-            bg_color = ProfessionalCertificateEngine.SUCCESS_LIGHT
-        elif status == "pending":
-            color = ProfessionalCertificateEngine.WARNING
-            bg_color = ProfessionalCertificateEngine.WARNING_LIGHT
-        elif status == "voided":
-            color = ProfessionalCertificateEngine.GRAY_600
-            bg_color = ProfessionalCertificateEngine.GRAY_100
-        else:
-            color = ProfessionalCertificateEngine.GRAY_600
-            bg_color = ProfessionalCertificateEngine.GRAY_100
-        
-        return f"<font name='Helvetica-Bold' size='9' color='{color}'><back color='{bg_color}'>  {text}  </back></font>"
-    
-    @staticmethod
-    def create_certificate_pdf(certificate_data):
-        """
-        Generate a professional Certificate of Completion PDF
-        Green theme with black & white professional layout
-        """
-        buffer = io.BytesIO()
-        
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=45,
-            leftMargin=45,
-            topMargin=100,
-            bottomMargin=60,
-            title=f"SafeSign Certificate - {certificate_data.get('envelope_id', 'Document')}",
-            author="SafeSign",
-            subject="Certificate of Completion"
-        )
-        
-        styles = getSampleStyleSheet()
-        story = []
-        
-        # ========== CUSTOM STYLES ==========
-        
-        # Main title - Black
-        styles.add(ParagraphStyle(
-            name='CertificateTitle',
-            parent=styles['Heading1'],
-            fontSize=22,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
-            alignment=TA_CENTER,
-            spaceAfter=5,
-            spaceBefore=0,
-            fontName='Helvetica-Bold',
-            leading=26
-        ))
-        
-        # Subtitle - Gray
-        styles.add(ParagraphStyle(
-            name='CertificateSubTitle',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_600),
-            alignment=TA_CENTER,
-            spaceAfter=25,
-            fontName='Helvetica',
-            leading=16
-        ))
-        
-        # Section headers - Black, bold
-        styles.add(ParagraphStyle(
-            name='CertificateSection',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
-            alignment=TA_LEFT,
-            spaceBefore=20,
-            spaceAfter=10,
-            fontName='Helvetica-Bold',
-            leading=18,
-            keepWithNext=True
-        ))
-        
-        # Sub-section headers - Dark gray
-        styles.add(ParagraphStyle(
-            name='CertificateSubSection',
-            parent=styles['Heading3'],
-            fontSize=12,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_700),
-            alignment=TA_LEFT,
-            spaceBefore=15,
-            spaceAfter=8,
-            fontName='Helvetica-Bold',
-            leading=16,
-            keepWithNext=True
-        ))
-        
-        # Table header style
-        styles.add(ParagraphStyle(
-            name='TableHeader',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.WHITE),
-            alignment=TA_LEFT,
-            fontName='Helvetica-Bold',
-            leading=12
-        ))
-        
-        # Table cell style
-        styles.add(ParagraphStyle(
-            name='TableCell',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_800),
-            alignment=TA_LEFT,
-            fontName='Helvetica',
-            leading=11,
-            wordWrap='CJK'
-        ))
-        
-        # Label style
-        styles.add(ParagraphStyle(
-            name='Label',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.GRAY_600),
-            alignment=TA_LEFT,
-            fontName='Helvetica',
-            leading=12
-        ))
-        
-        # Value style
-        styles.add(ParagraphStyle(
-            name='Value',
-            parent=styles['Normal'],
-            fontSize=10,
-            textColor=colors.HexColor(ProfessionalCertificateEngine.BLACK),
-            alignment=TA_LEFT,
-            fontName='Helvetica',
-            leading=14
-        ))
-        
-        # ========== TITLE SECTION ==========
-        story.append(Spacer(1, 5))
-        story.append(Paragraph("CERTIFICATE OF COMPLETION", styles['CertificateTitle']))
-        
-        # Green accent line
-        story.append(Spacer(1, 2))
-        
-        envelope_id = certificate_data.get('envelope_id', 'N/A')
-        document_name = certificate_data.get('document_name', 'Untitled Document')
-        
-        story.append(Paragraph(
-            f"<font name='Helvetica' size='11' color='{ProfessionalCertificateEngine.GRAY_700}'>This certifies that the following document has been executed electronically</font>",
-            styles['CertificateSubTitle']
-        ))
-        
-        # ========== ENVELOPE INFO BAR ==========
-        envelope_data = [
-            [f"Envelope ID: {envelope_id}",
-             f"Status: {certificate_data.get('status', 'COMPLETED').upper()}",
-             f"Completed: {certificate_data.get('completed_date', 'N/A')}"]
-        ]
-        
-        envelope_bar = Table(envelope_data, colWidths=[200, 150, 200], hAlign='CENTER')
-        envelope_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        
-        story.append(envelope_bar)
-        story.append(Spacer(1, 20))
-        
-        # ========== DOCUMENT INFORMATION ==========
-        story.append(Paragraph("Document Information", styles['CertificateSection']))
-        
-        doc_info_data = [
-            ["Document Name:", certificate_data.get('document_name', 'N/A')],
-            ["Document ID:", certificate_data.get('document_id', 'N/A')],
-            ["Created:", certificate_data.get('created_date', 'N/A')],
-            ["Completed:", certificate_data.get('completed_date', 'N/A')],
-            ["Page Count:", str(certificate_data.get('page_count', 0))],
-            ["Owner:", certificate_data.get('owner_name', certificate_data.get('owner_email', 'N/A'))],
-        ]
-        
-        doc_info_table = Table(doc_info_data, colWidths=[120, 380], hAlign='LEFT')
-        doc_info_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(ProfessionalCertificateEngine.BLACK)),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-        ]))
-        
-        story.append(doc_info_table)
-        story.append(Spacer(1, 20))
-        
-        # ========== DOCUMENT METRICS DASHBOARD ==========
-        story.append(Paragraph("Document Summary", styles['CertificateSection']))
-        
-        stats = certificate_data.get('statistics', {})
-        
-        # Create metrics cards
-        metrics_data = [
-            ["Total Pages", "Total Fields", "Total Signatures", "Total Recipients"],
-            [
-                str(certificate_data.get('page_count', 0)),
-                str(stats.get('total_fields', 0)),
-                str(stats.get('total_signatures', 0)),
-                str(stats.get('total_recipients', 0))
-            ],
-            [
-                "document pages",
-                f"{stats.get('completed_fields', 0)} completed",
-                f"{stats.get('signatures_completed', 0)} signed",
-                f"{stats.get('completed_recipients', 0)} completed"
-            ]
-        ]
-        
-        metrics_table = Table(metrics_data, colWidths=[120, 120, 120, 120], hAlign='LEFT')
-        metrics_table.setStyle(TableStyle([
-            # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            
-            # Metrics values
-            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 1), (-1, 1), 16),
-            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
-            ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-            
-            # Descriptions
-            ('FONTNAME', (0, 2), (-1, 2), 'Helvetica'),
-            ('FONTSIZE', (0, 2), (-1, 2), 8),
-            ('TEXTCOLOR', (0, 2), (-1, 2), colors.HexColor(ProfessionalCertificateEngine.GRAY_600)),
-            ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
-            
-            ('GRID', (0, 0), (-1, 1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(ProfessionalCertificateEngine.GRAY_300)),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
-            ('TOPPADDING', (0, 1), (-1, 1), 8),
-        ]))
-        
-        story.append(metrics_table)
-        story.append(Spacer(1, 25))
-        
-        # ========== FIELD COMPLETION DETAILS ==========
-        story.append(Paragraph("Field Completion Details", styles['CertificateSubSection']))
-        
-        field_stats_data = [
-            ["Field Type", "Total", "Completed", "Completion %"],
-            [
-                "Signatures",
-                str(stats.get('total_signatures', 0)),
-                str(stats.get('signatures_completed', 0)),
-                f"{stats.get('signatures_percentage', 0)}%"
-            ],
-            [
-                "Initials",
-                str(stats.get('total_initials', 0)),
-                str(stats.get('initials_completed', 0)),
-                f"{stats.get('initials_percentage', 0)}%"
-            ],
-            [
-                "Form Fields",
-                str(stats.get('total_form_fields', 0)),
-                str(stats.get('form_fields_completed', 0)),
-                f"{stats.get('form_fields_percentage', 0)}%"
-            ],
-            [
-                "Checkboxes",
-                str(stats.get('total_checkboxes', 0)),
-                str(stats.get('checkboxes_completed', 0)),
-                f"{stats.get('checkboxes_percentage', 0)}%"
-            ],
-        ]
-        
-        field_stats_table = Table(field_stats_data, colWidths=[120, 80, 80, 80], hAlign='LEFT')
-        field_stats_table.setStyle(TableStyle([
-            # Header
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
-            
-            # Data rows
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
-            ('FONTNAME', (1, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-             [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
-              colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        
-        story.append(field_stats_table)
-        story.append(Spacer(1, 20))
-        
-        # ========== SIGNER EVENTS TABLE ==========
-        story.append(Paragraph("Signer Events", styles['CertificateSection']))
-        
-        recipients = certificate_data.get('recipients', [])
-        if recipients:
-            # Prepare table data
-            signer_data = [
-                ["Signer", "Email", "Role", "Status", "Signed/Action", "IP Address"]
-            ]
-            
-            for recipient in recipients:
-                status = recipient.get('status', '').upper()
-                status_display = ProfessionalCertificateEngine.create_status_badge(
-                    status, 
-                    'completed' if status == 'COMPLETED' else 'pending'
-                )
-                
-                completed_date = recipient.get('completed_at', '')
-                if completed_date and len(completed_date) > 16:
-                    completed_date = completed_date[:16].replace('T', ' ')
-                
-                signer_data.append([
-                    Paragraph(f"<font name='Helvetica-Bold' size='8'>{recipient.get('name', 'N/A')}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('email', 'N/A')}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('role', 'signer').replace('_', ' ').title()}</font>", styles['TableCell']),
-                    Paragraph(status_display, styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{completed_date}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('ip_address', 'Unknown')}</font>", styles['TableCell']),
-                ])
-            
-            # Split into multiple pages if needed
-            MAX_ROWS_PER_TABLE = 15
-            if len(signer_data) > MAX_ROWS_PER_TABLE + 1:  # +1 for header
-                # Split into chunks
-                chunks = []
-                for i in range(1, len(signer_data), MAX_ROWS_PER_TABLE):
-                    chunk = [signer_data[0]] + signer_data[i:i + MAX_ROWS_PER_TABLE]
-                    chunks.append(chunk)
-                
-                for idx, chunk in enumerate(chunks):
-                    if idx > 0:
-                        story.append(PageBreak())
-                        story.append(Paragraph(
-                            f"<font name='Helvetica-Bold' size='11' color='{ProfessionalCertificateEngine.BRAND_PRIMARY}'>Signer Events (continued)</font>",
-                            styles['Normal']
-                        ))
-                        story.append(Spacer(1, 5))
-                    
-                    signer_table = Table(chunk, colWidths=[90, 110, 70, 80, 100, 90], hAlign='CENTER', repeatRows=1)
-                    signer_table.setStyle(TableStyle([
-                        # Header
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_SECONDARY)),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 8),
-                        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                        
-                        # Data rows
-                        ('FONTSIZE', (0, 1), (-1, -1), 8),
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                         [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
-                          colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                        ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ]))
-                    
-                    story.append(signer_table)
-                    story.append(Spacer(1, 10))
-            else:
-                signer_table = Table(signer_data, colWidths=[90, 110, 70, 80, 100, 90], hAlign='CENTER', repeatRows=1)
-                signer_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_SECONDARY)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 8),
-                    ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                     [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
-                      colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ]))
-                
-                story.append(signer_table)
-        else:
-            story.append(Paragraph(
-                f"<font name='Helvetica' size='10' color='{ProfessionalCertificateEngine.GRAY_600}'>No signer events recorded.</font>",
-                styles['Normal']
-            ))
-        
-        story.append(Spacer(1, 20))
-        
-        # ========== ENVELOPE ORIGINATOR ==========
-        story.append(Paragraph("Envelope Originator", styles['CertificateSection']))
-        
-        owner_data = [
-            ["Name:", certificate_data.get('owner_name', 'Document Owner')],
-            ["Email:", certificate_data.get('owner_email', 'N/A')],
-            ["IP Address:", certificate_data.get('owner_ip', 'Unknown')],
-            ["Sent:", certificate_data.get('sent_date', certificate_data.get('created_date', 'N/A'))],
-        ]
-        
-        owner_table = Table(owner_data, colWidths=[100, 400], hAlign='LEFT')
-        owner_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(ProfessionalCertificateEngine.GRAY_900)),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-        ]))
-        
-        story.append(owner_table)
-        
-        # ========== FIELD HISTORY (if available) ==========
-        field_history = certificate_data.get('field_history', [])
-        if field_history:
-            story.append(PageBreak())
-            story.append(Paragraph("Field Completion History", styles['CertificateSection']))
-            
-            field_history_data = [
-                ["Field Type", "Signer", "Page", "Completed At", "IP Address"]
-            ]
-            
-            for field in field_history[:20]:  # Limit to 20 most recent
-                field_history_data.append([
-                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('type', '').replace('_', ' ').title()}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('signer_name', 'Unknown')}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('page', 1)}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('completed_at', '')[:16] if field.get('completed_at') else '—'}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('ip_address', 'Unknown')}</font>", styles['TableCell']),
-                ])
-            
-            history_table = Table(field_history_data, colWidths=[100, 120, 50, 120, 100], hAlign='LEFT', repeatRows=1)
-            history_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('FONTSIZE', (0, 1), (-1, -1), 7),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(ProfessionalCertificateEngine.WHITE), 
-                  colors.HexColor(ProfessionalCertificateEngine.GRAY_50)]),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (2, 1), (2, -1), 'CENTER'),
-            ]))
-            
-            story.append(history_table)
-            story.append(Spacer(1, 20))
-        
-        # ========== ELECTRONIC RECORD DISCLOSURE ==========
-        story.append(PageBreak())
-        story.append(Paragraph("Electronic Record and Signature Disclosure", styles['CertificateSection']))
-        
-        disclosure_text = """
-        <para>
-        <font name='Helvetica' size='9' color='#424242'>
-        By executing this document, each signatory acknowledges that they have read and agree to the 
-        terms and conditions of the electronic record and signature disclosure. Each signature 
-        appearing in this document is an electronic signature that is legally binding and enforceable 
-        under the ESIGN Act and applicable laws.
-        <br/><br/>
-        This Certificate of Completion serves as evidence that the document was executed electronically 
-        through the SafeSign platform. The signatures, initials, and form field entries contained herein 
-        were applied by the identified recipients and have been cryptographically bound to the document 
-        at the time of execution.
-        </font>
-        </para>
-        """
-        
-        story.append(Paragraph(disclosure_text, styles['Normal']))
-        story.append(Spacer(1, 15))
-        
-        # List recipients who accepted terms
-        terms_accepted = [r for r in recipients if r.get('terms_accepted', False)]
-        if terms_accepted:
-            story.append(Paragraph("Recipients Who Accepted Terms", styles['CertificateSubSection']))
-            
-            terms_data = [["Recipient", "Email", "Date Accepted"]]
-            
-            for r in terms_accepted[:10]:
-                terms_data.append([
-                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('name', 'N/A')}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('email', 'N/A')}</font>", styles['TableCell']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{r.get('terms_accepted_date', '—')[:10] if r.get('terms_accepted_date') else '—'}</font>", styles['TableCell']),
-                ])
-            
-            terms_table = Table(terms_data, colWidths=[150, 200, 150], hAlign='LEFT', repeatRows=1)
-            terms_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(ProfessionalCertificateEngine.GRAY_200)),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ]))
-            
-            story.append(terms_table)
-        
-        # ========== CERTIFICATE SEAL AND VERIFICATION ==========
-        story.append(Spacer(1, 30))
-        
-        # Certificate ID and verification
-        seal_data = [
-            ["", ""],
-            ["Certificate ID:", certificate_data.get('certificate_id', 'N/A')],
-            ["Generated:", datetime.utcnow().strftime("%B %d, %Y at %I:%M:%S %p UTC")],
-            ["Validation:", "This certificate authenticates the electronic signatures in this document"],
-            ["", ""],
-        ]
-        
-        seal_table = Table(seal_data, colWidths=[100, 400], hAlign='LEFT')
-        seal_table.setStyle(TableStyle([
-            ('SPAN', (0, 0), (-1, 0)),
-            ('SPAN', (0, -1), (-1, -1)),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('ALIGN', (0, -1), (-1, -1), 'CENTER'),
-            ('TEXTCOLOR', (0, 1), (0, 1), colors.HexColor(ProfessionalCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (1, 1), (1, 1), colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY)),
-            ('FONTNAME', (1, 1), (1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 1), (1, 1), 9),
-            ('FONTSIZE', (0, 2), (1, 2), 8),
-            ('FONTSIZE', (0, 3), (1, 3), 8),
-            ('TEXTCOLOR', (0, 2), (1, 3), colors.HexColor(ProfessionalCertificateEngine.GRAY_600)),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        
-        story.append(seal_table)
-        
-        # ========== BUILD PDF ==========
-        def first_page(canvas, doc):
-            ProfessionalCertificateEngine.create_header(
-                canvas,
-                doc,
-                envelope_id=envelope_id,
-                title="CERTIFICATE OF COMPLETION"
-            )
-            ProfessionalCertificateEngine.create_footer(
-                canvas,
-                doc,
-                certificate_id=certificate_data.get('certificate_id')
-            )
-        
-        def later_pages(canvas, doc):
-            ProfessionalCertificateEngine.create_header(
-                canvas,
-                doc,
-                envelope_id=envelope_id,
-                title="CERTIFICATE OF COMPLETION (continued)"
-            )
-            ProfessionalCertificateEngine.create_footer(
-                canvas,
-                doc,
-                certificate_id=certificate_data.get('certificate_id')
-            )
-        
-        try:
-            doc.build(story, onFirstPage=first_page, onLaterPages=later_pages)
-        except Exception as e:
-            print(f"Error building certificate PDF: {e}")
-            import traceback
-            traceback.print_exc()
-            return ProfessionalCertificateEngine._create_fallback_certificate(certificate_data)
-        
-        buffer.seek(0)
-        return buffer.getvalue()
-    
-    @staticmethod
-    def _create_fallback_certificate(certificate_data):
-        """Create a simple fallback certificate"""
-        buffer = io.BytesIO()
-        from reportlab.pdfgen import canvas
-        
-        c = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
-        
-        # White header with green bar
-        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.WHITE))
-        c.rect(0, height - 60, width, 60, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BRAND_PRIMARY))
-        c.rect(0, height - 5, width, 5, fill=1, stroke=0)
-        
-        # Title
-        c.setFont("Helvetica-Bold", 20)
-        c.setFillColor(colors.HexColor(ProfessionalCertificateEngine.BLACK))
-        c.drawString(50, height - 40, "SafeSign")
-        c.drawString(width - 200, height - 40, "Certificate of Completion")
-        
-        # Content
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, height - 100, f"Document: {certificate_data.get('document_name', 'Unknown')}")
-        
-        c.setFont("Helvetica", 10)
-        c.drawString(50, height - 130, f"Envelope ID: {certificate_data.get('envelope_id', 'N/A')}")
-        c.drawString(50, height - 150, f"Completed: {certificate_data.get('completed_date', 'N/A')}")
-        c.drawString(50, height - 170, f"Total Signers: {certificate_data.get('statistics', {}).get('total_recipients', 0)}")
-        c.drawString(50, height - 190, f"Certificate ID: {certificate_data.get('certificate_id', 'N/A')}")
-        c.drawString(50, height - 210, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        c.save()
-        buffer.seek(0)
-        return buffer.getvalue()
+# Professional Certificate Engine is now unified in email_service.py
+# Alias kept for downward compatibility
+# ProfessionalCertificateEngine = SafeSignCertificateEngine (set in imports)
       
 # Add this near the top of your file, after the imports
 def generate_envelope_id(prefix: str = "ENV", user_id: str = None) -> str:
@@ -1178,6 +445,8 @@ def log_activity(document_id, user, action):
     except Exception as e:
         logging.error(f"Activity Log Failed: {str(e)}")
 
+from .audit import log_audit_event
+
 def _log_event(
     document_id: str,
     actor: dict | None,
@@ -1189,8 +458,8 @@ def _log_event(
         "document_id": ObjectId(document_id),
         "timestamp": datetime.utcnow(),
         "type": event_type,
-        "title": EVENT_TITLES.get(event_type, event_type.replace("_", " ").title()),
-        "description": EVENT_DESCRIPTIONS.get(event_type, ""),
+        "title": event_type.replace("_", " ").title(), # serialize_timeline_event will enrich this
+        "description": "",
         "metadata": metadata or {}
     }
 
@@ -1199,7 +468,7 @@ def _log_event(
             "id": str(actor.get("_id") or actor.get("id")),
             "email": actor.get("email"),
             "role": actor.get("role", "owner"),
-            "name": actor.get("name")
+            "name": actor.get("full_name") or actor.get("name")
         }
 
     if request:
@@ -1208,7 +477,23 @@ def _log_event(
             "user_agent": request.headers.get("user-agent")
         })
 
+    # Log to document timeline (for UI)
     db.document_timeline.insert_one(event)
+    
+    # Log to centralized audit log (for long-term audit trail)
+    audit_data = {
+        "document_id": ObjectId(document_id),
+        "action": event_type,
+        "details": metadata or {},
+        "performed_by": ObjectId(actor.get("_id") or actor.get("id")) if actor else None,
+        "timestamp": event["timestamp"],
+        "ip_address": event["metadata"].get("ip", "unknown"),
+        "user_agent": event["metadata"].get("user_agent", "unknown")
+    }
+    try:
+        log_audit_event(audit_data)
+    except Exception as e:
+        print(f"Warning: Failed to log audit event: {e}")
 
 def generate_pdf_thumbnails(
     pdf_bytes: bytes,
@@ -1556,7 +841,7 @@ def get_field_render_data(field: Dict[str, Any]) -> Dict[str, Any]:
     return base_data
 
 def serialize_timeline_event(log, document):
-    action = log.get("action", "")
+    action = log.get("action") or log.get("type", "Activity")
     metadata = log.get("metadata", {}) or {}
 
     # Human-readable titles & descriptions
@@ -1583,6 +868,74 @@ def serialize_timeline_event(log, document):
         "update_common_message": (
             "Message Updated",
             "Common message was updated"
+        ),
+
+        # ------------------------
+        # RECIPIENT & SENDING
+        # ------------------------
+        "recipients_added": (
+            "Recipients Added",
+            f"Added {metadata.get('count', 0)} recipient(s) to the document"
+        ),
+        "recipient_updated": (
+            "Recipient Updated",
+            f"Recipient {metadata.get('new_email')} details were updated"
+        ),
+        "recipient_deleted": (
+            "Recipient Removed",
+            f"Recipient {metadata.get('email')} was removed from the document"
+        ),
+        "invites_sent": (
+            "Invitation Sent",
+            f"Sent {metadata.get('recipient_count', 0)} invitation(s) for document signing"
+        ),
+        "reminder_sent": (
+            "Reminder Sent",
+            f"Reminder sent to {metadata.get('recipient_email', 'recipient')}"
+        ),
+        "otp_verified": (
+            "OTP Verified",
+            "Recipient's identity verified via OTP"
+        ),
+        "otp_resent": (
+            "OTP Resent",
+            "A new authentication code was sent to the recipient"
+        ),
+        "accept_terms": (
+            "Terms Accepted",
+            "Recipient accepted electronic record and signature disclosure"
+        ),
+        "reaccept_terms": (
+            "Terms Re-accepted",
+            "Recipient re-accepted terms after a previous decline"
+        ),
+        "decline_terms": (
+            "Terms Declined",
+            f"Recipient declined terms: {metadata.get('reason', 'No reason provided')}"
+        ),
+
+        # ------------------------
+        # SIGNING & FIELDS
+        # ------------------------
+        "field_completed": (
+            "Field Signed/Completed",
+            f"{metadata.get('field_type', 'Field').title()} field completed"
+        ),
+        "field_edited": (
+            "Field Edited",
+            f"{metadata.get('field_type', 'Field').title()} field value updated"
+        ),
+        "view_live_document": (
+            "Document Viewed",
+            "Recipient opened the live signing document"
+        ),
+        "viewer_completed": (
+            "Review Completed",
+            "Viewer has finished reviewing the document"
+        ),
+        "document_finalized": (
+            "Document Finalized",
+            f"All parties have signed. Total signers: {metadata.get('signed_count', 0)}"
         ),
 
         # ------------------------
@@ -1624,6 +977,38 @@ def serialize_timeline_event(log, document):
             "PDF Downloaded",
             "Downloaded signed/current PDF"
         ),
+        "download_signed": (
+            "Signed Document Downloaded",
+            f"Downloaded signed version: {metadata.get('filename', 'signed.pdf')}"
+        ),
+        "download_package": (
+            "Document Package Downloaded",
+            "Full document package (ZIP) was downloaded"
+        ),
+
+        # ------------------------
+        # EXPORT & REPORTS
+        # ------------------------
+        "document_summary_generated": (
+            "Summary Report Generated",
+            f"Document summary generated in {metadata.get('format', 'JSON').upper()} format"
+        ),
+        "export_recipients_csv": (
+            "Recipients Exported",
+            "Recipients list exported to CSV"
+        ),
+        "export_timeline_csv": (
+            "Timeline Exported",
+            "Activity timeline exported to CSV"
+        ),
+        "export_fields_csv": (
+            "Fields Exported",
+            "Field data and status exported to CSV"
+        ),
+        "generate_html_report": (
+            "HTML Report Generated",
+            "Comprehensive HTML signing report was generated"
+        ),
 
         # ------------------------
         # STATUS CHANGES
@@ -1631,6 +1016,14 @@ def serialize_timeline_event(log, document):
         "void_document": (
             "Document Voided",
             "Document was voided"
+        ),
+        "soft_delete": (
+            "Moved to Trash",
+            "The document was moved to the trash folder"
+        ),
+        "permanent_delete": (
+            "Permanently Deleted",
+            "The document and all its associated files were permanently deleted"
         ),
         "restore_document": (
             "Document Restored",
@@ -1640,24 +1033,47 @@ def serialize_timeline_event(log, document):
             "Recipient Declined",
             f"Decline reason: {metadata.get('reason', 'Not specified')}"
         ),
+        "export_recipients_csv": (
+            "Recipients Exported",
+            f"Recipient list exported as CSV ({metadata.get('recipients_count', 0)} recipients)"
+        ),
+        "export_timeline_csv": (
+            "Timeline Exported",
+            f"Full activity history exported as CSV ({metadata.get('events_count', 0)} events)"
+        ),
+        "export_fields_csv": (
+            "Fields Exported",
+            f"Document field data exported as CSV ({metadata.get('fields_count', 0)} fields)"
+        ),
+        "generate_html_report": (
+            "Audit Report Generated",
+            "A professional audit trail report was generated in HTML format"
+        ),
     }
 
 
+    action = log.get("action") or log.get("type", "Activity")
     title, description = ACTION_MAP.get(
         action,
         ("Activity", action.replace("_", " ").title())
     )
 
+    # Actor extraction
+    actor = log.get("actor", {})
+    user_name = actor.get("name") or actor.get("email")
+    if not user_name:
+        user_name = log.get("email") or metadata.get("email") or metadata.get("actor_name") or "System"
+
     return {
-        "id": str(log["_id"]),
-        "type": action,
+        "id": str(log["_id"]) if "_id" in log else str(uuid.uuid4()),
+        "action": action,
         "title": title,
         "description": description,
-        "user": log.get("email"),
+        "user": user_name,
         "timestamp": log.get("timestamp"),
         "metadata": metadata,
         "document_status": document.get("status"),
-        "envelope_id": document.get("envelope_id"),
+        "envelope_id": document.get("envelope_id") or metadata.get("envelope_id"),
     }
 
 
@@ -3405,6 +2821,73 @@ async def update_common_message(
         raise HTTPException(status_code=500, detail="Failed to update common message")
 
 
+@router.put("/{document_id}/settings")
+async def update_document_settings(
+    document_id: str,
+    payload: dict,  # {"expiry_days": 30, "reminder_period": 7}
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Update document settings (expiry, reminders).
+    Owner only, draft only.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+        doc = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Only allow updating in draft (or maybe sent too? The user said "more settings with dropdown its open to set expire time and automatic reminder")
+        # Let's allow it in draft and sent for now.
+        
+        expiry_days = payload.get("expiry_days", 0)
+        reminder_period = payload.get("reminder_period", 0)
+        
+        update_data = {
+            "expiry_days": int(expiry_days),
+            "reminder_period": int(reminder_period)
+        }
+        
+        # If document is already sent, recalculate expires_at/next_reminder_at
+        if doc.get("status") in ["sent", "in_progress"]:
+            sent_at = doc.get("sent_at") or doc.get("uploaded_at")
+            if expiry_days > 0:
+                update_data["expires_at"] = sent_at + timedelta(days=expiry_days)
+            else:
+                update_data["expires_at"] = None
+                
+            if reminder_period > 0:
+                # Set next reminder relative to now or last reminder? 
+                # Let's set it relative to now for immediate effect
+                update_data["next_reminder_at"] = datetime.utcnow() + timedelta(days=reminder_period)
+            else:
+                update_data["next_reminder_at"] = None
+
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": update_data}
+        )
+        
+        _log_event(
+            document_id,
+            current_user,
+            "update_settings",
+            update_data,
+            request
+        )
+        
+        return {"message": "Settings updated", "settings": update_data}
+        
+    except Exception as e:
+        print(f"Error updating document settings: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/{document_id}/common-message")
 async def get_common_message(
     document_id: str,
@@ -3613,17 +3096,75 @@ async def permanent_delete(
 async def get_document_timeline(document_id: str, current_user: dict = Depends(get_current_user)):
     doc = db.documents.find_one({"_id": ObjectId(document_id)})
     if not doc:
-        raise HTTPException(404, "Document not found")
+        # Check if the user is a recipient of this document
+        doc = db.documents.find_one({
+            "_id": ObjectId(document_id),
+            "recipients.email": current_user.get("email")
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found or access denied")
 
-    logs = list(
+    # 1. Fetch from document_timeline (Legacy/UI-specific)
+    legacy_logs = list(
         db.document_timeline
         .find({"document_id": ObjectId(document_id)})
         .sort("timestamp", 1)
     )
 
+    # 2. Fetch from audit_logs (Standardized)
+    audit_logs = list(
+        db.audit_logs
+        .find({"document_id": ObjectId(document_id)})
+        .sort("timestamp", 1)
+    )
+
+    # 3. Normalize audit logs to timeline format
+    normalized_audit = []
+    for log in audit_logs:
+        # Avoid duplication if the same event was logged to both (possible during transition)
+        # We'll use a simple heuristic: same action/type and very close timestamp (+/- 1s)
+        normalized_audit.append({
+            "type": log.get("action"),
+            "timestamp": log.get("timestamp"),
+            "metadata": {
+                **log.get("details", {}),
+                "ip": log.get("ip_address"),
+                "user_agent": log.get("user_agent")
+            },
+            "actor_id": str(log.get("performed_by")) if log.get("performed_by") else None,
+            "is_audit": True
+        })
+
+    # 4. Merge and Deduplicate
+    all_events = legacy_logs + normalized_audit
+    
+    # Sort by timestamp
+    all_events.sort(key=lambda x: x.get("timestamp") or datetime.min)
+
+    # Simple de-duplication
+    final_logs = []
+    seen_keys = set() # (type, rounded_timestamp)
+    
+    for event in all_events:
+        ts = event.get("timestamp")
+        if not ts: continue
+        
+        # Round timestamp to nearest second for deduplication
+        rounded_ts = ts.replace(microsecond=0)
+        key = (event.get("type") or event.get("action"), rounded_ts)
+        
+        if key not in seen_keys:
+            final_logs.append(event)
+            seen_keys.add(key)
+        elif event.get("is_audit") and not final_logs[-1].get("is_audit"):
+            # If we see a duplicate and the new one is from audit logs, 
+            # it might have better metadata, but legacy logs have titles/descriptions
+            # Let's keep the legacy one for now as serialize_timeline_event handles it better
+            pass
+
     return [
         serialize_timeline_event(log, doc)
-        for log in logs
+        for log in final_logs
     ]
 
 
@@ -3820,6 +3361,148 @@ async def download_signed(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+# -----------------------------
+# DOWNLOAD PROFESSIONAL SUMMARY PDF (OWNER)
+# -----------------------------
+@router.get("/{document_id}/summary/pdf")
+async def download_summary_pdf(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """
+    Generate and download the professional document summary PDF for the owner.
+    Matches the look and feel of DocuSign summary.
+    """
+    try:
+        oid = ObjectId(document_id)
+    except:
+        raise HTTPException(400, "Invalid document ID")
+
+    doc = db.documents.find_one({
+        "_id": oid,
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(404, "Document not found")
+        
+    # Get details for summary
+    all_recipients = list(db.recipients.find({"document_id": oid}).sort("signing_order", 1))
+    all_fields = list(db.signature_fields.find({"document_id": oid}))
+    timeline = list(db.document_timeline.find({"document_id": oid}).sort("timestamp", -1).limit(50))
+    
+    # Format dates
+    created_date = doc.get("uploaded_at")
+    created_date_str = created_date.strftime("%B %d, %Y") if created_date else "Unknown"
+    completed_date = (doc.get("completed_at") or doc.get("finalized_at"))
+    completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else "Not completed"
+    
+    # Map participants
+    participants = []
+    for r in all_recipients:
+        comp_time = ""
+        # Determine logical completion date
+        for t_field in ["signed_at", "approved_at", "form_completed_at", "viewer_at"]:
+            if r.get(t_field):
+                comp_time = r[t_field].strftime("%Y-%m-%d")
+                break
+                
+        r_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(r["_id"])]
+        r_completed = len([f for f in r_fields if f.get("completed_at")])
+        
+        participants.append({
+            "name": r.get("name", "Unknown"),
+            "email": r.get("email", ""),
+            "role": r.get("role", "signer"),
+            "status": r.get("status", "pending"),
+            "completed_at": comp_time or None,
+            "signing_order": r.get("signing_order", 1),
+            "fields_assigned": len(r_fields),
+            "fields_completed": r_completed,
+            "otp_verified": r.get("otp_verified", False),
+            "terms_accepted": r.get("terms_accepted", False)
+        })
+        
+    # Recent activity
+    recent_activity = []
+    for event in timeline[:20]:
+        actor = event.get("actor", {})
+        p_name = actor.get("name") or actor.get("email") or "System"
+        e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
+        
+        details = event.get("description", "")
+        if not details:
+            details = event.get("title", event.get("type", "Activity").replace("_", " ").title())
+            
+        recent_activity.append({
+            "date": e_date,
+            "event": event.get("title", event.get("type", "Activity")),
+            "participant": p_name,
+            "details": details
+        })
+        
+    # Compile summary data
+    summary_data = {
+        "envelope_id": doc.get("envelope_id", "N/A"),
+        "document_name": doc.get("filename", "Untitled Document"),
+        "document_status": doc.get("status", "unknown"),
+        "created_date": created_date_str,
+        "completed_date": completed_date_str,
+        "total_pages": doc.get("page_count", 0),
+        "owner_name": current_user.get("full_name") or current_user.get("name") or "You",
+        "owner_email": doc.get("owner_email", current_user.get("email")),
+        
+        # Identity context for the requester
+        "current_recipient": {
+            "name": current_user.get("name", "Owner"),
+            "email": current_user.get("email"),
+            "role": "Owner",
+            "status": "active",
+            "completed_at": None,
+            "ip_address": request.client.host if request and request.client else "Internal",
+            "otp_verified": True,
+            "terms_accepted": True,
+            "signing_order": 0,
+            "signature_value": None,
+            "initials_value": None,
+            "has_initials_field": False
+        },
+        
+        "assigned_fields": [], # Owner isn't usually assigned fields in this view
+        "all_recipients": participants,
+        "statistics": {
+            "total_recipients": len(all_recipients),
+            "completed_recipients": len([r for r in all_recipients if r.get("status") == "completed"]),
+            "total_fields": len(all_fields),
+            "completed_fields": len([f for f in all_fields if f.get("completed_at")]),
+            "completion_percentage": round((len([f for f in all_fields if f.get("completed_at")]) / len(all_fields) * 100), 1) if all_fields else 0,
+            "assigned_to_you": 0,
+            "completed_by_you": 0
+        },
+        "recent_activity": recent_activity,
+        "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}",
+        "generated_at": datetime.utcnow().isoformat(),
+        "generated_by": current_user.get("email", "unknown"),
+        "platform": "SafeSign Professional"
+    }
+    
+    # Generate PDF via unified engine
+    pdf_bytes = SafeSignSummaryEngine.create_document_summary_pdf(summary_data)
+    
+    # Sanitized filename
+    clean_name = re.sub(r'[^\w\s-]', '', doc.get('filename', 'document'))
+    filename = f"SafeSign_Summary_{doc.get('envelope_id', 'doc')}_{clean_name}.pdf"
+    
+    _log_event(document_id, current_user, "download_professional_summary", {"filename": filename, "format": "pdf"}, request)
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
     
     

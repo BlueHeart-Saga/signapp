@@ -641,204 +641,329 @@ async def generate_html_report(
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Signing Report - {data['document'].get('filename', 'Document')}</title>
+        <title>Audit Report - {data['document'].get('filename', 'Document')}</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            
             body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f8f9fa;
+                font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                background-color: #f3f4f6;
+                color: #1f2937;
+                line-height: 1.5;
+            }}
+            
+            .report-card {{
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                padding: 2.5rem;
+                margin-top: 2rem;
+                margin-bottom: 3rem;
             }}
             
             .report-header {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 2rem 0;
-                margin-bottom: 2rem;
+                border-bottom: 2px solid #f3f4f6;
+                padding-bottom: 2rem;
+                margin-bottom: 2.5rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
             }}
             
-            .stat-card {{
-                background: white;
-                border-radius: 0.5rem;
-                padding: 1rem;
-                margin-bottom: 1rem;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            .brand-logo {{
+                font-weight: 800;
+                font-size: 1.75rem;
+                color: #0d9488;
+                letter-spacing: -0.025em;
             }}
             
-            .status-badge {{
-                padding: 0.25rem 0.5rem;
-                border-radius: 0.25rem;
-                font-size: 0.75rem;
+            .badge-status {{
+                padding: 0.5rem 1rem;
+                border-radius: 6px;
                 font-weight: 600;
+                font-size: 0.8125rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
             }}
             
-            .status-draft {{ background-color: #e9ecef; color: #495057; }}
-            .status-sent {{ background-color: #cfe2ff; color: #084298; }}
-            .status-in_progress {{ background-color: #fff3cd; color: #664d03; }}
-            .status-completed {{ background-color: #d1e7dd; color: #0a3622; }}
-            .status-declined {{ background-color: #f8d7da; color: #58151c; }}
-            .status-voided {{ background-color: #212529; color: white; }}
+            .status-draft {{ background-color: #f3f4f6; color: #4b5563; }}
+            .status-sent {{ background-color: #dbeafe; color: #1d4ed8; }}
+            .status-in_progress {{ background-color: #fef3c7; color: #b45309; }}
+            .status-completed {{ background-color: #d1e7dd; color: #0d9488; }}
+            .status-declined {{ background-color: #fee2e2; color: #b91c1c; }}
+            .status-voided {{ background-color: #111827; color: white; }}
+            
+            .section-title {{
+                font-weight: 700;
+                font-size: 1.125rem;
+                color: #111827;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }}
+            
+            .section-title i {{
+                color: #0d9488;
+            }}
+            
+            .info-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1.5rem;
+                background-color: #f9fafb;
+                padding: 1.5rem;
+                border-radius: 8px;
+                margin-bottom: 2.5rem;
+            }}
+            
+            .info-item label {{
+                display: block;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                color: #6b7280;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }}
+            
+            .info-item span {{
+                font-weight: 500;
+                color: #111827;
+            }}
+            
+            .recipient-table th {{
+                background-color: #f9fafb;
+                font-weight: 600;
+                font-size: 0.8125rem;
+                color: #4b5563;
+                text-transform: uppercase;
+                border-top: none;
+            }}
+            
+            .timeline {{
+                position: relative;
+                padding-left: 2rem;
+            }}
+            
+            .timeline::before {{
+                content: '';
+                position: absolute;
+                left: 0.75rem;
+                top: 0.5rem;
+                bottom: 0;
+                width: 2px;
+                background-color: #e5e7eb;
+            }}
             
             .timeline-item {{
-                border-left: 2px solid #dee2e6;
-                padding-left: 1rem;
-                margin-bottom: 1rem;
+                position: relative;
+                padding-bottom: 2rem;
+            }}
+            
+            .timeline-dot {{
+                position: absolute;
+                left: -1.75rem;
+                top: 0.25rem;
+                width: 1.5rem;
+                height: 1.5rem;
+                background-color: white;
+                border: 2px solid #0d9488;
+                border-radius: 50%;
+                z-index: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.75rem;
+                color: #0d9488;
+            }}
+            
+            .timeline-content {{
+                background-color: white;
+            }}
+            
+            .timeline-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                margin-bottom: 0.25rem;
+            }}
+            
+            .event-title {{
+                font-weight: 600;
+                font-size: 0.9375rem;
+                color: #111827;
+            }}
+            
+            .event-time {{
+                font-size: 0.8125rem;
+                color: #6b7280;
+            }}
+            
+            .event-desc {{
+                font-size: 0.875rem;
+                color: #4b5563;
+                margin-bottom: 0.5rem;
+            }}
+            
+            .event-actor {{
+                font-size: 0.8125rem;
+                color: #9ca3af;
+                display: flex;
+                gap: 1rem;
+            }}
+            
+            .footer {{
+                text-align: center;
+                margin-top: 3rem;
+                color: #9ca3af;
+                font-size: 0.875rem;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 2rem;
+            }}
+            
+            @media print {{
+                body {{ background-color: white; }}
+                .report-card {{ box-shadow: none; margin-top: 0; }}
             }}
         </style>
     </head>
     <body>
-        <div class="report-header">
-            <div class="container">
-                <h1 class="display-5 fw-bold">
-                    Electronic Signing Report
-                </h1>
-                <p class="lead">{data['document'].get('filename', 'Document')}</p>
-                <p class="mb-0">Envelope ID: {data['document'].get('envelope_id', 'N/A')}</p>
-            </div>
-        </div>
-        
-        <div class="container">
-            <!-- Document Information -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="stat-card">
-                        <h5>Document Information</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Filename:</strong> {data['document'].get('filename', 'Unknown')}</p>
-                                <p><strong>Envelope ID:</strong> {data['document'].get('envelope_id', 'N/A')}</p>
-                                <p><strong>Status:</strong> 
-                                    <span class="status-badge status-{data['document'].get('status', '').replace(' ', '_')}">
-                                        {data['document'].get('status', '').upper()}
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Owner:</strong> {data['document'].get('owner_email', 'Unknown')}</p>
-                                <p><strong>Created:</strong> {data['document'].get('uploaded_at', 'N/A')}</p>
-                                <p><strong>Completed:</strong> {data['document'].get('completed_at', 'N/A')}</p>
-                            </div>
+        <div class="container pb-5">
+            <div class="report-card">
+                <div class="report-header">
+                    <div>
+                        <div class="brand-logo mb-1">
+                            <i class="bi bi-shield-check"></i> SafeSign
                         </div>
+                        <h1 class="h4 mb-0 fw-bold">Electronic Record & Audit Trail</h1>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge-status status-{data['document'].get('status', '').replace(' ', '_')}">
+                            {data['document'].get('status', '').upper()}
+                        </span>
+                        <div class="mt-2 text-muted small">ID: {data['document'].get('envelope_id', 'N/A')}</div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Statistics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <h6>Recipients</h6>
-                        <h3>{data['statistics']['total_recipients']}</h3>
-                        <p class="text-muted">{data['statistics']['completed_recipients']} completed</p>
+                
+                <div class="section-title">
+                    <i class="bi bi-info-circle"></i> Document Details
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Filename</label>
+                        <span>{data['document'].get('filename', 'Unknown')}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Creator</label>
+                        <span>{data['document'].get('owner_email', 'Unknown')}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Created At</label>
+                        <span>{data['document'].get('uploaded_at', 'N/A')}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Completed At</label>
+                        <span>{data['document'].get('completed_at', 'In Progress')}</span>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <h6>Fields</h6>
-                        <h3>{data['statistics']['total_fields']}</h3>
-                        <p class="text-muted">{data['statistics']['completed_fields']} completed</p>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <h6>Completion Rate</h6>
-                        <h3>{data['statistics']['completion_rate']}</h3>
-                        <p class="text-muted">Recipients</p>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <h6>Signing Duration</h6>
-                        <h3>{data['statistics']['signing_duration'].split()[0]}</h3>
-                        <p class="text-muted">{data['statistics']['signing_duration'].split()[1] if len(data['statistics']['signing_duration'].split()) > 1 else ''}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Recipients -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3>Recipients ({len(data['recipients'])})</h3>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Fields</th>
-                                    <th>Signing Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+
+                <div class="row mb-5">
+                    <div class="col-md-12">
+                        <div class="section-title">
+                            <i class="bi bi-people"></i> Recipients ({len(data['recipients'])})
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table recipient-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name & Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Activity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
     """
     
     for recipient in data["recipients"]:
         html_content += f"""
-                                <tr>
-                                    <td>{recipient.get('name', '')}</td>
-                                    <td>{recipient.get('email', '')}</td>
-                                    <td>{recipient.get('role', '').title()}</td>
-                                    <td>
-                                        <span class="status-badge status-{recipient.get('status', '').replace(' ', '_')}">
-                                            {recipient.get('status', '').upper()}
-                                        </span>
-                                    </td>
-                                    <td>{recipient['statistics']['completed_fields']}/{recipient['statistics']['total_fields']}</td>
-                                    <td>{recipient['statistics']['signing_time']}</td>
-                                </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{recipient.get('name', 'Unknown')}</div>
+                                            <div class="small text-muted">{recipient.get('email', '')}</div>
+                                        </td>
+                                        <td><span class="text-capitalize small">{recipient.get('role', '')}</span></td>
+                                        <td>
+                                            <span class="badge-status status-{recipient.get('status', '').replace(' ', '_')} px-2 py-1" style="font-size: 0.7rem;">
+                                                {recipient.get('status', '').upper()}
+                                            </span>
+                                        </td>
+                                        <td class="text-end small">
+                                            <div class="text-muted">Fields: {recipient['statistics']['completed_fields']}/{recipient['statistics']['total_fields']}</div>
+                                            <div>{recipient['statistics']['signing_time']}</div>
+                                        </td>
+                                    </tr>
         """
     
-    html_content += """
-                            </tbody>
-                        </table>
+    html_content += f"""
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Timeline -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3>Timeline ({len(data['timeline_events'])})</h3>
+                
+                <div class="section-title">
+                    <i class="bi bi-clock-history"></i> Audit Timeline ({len(data['timeline_events'])})
+                </div>
+                <div class="timeline">
     """
     
-    for event in data["timeline_events"][-10:]:  # Show last 10 events
+    # Show ALL timeline events
+    for event in data["timeline_events"]:
         timestamp = event.get("timestamp")
         if hasattr(timestamp, 'strftime'):
-            timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
+            timestamp_str = timestamp.strftime("%b %d, %Y • %H:%M:%S")
         else:
-            timestamp_str = str(timestamp)[:16]
+            timestamp_str = str(timestamp)[:19].replace('T', ' • ')
         
         actor_name = event.get("actor", {}).get("name") or event.get("actor", {}).get("email") or "System"
         
+        # Determine icon based on event type
+        icon = "bi-dot"
+        if "sign" in event.get('title', '').lower(): icon = "bi-pencil-fill"
+        elif "view" in event.get('title', '').lower(): icon = "bi-eye-fill"
+        elif "sent" in event.get('title', '').lower(): icon = "bi-send-fill"
+        elif "complete" in event.get('title', '').lower(): icon = "bi-check-circle-fill"
+        
         html_content += f"""
                     <div class="timeline-item">
-                        <div class="d-flex justify-content-between">
-                            <strong>{event.get('title', '')}</strong>
-                            <small class="text-muted">{timestamp_str}</small>
+                        <div class="timeline-dot"><i class="bi {icon}"></i></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="event-title">{event.get('title', '')}</span>
+                                <span class="event-time">{timestamp_str}</span>
+                            </div>
+                            <div class="event-desc">{event.get('description', '')}</div>
+                            <div class="event-actor">
+                                <span><i class="bi bi-person"></i> {actor_name}</span>
+                                {f'<span><i class="bi bi-globe"></i> {event.get("metadata", {}).get("ip", "")}</span>' if event.get("metadata", {}).get("ip") else ''}
+                            </div>
                         </div>
-                        <p class="mb-1">{event.get('description', '')}</p>
-                        <small class="text-muted">
-                            <i class="bi bi-person"></i> {actor_name}
-                            {f' • <i class="bi bi-laptop"></i> {event.get("metadata", {}).get("ip", "")}' if event.get("metadata", {}).get("ip") else ''}
-                        </small>
                     </div>
         """
     
-    html_content += """
+    html_content += f"""
                 </div>
-            </div>
-            
-            <!-- Footer -->
-            <div class="row mt-5">
-                <div class="col-12 text-center text-muted">
-                    <p>Electronic Signing System • Report generated on {data['metadata']['report_generated']}</p>
-                    <p>This is an official record of electronic signing activities</p>
+                
+                <div class="footer">
+                    <p class="mb-1">Audit Record generated on {data['metadata']['report_generated']} by SafeSign Infrastructure</p>
+                    <p class="mb-0">Secure electronic identifier: {data['document'].get('envelope_id', 'N/A')}</p>
+                    <p class="mt-2 text-muted" style="font-size: 0.7rem;">Verified audit trail containing ({len(data['timeline_events'])}) chronological document lifecycle events.</p>
                 </div>
             </div>
         </div>
-        
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
     """
@@ -848,7 +973,7 @@ async def generate_html_report(
         document_id,
         current_user,
         "generate_html_report",
-        {"format": "html", "recipients_count": len(data["recipients"])},
+        {"format": "html", "recipients_count": len(data["recipients"]), "events_count": len(data["timeline_events"])},
         request
     )
     

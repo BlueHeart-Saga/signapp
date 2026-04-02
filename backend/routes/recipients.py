@@ -81,8 +81,10 @@ class BulkRecipientTemplate(BaseModel):
 
 class SendInvitesRequest(BaseModel):
     recipient_ids: List[str]
-    common_message: str = "Please sign this document"
+    common_message: Optional[str] = None
     personal_messages: Optional[dict] = {}  # {"recipient_id": "personal message"}
+    expiry_days: Optional[int] = None  # None means use document setting
+    reminder_period: Optional[int] = None  # None means use document setting
     
     
 def generate_recipient_color(email: str) -> str:
@@ -809,16 +811,31 @@ async def send_invites_to_recipients(
             current_user["email"]
         )
 
-        # Update document status and store common message - USE INVITES_DATA
+        # Update document status and store settings
+        expiry_days = invites_data.expiry_days if invites_data.expiry_days is not None else doc.get("expiry_days", 0)
+        reminder_period = invites_data.reminder_period if invites_data.reminder_period is not None else doc.get("reminder_period", 0)
+        
+        expires_at = None
+        if expiry_days and expiry_days > 0:
+            expires_at = datetime.utcnow() + timedelta(days=expiry_days)
+            
+        next_reminder_at = None
+        if reminder_period and reminder_period > 0:
+            next_reminder_at = datetime.utcnow() + timedelta(days=reminder_period)
+
+        update_fields = {
+            "status": "sent",
+            "sent_at": datetime.utcnow(),
+            "common_message": invites_data.common_message or doc.get("common_message", ""),
+            "expiry_days": expiry_days,
+            "reminder_period": reminder_period,
+            "expires_at": expires_at,
+            "next_reminder_at": next_reminder_at
+        }
+        
         db.documents.update_one(
             {"_id": ObjectId(document_id)},
-            {
-                "$set": {
-                    "status": "sent",
-                    "sent_at": datetime.utcnow(),
-                    "common_message": invites_data.common_message  # Fixed: use invites_data
-                }
-            }
+            {"$set": update_fields}
         )
         
         # Update recipient statuses - USE INVITES_DATA

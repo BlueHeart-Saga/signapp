@@ -1405,7 +1405,9 @@ export default function MyDocuments() {
                       <option value="sent">Sent</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
+                      <option value="declined">Declined</option>
                       <option value="voided">Voided</option>
+                      <option value="expired">Expired</option>
                     </select>
                   </div>
 
@@ -1736,7 +1738,7 @@ export default function MyDocuments() {
                           </button>
 
                           {/* Conditional options based on status */}
-                          {["draft", "sent", "in_progress"].includes(doc.status) && (
+                          {["draft", "sent", "in_progress", "declined", "expired"].includes(doc.status) && (
                             <>
                               <div className="dropdown-divider"></div>
 

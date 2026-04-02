@@ -1,4 +1,4 @@
-// components/DocumentRecipientsList.jsx
+// components/DocumentStatusDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -13,7 +13,8 @@ import {
   Tooltip,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Divider
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -29,12 +30,20 @@ import DocumentRecipientStatus from './RecipientStatusBar';
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 
-const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) => {
+const DocumentStatusDashboard = ({ document, recipients: initialRecipients, documentId }) => {
   const [recipients, setRecipients] = useState(initialRecipients || []);
   const [loading, setLoading] = useState(!initialRecipients);
   const [error, setError] = useState(null);
   const [expandedRecipient, setExpandedRecipient] = useState(null);
   const [filter, setFilter] = useState('all'); // all, pending, completed, declined
+
+  // Sync with prop updates from parent
+  useEffect(() => {
+    if (initialRecipients) {
+      setRecipients(initialRecipients);
+      setLoading(false);
+    }
+  }, [initialRecipients]);
 
   useEffect(() => {
     if (!initialRecipients && documentId) {
@@ -81,7 +90,7 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
     completed: recipients.filter(r => r.status === 'completed').length,
     pending: recipients.filter(r => r.status !== 'completed' && r.status !== 'declined').length,
     declined: recipients.filter(r => r.status === 'declined').length,
-    progress: recipients.length > 0 
+    progress: recipients.length > 0
       ? Math.round((recipients.filter(r => r.status === 'completed').length / recipients.length) * 100)
       : 0
   };
@@ -101,7 +110,7 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
         'Signed At': r.signed_at,
         'Signing Order': r.signing_order
       }));
-      
+
       // Convert to CSV and download
       // ... CSV download implementation
     } catch (err) {
@@ -237,42 +246,110 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
         </Grid> */}
 
         {/* Progress Bar */}
-        <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              Overall Progress
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#6B7280' }}>
-              {stats.progress}% Complete
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            mb: 4,
+            borderRadius: 4,
+            border: '1px solid #e2e8f0',
+            bgcolor: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 4
+          }}
+        >
+          {/* LEFT: PROGRESS INFO */}
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ color: '#1e293b' }}>
+                Overall Progress
+              </Typography>
+              <Typography variant="body1" fontWeight={600} sx={{ color: stats.progress === 100 ? '#10b981' : '#3b82f6' }}>
+                {stats.progress}% Complete
+              </Typography>
+            </Box>
+
+            <LinearProgress
+              variant="determinate"
+              value={stats.progress}
+              sx={{
+                height: 12,
+                borderRadius: 6,
+                bgcolor: '#f1f5f9',
+                mb: 2,
+                '& .MuiLinearProgress-bar': {
+                  bgcolor: stats.progress === 100 ? '#10b981' : '#3b82f6',
+                  borderRadius: 6
+                }
+              }}
+            />
+
+            <Typography variant="body2" sx={{ color: '#64748b' }}>
+              {stats.completed} of {stats.total} recipients have completed their actions
             </Typography>
           </Box>
-          
-          <LinearProgress 
-            variant="determinate" 
-            value={stats.progress} 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4,
-              bgcolor: '#E5E7EB',
-              '& .MuiLinearProgress-bar': {
-                bgcolor: stats.progress === 100 ? '#10B981' : '#3B82F6',
-                borderRadius: 4
+
+          {/* RIGHT: ZOHO-STYLE STATUS BADGE */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 160,
+              p: 2,
+              borderRadius: '50%',
+              aspectRatio: '1/1',
+              border: `2px dashed ${stats.progress === 100 ? '#10b981' : '#cbd5e1'}`,
+              position: 'relative',
+              animation: 'fadeInScale 0.5s ease-out',
+              '@keyframes fadeInScale': {
+                '0%': { opacity: 0, transform: 'scale(0.8)' },
+                '100%': { opacity: 1, transform: 'scale(1)' }
               }
             }}
-          />
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-            <Typography variant="caption" sx={{ color: '#6B7280' }}>
-              {stats.completed} of {stats.total} completed
+          >
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                bgcolor:
+                  document?.status === 'completed' ? '#10b981' :
+                    document?.status === 'declined' ? '#ef4444' :
+                      document?.status === 'voided' ? '#94a3b8' :
+                        '#f8fafc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 1,
+                boxShadow: (document?.status === 'completed' || document?.status === 'declined') ? `0 8px 16px -4px ${document?.status === 'completed' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` : 'none'
+              }}
+            >
+              {document?.status === 'completed' ? (
+                <CheckCircleIcon sx={{ fontSize: 44, color: 'white' }} />
+              ) : document?.status === 'declined' ? (
+                <WarningIcon sx={{ fontSize: 44, color: 'white' }} />
+              ) : (
+                <ScheduleIcon sx={{ fontSize: 40, color: '#94a3b8' }} />
+              )}
+            </Box>
+            <Typography
+              variant="subtitle2"
+              fontWeight={800}
+              sx={{
+                color:
+                  document?.status === 'completed' ? '#10b981' :
+                    document?.status === 'declined' ? '#ef4444' :
+                      '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}
+            >
+              {document?.status?.replace('_', ' ') || 'In Progress'}
             </Typography>
-            {stats.progress === 100 && (
-              <Chip 
-                label="All Signatures Complete" 
-                size="small"
-                icon={<CheckCircleIcon />}
-                sx={{ bgcolor: '#D1FAE5', color: '#065F46' }}
-              />
-            )}
           </Box>
         </Paper>
       </Box>
@@ -304,8 +381,16 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
         </Stack>
       </Box>
 
+      {/* Recipients List Section Title */}
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Typography variant="h6" fontWeight={700} sx={{ color: '#1e293b' }}>
+          Recipient status
+        </Typography>
+        <Divider sx={{ flex: 1, borderColor: '#f1f5f9' }} />
+      </Box>
+
       {/* Recipients List */}
-      <Box>
+      <Box sx={{ bgcolor: '#f8fafc', p: 0.5, borderRadius: 4 }}>
         {sortedRecipients.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
             <PeopleIcon sx={{ fontSize: 48, color: '#D1D5DB', mb: 2 }} />
@@ -317,10 +402,12 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
             </Typography>
           </Paper>
         ) : (
-          sortedRecipients.map((recipient) => (
+          sortedRecipients.map((recipient, idx) => (
             <DocumentRecipientStatus
               key={recipient._id || recipient.id}
               recipient={recipient}
+              index={idx + 1}
+              documentStatus={document?.status}
               showDetails={expandedRecipient === (recipient._id || recipient.id)}
               onToggleDetails={handleToggleDetails}
             />
@@ -328,7 +415,7 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
         )}
       </Box>
 
-      
+
     </Box>
   );
 };
@@ -337,16 +424,16 @@ const DocumentRecipientsList = ({ documentId, recipients: initialRecipients }) =
 const calculateAverageTime = (recipients) => {
   const completedRecipients = recipients.filter(r => r.signed_at && r.invited_at);
   if (completedRecipients.length === 0) return 'N/A';
-  
+
   const totalTime = completedRecipients.reduce((sum, r) => {
     const invited = new Date(r.invited_at);
     const signed = new Date(r.signed_at);
     return sum + (signed - invited);
   }, 0);
-  
+
   const avgHours = totalTime / (completedRecipients.length * 3600000);
-  return avgHours < 1 
-    ? `${Math.round(avgHours * 60)} minutes` 
+  return avgHours < 1
+    ? `${Math.round(avgHours * 60)} minutes`
     : `${Math.round(avgHours)} hours`;
 };
 
@@ -356,4 +443,4 @@ const getNextRecipient = (recipients) => {
     .sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0))[0];
 };
 
-export default DocumentRecipientsList;
+export default DocumentStatusDashboard;

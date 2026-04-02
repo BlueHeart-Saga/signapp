@@ -68,6 +68,7 @@ export default function DocumentPreviewSection({ document }) {
         <div className="doc-preview-thumb">
           <DocumentThumbnail
             url={viewDocumentUrl(document.id)}
+            thumbnailUrl={document.preview_url}
             size={120}
             onClick={() => setViewerOpen(true)}
           />
@@ -83,47 +84,47 @@ export default function DocumentPreviewSection({ document }) {
         {/* CENTER – DOCUMENT META */}
         <div className="doc-preview-meta">
 
-  {/* DOCUMENT NAME */}
-  <h3 className="doc-preview-title">
-    {document.filename}
-  </h3>
+          {/* DOCUMENT NAME */}
+          <h3 className="doc-preview-title">
+            {document.filename}
+          </h3>
 
-  {/* OWNER */}
-  <div className="doc-preview-owner">
-    Owned by{" "}
-    <strong>{document.owner_email || "Unknown"}</strong>
-  </div>
+          {/* OWNER */}
+          <div className="doc-preview-owner">
+            Owned by{" "}
+            <strong>{document.owner_email || "Unknown"}</strong>
+          </div>
 
-  {/* DESCRIPTION */}
-  <div className="doc-preview-description">
-    {document.description || "No description given"}
-  </div>
+          {/* DESCRIPTION */}
+          <div className="doc-preview-description">
+            {document.description || "No description given"}
+          </div>
 
-  {/* DETAILS LIST */}
-  <div className="doc-preview-details">
-    <div className="doc-preview-detail-row">
-      Submitted on{" "}
-      {new Date(document.uploaded_at).toLocaleString()}
-    </div>
+          {/* DETAILS LIST */}
+          <div className="doc-preview-details">
+            <div className="doc-preview-detail-row">
+              Submitted on{" "}
+              {new Date(document.uploaded_at).toLocaleString()}
+            </div>
 
-    {document.completed_at && (
-      <div className="doc-preview-detail-row">
-        Completed on{" "}
-        {new Date(document.completed_at).toLocaleString()}
-      </div>
-    )}
+            {document.completed_at && (
+              <div className="doc-preview-detail-row">
+                Completed on{" "}
+                {new Date(document.completed_at).toLocaleString()}
+              </div>
+            )}
 
-    <div className="doc-preview-detail-row">
-      Status is{" "}
-      <span
-        className="doc-preview-status-text"
-        style={{ color: status.color }}
-      >
-        {status.label}
-      </span>
-    </div>
-  </div>
-</div>
+            <div className="doc-preview-detail-row">
+              Status is{" "}
+              <span
+                className="doc-preview-status-text"
+                style={{ color: status.color }}
+              >
+                {status.label}
+              </span>
+            </div>
+          </div>
+        </div>
 
 
         {/* RIGHT – STATUS BADGE */}

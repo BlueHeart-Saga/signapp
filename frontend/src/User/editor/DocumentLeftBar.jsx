@@ -188,8 +188,9 @@ const DocumentLeftBar = ({
 
       {/* Recipients Content */}
       <Box sx={{
-        flex: '0 0 auto',
-        maxHeight: '40%',
+        height: '40%',
+minHeight: 220,
+maxHeight: 260,
         overflowY: 'auto',
         borderBottom: '1px solid #f1f5f9',
         '&::-webkit-scrollbar': { width: '5px' },
@@ -230,7 +231,7 @@ const DocumentLeftBar = ({
                 color: '#fff',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}>
-                {recipient.signing_order || recipient.name?.charAt(0).toUpperCase() || '?'}
+                {recipient.name?.charAt(0).toUpperCase() || '?'}
               </Avatar>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
@@ -296,6 +297,7 @@ const DocumentLeftBar = ({
       {/* Fields Grid */}
       <Box sx={{
         flex: 1,
+        minHeight: 300,
         overflowY: 'auto',
         px: 2,
         py: 2,

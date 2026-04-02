@@ -66,6 +66,10 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
           endpoint = `/documents/${documentId}/download/signed`;
           defaultFilename = "signed_document.pdf";
           break;
+        case 'summary':
+          endpoint = `/documents/${documentId}/summary/pdf`;
+          defaultFilename = "document_summary.pdf";
+          break;
         case 'original':
           endpoint = `/documents/${documentId}/download/original`;
           defaultFilename = "original_document.pdf";
@@ -228,6 +232,20 @@ const SummaryHeaderActions = ({ documentId, documentStatus }) => {
 
       {/* Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeMenu}>
+        <MenuItem
+          onClick={() => { handleDownload('summary'); closeMenu(); }}
+          disabled={loading.type === 'summary'}
+        >
+          {loading.type === 'summary' ? (
+            <CircularProgress size={20} />
+          ) : (
+            <DescriptionOutlined fontSize="small" />
+          )}
+          <span style={{ marginLeft: 10 }}>
+            {loading.type === 'summary' ? 'Downloading...' : 'Download Document Summary'}
+          </span>
+        </MenuItem>
+
         <MenuItem
           onClick={() => { handleDownload('signed'); closeMenu(); }}
           disabled={loading.type === 'signed'}

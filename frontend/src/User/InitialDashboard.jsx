@@ -499,9 +499,9 @@ const { user, loading } = useAuth();
   className="ss-init-btn-primary"
   onClick={() => {
     if (stats.actionRequired > 0) {
-      handleNavigate("/user/documents?status=in_progress");
+      handleNavigate("/user/documents");
     } else if (stats.waiting > 0) {
-      handleNavigate("/user/documents?status=sent");
+      handleNavigate("/user/documents");
     } else {
       handleNavigate("/user/documents");
     }

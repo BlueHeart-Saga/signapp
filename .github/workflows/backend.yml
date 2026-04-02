@@ -1,33 +1,42 @@
-name: Backend CI/CD (Docker)
+name: Backend CI/CD (SignApp Docker)
 
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout code
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # 2️⃣ Login Docker
-      - uses: docker/login-action@v2
+      # 2️⃣ Set up Docker Buildx (faster builds)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3️⃣ Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 3️⃣ Build
-      - run: docker build -t blueheartsaga/signapp-backend:latest ./backend
+      # 4️⃣ Build & Push Docker Image (UNIQUE TAG)
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t blueheartsaga/signapp-backend:${{ github.sha }} ./backend
+          docker push blueheartsaga/signapp-backend:${{ github.sha }}
 
-      # 4️⃣ Push
-      - run: docker push blueheartsaga/signapp-backend:latest
-
-      # 5️⃣ 🔥 FORCE AZURE TO UPDATE
-      - name: Deploy to Azure (refresh container)
+      # 5️⃣ Deploy to Azure Web App (No Cache Issue)
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: signapp-backend-docker
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: blueheartsaga/signapp-backend:latest
+          images: blueheartsaga/signapp-backend:${{ github.sha }}

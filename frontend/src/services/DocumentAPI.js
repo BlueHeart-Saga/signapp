@@ -311,6 +311,53 @@ export const getTimeline = async (id) => {
   return res.data;
 };
 
+// Helper for authenticated blob downloads
+const authenticatedDownload = async (url, defaultFilename) => {
+  try {
+    const response = await api.get(url, { responseType: 'blob' });
+
+    // Try to get filename from Content-Disposition header
+    let filename = defaultFilename;
+    const disposition = response.headers['content-disposition'];
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+      const matches = filenameRegex.exec(disposition);
+      if (matches != null && matches[1]) {
+        filename = matches[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(link.href);
+  } catch (error) {
+    console.error('Download failed:', error);
+    throw error;
+  }
+};
+
+// ✅ Export & Reports
+export const exportRecipientsCsv = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/recipients-csv`, `recipients_${docId}.csv`);
+};
+
+export const exportTimelineCsv = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/timeline-csv`, `timeline_${docId}.csv`);
+};
+
+export const exportFieldsCsv = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/fields-csv`, `fields_${docId}.csv`);
+};
+
+export const generateHtmlReport = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/html`, `report_${docId}.html`);
+};
+
 
 export async function fetchPdfBlob(url) {
   const token = localStorage.getItem("token");

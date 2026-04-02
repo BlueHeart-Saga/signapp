@@ -55,8 +55,20 @@ import {
   PictureAsPdf as PictureAsPdfIcon,
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
-import { getTimeline } from "../services/DocumentAPI";
+import {
+  getTimeline,
+  exportRecipientsCsv,
+  exportTimelineCsv,
+  exportFieldsCsv,
+  generateHtmlReport
+} from "../services/DocumentAPI";
 import { useNavigate } from "react-router-dom";
+import {
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText
+} from "@mui/material";
 
 /* ----------------------------------
    Enhanced Helper Functions
@@ -70,26 +82,23 @@ const getEventIcon = (event) => {
   const action = event.action || '';
   const metadata = event.metadata || {};
   const downloadType = metadata.download_type;
-  
+
   // Download events
-  if (action === 'download_professional_certificate' || downloadType === 'professional_certificate' || downloadType === 'certificate') {
-    return <VerifiedUserIcon color="success" {...iconProps} />;
-  }
-  if (action === 'download_professional_summary' || downloadType === 'professional_summary' || downloadType === 'summary') {
-    return <SummarizeIcon color="info" {...iconProps} />;
-  }
-  if (action === 'download_signed' || downloadType === 'signed') {
+  if (action?.includes('download') || downloadType) {
+    if (downloadType === 'professional_certificate' || downloadType === 'certificate') {
+      return <VerifiedUserIcon color="success" {...iconProps} />;
+    }
+    if (downloadType === 'professional_summary' || downloadType === 'summary') {
+      return <SummarizeIcon color="info" {...iconProps} />;
+    }
     return <DownloadIcon color="success" {...iconProps} />;
   }
-  if (action === 'download_original' || downloadType === 'original') {
-    return <DownloadIcon color="primary" {...iconProps} />;
-  }
-  
+
   // View events
   if (action === 'view_document' || action?.includes('view')) {
     return <VisibilityIcon color="info" {...iconProps} />;
   }
-  
+
   // Document Operations
   if (action === 'upload_document') {
     return <CloudUploadIcon color="primary" {...iconProps} />;
@@ -97,7 +106,24 @@ const getEventIcon = (event) => {
   if (action === 'create_document_from_template') {
     return <FileCopyIcon color="secondary" {...iconProps} />;
   }
-  
+  if (action === 'rename_document') {
+    return <EditIcon color="action" {...iconProps} />;
+  }
+
+  // Recipient Operations
+  if (action === 'invites_sent' || action === 'send_invites') {
+    return <SendIcon color="primary" {...iconProps} />;
+  }
+  if (action === 'reminder_sent') {
+    return <EmailIcon color="warning" {...iconProps} />;
+  }
+  if (action === 'recipients_added') {
+    return <GroupIcon color="primary" {...iconProps} />;
+  }
+  if (action === 'recipient_deleted' || action === 'recipient_removed') {
+    return <PersonIcon color="error" {...iconProps} />;
+  }
+
   // File Operations
   if (action === 'file_added') {
     return <DescriptionIcon color="success" {...iconProps} />;
@@ -105,18 +131,27 @@ const getEventIcon = (event) => {
   if (action === 'file_deleted') {
     return <DeleteIcon color="error" {...iconProps} />;
   }
-  
+  if (action === 'file_replaced') {
+    return <RefreshIcon color="warning" {...iconProps} />;
+  }
+
   // Recipient Actions
-  if (action === 'otp_verified') {
+  if (action === 'otp_verified' || action === 'otp_resent') {
     return <VerifiedUserIcon color="success" {...iconProps} />;
   }
   if (action === 'accept_terms') {
     return <ThumbUpIcon color="success" {...iconProps} />;
   }
+  if (action === 'decline_terms') {
+    return <ThumbDownIcon color="error" {...iconProps} />;
+  }
   if (action === 'field_completed') {
     return <CheckCircleIcon color="success" {...iconProps} />;
   }
-  
+  if (action === 'field_edited') {
+    return <EditIcon color="warning" {...iconProps} />;
+  }
+
   // Status Changes
   if (action === 'document_finalized' || action === 'completed') {
     return <CheckCircleIcon color="success" {...iconProps} />;
@@ -124,7 +159,21 @@ const getEventIcon = (event) => {
   if (action === 'void_document') {
     return <BlockIcon color="error" {...iconProps} />;
   }
-  
+  if (action === 'soft_delete') {
+    return <DeleteIcon color="error" {...iconProps} />;
+  }
+  if (action === 'permanent_delete') {
+    return <DeleteIcon sx={{ color: 'black' }} {...iconProps} />;
+  }
+  if (action === 'restore_document') {
+    return <RestoreIcon color="success" {...iconProps} />;
+  }
+
+  // Exports
+  if (action?.includes('export') || action?.includes('report')) {
+    return <ReceiptIcon color="info" {...iconProps} />;
+  }
+
   // Default
   return <HistoryIcon color="action" {...iconProps} />;
 };
@@ -136,41 +185,19 @@ const getEventColor = (event) => {
   const action = event.action || '';
   const metadata = event.metadata || {};
   const downloadType = metadata.download_type;
-  
-  if (action === 'download_professional_certificate' || downloadType === 'professional_certificate' || downloadType === 'certificate') {
-    return 'success';
-  }
-  if (action === 'download_professional_summary' || downloadType === 'professional_summary' || downloadType === 'summary') {
-    return 'info';
-  }
-  if (action === 'download_signed' || downloadType === 'signed') {
-    return 'success';
-  }
-  if (action === 'download_original' || downloadType === 'original') {
-    return 'primary';
-  }
-  if (action?.includes('view')) {
-    return 'info';
-  }
-  if (action === 'upload_document') {
-    return 'primary';
-  }
-  if (action === 'file_added') {
-    return 'success';
-  }
-  if (action === 'file_deleted') {
-    return 'error';
-  }
-  if (action === 'otp_verified' || action === 'accept_terms' || action === 'field_completed') {
-    return 'success';
-  }
-  if (action === 'document_finalized' || action === 'completed') {
-    return 'success';
-  }
-  if (action === 'void_document') {
-    return 'error';
-  }
-  
+
+  if (action?.includes('download') || downloadType) return 'success';
+  if (action?.includes('view')) return 'info';
+  if (action === 'upload_document') return 'primary';
+  if (action?.includes('file_added')) return 'success';
+  if (action?.includes('delete')) return 'error';
+  if (action === 'otp_verified' || action === 'accept_terms' || action === 'field_completed') return 'success';
+  if (action === 'field_edited' || action === 'reminder_sent') return 'warning';
+  if (action === 'document_finalized' || action === 'completed' || action === 'restore_document') return 'success';
+  if (action === 'void_document' || action === 'recipient_declined' || action === 'decline_terms') return 'error';
+  if (action?.includes('export') || action?.includes('report')) return 'info';
+  if (action?.includes('invites_sent') || action?.includes('recipients_added')) return 'primary';
+
   return 'default';
 };
 
@@ -181,109 +208,62 @@ const getEventCategory = (event) => {
   const action = event.action || '';
   const metadata = event.metadata || {};
   const downloadType = metadata.download_type;
-  
-  if (action?.includes('download') || downloadType) {
-    return 'Downloads';
-  }
-  if (action?.includes('view')) {
-    return 'Document Views';
-  }
-  if (action?.includes('upload') || action?.includes('create')) {
-    return 'Document Management';
-  }
-  if (action?.includes('file')) {
-    return 'File Management';
-  }
-  if (action?.includes('recipient') || action?.includes('otp') || action?.includes('terms') || action?.includes('field')) {
-    return 'Recipient Actions';
-  }
-  if (action === 'document_finalized' || action === 'completed' || action?.includes('void')) {
-    return 'Status Changes';
-  }
-  
+
+  if (action?.includes('download') || downloadType) return 'Downloads';
+  if (action?.includes('view')) return 'Document Views';
+  if (action?.includes('upload') || action?.includes('create') || action?.includes('rename')) return 'Document Management';
+  if (action?.includes('file')) return 'File Management';
+  if (action?.includes('recipient') || action?.includes('otp') || action?.includes('terms') || action?.includes('field') || action?.includes('invite') || action?.includes('reminder')) return 'Recipient Actions';
+  if (action?.includes('export') || action?.includes('report') || action?.includes('summary')) return 'Reports & Exports';
+  if (action === 'document_finalized' || action === 'completed' || action?.includes('void') || action?.includes('delete') || action?.includes('restore')) return 'Status Changes';
+
   return 'Other Activities';
 };
 
 // ============================================
 // USER-FRIENDLY TITLES
+// Prioritize backend data if available
 // ============================================
 const getUserFriendlyTitle = (event) => {
+  if (event.title) return event.title;
+
   const action = event.action || '';
   const metadata = event.metadata || {};
   const downloadType = metadata.download_type;
-  
+
   // Download events
-  if (action === 'download_professional_certificate' || downloadType === 'professional_certificate' || downloadType === 'certificate') {
-    return 'Certificate Downloaded';
-  }
-  if (action === 'download_professional_summary' || downloadType === 'professional_summary' || downloadType === 'summary') {
-    return 'Document Summary Downloaded';
-  }
-  if (action === 'download_signed' || downloadType === 'signed') {
-    return 'Signed Document Downloaded';
-  }
-  if (action === 'download_original' || downloadType === 'original') {
-    return 'Original Document Downloaded';
-  }
-  
-  // View events
-  if (action === 'view_document') {
-    return 'Document Viewed';
-  }
-  if (action?.includes('preview')) {
-    return 'Preview Viewed';
-  }
-  
-  // Document Operations
-  if (action === 'upload_document') {
-    return 'Document Uploaded';
-  }
-  if (action === 'create_document_from_template') {
-    return 'Created from Template';
-  }
-  
-  // File Operations
-  if (action === 'file_added') {
-    return 'File Added';
-  }
-  if (action === 'file_deleted') {
-    return 'File Removed';
-  }
-  
-  // Recipient Actions
-  if (action === 'otp_verified') {
-    return 'OTP Verified';
-  }
-  if (action === 'accept_terms') {
-    return 'Terms Accepted';
-  }
-  if (action === 'field_completed') {
-    return 'Field Completed';
-  }
-  
-  // Status Changes
-  if (action === 'document_finalized' || action === 'completed') {
-    return 'Document Completed';
-  }
-  if (action === 'void_document') {
-    return 'Document Voided';
-  }
-  
+  if (action === 'download_professional_certificate' || downloadType === 'professional_certificate' || downloadType === 'certificate') return 'Certificate Downloaded';
+  if (action === 'download_professional_summary' || downloadType === 'professional_summary' || downloadType === 'summary') return 'Document Summary Downloaded';
+  if (action === 'download_signed' || downloadType === 'signed') return 'Signed Document Downloaded';
+  if (action === 'download_original' || downloadType === 'original') return 'Original Document Downloaded';
+  if (action === 'view_document') return 'Document Viewed';
+  if (action?.includes('preview')) return 'Preview Viewed';
+  if (action === 'upload_document') return 'Document Uploaded';
+  if (action === 'create_document_from_template') return 'Created from Template';
+  if (action === 'file_added') return 'File Added';
+  if (action === 'file_deleted') return 'File Removed';
+  if (action === 'otp_verified') return 'OTP Verified';
+  if (action === 'accept_terms') return 'Terms Accepted';
+  if (action === 'field_completed') return 'Field Completed';
+  if (action === 'document_finalized' || action === 'completed') return 'Document Completed';
+  if (action === 'void_document') return 'Document Voided';
+
   // Fallback to action name or 'Activity'
-  return action ? action.split('_').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ') : 'Activity';
+  return action ? action.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Activity';
 };
 
 // ============================================
 // DETAILED DESCRIPTIONS
+// Prioritize backend data if available
 // ============================================
 const getUserFriendlyDescription = (event) => {
+  if (event.description) return event.description;
+
   const action = event.action || '';
   const metadata = event.metadata || {};
   const downloadType = metadata.download_type;
   const user = event.user || 'Someone';
-  
+
   // Download events with rich metadata
   if (action === 'download_professional_certificate' || downloadType === 'professional_certificate' || downloadType === 'certificate') {
     return `Certificate downloaded${metadata.recipient_name ? ` for ${metadata.recipient_name}` : ''} with ID: ${metadata.certificate_id || ''}`;
@@ -297,27 +277,21 @@ const getUserFriendlyDescription = (event) => {
   if (action === 'download_original' || downloadType === 'original') {
     return `Original document "${metadata.filename || ''}" was downloaded`;
   }
-  
-  // View events
   if (action === 'view_document') {
     return `Document viewed${metadata.preview_type ? ` (${metadata.preview_type} preview)` : ''}`;
   }
-  
-  // Document Operations
   if (action === 'upload_document') {
     return `Document "${metadata.filename || ''}" was uploaded with envelope ID: ${metadata.envelope_id || ''}`;
   }
-  
-  // Status Changes
   if (action === 'document_finalized' || action === 'completed') {
     return `Document status updated to COMPLETED with envelope ID: ${metadata.envelope_id || event.envelope_id || ''}`;
   }
-  
+
   // Default with metadata
   if (metadata.envelope_id) {
     return `Activity recorded for envelope: ${metadata.envelope_id}`;
   }
-  
+
   return `Action performed on document`;
 };
 
@@ -325,18 +299,6 @@ const getUserFriendlyDescription = (event) => {
 // ENRICH EVENT
 // ============================================
 const enrichEvent = (event) => {
-  // Log for debugging
-  console.log('Raw event:', {
-    id: event.id,
-    action: event.action,
-    title: event.title,
-    user: event.user,
-    timestamp: event.timestamp,
-    document_status: event.document_status,
-    envelope_id: event.envelope_id,
-    metadata: event.metadata
-  });
-  
   return {
     ...event,
     userFriendlyTitle: getUserFriendlyTitle(event),
@@ -352,7 +314,7 @@ const enrichEvent = (event) => {
 // ============================================
 const formatTimeAgo = (timestamp) => {
   if (!timestamp) return 'Unknown';
-  
+
   const now = new Date();
   const past = new Date(timestamp);
   const diffMs = now - past;
@@ -397,7 +359,7 @@ const formatDayHeader = (dateStr) => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   if (date.toDateString() === today.toDateString()) {
     return "Today";
   } else if (date.toDateString() === yesterday.toDateString()) {
@@ -446,9 +408,9 @@ const MetadataDisplay = ({ metadata }) => {
 
   // Filter out empty values and format nicely
   const displayItems = Object.entries(metadata)
-    .filter(([key, value]) => 
-      value && 
-      typeof value !== 'object' && 
+    .filter(([key, value]) =>
+      value &&
+      typeof value !== 'object' &&
       !key.includes('user_agent') &&
       !key.includes('ip')
     )
@@ -463,7 +425,7 @@ const MetadataDisplay = ({ metadata }) => {
         if (displayValue.length > 25) {
           displayValue = displayValue.substring(0, 22) + '...';
         }
-        
+
         return (
           <Chip
             key={key}
@@ -483,7 +445,7 @@ const MetadataDisplay = ({ metadata }) => {
 // ============================================
 const EventStatistics = ({ events }) => {
   const theme = useTheme();
-  
+
   const downloadCount = events.filter(e => e.category === 'Downloads').length;
   const viewCount = events.filter(e => e.category === 'Document Views').length;
   const statusCount = events.filter(e => e.category === 'Status Changes').length;
@@ -496,14 +458,14 @@ const EventStatistics = ({ events }) => {
           Timeline Overview
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Chip 
+          <Chip
             icon={<HistoryIcon />}
             label={`${events.length} total events`}
             size="small"
             sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}
           />
           {downloadCount > 0 && (
-            <Chip 
+            <Chip
               icon={<DownloadIcon />}
               label={`${downloadCount} downloads`}
               size="small"
@@ -511,7 +473,7 @@ const EventStatistics = ({ events }) => {
             />
           )}
           {viewCount > 0 && (
-            <Chip 
+            <Chip
               icon={<VisibilityIcon />}
               label={`${viewCount} views`}
               size="small"
@@ -519,7 +481,7 @@ const EventStatistics = ({ events }) => {
             />
           )}
           {statusCount > 0 && (
-            <Chip 
+            <Chip
               icon={<CheckCircleIcon />}
               label={`${statusCount} status changes`}
               size="small"
@@ -537,7 +499,7 @@ const EventStatistics = ({ events }) => {
 // ============================================
 const EventCategoryFilter = ({ categories, activeCategory, onCategoryChange, totalEvents }) => {
   const theme = useTheme();
-  
+
   return (
     <Box sx={{ mb: 3 }}>
       <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
@@ -548,7 +510,7 @@ const EventCategoryFilter = ({ categories, activeCategory, onCategoryChange, tot
           variant={activeCategory === 'all' ? 'filled' : 'outlined'}
           size="small"
         />
-        {Object.entries(categories).map(([category, events]) => 
+        {Object.entries(categories).map(([category, events]) =>
           events.length > 0 && (
             <Chip
               key={category}
@@ -603,7 +565,7 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
         console.log('Loading timeline for document:', documentId);
         const data = await getTimeline(documentId);
         console.log('Raw timeline data:', data);
-        
+
         // Sort by timestamp descending (newest first)
         const sortedData = (data || []).sort(
           (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
@@ -623,16 +585,47 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
   // Enrich events with user-friendly data
   const enrichedTimeline = timeline.map(enrichEvent);
   console.log('Enriched timeline:', enrichedTimeline);
-  
+
   // Categorize events
   const eventCategories = categorizeEvents(enrichedTimeline);
-  
+
   // Filter events by category
-  const filteredEvents = activeCategory === 'all' 
-    ? enrichedTimeline 
+  const filteredEvents = activeCategory === 'all'
+    ? enrichedTimeline
     : eventCategories[activeCategory] || [];
 
   const groupedFilteredEvents = groupByDate(filteredEvents);
+  const [exportAnchorEl, setExportAnchorEl] = useState(null);
+  const isExportMenuOpen = Boolean(exportAnchorEl);
+
+  const handleExportClick = (event) => {
+    setExportAnchorEl(event.currentTarget);
+  };
+
+  const handleExportClose = () => {
+    setExportAnchorEl(null);
+  };
+
+  const handleExportAction = (action) => {
+    handleExportClose();
+    switch (action) {
+      case 'recipients':
+        exportRecipientsCsv(documentId);
+        break;
+      case 'timeline':
+        exportTimelineCsv(documentId);
+        break;
+      case 'fields':
+        exportFieldsCsv(documentId);
+        break;
+      case 'report':
+        generateHtmlReport(documentId);
+        break;
+      default:
+        break;
+    }
+  };
+
   const totalEvents = enrichedTimeline.length;
 
   const handleViewSummary = () => {
@@ -667,6 +660,47 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            {totalEvents > 0 && (
+              <>
+                <Tooltip title="Export Data">
+                  <IconButton onClick={handleExportClick} size="small" color="primary">
+                    <DownloadIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  anchorEl={exportAnchorEl}
+                  open={isExportMenuOpen}
+                  onClose={handleExportClose}
+                  PaperProps={{
+                    elevation: 3,
+                    sx: { minWidth: 200, mt: 1, borderRadius: 2 }
+                  }}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                >
+                  <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.disabled', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Export Options
+                  </Typography>
+                  <MenuItem onClick={() => handleExportAction('timeline')}>
+                    <ListItemIcon><TimelineIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Export Timeline (CSV)" secondary="Full activity history" />
+                  </MenuItem>
+                  <MenuItem onClick={() => handleExportAction('recipients')}>
+                    <ListItemIcon><GroupIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Export Recipients (CSV)" secondary="Recipient status & details" />
+                  </MenuItem>
+                  <MenuItem onClick={() => handleExportAction('fields')}>
+                    <ListItemIcon><CheckCircleIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary="Export Field Data (CSV)" secondary="Values & completion status" />
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem onClick={() => handleExportAction('report')}>
+                    <ListItemIcon><DescriptionIcon fontSize="small" color="primary" /></ListItemIcon>
+                    <ListItemText primary="Generate Audit Report" secondary="Professional HTML evidence" />
+                  </MenuItem>
+                </Menu>
+              </>
+            )}
             <Tooltip title="Refresh">
               <IconButton onClick={() => window.location.reload()} size="small" disabled={loading}>
                 <RefreshIcon fontSize="small" />
@@ -701,7 +735,7 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
             <Fade in={true}>
               <Box>
                 <EventStatistics events={enrichedTimeline} />
-                <EventCategoryFilter 
+                <EventCategoryFilter
                   categories={eventCategories}
                   activeCategory={activeCategory}
                   onCategoryChange={setActiveCategory}
@@ -724,7 +758,7 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
                       {events.map((event, index) => {
                         const eventColor = event.color || 'default';
                         const themeColor = theme.palette[eventColor]?.main || theme.palette.grey[500];
-                        
+
                         return (
                           <Zoom in={true} style={{ transitionDelay: `${index * 50}ms` }} key={event.id || `${day}-${index}`}>
                             <Card variant="outlined" sx={{ mb: 2, transition: 'all 0.2s', '&:hover': { boxShadow: 2, borderColor: 'primary.light' } }}>
@@ -771,28 +805,28 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
 
                                     <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap" }}>
                                       <Chip label={event.category} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 500 }} />
-                                      
+
                                       {event.document_status && (
-                                        <Chip 
-                                          label={event.document_status.replace('_', ' ').toUpperCase()} 
-                                          size="small" 
+                                        <Chip
+                                          label={event.document_status.replace('_', ' ').toUpperCase()}
+                                          size="small"
                                           color={
                                             event.document_status === "completed" ? "success" :
-                                            event.document_status === "voided" ? "error" : "default"
+                                              event.document_status === "voided" ? "error" : "default"
                                           }
-                                          variant="outlined" 
-                                          sx={{ fontSize: '0.65rem', height: 20 }} 
+                                          variant="outlined"
+                                          sx={{ fontSize: '0.65rem', height: 20 }}
                                         />
                                       )}
 
                                       {(event.envelope_id || event.metadata?.envelope_id) && (
                                         <Tooltip title="Envelope ID">
-                                          <Chip 
-                                            icon={<DescriptionIcon sx={{ fontSize: 12 }} />} 
-                                            label={event.envelope_id || event.metadata?.envelope_id} 
-                                            size="small" 
-                                            variant="outlined" 
-                                            sx={{ fontSize: '0.65rem', height: 20 }} 
+                                          <Chip
+                                            icon={<DescriptionIcon sx={{ fontSize: 12 }} />}
+                                            label={event.envelope_id || event.metadata?.envelope_id}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ fontSize: '0.65rem', height: 20 }}
                                           />
                                         </Tooltip>
                                       )}
@@ -817,7 +851,7 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
           <Typography variant="body2" color="text.secondary">
             {totalEvents === 0 ? "No events recorded" : `${totalEvents} event${totalEvents !== 1 ? 's' : ''}`}
           </Typography>
-          
+
           {documentId && (
             <Button variant="contained" startIcon={<SummarizeIcon />} onClick={handleViewSummary} size="small" sx={{ textTransform: 'none', px: 2 }}>
               View Summary

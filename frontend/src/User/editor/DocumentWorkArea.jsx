@@ -46,6 +46,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 const BASE_WIDTH = 794;
 const BASE_HEIGHT = 1123;
 const PAGE_GAP = 20;
+const PAGE_HEADER_HEIGHT = 30; // Height of the per-page header in base units
 
 const DocumentWorkArea = ({
   documentId,
@@ -83,7 +84,9 @@ const DocumentWorkArea = ({
   // Scaled dimensions
   const scaledWidth = BASE_WIDTH * zoomLevel;
   const scaledHeight = BASE_HEIGHT * zoomLevel;
-  const totalHeight = (scaledHeight + PAGE_GAP) * numPages;
+  const scaledHeaderHeight = PAGE_HEADER_HEIGHT * zoomLevel;
+  // Total height including pages, headers, and gaps
+  const totalHeight = (scaledHeight + scaledHeaderHeight + PAGE_GAP) * numPages;
 
   // Handle zoom
   const handleZoomIn = () => {
@@ -174,41 +177,18 @@ const DocumentWorkArea = ({
     const relativeX = (dropX - stageRect.left) / zoomLevel;
     const relativeY = (dropY - stageRect.top) / zoomLevel;
 
-    // Adjust for the top padding (PAGE_GAP / 2) used in renderPdfPages
-    const adjustedY = relativeY - (PAGE_GAP / 2);
-
-    // Calculate which page we're on using BASE page dimensions
-    const pageHeight = BASE_HEIGHT + PAGE_GAP;
-    const pageIndex = Math.floor(adjustedY / pageHeight);
+    // Each page block = Header (PAGE_HEADER_HEIGHT) + Page (BASE_HEIGHT) + GAP (PAGE_GAP)
+    const pageBlockHeight = BASE_HEIGHT + PAGE_HEADER_HEIGHT + PAGE_GAP;
+    const pageIndex = Math.floor(relativeY / pageBlockHeight);
     const validPage = Math.max(0, Math.min(pageIndex, numPages - 1));
 
-    // Calculate position within the page, subtracting half field size (160x38) to center it
-    const pageY = adjustedY - (validPage * pageHeight);
+    // Calculate position within the page (subtracting the header height)
+    const pageY = relativeY - (validPage * pageBlockHeight) - PAGE_HEADER_HEIGHT;
 
     // Ensure coordinates are within page bounds (BASE document pixels)
     // Subtracting half width (80) and height (19) to center the field on drop
     const finalX = Math.max(5, Math.min(relativeX - 80, BASE_WIDTH - 165));
     const finalY = Math.max(5, Math.min(pageY - 19, BASE_HEIGHT - 45));
-
-    console.log('Drop calculation:', {
-      dropX,
-      dropY,
-      containerScrollTop: container.scrollTop,
-      stageRect: {
-        left: stageRect.left,
-        top: stageRect.top,
-        width: stageRect.width,
-        height: stageRect.height
-      },
-      relativeX,
-      relativeY,
-      pageHeight,
-      pageIndex,
-      validPage,
-      pageY,
-      finalX,
-      finalY
-    });
 
     // Dispatch event
     window.dispatchEvent(
@@ -222,8 +202,6 @@ const DocumentWorkArea = ({
       })
     );
   }, [zoomLevel, numPages, BASE_HEIGHT, BASE_WIDTH, PAGE_GAP]);
-
-  // In DocumentWorkArea.jsx, update handleDragOver:
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -262,10 +240,6 @@ const DocumentWorkArea = ({
     window.addEventListener('canvasDrop', handleDebugDrop);
     return () => window.removeEventListener('canvasDrop', handleDebugDrop);
   }, []);
-
-  // const handleDragLeave = useCallback(() => {
-  //   setIsDragging(false);
-  // }, []);
 
   // Setup event listeners
   useEffect(() => {
@@ -398,46 +372,8 @@ const DocumentWorkArea = ({
         onLoadSuccess={handlePdfLoadSuccess}
         onLoadError={handlePdfLoadError}
         loading={
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: `${PAGE_GAP}px`,
-            padding: `${PAGE_GAP}px 0`
-          }}>
-            {Array.from({ length: numPages }, (_, pageIndex) => (
-              <Paper
-                key={`loading-${pageIndex}`}
-                sx={{
-                  width: `${scaledWidth}px`,
-                  height: `${scaledHeight}px`,
-                  bgcolor: '#f5f5f5',
-                  borderRadius: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-
-                <CircularProgress />
-              </Paper>
-            ))}
-          </Box>
-        }
-        error={
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            gap: 2,
-            p: 3
-          }}>
-            <ErrorIcon sx={{ fontSize: 48, color: 'error.main' }} />
-            <Typography color="error" align="center">
-              Failed to load PDF
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <CircularProgress />
           </Box>
         }
       >
@@ -446,7 +382,7 @@ const DocumentWorkArea = ({
           flexDirection: 'column',
           alignItems: 'center',
           gap: `${PAGE_GAP}px`,
-          padding: `${PAGE_GAP}px 0`
+          py: 0
         }}>
           {Array.from({ length: numPages }, (_, pageIndex) => {
             const pdfPageNumber = pageIndex + 1;
@@ -458,30 +394,32 @@ const DocumentWorkArea = ({
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: "center"
+                  alignItems: "center",
+                  position: 'relative' // For absolute positioning of badge
                 }}
               >
-
-                {/* Header OUTSIDE the page */}
-                <Box
-                  sx={{
-                    width: `${scaledWidth}px`,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    px: 1,
-                    mb: 0.5,
-                    fontSize: "0.8rem",
-                    color: "#555"
-                  }}
-                >
-                  <Typography variant="caption" fontWeight={500}>
-                    {documentName || "Untitled Document"}
+                {/* Pinned Professional Page Header */}
+                <Box sx={{
+                  width: `${scaledWidth}px`,
+                  height: `${scaledHeaderHeight}px`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  px: 2,
+                  bgcolor: '#f8fafc', // Light industrial blue-gray
+                  border: '1px solid #e2e8f0',
+                  borderBottom: 'none',
+                  borderRadius: '6px 6px 0 0',
+                  boxShadow: '0 -2px 10px rgba(0,0,0,0.02)'
+                }}>
+                  <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600, fontSize: `${11 * zoomLevel}px` }}>
+                    {documentName || 'Untitled Document'}
                   </Typography>
-
-                  <Typography variant="caption">
-                    Page {pdfPageNumber}
+                  <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 700, fontSize: `${11 * zoomLevel}px`, letterSpacing: '0.5px' }}>
+                    PAGE {pdfPageNumber}
                   </Typography>
                 </Box>
+
                 <Paper
                   key={`page-${pageIndex}`}
                   elevation={isCurrentPage ? 3 : 1}
@@ -489,14 +427,12 @@ const DocumentWorkArea = ({
                     width: `${scaledWidth}px`,
                     height: `${scaledHeight}px`,
                     position: 'relative',
-                    borderRadius: 1,
+                    borderRadius: '0 0 6px 6px', // Rounded only at bottom
                     overflow: 'hidden',
                     border: isCurrentPage ? '.4px solid #292f2da6' : '1px solid #e0e0e0',
                     transition: 'border 0.2s ease'
                   }}
                 >
-
-
                   <Page
                     pageNumber={pdfPageNumber}
                     scale={zoomLevel}
@@ -504,35 +440,7 @@ const DocumentWorkArea = ({
                     height={BASE_HEIGHT}
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
-                    loading={
-                      <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%'
-                      }}>
-                        <CircularProgress size={24} />
-                      </Box>
-                    }
                   />
-
-
-                  {/* Page Number Badge */}
-                  {/* <Box sx={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  bgcolor: isCurrentPage ? '#1976d2' : 'rgba(0,0,0,0.6)',
-                  color: 'white',
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontSize: '0.75rem',
-                  fontWeight: isCurrentPage ? 600 : 400,
-                  zIndex: 2
-                }}>
-                  Page {pdfPageNumber}
-                </Box> */}
                 </Paper>
               </Box>
             );
@@ -546,18 +454,20 @@ const DocumentWorkArea = ({
   const renderGridLayer = useMemo(() => {
     if (!showGrid) return null;
 
-    const gridGap = 50 * zoomLevel;
+    // Higher density professional grid (20px gap)
+    const gridGap = 20 * zoomLevel;
     const lines = [];
 
     // Vertical lines
     for (let x = 0; x <= scaledWidth; x += gridGap) {
+      const isMajor = Math.round(x / gridGap) % 5 === 0;
       lines.push(
         <Line
           key={`v-${x}`}
           points={[x, 0, x, totalHeight]}
           stroke="#000000"
-          strokeWidth={0.3}
-          opacity={0.08}
+          strokeWidth={isMajor ? 0.7 : 0.3}
+          opacity={isMajor ? 0.08 : 0.04}
           listening={false}
         />
       );
@@ -565,13 +475,14 @@ const DocumentWorkArea = ({
 
     // Horizontal lines
     for (let y = 0; y <= totalHeight; y += gridGap) {
+      const isMajor = Math.round(y / gridGap) % 5 === 0;
       lines.push(
         <Line
           key={`h-${y}`}
           points={[0, y, scaledWidth, y]}
           stroke="#000000"
-          strokeWidth={0.3}
-          opacity={0.08}
+          strokeWidth={isMajor ? 0.7 : 0.3}
+          opacity={isMajor ? 0.08 : 0.04}
           listening={false}
         />
       );
@@ -606,9 +517,9 @@ const DocumentWorkArea = ({
         <Layer>
           {fields.map((field) => {
             const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
-
-            // Calculate Y offset for each page
-            const pageOffsetY = field.page * (scaledHeight + PAGE_GAP) + (PAGE_GAP / 2);
+            
+            // Calculate Y offset: Each page n is preceded by n * (page + header + gap) plus this page's own header
+            const pageOffsetY = field.page * (scaledHeight + PAGE_HEADER_HEIGHT * zoomLevel + PAGE_GAP) + (PAGE_HEADER_HEIGHT * zoomLevel);
 
             return (
               <CanvasField

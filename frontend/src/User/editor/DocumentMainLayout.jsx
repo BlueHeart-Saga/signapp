@@ -1215,7 +1215,7 @@ const DocumentMainLayout = () => {
       </Box>
 
       {/* Floating Add Recipient Button */}
-      <Fab
+      {/* <Fab
         color="primary"
         size="medium"
         onClick={() => setAddRecipientDialogOpen(true)}
@@ -1229,7 +1229,7 @@ const DocumentMainLayout = () => {
         }}
       >
         <PersonAddIcon />
-      </Fab>
+      </Fab> */}
 
       {/* Dialogs */}
       <AddRecipientDialog

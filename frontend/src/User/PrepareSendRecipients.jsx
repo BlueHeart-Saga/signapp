@@ -367,6 +367,12 @@ export default function PrepareSendRecipients() {
   const [mergeOrder, setMergeOrder] = useState([]);
 
   const [shakingRow, setShakingRow] = useState(null);
+  const [expiryDays, setExpiryDays] = useState(document?.expiry_days || 0);
+  const [reminderPeriod, setReminderPeriod] = useState(document?.reminder_period || 0);
+  const [isCustomExpiry, setIsCustomExpiry] = useState(false);
+  const [isCustomReminder, setIsCustomReminder] = useState(false);
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
 
   const [snackbar, setSnackbar] = useState({
@@ -431,6 +437,8 @@ export default function PrepareSendRecipients() {
           ...data,
           id: data.id || data._id   // ⭐ CRITICAL FIX
         });
+        setExpiryDays(data.expiry_days || 0);
+        setReminderPeriod(data.reminder_period || 0);
       })
       .catch(() => setDocument(null))
       .finally(() => setDocLoading(false));
@@ -1286,6 +1294,29 @@ export default function PrepareSendRecipients() {
   );
 
 
+  const saveDocumentSettings = async () => {
+    if (!document?.id) return;
+    setIsSavingSettings(true);
+    try {
+      await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          expiry_days: expiryDays,
+          reminder_period: reminderPeriod,
+        }),
+      });
+      setIsEditingSettings(false);
+    } catch (error) {
+      console.error("Save settings failed", error);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   const handleSaveAndContinue = async () => {
     if (!document?.id) return;
 
@@ -1311,10 +1342,13 @@ export default function PrepareSendRecipients() {
         });
       }
 
-      // Automatically save common message if the user is in edit mode but didn't click save
+      // Automatically save common message and settings
       if (isEditingCommonMessage) {
         await saveCommonMessage();
       }
+
+      // Save settings
+      await saveDocumentSettings();
 
       await loadRecipients();
       navigate(`/user/documentbuilder/${document.id}`);
@@ -2467,6 +2501,117 @@ export default function PrepareSendRecipients() {
                   No common message added.
                 </p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* More Settings Section */}
+        {/* Simple & Professional More Settings */}
+        <div className="settings-minimal">
+          <div className="settings-minimal-header" onClick={() => setIsEditingSettings(!isEditingSettings)}>
+            <span className="settings-minimal-label">More settings</span>
+            <span className={`settings-minimal-arrow ${isEditingSettings ? "open" : ""}`}>
+              <FaChevronRight />
+            </span>
+          </div>
+
+          {isEditingSettings && (
+            <div className="settings-minimal-content">
+              <div className="settings-minimal-field">
+                <label>Expiration</label>
+                {!isCustomExpiry ? (
+                  <select
+                    value={expiryDays}
+                    onChange={(e) => setExpiryDays(Number(e.target.value))}
+                    className="settings-minimal-select"
+                  >
+                    <option value={0}>Never</option>
+                    <option value={2}>2 Days</option>
+                    <option value={5}>5 Days</option>
+                    <option value={7}>1 Week</option>
+                    <option value={10}>10 Days</option>
+                    <option value={30}>1 Month</option>
+                    <option value={365}>1 Year</option>
+                  </select>
+                ) : (
+                  <div className="settings-minimal-input-container">
+                    <input
+                      type="number"
+                      min="0"
+                      max="365"
+                      value={expiryDays}
+                      onChange={(e) => setExpiryDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="settings-minimal-input"
+                    />
+                    <span className="settings-minimal-unit">days</span>
+                  </div>
+                )}
+                <label className="settings-minimal-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={isCustomExpiry}
+                    onChange={(e) => setIsCustomExpiry(e.target.checked)}
+                  />
+                  <span>Set manually</span>
+                </label>
+              </div>
+
+              <div className="settings-minimal-field">
+                <label>Reminder Period</label>
+                {!isCustomReminder ? (
+                  <select
+                    value={reminderPeriod}
+                    onChange={(e) => setReminderPeriod(Number(e.target.value))}
+                    className="settings-minimal-select"
+                  >
+                    <option value={0}>No Reminders</option>
+                    <option value={1}>Daily</option>
+                    <option value={2}>2 Days</option>
+                    <option value={5}>5 Days</option>
+                    <option value={7}>Weekly</option>
+                    <option value={10}>10 Days</option>
+                    <option value={14}>Bi-Weekly</option>
+                    <option value={30}>Monthly</option>
+                  </select>
+                ) : (
+                  <div className="settings-minimal-input-container">
+                    <input
+                      type="number"
+                      min="0"
+                      max="90"
+                      value={reminderPeriod}
+                      onChange={(e) => setReminderPeriod(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="settings-minimal-input"
+                    />
+                    <span className="settings-minimal-unit">days</span>
+                  </div>
+                )}
+                <label className="settings-minimal-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={isCustomReminder}
+                    onChange={(e) => setIsCustomReminder(e.target.checked)}
+                  />
+                  <span>Set manually</span>
+                </label>
+              </div>
+
+              <div className="settings-minimal-actions">
+                <button
+                  className="settings-minimal-save"
+                  onClick={saveDocumentSettings}
+                  disabled={isSavingSettings}
+                >
+                  {isSavingSettings ? "Saving..." : "Apply"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isEditingSettings && (expiryDays > 0 || reminderPeriod > 0) && (
+            <div className="settings-minimal-summary">
+              {expiryDays > 0 && <span className="settings-minimal-status-chip">Expires: {expiryDays}d</span>}
+              {reminderPeriod > 0 && <span className="settings-minimal-status-chip">Reminders: {reminderPeriod}d</span>}
             </div>
           )}
         </div>
