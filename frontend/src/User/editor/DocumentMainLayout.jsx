@@ -38,7 +38,8 @@ import {
   Undo as UndoIcon,
   Redo as RedoIcon,
   ChevronRight as ChevronRightIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon,
+  Collections as CollectionsIcon
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,6 +47,7 @@ import { v4 as uuidv4 } from 'uuid';
 import DocumentLeftBar from './DocumentLeftBar';
 import DocumentWorkArea from './DocumentWorkArea';
 import DocumentRightBar from './DocumentRightBar';
+import DocumentThumbnails from './DocumentThumbnails';
 import AddRecipientDialog from './dialogs/AddRecipientDialog';
 import PreviewDialog from './dialogs/PreviewDialog';
 import SuccessDialog from './dialogs/SuccessDialog';
@@ -88,6 +90,7 @@ const DocumentMainLayout = () => {
 
   // Sidebar state
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
+  const [thumbnailsVisible, setThumbnailsVisible] = useState(false);
 
   // Dialog states
   const [addRecipientDialogOpen, setAddRecipientDialogOpen] = useState(false);
@@ -946,7 +949,7 @@ const DocumentMainLayout = () => {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <AppBar position="static" color="default" elevation={1}>
+      <AppBar position="static" color="inherit" elevation={0} sx={{ bgcolor: 'white', borderBottom: '1px solid #e0e0e0' }}>
         <Toolbar>
           <IconButton
             edge="start"
@@ -1133,6 +1136,25 @@ const DocumentMainLayout = () => {
             >
               Finish & Send
             </Button>
+
+            <Divider orientation="vertical" flexItem />
+
+            <Tooltip title={thumbnailsVisible ? "Hide Thumbnails" : "Show Page Thumbnails"}>
+              <IconButton
+                size="small"
+                onClick={() => setThumbnailsVisible(!thumbnailsVisible)}
+                sx={{
+                  color: thumbnailsVisible ? '#0d9488' : 'inherit',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    backgroundColor: 'rgba(13, 148, 136, 0.08)',
+                    color: '#0d9488'
+                  }
+                }}
+              >
+                <CollectionsIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
@@ -1171,6 +1193,24 @@ const DocumentMainLayout = () => {
           invalidFields={invalidFields}
           unassignedFields={unassignedFields}
         />
+
+        {/* Document Thumbnails Sidebar (Toggleable, Zoho-style) */}
+        {thumbnailsVisible && (
+          <Box sx={{
+            height: '100%',
+            transition: 'all 0.3s ease',
+            zIndex: 10,
+            animation: 'slideInRight 0.3s ease'
+          }}>
+            <DocumentThumbnails
+              documentId={documentId}
+              numPages={numPages}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              fields={fields}
+            />
+          </Box>
+        )}
 
         {/* Right Sidebar Toggle */}
         <Box sx={{

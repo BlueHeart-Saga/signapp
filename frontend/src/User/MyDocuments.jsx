@@ -109,6 +109,8 @@ export default function MyDocuments() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingMsg, setProcessingMsg] = useState(""); // Added status message
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -231,15 +233,8 @@ export default function MyDocuments() {
     }
   }, [location.search]);
 
-  useEffect(() => {
-    if (!mergeLoading) return;
+  // REMOVED DUMMY INTERVAL for mergeProgress - now using real polling logic below
 
-    const interval = setInterval(() => {
-      setMergeProgress((p) => Math.min(p + 5, 95));
-    }, 400);
-
-    return () => clearInterval(interval);
-  }, [mergeLoading]);
 
 
   // Load user's documents
@@ -330,45 +325,48 @@ export default function MyDocuments() {
 
     setLoading(true);
     setUploadProgress(0);
+    setProcessingMsg("Uploading document...");
+
+    let pollInterval = null;
 
     try {
-      // ⭐ STORE RESPONSE
-      const res = await uploadDocument(uploadFile, setUploadProgress);
+      // 1. Send the file. The backend now creates the DB record early.
+      // We don't get the ID until this returns, UNLESS we change the backend to return ID early.
+      // Wait, if it's a single request, we only get the response at the end.
+
+      // OPTIMIZATION: We wrap the polling in a way that it starts checking the latest doc if ID not yet known.
+      // But actually, uploadDocument is scaled to 70%.
+      const res = await uploadDocument(uploadFile, (percent) => {
+        setUploadProgress(percent);
+        if (percent >= 70) {
+          setProcessingMsg("Converting to PDF & Processing...");
+        }
+      });
 
       console.log("UPLOAD RESPONSE:", res);
-
-      // ⭐ NORMALIZE BACKEND SHAPE
       const newDoc = res?.document || res;
 
-      if (!newDoc?.id) {
-        throw new Error("Upload API did not return document id");
-      }
+      if (!newDoc?.id) throw new Error("Upload API did not return document id");
+
+      // Final jump to 100%
+      setUploadProgress(100);
+      setProcessingMsg("Complete");
 
       setUploadedDocument(newDoc);
       setShowSuccessDialog(true);
-
-      setSnackbar({
-        open: true,
-        message: "Document uploaded successfully",
-        severity: "success",
-      });
-
+      setSnackbar({ open: true, message: "Document uploaded successfully", severity: "success" });
       loadDocs();
 
     } catch (err) {
       console.error(err);
-
-      setSnackbar({
-        open: true,
-        message: err.message || "Upload failed",
-        severity: "error",
-      });
-
+      setSnackbar({ open: true, message: err.message || "Upload failed", severity: "error" });
     } finally {
       setLoading(false);
       setUploadProgress(0);
+      setProcessingMsg("");
     }
   };
+
 
 
   const [snackbar, setSnackbar] = useState({
@@ -1162,8 +1160,9 @@ export default function MyDocuments() {
                   />
 
                   <h3 className="uploading-title">
-                    Uploading document…
+                    {processingMsg || "Uploading document…"}
                   </h3>
+
 
                   <p className="uploading-filename">
                     {file?.name}
@@ -2013,13 +2012,19 @@ export default function MyDocuments() {
 
             {/* Progress */}
             {mergeLoading && (
-              <div className="zoho-merge-progress">
-                <div
-                  className="zoho-merge-progress-bar"
-                  style={{ width: `${mergeProgress}%` }}
-                />
+              <div className="zoho-merge-progress-wrapper" style={{ marginTop: '1rem' }}>
+                <span className="zoho-merge-msg" style={{ fontSize: '13px', color: '#666', marginBottom: '8px', display: 'block' }}>
+                  {processingMsg || "Processing file..."}
+                </span>
+                <div className="zoho-merge-progress">
+                  <div
+                    className="zoho-merge-progress-bar"
+                    style={{ width: `${mergeProgress}%`, transition: 'width 0.4s ease-out' }}
+                  />
+                </div>
               </div>
             )}
+
 
             {/* Actions */}
             <div className="zoho-merge-actions">
@@ -2038,12 +2043,38 @@ export default function MyDocuments() {
                   try {
                     setMergeLoading(true);
                     setMergeProgress(0);
+                    setProcessingMsg("Uploading file...");
+
+                    // Polling function for real-time processing updates
+                    const startPoll = (docId) => {
+                      const interval = setInterval(async () => {
+                        try {
+                          const statusRes = await import("../services/DocumentAPI").then(m => m.getDocumentStatus(docId));
+                          if (statusRes.progress > 70) {
+                            setMergeProgress(statusRes.progress);
+                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
+                          }
+                          if (statusRes.progress >= 100) clearInterval(interval);
+                        } catch (e) {
+                          console.warn("Poll failed", e);
+                        }
+                      }, 1000);
+                      return interval;
+                    };
+
+                    const pollId = startPoll(mergeDoc.id);
 
                     await addFileToDocument(
                       mergeDoc.id,
                       file,
-                      setMergeProgress
+                      (p) => {
+                        setMergeProgress(p);
+                        if (p >= 60) setProcessingMsg("Processing on server...");
+                      }
                     );
+
+                    clearInterval(pollId);
+                    setMergeProgress(100);
 
                     setSnackbar({
                       open: true,
@@ -2064,11 +2095,13 @@ export default function MyDocuments() {
                   } finally {
                     setMergeLoading(false);
                     setMergeProgress(0);
+                    setProcessingMsg("");
                   }
                 }}
               >
                 {mergeLoading ? "Merging…" : "Merge file"}
               </button>
+
             </div>
           </div>
         </div>

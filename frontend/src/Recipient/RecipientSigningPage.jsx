@@ -1376,6 +1376,15 @@ const RecipientSigningPage = () => {
       setDocumentInfo(data.document);
       setSigningInfo(data.signing_info);
 
+      // Update local terms occupancy state
+      if (data.recipient.terms_accepted) {
+        setTermsAccepted(true);
+        if (data.recipient.terms_auto_accepted) {
+          setSuccess('Terms & conditions auto-accepted based on your preferences.');
+          setTimeout(() => setSuccess(''), 5000);
+        }
+      }
+
       // Check terms status
       if (data.signing_info?.requires_terms) {
         setTermsDialogOpen(true);
@@ -1389,12 +1398,18 @@ const RecipientSigningPage = () => {
       }
 
       // If terms accepted, check OTP
-      if (data.recipient.otp_verified) {
+      if (data.recipient.otp_verified && data.recipient.terms_accepted) {
         setCurrentStep(1);
         await fetchSignatureFields();
         await loadDocument();
       } else {
+        // If OTP not verified, stay at step 0
         setCurrentStep(0);
+
+        // Ensure terms dialog stays open if needed
+        if (data.signing_info?.requires_terms) {
+          setTermsDialogOpen(true);
+        }
       }
 
       if (data.recipient.status === 'completed') {
@@ -1689,7 +1704,7 @@ const RecipientSigningPage = () => {
     }
   }, [recipientInfo]);
 
-  const acceptTerms = async () => {
+  const acceptTerms = async (acceptAlways = false) => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/accept-terms`, {
@@ -1697,6 +1712,7 @@ const RecipientSigningPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accepted: true,
+          accept_always: acceptAlways,
           accepted_at: new Date().toISOString(),
           ip_address: await getClientIP(),
           user_agent: navigator.userAgent
@@ -2886,7 +2902,7 @@ const RecipientSigningPage = () => {
             <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
               <Box textAlign="center">
                 <VerifiedIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-                <Typography variant="h5" gutterBottom> 
+                <Typography variant="h5" gutterBottom>
                   {recipientInfo.role === 'viewer' ? 'Review Complete!' : 'Signing Complete!'}
                 </Typography>
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>

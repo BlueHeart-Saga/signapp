@@ -189,8 +189,8 @@ const DocumentLeftBar = ({
       {/* Recipients Content */}
       <Box sx={{
         height: '40%',
-minHeight: 220,
-maxHeight: 260,
+        minHeight: 220,
+        maxHeight: 260,
         overflowY: 'auto',
         borderBottom: '1px solid #f1f5f9',
         '&::-webkit-scrollbar': { width: '5px' },

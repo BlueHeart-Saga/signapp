@@ -14,12 +14,8 @@ export const uploadDocument = async (file, onProgress) => {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (progressEvent) => {
       if (!progressEvent.total) return;
-
-      const percent = Math.round(
-        (progressEvent.loaded * 100) / progressEvent.total
-      );
-
-      if (onProgress) onProgress(percent);
+      const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      if (onProgress) onProgress(Math.round(percent * 0.7)); // 70% for upload, 30% for processing
     }
   });
 
@@ -28,7 +24,7 @@ export const uploadDocument = async (file, onProgress) => {
 };
 
 
-export const addFileToDocument = async (documentId, file) => {
+export const addFileToDocument = async (documentId, file, onProgress) => {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -36,12 +32,18 @@ export const addFileToDocument = async (documentId, file) => {
     `/documents/${documentId}/add-file`,
     formData,
     {
-      headers: { "Content-Type": "multipart/form-data" }
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        if (!progressEvent.total) return;
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        if (onProgress) onProgress(percent * 0.8); // 80% for upload
+      }
     }
   );
 
   return res.data;
 };
+
 
 
 // ✅ Upload from Google Drive - CORRECTED
@@ -189,6 +191,13 @@ export const getDocument = async (docId) => {
   const res = await api.get(`/documents/${docId}`);
   return res.data;
 };
+
+// ✅ Get document processing status
+export const getDocumentStatus = async (docId) => {
+  const res = await api.get(`/documents/${docId}/status`);
+  return res.data;
+};
+
 
 export async function getFileThumbnails(documentId, fileId) {
   const token = localStorage.getItem("token");

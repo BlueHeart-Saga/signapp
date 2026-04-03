@@ -1950,10 +1950,10 @@ const progress = useMemo(() => {
   <Button
     variant="contained"
     size="small"
-    color={
-      recipientInfo.role === 'viewer' ? 'rgb(13, 148, 136)' :
-      recipientInfo.role === 'approver' ? 'success' : 'primary'
-    }
+    // color={
+    //   recipientInfo.role === 'viewer' ? 'rgb(13, 148, 136)' :
+    //   recipientInfo.role === 'approver' ? 'success' : 'primary'
+    // }
     sx={{ minWidth: 120, backgroundColor: 'rgb(13, 148, 136)' }}
     onClick={() => {
       // If already completed, navigate to completion page
@@ -2476,16 +2476,23 @@ const progress = useMemo(() => {
       onClick={() => setFinishDialogOpen(false)}
       variant="outlined"
       disabled={completing}
+      
     >
       Cancel
     </Button>
     <Button 
       onClick={handleFinishConfirm}
       variant="contained"
-      color={
-        recipientInfo?.role === 'viewer' ? 'rgb(13, 148, 136)' :
-        recipientInfo?.role === 'approver' ? 'success' : 'primary'
-      }
+      // color={
+      //   recipientInfo?.role === 'viewer' ? 'rgb(13, 148, 136)' :
+      //   recipientInfo?.role === 'approver' ? 'success' : 'primary'
+      // }
+      sx={{
+  backgroundColor: 'rgb(13, 148, 136)',
+  '&:hover': {
+    backgroundColor: 'rgb(11, 130, 120)'
+  }
+}}
       disabled={completing}
       startIcon={completing ? <CircularProgress size={16} /> : null}
     >

@@ -95,10 +95,10 @@ const TermsDialog = ({
 
   const handleScroll = () => {
     if (!contentRef.current) return;
-    
+
     const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
     const scrollPosition = scrollTop + clientHeight;
-    
+
     setHasScrolled(true);
     setIsScrolledToBottom(scrollHeight - scrollPosition < 10);
   };
@@ -126,11 +126,18 @@ const TermsDialog = ({
     });
   };
 
-  const handleAccept = () => {
+  const [showConfirmAccept, setShowConfirmAccept] = useState(false);
+
+  const handleAcceptClick = () => {
     if (required && !allSectionsAccepted) {
       return;
     }
-    onAccept();
+    setShowConfirmAccept(true);
+  };
+
+  const handleFinalAccept = (always = false) => {
+    setShowConfirmAccept(false);
+    onAccept(always);
   };
 
   const handleDecline = () => {
@@ -262,8 +269,8 @@ const TermsDialog = ({
         }
       }}
     >
-      <DialogTitle sx={{ 
-        bgcolor: '#0d9488', 
+      <DialogTitle sx={{
+        bgcolor: '#0d9488',
         color: 'white',
         position: 'sticky',
         top: 0,
@@ -284,21 +291,21 @@ const TermsDialog = ({
             </Box>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip 
-              label="ISO 27001" 
+            <Chip
+              label="ISO 27001"
               size="small"
-              sx={{ 
-                bgcolor: 'rgba(255,255,255,0.15)', 
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.15)',
                 color: 'white',
                 fontSize: '0.6rem',
                 height: 20
               }}
             />
-            <Chip 
-              label="GDPR Compliant" 
+            <Chip
+              label="GDPR Compliant"
               size="small"
-              sx={{ 
-                bgcolor: 'rgba(255,255,255,0.15)', 
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.15)',
                 color: 'white',
                 fontSize: '0.6rem',
                 height: 20
@@ -308,21 +315,21 @@ const TermsDialog = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent 
-        dividers 
-        ref={contentRef} 
+      <DialogContent
+        dividers
+        ref={contentRef}
         onScroll={handleScroll}
-        sx={{ 
+        sx={{
           '&::-webkit-scrollbar': { width: '8px' },
           '&::-webkit-scrollbar-track': { background: '#f1f1f1' },
           '&::-webkit-scrollbar-thumb': { background: '#90a4ae', borderRadius: '4px' }
         }}
       >
         {/* Document Info Header */}
-        <Paper elevation={0} sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          bgcolor: '#e3f2fd', 
+        <Paper elevation={0} sx={{
+          p: 1.5,
+          mb: 2,
+          bgcolor: '#e3f2fd',
           borderRadius: 0.5,
           border: '1px solid #bbdefb'
         }}>
@@ -348,10 +355,10 @@ const TermsDialog = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                 <ScheduleIcon sx={{ fontSize: '0.7rem', color: '#666' }} />
                 <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#666' }}>
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'short', 
-                    year: 'numeric', 
-                    month: 'short', 
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
@@ -361,10 +368,10 @@ const TermsDialog = ({
               <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#666', display: 'block' }}>
                 UTC: {new Date().toISOString()}
               </Typography>
-              <Chip 
-                label="ESIGN Compliant" 
+              <Chip
+                label="ESIGN Compliant"
                 size="small"
-                sx={{ 
+                sx={{
                   mt: 0.5,
                   fontSize: '0.6rem',
                   height: 18
@@ -377,17 +384,17 @@ const TermsDialog = ({
         {/* Important Notice */}
 
         {/* Re-acceptance Notice */}
-{signingInfo?.terms_status === 'declined' && (
-  <Alert severity="info" sx={{ mb: 2, border: '1px solid #2196f3' }}>
-    <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-      <strong>Previous Decline:</strong> You had previously declined these terms. 
-      You can now review and re-accept the terms to proceed with signing.
-    </Typography>
-  </Alert>
-)}
-        
-        <Alert severity="warning" sx={{ 
-          mb: 2, 
+        {signingInfo?.terms_status === 'declined' && (
+          <Alert severity="info" sx={{ mb: 2, border: '1px solid #2196f3' }}>
+            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+              <strong>Previous Decline:</strong> You had previously declined these terms.
+              You can now review and re-accept the terms to proceed with signing.
+            </Typography>
+          </Alert>
+        )}
+
+        <Alert severity="warning" sx={{
+          mb: 2,
           py: 0.75,
           '& .MuiAlert-icon': { padding: 0 },
           fontSize: '0.8rem',
@@ -409,22 +416,22 @@ const TermsDialog = ({
         {/* Terms Sections */}
         <Box sx={{ mb: 3 }}>
           {Object.entries(sectionDetails).map(([key, section]) => (
-            <Paper 
+            <Paper
               key={key}
-              elevation={0} 
-              sx={{ 
-                mb: 1.5, 
+              elevation={0}
+              sx={{
+                mb: 1.5,
                 border: `1px solid ${acceptedSections[key] ? '#4caf50' : '#e0e0e0'}`,
                 borderRadius: 0.5,
                 overflow: 'hidden',
                 transition: 'border-color 0.2s'
               }}
             >
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   p: 1.5,
                   bgcolor: acceptedSections[key] ? '#e8f5e9' : '#fafafa',
                   cursor: 'pointer',
@@ -450,9 +457,9 @@ const TermsDialog = ({
                         checked={acceptedSections[key]}
                         onChange={handleSectionChange(key)}
                         size="small"
-                        sx={{ 
+                        sx={{
                           '& .MuiSvgIcon-root': { fontSize: '0.85rem' },
-                          p: 0.5 
+                          p: 0.5
                         }}
                       />
                     }
@@ -464,94 +471,94 @@ const TermsDialog = ({
                     sx={{ m: 0 }}
                   />
                   <IconButton size="small" sx={{ p: 0.25 }}>
-                    {expandedSections[key] ? 
-                      <ExpandLessIcon sx={{ fontSize: '0.9rem' }} /> : 
+                    {expandedSections[key] ?
+                      <ExpandLessIcon sx={{ fontSize: '0.9rem' }} /> :
                       <ExpandMoreIcon sx={{ fontSize: '0.9rem' }} />
                     }
                   </IconButton>
                 </Box>
               </Box>
               {expandedSections[key] && (
-  <Fade in timeout={200}>
-                <Box sx={{ p: 1.5, borderTop: '1px solid #f0f0f0' }}>
-                  {section.content.map((paragraph, index) => (
-                    <Typography 
-                      key={index}
-                      variant="body2" 
-                      sx={{ 
-                        fontSize: '0.72rem', 
-                        lineHeight: 1.7,
-                        color: '#555',
-                        mb: index === section.content.length - 1 ? 0 : 1.5
-                      }}
-                    >
-                      {paragraph}
-                    </Typography>
-                  ))}
-                  
-                  {/* Additional details for each section */}
-                  {key === 'terms' && (
-                    <Box sx={{ mt: 1.5, p: 1, bgcolor: '#f9f9f9', borderRadius: 0.5 }}>
-                      <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500, display: 'block', mb: 0.5 }}>
-                        Applicable Laws:
+                <Fade in timeout={200}>
+                  <Box sx={{ p: 1.5, borderTop: '1px solid #f0f0f0' }}>
+                    {section.content.map((paragraph, index) => (
+                      <Typography
+                        key={index}
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.72rem',
+                          lineHeight: 1.7,
+                          color: '#555',
+                          mb: index === section.content.length - 1 ? 0 : 1.5
+                        }}
+                      >
+                        {paragraph}
                       </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        <Chip label="ESIGN Act" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
-                        <Chip label="UETA" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
-                        <Chip label="eIDAS" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
-                        <Chip label="PIPEDA" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                    ))}
+
+                    {/* Additional details for each section */}
+                    {key === 'terms' && (
+                      <Box sx={{ mt: 1.5, p: 1, bgcolor: '#f9f9f9', borderRadius: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500, display: 'block', mb: 0.5 }}>
+                          Applicable Laws:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          <Chip label="ESIGN Act" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                          <Chip label="UETA" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                          <Chip label="eIDAS" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                          <Chip label="PIPEDA" size="small" sx={{ fontSize: '0.6rem', height: 20 }} />
+                        </Box>
                       </Box>
-                    </Box>
-                  )}
-                  
-                  {key === 'security' && (
-                    <Box sx={{ mt: 1.5 }}>
-                      <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500, display: 'block', mb: 0.5 }}>
-                        Security Certifications:
-                      </Typography>
-                      <List dense sx={{ py: 0 }}>
-                        <ListItem sx={{ py: 0.25, px: 0 }}>
-                          <ListItemIcon sx={{ minWidth: 24 }}>
-                            <LockIcon sx={{ fontSize: '0.7rem' }} />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary="AES-256 Encryption" 
-                            primaryTypographyProps={{ fontSize: '0.68rem' }}
-                          />
-                        </ListItem>
-                        <ListItem sx={{ py: 0.25, px: 0 }}>
-                          <ListItemIcon sx={{ minWidth: 24 }}>
-                            <FingerprintIcon sx={{ fontSize: '0.7rem' }} />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary="Multi-Factor Authentication" 
-                            primaryTypographyProps={{ fontSize: '0.68rem' }}
-                          />
-                        </ListItem>
-                        <ListItem sx={{ py: 0.25, px: 0 }}>
-                          <ListItemIcon sx={{ minWidth: 24 }}>
-                            <CloudIcon sx={{ fontSize: '0.7rem' }} />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary="SOC 2 Type II Certified" 
-                            primaryTypographyProps={{ fontSize: '0.68rem' }}
-                          />
-                        </ListItem>
-                      </List>
-                    </Box>
-                  )}
-                </Box>
-              </Fade>
+                    )}
+
+                    {key === 'security' && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500, display: 'block', mb: 0.5 }}>
+                          Security Certifications:
+                        </Typography>
+                        <List dense sx={{ py: 0 }}>
+                          <ListItem sx={{ py: 0.25, px: 0 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <LockIcon sx={{ fontSize: '0.7rem' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary="AES-256 Encryption"
+                              primaryTypographyProps={{ fontSize: '0.68rem' }}
+                            />
+                          </ListItem>
+                          <ListItem sx={{ py: 0.25, px: 0 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <FingerprintIcon sx={{ fontSize: '0.7rem' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary="Multi-Factor Authentication"
+                              primaryTypographyProps={{ fontSize: '0.68rem' }}
+                            />
+                          </ListItem>
+                          <ListItem sx={{ py: 0.25, px: 0 }}>
+                            <ListItemIcon sx={{ minWidth: 24 }}>
+                              <CloudIcon sx={{ fontSize: '0.7rem' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary="SOC 2 Type II Certified"
+                              primaryTypographyProps={{ fontSize: '0.68rem' }}
+                            />
+                          </ListItem>
+                        </List>
+                      </Box>
+                    )}
+                  </Box>
+                </Fade>
               )}
             </Paper>
           ))}
         </Box>
 
         {/* Technical Specifications */}
-        <Paper elevation={0} sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          bgcolor: '#f0f4ff', 
+        <Paper elevation={0} sx={{
+          p: 1.5,
+          mb: 2,
+          bgcolor: '#f0f4ff',
           borderRadius: 0.5,
           border: '1px solid #d1d9ff'
         }}>
@@ -598,10 +605,10 @@ const TermsDialog = ({
         </Paper>
 
         {/* Acceptance Summary */}
-        <Paper elevation={0} sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          bgcolor: '#f8f9fa', 
+        <Paper elevation={0} sx={{
+          p: 1.5,
+          mb: 2,
+          bgcolor: '#f8f9fa',
           borderRadius: 0.5,
           border: '1px solid #e9ecef'
         }}>
@@ -650,10 +657,10 @@ const TermsDialog = ({
         </Paper>
 
         {/* Decline Section */}
-        <Paper elevation={0} sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          bgcolor: '#fff8e1', 
+        <Paper elevation={0} sx={{
+          p: 1.5,
+          mb: 2,
+          bgcolor: '#fff8e1',
           borderRadius: 0.5,
           border: '1px solid #ffe57f'
         }}>
@@ -668,8 +675,8 @@ const TermsDialog = ({
               </Typography>
             </Box>
           </Box>
-          <Typography variant="caption" sx={{ 
-            fontSize: '0.7rem', 
+          <Typography variant="caption" sx={{
+            fontSize: '0.7rem',
             lineHeight: 1.4,
             color: '#666',
             display: 'block',
@@ -694,8 +701,8 @@ const TermsDialog = ({
               lineHeight: '1.5'
             }}
           />
-          <Typography variant="caption" sx={{ 
-            fontSize: '0.65rem', 
+          <Typography variant="caption" sx={{
+            fontSize: '0.65rem',
             color: '#666',
             display: 'block',
             mt: 0.5
@@ -705,10 +712,10 @@ const TermsDialog = ({
         </Paper>
 
         {/* Contact Information */}
-        <Paper elevation={0} sx={{ 
-          p: 1.5, 
-          mb: 2, 
-          bgcolor: '#e8f5e9', 
+        <Paper elevation={0} sx={{
+          p: 1.5,
+          mb: 2,
+          bgcolor: '#e8f5e9',
           borderRadius: 0.5,
           border: '1px solid #c8e6c9'
         }}>
@@ -740,11 +747,11 @@ const TermsDialog = ({
         {/* Scroll Indicator */}
         {!isScrolledToBottom && (
           <Fade in={!isScrolledToBottom}>
-            <Box sx={{ 
-              position: 'sticky', 
-              bottom: 0, 
-              bgcolor: 'rgba(255,255,255,0.95)', 
-              py: 1, 
+            <Box sx={{
+              position: 'sticky',
+              bottom: 0,
+              bgcolor: 'rgba(255,255,255,0.95)',
+              py: 1,
               textAlign: 'center',
               borderTop: '1px solid #e0e0e0',
               mt: 2,
@@ -759,7 +766,7 @@ const TermsDialog = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ 
+      <DialogActions sx={{
         p: 1.5,
         borderTop: '1px solid #e0e0e0',
         bgcolor: '#f8f9fa'
@@ -788,30 +795,53 @@ const TermsDialog = ({
             </Tooltip>
           </Box>
 
-          {/* Center - Accept All Button */}
-          <Zoom in={!allSectionsAccepted}>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleAcceptAll}
-              disabled={allSectionsAccepted}
-              size="small"
-              startIcon={<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />}
-              sx={{
-                fontSize: '0.75rem',
-                py: 0.5,
-                px: 2,
-                minWidth: '140px',
-                fontWeight: 500,
-                bgcolor: allSectionsAccepted ? '#81c784' : '#4caf50',
-                '&:hover': {
-                  bgcolor: '#388e3c'
-                }
-              }}
-            >
-              ACCEPT ALL
-            </Button>
-          </Zoom>
+          {/* Center - Acceptance Controls */}
+          <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+            {!allSectionsAccepted ? (
+              <Button
+                variant="contained"
+                onClick={handleAcceptAll}
+                color="info"
+                size="small"
+                startIcon={<CheckIcon sx={{ fontSize: '0.8rem' }} />}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  px: 3,
+                  py: 0.75,
+                  borderRadius: 0.5,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  bgcolor: '#0d9488',
+                  '&:hover': { bgcolor: '#0f766e', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }
+                }}
+              >
+                Accept All Terms & Conditions
+              </Button>
+            ) : (
+              <Zoom in={allSectionsAccepted}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleAcceptClick}
+                  size="small"
+                  startIcon={<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />}
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    px: 4,
+                    py: 1,
+                    borderRadius: 0.5,
+                    textTransform: 'none',
+                    boxShadow: '0 4px 12px rgba(46, 125, 50, 0.2)',
+                    '&:hover': { boxShadow: '0 6px 16px rgba(46, 125, 50, 0.3)' }
+                  }}
+                >
+                  Confirm Legal Acceptance
+                </Button>
+              </Zoom>
+            )}
+          </Box>
 
           {/* Right side actions */}
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -831,45 +861,20 @@ const TermsDialog = ({
             >
               DECLINE
             </Button>
-            
-            <Button
-              variant="contained"
-              onClick={handleAccept}
-              disabled={required && !allSectionsAccepted}
-              size="small"
-              startIcon={<VerifiedIcon sx={{ fontSize: '0.8rem' }} />}
-              sx={{
-                fontSize: '0.75rem',
-                py: 0.5,
-                px: 1.5,
-                minWidth: '110px',
-                fontWeight: 500,
-                bgcolor: allSectionsAccepted ? '#1b5e20' : '#bdbdbd',
-                '&:hover': {
-                  bgcolor: allSectionsAccepted ? '#0d3c13' : '#9e9e9e'
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#e0e0e0',
-                  color: '#9e9e9e'
-                }
-              }}
-            >
-              CONTINUE
-            </Button>
           </Box>
         </Box>
       </DialogActions>
 
       {/* Acceptance Status Footer */}
-      <Box sx={{ 
+      <Box sx={{
         bgcolor: allSectionsAccepted ? '#e8f5e9' : '#fff3e0',
         borderTop: '1px solid',
         borderTopColor: allSectionsAccepted ? '#c8e6c9' : '#ffccbc',
         p: 1
       }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           maxWidth: 'md',
           mx: 'auto'
@@ -878,7 +883,7 @@ const TermsDialog = ({
             {allSectionsAccepted ? (
               <>
                 <CheckCircleIcon sx={{ fontSize: '0.8rem', color: '#2e7d32' }} />
-                <Typography variant="caption" sx={{ 
+                <Typography variant="caption" sx={{
                   fontSize: '0.7rem',
                   color: '#2e7d32',
                   fontWeight: 500
@@ -889,7 +894,7 @@ const TermsDialog = ({
             ) : (
               <>
                 <WarningIcon sx={{ fontSize: '0.8rem', color: '#f57c00' }} />
-                <Typography variant="caption" sx={{ 
+                <Typography variant="caption" sx={{
                   fontSize: '0.7rem',
                   color: '#f57c00',
                   fontWeight: 500
@@ -899,7 +904,7 @@ const TermsDialog = ({
               </>
             )}
           </Box>
-          <Typography variant="caption" sx={{ 
+          <Typography variant="caption" sx={{
             fontSize: '0.65rem',
             color: '#666'
           }}>
@@ -907,6 +912,89 @@ const TermsDialog = ({
           </Typography>
         </Box>
       </Box>
+      {/* Professional Confirmation Dialog for 'Accept Always' */}
+      <Dialog
+        open={showConfirmAccept}
+        onClose={() => setShowConfirmAccept(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+            border: '1px solid #e0e0e0'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          pb: 1,
+          pt: 3,
+          textAlign: 'center',
+          color: '#0d9488',
+          fontWeight: 700
+        }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <VerifiedIcon sx={{ fontSize: 50, mb: 1, color: '#0d9488' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Legal Acceptance
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+          <Typography variant="body2" sx={{ color: '#444', mb: 3, px: 1 }}>
+            How would you like to apply this legal acceptance? You can choose to accept for this document only, or save your preference to skip this step for all future documents.
+          </Typography>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleFinalAccept(true)}
+              startIcon={<FingerprintIcon />}
+              sx={{
+                bgcolor: '#0d9488',
+                py: 1.25,
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                '&:hover': { bgcolor: '#0f766e' }
+              }}
+            >
+              Accept Always (Recommended)
+            </Button>
+            <Typography variant="caption" sx={{ color: '#666', fontSize: '0.65rem', mt: -1 }}>
+              Skip terms for all future documents sent to this email
+            </Typography>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => handleFinalAccept(false)}
+              sx={{
+                color: '#666',
+                borderColor: '#e0e0e0',
+                py: 1,
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '0.85rem',
+                '&:hover': { borderColor: '#ccc', bgcolor: '#f9f9f9' }
+              }}
+            >
+              Only for this document
+            </Button>
+          </Box>
+        </DialogContent>
+        <Box sx={{ pb: 3, textAlign: 'center' }}>
+          <Link
+            component="button"
+            variant="caption"
+            onClick={() => setShowConfirmAccept(false)}
+            sx={{ color: '#999', textDecoration: 'none', '&:hover': { color: '#666' }, border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            Cancel and Go Back
+          </Link>
+        </Box>
+      </Dialog>
     </Dialog>
   );
 };

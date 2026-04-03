@@ -9,8 +9,7 @@ import {
   Tooltip, Card, CardContent, Grid, Avatar,
   FormControlLabel, Checkbox,  Fab, Toolbar, AppBar,
   List, ListItem, ListItemText, ListItemIcon,
-  Slider, Step, StepLabel, CircularProgress,
-  Menu, MenuItem, Badge
+  Slider, CircularProgress, MenuItem, Badge
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,

@@ -398,39 +398,36 @@ const DocumentWorkArea = ({
                   position: 'relative' // For absolute positioning of badge
                 }}
               >
-                {/* Pinned Professional Page Header */}
+                {/* Simple Professional Page Header */}
                 <Box sx={{
                   width: `${scaledWidth}px`,
                   height: `${scaledHeaderHeight}px`,
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
-                  px: 2,
-                  bgcolor: '#f8fafc', // Light industrial blue-gray
-                  border: '1px solid #e2e8f0',
-                  borderBottom: 'none',
-                  borderRadius: '6px 6px 0 0',
-                  boxShadow: '0 -2px 10px rgba(0,0,0,0.02)'
+                  alignItems: 'flex-end',
+                  pb: 1,
+                  bgcolor: 'transparent'
                 }}>
-                  <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600, fontSize: `${11 * zoomLevel}px` }}>
+                  <Typography variant="caption" sx={{ color: '#070707ff', fontWeight: 500, fontSize: `${11 * zoomLevel}px` }}>
                     {documentName || 'Untitled Document'}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 700, fontSize: `${11 * zoomLevel}px`, letterSpacing: '0.5px' }}>
-                    PAGE {pdfPageNumber}
+                  <Typography variant="caption" sx={{ color: '#191a1bff', fontWeight: 600, fontSize: `${11 * zoomLevel}px`, letterSpacing: '0.5px' }}>
+                    PAGE {pdfPageNumber} OF {numPages}
                   </Typography>
                 </Box>
 
                 <Paper
                   key={`page-${pageIndex}`}
-                  elevation={isCurrentPage ? 3 : 1}
+                  elevation={0}
                   sx={{
                     width: `${scaledWidth}px`,
                     height: `${scaledHeight}px`,
                     position: 'relative',
-                    borderRadius: '0 0 6px 6px', // Rounded only at bottom
+                    borderRadius: 0,
                     overflow: 'hidden',
-                    border: isCurrentPage ? '.4px solid #292f2da6' : '1px solid #e0e0e0',
-                    transition: 'border 0.2s ease'
+                    border: '1px solid #e2e8f0',
+                    boxShadow: isCurrentPage ? '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   <Page
@@ -517,7 +514,7 @@ const DocumentWorkArea = ({
         <Layer>
           {fields.map((field) => {
             const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
-            
+
             // Calculate Y offset: Each page n is preceded by n * (page + header + gap) plus this page's own header
             const pageOffsetY = field.page * (scaledHeight + PAGE_HEADER_HEIGHT * zoomLevel + PAGE_GAP) + (PAGE_HEADER_HEIGHT * zoomLevel);
 
@@ -676,10 +673,10 @@ const DocumentWorkArea = ({
           flex: 1,
           position: 'relative',
           overflow: 'auto',
-          bgcolor: '#e0e0e0',
-          borderRadius: 1,
-          //   border: isDragging ? '2px dashed #1976d2' : '1px solid #e0e0e0',
-          transition: 'border 0.2s ease',
+          bgcolor: '#ffffffff',
+          borderRadius: 0,
+          border: 'none',
+          transition: 'all 0.2s ease',
           '&::-webkit-scrollbar': {
             width: 8,
             height: 8

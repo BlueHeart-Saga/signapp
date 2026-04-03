@@ -168,7 +168,7 @@ export const FIELD_ROLES = {
     name: 'Witness',
     icon: <WitnessIcon />,
     description: 'Can witness signatures',
-    allowedFields: ['witness_signature', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment']
+    allowedFields: ['signature', 'initials', 'stamp', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail', 'approval', 'witness_signature']
   },
   in_person_signer: {
     id: 'in_person_signer',
@@ -190,7 +190,7 @@ export const FIELD_ROLES = {
 export const ROLE_FIELD_RULES = {
   signer: 'ALL',
   in_person_signer: ['signature', 'initials', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
-  witness: ['witness_signature', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
+  witness: 'ALL',
   approver: ['approval', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
   form_filler: 'ALL',
   viewer: []

@@ -28,7 +28,6 @@
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
-    "express": "^5.1.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.24.5",
     "html2pdf.js": "^0.10.3",
@@ -59,15 +58,15 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "concurrently \"react-scripts start\" \"node server.js\"",
-    "server": "node server.js",
-    "dev": "concurrently \"npm run start\" \"npm run backend\"",
+    "start": "react-scripts start",
     "backend": "cd ../backend && uvicorn main:app --reload --port 9000",
+    "dev": "concurrently \"npm start\" \"npm run backend\"",
     "build": "react-scripts build",
-    "serve": "npm run build && npm run server",
+    "serve": "npm run build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:9000",
   "eslintConfig": {
     "extends": [
       "react-app",

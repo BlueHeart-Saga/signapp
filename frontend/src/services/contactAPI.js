@@ -1,83 +1,95 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
+const API_BASE_URL =
+  process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-});
+// 🔒 Safe token getter
+const getToken = () => {
+  const token = localStorage.getItem("token");
+  return token && token !== "null" ? token : null;
+};
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-});
+// 🔒 Common headers
+const getHeaders = (isJson = true) => {
+  const headers = {};
+
+  if (isJson) headers["Content-Type"] = "application/json";
+
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  return headers;
+};
+
+// 🔥 Safe response handler
+const handleResponse = async (res) => {
+  const contentType = res.headers.get("content-type");
+
+  if (!res.ok) {
+    if (contentType && contentType.includes("application/json")) {
+      const err = await res.json();
+      throw new Error(err.detail || "API error");
+    } else {
+      const text = await res.text();
+      throw new Error(`Non-JSON error: ${text.substring(0, 100)}`);
+    }
+  }
+
+  if (contentType && contentType.includes("application/json")) {
+    return res.json();
+  }
+
+  return null;
+};
 
 export const contactAPI = {
-  // CREATE contact
   createContact: async (data) => {
     const res = await fetch(`${API_BASE_URL}/contacts`, {
       method: "POST",
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
       body: JSON.stringify(data),
     });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Failed to create contact");
-    }
-
-    return res.json();
+    return handleResponse(res);
   },
 
-  // GET all contacts
-   getContacts: async () => {
+  getContacts: async () => {
     const res = await fetch(`${API_BASE_URL}/contacts`, {
-      headers: authHeaders(),
+      headers: getHeaders(false),
     });
-    if (!res.ok) throw new Error("Failed to load contacts");
-    return res.json();
+    return handleResponse(res);
   },
 
   searchContacts: async (q) => {
     const res = await fetch(
       `${API_BASE_URL}/contacts/search?q=${encodeURIComponent(q)}`,
-      { headers: authHeaders() }
+      { headers: getHeaders(false) }
     );
-    if (!res.ok) throw new Error("Search failed");
-    return res.json();
+    return handleResponse(res);
   },
 
-  // TOGGLE favorite
   toggleFavorite: async (contactId) => {
     const res = await fetch(
       `${API_BASE_URL}/contacts/${contactId}/favorite`,
       {
         method: "PATCH",
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
       }
     );
-
-    if (!res.ok) throw new Error("Failed to update favorite");
-    return res.json();
+    return handleResponse(res);
   },
 
-  // UPDATE contact
   updateContact: async (contactId, data) => {
     const res = await fetch(`${API_BASE_URL}/contacts/${contactId}`, {
       method: "PUT",
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
       body: JSON.stringify(data),
     });
-
-    if (!res.ok) throw new Error("Failed to update contact");
-    return res.json();
+    return handleResponse(res);
   },
 
-  // DELETE contact
   deleteContact: async (contactId) => {
     const res = await fetch(`${API_BASE_URL}/contacts/${contactId}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
     });
-
-    if (!res.ok) throw new Error("Failed to delete contact");
-    return res.json();
+    return handleResponse(res);
   },
 };

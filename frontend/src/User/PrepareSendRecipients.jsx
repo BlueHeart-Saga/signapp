@@ -347,8 +347,12 @@ export default function PrepareSendRecipients() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeLoading, setMergeLoading] = useState(false);
   const [mergeProgress, setMergeProgress] = useState(0);
+  const [processingMsg, setProcessingMsg] = useState(""); // Added status message
+
   const [mergeFile, setMergeFile] = useState(null);
+  const [mergeDoc, setMergeDoc] = useState(null); // Added missing state
   const [activePage, setActivePage] = useState(null);
+
   const [files, setFiles] = useState([]);
 
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -2658,62 +2662,61 @@ export default function PrepareSendRecipients() {
 
       {mergeOpen && (
         <div className="zoho-merge-backdrop">
-          <div className="zoho-merge-dialog">
-
-            {/* Header */}
+          <div className="zoho-merge-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="zoho-merge-header">
-              <h3>Add File</h3>
+              <h3>{mergeDoc ? "Replace File" : "Add File"}</h3>
               <button
                 className="zoho-merge-close"
                 onClick={() => {
                   setMergeOpen(false);
                   setMergeFile(null);
+                  setMergeDoc(null);
                 }}
               >
                 ✕
               </button>
             </div>
 
-            {/* Info */}
-            <p className="zoho-merge-info">
-              The selected file will be appended to
-              <strong> {document.filename}</strong>
-            </p>
-
-            {/* File upload */}
-            <label className="zoho-merge-upload">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg"
-                onChange={(e) => setMergeFile(e.target.files[0])}
-              />
-              <div className="zoho-upload-box">
-                <span className="zoho-upload-title">
-                  {mergeFile ? mergeFile.name : "Choose a file"}
-                </span>
-                <span className="zoho-upload-hint">
-                  PDF, Word, JPG, PNG up to 10MB
-                </span>
-              </div>
-            </label>
-
-            {/* Progress */}
-            {mergeLoading && (
-              <div className="zoho-merge-progress">
-                <div
-                  className="zoho-merge-progress-bar"
-                  style={{ width: `${mergeProgress}%` }}
+            <div className="zoho-merge-content">
+              <label className="zoho-merge-upload">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg"
+                  onChange={(e) => setMergeFile(e.target.files[0])}
                 />
-              </div>
-            )}
+                <div className="zoho-upload-box">
+                  <span className="zoho-upload-title">
+                    {mergeFile ? mergeFile.name : "Choose a file"}
+                  </span>
+                  <p className="zoho-upload-hint">
+                    PDF, Word, JPG, PNG
+                  </p>
+                </div>
+              </label>
 
-            {/* Actions */}
-            <div className="zoho-merge-actions">
+              {mergeLoading && (
+                <div className="zoho-merge-progress-container">
+                  <div className="zoho-merge-progress-text">
+                    {processingMsg || (mergeProgress < 70 ? "Uploading..." : "Processing...")}
+                  </div>
+                  <div className="zoho-merge-progress">
+                    <div
+                      className="zoho-merge-progress-bar"
+                      style={{ width: `${mergeProgress}%` }}
+                    />
+                  </div>
+                  <div className="zoho-merge-percent">{mergeProgress}%</div>
+                </div>
+              )}
+            </div>
+
+            <div className="zoho-merge-footer">
               <button
                 className="zoho-btn-secondary"
                 onClick={() => {
                   setMergeOpen(false);
                   setMergeFile(null);
+                  setMergeDoc(null);
                 }}
                 disabled={mergeLoading}
               >
@@ -2727,33 +2730,86 @@ export default function PrepareSendRecipients() {
                   try {
                     setMergeLoading(true);
                     setMergeProgress(0);
+                    setProcessingMsg("Initializing...");
 
-                    await addFileToDocument(
-                      document.id,
-                      mergeFile,
-                      setMergeProgress
-                    );
+                    // 1. Polling logic
+                    const docId = documentId; // Use documentId from params
+                    const startPoll = () => {
+                      const interval = setInterval(async () => {
+                        try {
+                          const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
+                            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+                          }).then(r => r.json());
+
+                          if (statusRes.progress > 70) {
+                            setMergeProgress(statusRes.progress);
+                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
+                          }
+                          if (statusRes.progress >= 100) clearInterval(interval);
+                        } catch (e) { console.warn("Poll err", e); }
+                      }, 1000);
+                      return interval;
+                    };
+
+                    const pollId = startPoll();
+
+                    // 2. Upload / Add
+                    if (mergeDoc) {
+                      // REPLACE
+                      const form = new FormData();
+                      form.append("file", mergeFile);
+                      await fetch(
+                        `${API_BASE_URL}/documents/${documentId}/files/${mergeDoc.id}/replace`,
+                        {
+                          method: "PUT",
+                          headers: {
+                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                          },
+                          body: form,
+                        }
+                      );
+                    } else {
+                      // ADD
+                      await addFileToDocument(documentId, mergeFile, (p) => {
+                        setMergeProgress(Math.round(p));
+                        if (p >= 60) setProcessingMsg("Server Processing...");
+                      });
+                    }
+
+                    clearInterval(pollId);
+                    setMergeProgress(100);
+                    setProcessingMsg("Complete!");
+
+                    setSnackbar({
+                      open: true,
+                      message: mergeDoc ? "File replaced" : "File added",
+                      severity: "success",
+                    });
 
                     await reloadFiles();
                     setMergeOpen(false);
                     setMergeFile(null);
+                    setMergeDoc(null);
 
-                  } catch {
+                  } catch (err) {
                     setSnackbar({
                       open: true,
-                      message: "Merge failed. Please try again.",
+                      message: "Process failed",
                       severity: "error",
                     });
                   } finally {
                     setMergeLoading(false);
                     setMergeProgress(0);
+                    setProcessingMsg("");
                   }
                 }}
               >
-                {mergeLoading ? "Merging..." : "Add file"}
+                {mergeLoading ? "Processing…" : mergeDoc ? "Replace" : "Add"}
               </button>
+
             </div>
           </div>
+
         </div>
       )}
 
@@ -2770,12 +2826,13 @@ export default function PrepareSendRecipients() {
             />
 
             <h3 className="document-merge-title">
-              Merging documents
+              {processingMsg || "Merging documents"}
             </h3>
 
             <p className="document-merge-subtitle">
-              Please wait while we securely combine your files.
+              Please wait while we process your files.
             </p>
+
 
             {/* Progress */}
             <div className="document-merge-progress-text">
@@ -2905,6 +2962,8 @@ export default function PrepareSendRecipients() {
       />
 
 
+      {/* Commented out bottom thumbnails as requested - now moving to editor side panel */}
+      {/* 
       <DocumentFilesPanel
         documentId={document.id}
         onPreview={(page) => {
@@ -2912,6 +2971,7 @@ export default function PrepareSendRecipients() {
           setViewerOpen(true);
         }}
       />
+      */}
 
 
 

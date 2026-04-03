@@ -66,14 +66,14 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import api from "../services/api";
 
 // Enhanced signature pad that supports all field types
-const EnhancedSignaturePad = ({ 
-  onSave, 
+const EnhancedSignaturePad = ({
+  onSave,
   onClose,
-  existingSignature = null, 
+  existingSignature = null,
   recipientData = {},
   fieldType = 'signature',
   fieldLabel = '',
-  fieldOptions = [], 
+  fieldOptions = [],
   height = 300,
   width = 700
 }) => {
@@ -111,11 +111,11 @@ const EnhancedSignaturePad = ({
   const [selectedFontStyle, setSelectedFontStyle] = useState('handwriting'); // New state for font style
 
   const getDefaultFontSize = () => {
-  if (fieldType === 'initials') return 160; // ⬅ bigger like signature
-  return 112;
-};
+    if (fieldType === 'initials') return 160; // ⬅ bigger like signature
+    return 112;
+  };
 
-const [fontSize, setFontSize] = useState(getDefaultFontSize());
+  const [fontSize, setFontSize] = useState(getDefaultFontSize());
 
   // Field type specific configurations
   const FIELD_CONFIG = {
@@ -310,18 +310,18 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   useEffect(() => {
     const config = FIELD_CONFIG[fieldType] || FIELD_CONFIG.signature;
     setActiveTab(config.defaultTab);
-    
+
     // Auto-fill signature with recipient name if available
     if (fieldType === 'signature' && recipientData?.name) {
       setTextInput(recipientData.name);
     }
-    
+
     // Load existing value if provided
     if (existingSignature) {
       loadExistingValue(existingSignature);
     } else {
       // Set initial value based on field type
-      switch(fieldType) {
+      switch (fieldType) {
         case 'date':
           setSelectedDate(new Date());
           break;
@@ -329,7 +329,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           setEmailInput(recipientData.email || '');
           break;
         case 'stamp':
-          setStampText(recipientData.name ? 
+          setStampText(recipientData.name ?
             `APPROVED\n${recipientData.name.toUpperCase()}` : 'APPROVED');
           break;
         default:
@@ -347,7 +347,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
 
   const loadExistingValue = (value) => {
     setIsLoading(true);
-    
+
     try {
       if (typeof value === 'object') {
         // Handle object values
@@ -357,7 +357,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         } else if (value.text !== undefined) {
           setTextInput(value.text);
         } else if (value.value !== undefined) {
-          switch(fieldType) {
+          switch (fieldType) {
             case 'textbox':
             case 'initials':
               setTextInput(value.value);
@@ -406,7 +406,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           if (fieldType === 'mail' && emailRegex.test(value)) {
             setEmailInput(value);
           } else {
-            switch(fieldType) {
+            switch (fieldType) {
               case 'textbox':
               case 'initials':
                 const cleanText = value.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -442,7 +442,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         }
       } else if (typeof value === 'boolean') {
         // Handle boolean values
-        switch(fieldType) {
+        switch (fieldType) {
           case 'checkbox':
           case 'approval':
             setCheckboxValue(value);
@@ -467,10 +467,10 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       // Clear canvas
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+
       // Draw existing signature
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
+
       // Save to history
       const newImageData = canvas.toDataURL();
       setHistory([newImageData]);
@@ -482,12 +482,12 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   // Initialize canvas for drawing
   useEffect(() => {
     if (!['signature', 'witness_signature', 'initials'].includes(fieldType)) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    
+
     // Set canvas size
     canvas.width = width;
     canvas.height = fieldType === 'initials' ? height * 1.2 : height;
@@ -499,7 +499,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
     ctx.lineJoin = 'round';
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
   }, [width, height, fieldType]);
 
   // Validate email
@@ -525,7 +525,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
+
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY
@@ -536,11 +536,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     setIsDrawing(true);
     setLastX(x);
     setLastY(y);
-    
+
     ctx.beginPath();
     ctx.moveTo(x, y);
     saveToHistory();
@@ -548,11 +548,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
 
   const draw = (e) => {
     if (!isDrawing) return;
-    
+
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     ctx.lineTo(x, y);
     ctx.stroke();
     setLastX(x);
@@ -561,10 +561,10 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
 
   const stopDrawing = () => {
     if (!isDrawing) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     ctx.closePath();
     setIsDrawing(false);
     saveToHistory();
@@ -573,11 +573,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const saveToHistory = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const imageData = canvas.toDataURL();
     const newHistory = history.slice(0, currentStep + 1);
     newHistory.push(imageData);
-    
+
     setHistory(newHistory);
     setCurrentStep(newHistory.length - 1);
   };
@@ -585,11 +585,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     saveToHistory();
     setCurrentValue(null);
   };
@@ -599,13 +599,13 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       clearCanvas();
       return;
     }
-    
+
     const newStep = currentStep - 1;
     setCurrentStep(newStep);
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     const img = new Image();
     img.onload = () => {
       ctx.fillStyle = '#ffffff';
@@ -617,13 +617,13 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
 
   const redo = () => {
     if (currentStep >= history.length - 1) return;
-    
+
     const newStep = currentStep + 1;
     setCurrentStep(newStep);
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     const img = new Image();
     img.onload = () => {
       ctx.fillStyle = '#ffffff';
@@ -636,54 +636,54 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     if (!file.type.startsWith('image/')) {
       setUploadError('Please upload an image file (PNG, JPG, SVG)');
       return;
     }
-    
+
     if (file.size > 5 * 1024 * 1024) {
       setUploadError('File size must be less than 5MB');
       return;
     }
-    
+
     setUploadError('');
     setIsLoading(true);
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
+
         const maxWidth = width;
         const maxHeight = height;
         let newWidth = img.width;
         let newHeight = img.height;
-        
+
         if (newWidth > maxWidth) {
           const ratio = maxWidth / newWidth;
           newWidth = maxWidth;
           newHeight = newHeight * ratio;
         }
-        
+
         if (newHeight > maxHeight) {
           const ratio = maxHeight / newHeight;
           newHeight = maxHeight;
           newWidth = newWidth * ratio;
         }
-        
+
         canvas.width = maxWidth;
         canvas.height = maxHeight;
-        
+
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         const x = (maxWidth - newWidth) / 2;
         const y = (maxHeight - newHeight) / 2;
         ctx.drawImage(img, x, y, newWidth, newHeight);
-        
+
         const signatureData = canvas.toDataURL();
         setUploadedImage(signatureData);
         setSignaturePreview(signatureData);
@@ -701,12 +701,12 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     if (file.size > 10 * 1024 * 1024) {
       setUploadError('File size must be less than 10MB');
       return;
     }
-    
+
     setAttachmentFile(file);
     setUploadError('');
   };
@@ -714,55 +714,55 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const generateTextSignature = () => {
     const canvas = textCanvasRef.current;
     if (!canvas || !textInput.trim()) return '';
-    
+
     const ctx = canvas.getContext('2d');
     canvas.width = width;
     canvas.height = fieldType === 'initials' ? height * 1.2 : height;
 
     const finalFontSize =
-  fieldType === 'initials'
-    ? Math.min(fontSize * 1.4, 180) // ⬅ boost initials
-    : fontSize;
+      fieldType === 'initials'
+        ? Math.min(fontSize * 1.4, 180) // ⬅ boost initials
+        : fontSize;
 
 
-    
+
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     ctx.fillStyle = fontColor;
     ctx.font = `${finalFontSize}px "${fontFamily}", cursive`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
-    
+
     const lines = textInput.split('\n');
     const lineHeight = fontSize * 1.2;
     const startY = (canvas.height - (lines.length * lineHeight)) / 2 + fontSize / 2;
-    
+
     lines.forEach((line, index) => {
       ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
     });
-    
+
     return canvas.toDataURL();
   };
 
   const drawStampPreview = () => {
     const canvas = canvasRef.current;
     if (!canvas || !stampText) return;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const padding = 20;
-    
+
     // Draw stamp shape
     ctx.strokeStyle = stampColor;
     ctx.lineWidth = 3;
     ctx.fillStyle = `${stampColor}20`;
-    
-    switch(stampShape) {
+
+    switch (stampShape) {
       case 'circle':
         const radius = Math.min(canvas.width, canvas.height) / 2 - padding;
         ctx.beginPath();
@@ -770,7 +770,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         ctx.fill();
         ctx.stroke();
         break;
-        
+
       case 'square':
         const squareSize = Math.min(canvas.width, canvas.height) - padding * 2;
         const squareX = centerX - squareSize / 2;
@@ -778,7 +778,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         ctx.fillRect(squareX, squareY, squareSize, squareSize);
         ctx.strokeRect(squareX, squareY, squareSize, squareSize);
         break;
-        
+
       case 'rectangular':
         const rectWidth = canvas.width - padding * 2;
         const rectHeight = canvas.height - padding * 2;
@@ -788,39 +788,39 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         break;
     }
-    
+
     // Draw stamp text
     ctx.fillStyle = stampColor;
     ctx.font = 'bold 24px Arial';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
-    
+
     const lines = stampText.split('\n');
     const lineHeight = 28;
     const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
-    
+
     lines.forEach((line, index) => {
       ctx.fillText(line, centerX, startY + (index * lineHeight));
     });
-    
+
     // Draw date if enabled
     if (showDateOnStamp) {
       const date = new Date().toLocaleDateString();
       ctx.font = '12px Arial';
       ctx.fillText(date, centerX, centerY + (lines.length * lineHeight) / 2 + 20);
     }
-    
+
     // Draw "APPROVED" text around the stamp
     if (stampShape === 'circle') {
       const radius = Math.min(canvas.width, canvas.height) / 2 - padding + 15;
       const approvedText = "APPROVED";
       const angleStep = (2 * Math.PI) / approvedText.length;
-      
+
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.textBaseline = 'alphabetic';
       ctx.textAlign = 'center';
-      
+
       for (let i = 0; i < approvedText.length; i++) {
         const angle = i * angleStep;
         ctx.save();
@@ -848,7 +848,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         } else { // Upload tab
           imageData = uploadedImage;
         }
-        
+
         if (imageData) {
           return {
             image: imageData,
@@ -865,7 +865,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         } else {
           stampImage = uploadedImage;
         }
-        
+
         if (stampImage) {
           return {
             image: stampImage,
@@ -916,23 +916,23 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
     if (fieldType === 'signature' || fieldType === 'initials' || fieldType === 'witness_signature' || fieldType === 'stamp') {
       return !value.image;
     }
-    
+
     if (fieldType === 'textbox' || fieldType === 'mail' || fieldType === 'date') {
       return !value.value || value.value.trim() === '';
     }
-    
+
     if (fieldType === 'radio' || fieldType === 'dropdown') {
       return !value.value;
     }
-    
+
     if (fieldType === 'checkbox' || fieldType === 'approval') {
       return value.value === false;
     }
-    
+
     if (fieldType === 'attachment') {
       return !value.filename;
     }
-    
+
     return true;
   };
 
@@ -942,11 +942,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       alert('Please create a signature first');
       return;
     }
-    
+
     // Prepare payload based on field type
     let payload = null;
-    
-    switch(fieldType) {
+
+    switch (fieldType) {
       case 'signature':
       case 'initials':
       case 'witness_signature':
@@ -967,13 +967,13 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           if (value.color) payload.color = value.color;
         }
         break;
-        
+
       case 'checkbox':
       case 'approval':
         // Boolean fields
         payload = { value: value.value };
         break;
-        
+
       case 'radio':
       case 'dropdown':
       case 'textbox':
@@ -982,24 +982,24 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         // Value-based fields
         payload = { value: value.value || '' };
         break;
-        
+
       case 'attachment':
         // Attachment fields
         if (!value.filename) {
           alert('Please upload a file');
           return;
         }
-        payload = { 
+        payload = {
           filename: value.filename,
-          size: value.size 
+          size: value.size
         };
         break;
-        
+
       default:
         console.error('Unknown field type:', fieldType);
         return;
     }
-    
+
     console.log('Saving payload:', { fieldType, payload });
     onSave(payload, 'complete');
   };
@@ -1054,7 +1054,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         {fieldType === 'stamp' ? 'Design your stamp below' : `Draw your ${fieldType === 'initials' ? 'initials' : 'signature'} with mouse or touch`}
       </Typography>
-      
+
       <Box
         sx={{
           border: '1px dashed #bdbdbd',
@@ -1091,7 +1091,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             height: `${height}px`,
           }}
         />
-        
+
         {fieldType !== 'stamp' && (
           <Box
             sx={{
@@ -1129,7 +1129,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           </Box>
         )}
       </Box>
-      
+
       {fieldType !== 'stamp' && (
         <Grid container spacing={1} justifyContent="center">
           <Grid item>
@@ -1174,7 +1174,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         {fieldType === 'initials' ? 'Type your initials (1-3 letters)' : 'Type your signature'}
       </Typography>
-      
+
       <TextField
         fullWidth
         multiline={fieldType !== 'initials'}
@@ -1191,14 +1191,14 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           }
         }}
         placeholder={
-          fieldType === 'initials' 
+          fieldType === 'initials'
             ? 'AB'  // Simple placeholder, no auto-fill
             : FIELD_CONFIG[fieldType]?.placeholder || 'Enter text...'
         }
         sx={{ mb: 2 }}
         inputProps={{
           maxLength: fieldType === 'initials' ? 3 : undefined,
-          style: { 
+          style: {
             textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
             fontSize: fieldType === 'initials' ? '32px' : 'inherit',
             fontWeight: fieldType === 'initials' ? 'bold' : 'normal',
@@ -1208,17 +1208,17 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           }
         }}
       />
-      
+
       {fieldType === 'initials' && textInput && (
         <Box sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            ✅ {textInput.length === 1 ? 'Single initial' : 
-                textInput.length === 2 ? 'Two initials (recommended)' : 
+            ✅ {textInput.length === 1 ? 'Single initial' :
+              textInput.length === 2 ? 'Two initials (recommended)' :
                 'Three initials'} - Ready to save
           </Typography>
         </Box>
       )}
-      
+
       {fieldType === 'initials' && !textInput && (
         <Box sx={{ mb: 2, p: 1, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}>
           <Typography variant="caption" color="text.secondary">
@@ -1226,123 +1226,135 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           </Typography>
         </Box>
       )}
-      
-      {fieldType !== 'initials' && (
-        <>
-          {/* Font Style Selection Dropdown */}
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Style</FormLabel>
-                <Select
-                  value={selectedFontStyle}
-                  onChange={(e) => {
-                    setSelectedFontStyle(e.target.value);
-                    // Set the first font of the selected style
-                    const style = fontStyles.find(s => s.name === e.target.value);
-                    if (style && style.fonts.length > 0) {
-                      setFontFamily(style.fonts[0]);
-                      setFontColor(style.color);
-                    }
-                  }}
-                  size="small"
-                >
-                  {fontStyles.map(style => (
-                    <MenuItem 
-                      key={style.name} 
-                      value={style.name}
-                      sx={{ 
-                        fontFamily: style.fonts[0], 
-                        color: style.color,
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {style.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Family</FormLabel>
-                <Select
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  size="small"
-                  sx={{
-                    fontFamily: `"${fontFamily}", cursive`,
-                    '& .MuiSelect-select': {
-                      fontFamily: `"${fontFamily}", cursive !important`,
-                    }
-                  }}
-                >
-                  {fontStyles.find(s => s.name === selectedFontStyle)?.fonts.map(font => (
-                    <MenuItem 
-                      key={font} 
-                      value={font}
-                      sx={{ fontFamily: `"${font}", cursive` }}
-                    >
-                      {font}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Size</FormLabel>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton size="small" onClick={() => setFontSize(Math.max(48, fontSize - 8))}>
-                    <ZoomOutIcon />
-                  </IconButton>
-                  <TextField
-                    type="number"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Math.max(48, parseInt(e.target.value) || 112))}
-                    size="small"
-                    sx={{ width: 80 }}
-                    inputProps={{ min: 48, max: 200 }}
-                  />
-                  <IconButton size="small" onClick={() => setFontSize(Math.min(200, fontSize + 8))}>
-                    <ZoomInIcon />
-                  </IconButton>
-                </Box>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Color</FormLabel>
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {colors.map(color => (
-                    <IconButton
-                      key={color}
-                      size="small"
-                      onClick={() => setFontColor(color)}
-                      sx={{
-                        width: 28,
-                        height: 28,
-                        backgroundColor: color,
-                        border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
-                        boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
-                        '&:hover': {
-                          opacity: 0.9,
-                        },
-                      }}
-                    >
-                      {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
-                    </IconButton>
-                  ))}
-                </Box>
-              </FormControl>
-            </Grid>
+
+      {/* Font Size & Style Controls - Visible for all text-based fields */}
+      <Box sx={{ mb: 2 }}>
+        {/* Font Style Selection Dropdown */}
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12}>
+            <FormControl fullWidth size="small">
+              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Style</FormLabel>
+              <Select
+                value={selectedFontStyle}
+                onChange={(e) => {
+                  setSelectedFontStyle(e.target.value);
+                  // Set the first font of the selected style
+                  const style = fontStyles.find(s => s.name === e.target.value);
+                  if (style && style.fonts.length > 0) {
+                    setFontFamily(style.fonts[0]);
+                    setFontColor(style.color);
+                  }
+                }}
+                size="small"
+              >
+                {fontStyles.map(style => (
+                  <MenuItem
+                    key={style.name}
+                    value={style.name}
+                    sx={{
+                      fontFamily: style.fonts[0],
+                      color: style.color,
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {style.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
-        </>
-      )}
-      
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth size="small">
+              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Family</FormLabel>
+              <Select
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                size="small"
+                sx={{
+                  fontFamily: `"${fontFamily}", cursive`,
+                  '& .MuiSelect-select': {
+                    fontFamily: `"${fontFamily}", cursive !important`,
+                  }
+                }}
+              >
+                {fontStyles.find(s => s.name === selectedFontStyle)?.fonts.map(font => (
+                  <MenuItem
+                    key={font}
+                    value={font}
+                    sx={{ fontFamily: `"${font}", cursive` }}
+                  >
+                    {font}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size="small">
+              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Size</FormLabel>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton size="small" onClick={() => setFontSize(Math.max(48, fontSize - 8))}>
+                  <ZoomOutIcon />
+                </IconButton>
+                <TextField
+                  type="number"
+                  value={fontSize}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                    if (val === '') {
+                      setFontSize(''); // Allow clearing
+                    } else if (!isNaN(val)) {
+                      setFontSize(val);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Enforce limits on blur
+                    const val = parseInt(fontSize);
+                    if (isNaN(val) || val < 12) setFontSize(12);
+                    if (val > 400) setFontSize(400);
+                  }}
+                  size="small"
+                  sx={{ width: 80 }}
+                  inputProps={{ min: 12, max: 400 }}
+                />
+                <IconButton size="small" onClick={() => setFontSize(Math.min(400, (parseInt(fontSize) || 0) + 8))}>
+                  <ZoomInIcon />
+                </IconButton>
+              </Box>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size="small">
+              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Color</FormLabel>
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                {colors.map(color => (
+                  <IconButton
+                    key={color}
+                    size="small"
+                    onClick={() => setFontColor(color)}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      backgroundColor: color,
+                      border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
+                      boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
+                      '&:hover': {
+                        opacity: 0.9,
+                      },
+                    }}
+                  >
+                    {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
+                  </IconButton>
+                ))}
+              </Box>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Box>
+
       <Box
         sx={{
           border: '1px solid #e0e0e0',
@@ -1362,7 +1374,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           <Box
             sx={{
               fontFamily: fieldType === 'initials' ? 'Arial, sans-serif' : `"${fontFamily}", cursive`,
-              fontSize: fieldType === 'initials' ? '140px' : `${fontSize}px`,
+              fontSize: `${fontSize || 24}px`,
               color: fieldType === 'initials' ? '#000' : fontColor,
               textAlign: 'center',
               whiteSpace: 'pre-line',
@@ -1388,7 +1400,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           </Typography>
         )}
       </Box>
-      
+
       <canvas ref={textCanvasRef} style={{ display: 'none' }} />
     </Box>
   );
@@ -1396,11 +1408,11 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const renderUploadTab = () => (
     <Box>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {fieldType === 'attachment' ? 'Upload a file' : 
-         fieldType === 'stamp' ? 'Upload a stamp image (PNG, JPG, SVG)' : 
-         `Upload a ${fieldType === 'initials' ? 'initials' : 'signature'} image (PNG, JPG, SVG)`}
+        {fieldType === 'attachment' ? 'Upload a file' :
+          fieldType === 'stamp' ? 'Upload a stamp image (PNG, JPG, SVG)' :
+            `Upload a ${fieldType === 'initials' ? 'initials' : 'signature'} image (PNG, JPG, SVG)`}
       </Typography>
-      
+
       <Box
         sx={{
           border: '2px dashed #bdbdbd',
@@ -1424,7 +1436,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           onChange={fieldType === 'attachment' ? handleFileUpload : handleImageUpload}
           style={{ display: 'none' }}
         />
-        
+
         {isLoading ? (
           <CircularProgress />
         ) : fieldType === 'attachment' ? (
@@ -1497,7 +1509,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           </>
         )}
       </Box>
-      
+
       {fieldType === 'attachment' ? (
         <Alert severity="info" sx={{ mb: 2 }}>
           Upload supporting documents or files related to this document.
@@ -1519,7 +1531,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         Customize your stamp
       </Typography>
-      
+
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12}>
           <TextField
@@ -1535,7 +1547,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             sx={{ mb: 2 }}
           />
         </Grid>
-        
+
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth size="small">
             <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Stamp Color</FormLabel>
@@ -1564,7 +1576,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             </Box>
           </FormControl>
         </Grid>
-        
+
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth size="small">
             <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Stamp Shape</FormLabel>
@@ -1589,7 +1601,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             </Box>
           </FormControl>
         </Grid>
-        
+
         <Grid item xs={12}>
           <FormControlLabel
             control={
@@ -1606,7 +1618,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           />
         </Grid>
       </Grid>
-      
+
       <Box
         sx={{
           border: '1px dashed #bdbdbd',
@@ -1626,7 +1638,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           }}
         />
       </Box>
-      
+
       <Alert severity="info" sx={{ mb: 2 }}>
         Your stamp will be displayed in the document with the selected design.
       </Alert>
@@ -1638,7 +1650,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         Enter your email address
       </Typography>
-      
+
       <TextField
         fullWidth
         type="email"
@@ -1652,7 +1664,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           startAdornment: <MailIcon sx={{ mr: 1, color: 'text.secondary' }} />,
         }}
       />
-      
+
       <Box
         sx={{
           border: '1px solid #e0e0e0',
@@ -1671,7 +1683,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           {emailValid ? 'Valid email address' : 'Enter a valid email address'}
         </Typography>
       </Box>
-      
+
       <Alert severity="info" sx={{ mb: 2 }}>
         Your email address will be securely stored and displayed in the document.
       </Alert>
@@ -1684,21 +1696,21 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           Select a date
         </Typography>
-        
+
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <DatePicker
             value={selectedDate}
             onChange={(newDate) => setSelectedDate(newDate)}
             renderInput={(params) => (
-              <TextField 
-                {...params} 
-                fullWidth 
+              <TextField
+                {...params}
+                fullWidth
                 sx={{ maxWidth: 300 }}
               />
             )}
           />
         </Box>
-        
+
         <Box
           sx={{
             border: '1px solid #e0e0e0',
@@ -1726,7 +1738,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         Check the box to confirm
       </Typography>
-      
+
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <FormControlLabel
           control={
@@ -1744,7 +1756,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           }
         />
       </Box>
-      
+
       <Alert severity="info" sx={{ mb: 2 }}>
         This checkbox will appear as {checkboxValue ? 'checked (✓)' : 'unchecked (☐)'} in the document.
       </Alert>
@@ -1752,103 +1764,103 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   );
 
   const renderRadioTab = () => (
-  <Box>
-    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-      {radioOptions && radioOptions.length > 0 
-        ? 'Select an option' 
-        : 'No options available'}
-    </Typography>
-    
-    <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
-      <RadioGroup
-        value={radioValue}
-        onChange={(e) => setRadioValue(e.target.value)}
-        sx={{ gap: 2 }}
-      >
-        {radioOptions.map((option) => (
-          <Paper
-            key={option}
-            elevation={radioValue === option ? 2 : 0}
-            sx={{
-              p: 2,
-              border: `2px solid ${radioValue === option ? FIELD_CONFIG[fieldType]?.color : '#e0e0e0'}`,
-              borderRadius: 1,
-              cursor: 'pointer',
-              '&:hover': {
-                borderColor: FIELD_CONFIG[fieldType]?.color,
-              },
-            }}
-            onClick={() => setRadioValue(option)}
-          >
-            <FormControlLabel
-              value={option}
-              control={<Radio />}
-              label={<Typography variant="body1">{option}</Typography>}
-              sx={{ m: 0, width: '100%' }}
-            />
-          </Paper>
-        ))}
-      </RadioGroup>
-    </FormControl>
-    
-    {!radioOptions.length && (
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        No options configured for this radio field.
-      </Alert>
-    )}
-  </Box>
-);
+    <Box>
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        {radioOptions && radioOptions.length > 0
+          ? 'Select an option'
+          : 'No options available'}
+      </Typography>
+
+      <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
+        <RadioGroup
+          value={radioValue}
+          onChange={(e) => setRadioValue(e.target.value)}
+          sx={{ gap: 2 }}
+        >
+          {radioOptions.map((option) => (
+            <Paper
+              key={option}
+              elevation={radioValue === option ? 2 : 0}
+              sx={{
+                p: 2,
+                border: `2px solid ${radioValue === option ? FIELD_CONFIG[fieldType]?.color : '#e0e0e0'}`,
+                borderRadius: 1,
+                cursor: 'pointer',
+                '&:hover': {
+                  borderColor: FIELD_CONFIG[fieldType]?.color,
+                },
+              }}
+              onClick={() => setRadioValue(option)}
+            >
+              <FormControlLabel
+                value={option}
+                control={<Radio />}
+                label={<Typography variant="body1">{option}</Typography>}
+                sx={{ m: 0, width: '100%' }}
+              />
+            </Paper>
+          ))}
+        </RadioGroup>
+      </FormControl>
+
+      {!radioOptions.length && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No options configured for this radio field.
+        </Alert>
+      )}
+    </Box>
+  );
 
   const renderDropdownTab = () => (
-  <Box>
-    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-      {fieldOptions && fieldOptions.length > 0 
-        ? 'Choose an option from the dropdown' 
-        : 'No options available'}
-    </Typography>
-    
-    <FormControl fullWidth sx={{ mb: 3 }}>
-      <Select
-        value={dropdownValue}
-        onChange={(e) => setDropdownValue(e.target.value)}
-        displayEmpty
-        sx={{
-          fontSize: '1.1rem',
-          py: 1,
-        }}
-        disabled={!dropdownOptions.length}
-      >
-        <MenuItem value="" disabled>
-          <em>Select an option...</em>
-        </MenuItem>
-        {dropdownOptions.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
+    <Box>
+      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        {fieldOptions && fieldOptions.length > 0
+          ? 'Choose an option from the dropdown'
+          : 'No options available'}
+      </Typography>
+
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <Select
+          value={dropdownValue}
+          onChange={(e) => setDropdownValue(e.target.value)}
+          displayEmpty
+          sx={{
+            fontSize: '1.1rem',
+            py: 1,
+          }}
+          disabled={!dropdownOptions.length}
+        >
+          <MenuItem value="" disabled>
+            <em>Select an option...</em>
           </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-    
-    {dropdownValue && (
-      <Alert severity="success" sx={{ mb: 2 }}>
-        Selected: <strong>{dropdownValue}</strong>
-      </Alert>
-    )}
-    
-    {!dropdownOptions.length && (
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        No options configured for this dropdown field.
-      </Alert>
-    )}
-  </Box>
-);
+          {dropdownOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {dropdownValue && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Selected: <strong>{dropdownValue}</strong>
+        </Alert>
+      )}
+
+      {!dropdownOptions.length && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No options configured for this dropdown field.
+        </Alert>
+      )}
+    </Box>
+  );
 
   const renderApprovalTab = () => (
     <Box>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         Approve this document
       </Typography>
-      
+
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <Button
           variant={approvalValue ? "contained" : "outlined"}
@@ -1867,7 +1879,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
           {approvalValue ? 'Approved ✓' : 'Click to Approve'}
         </Button>
       </Box>
-      
+
       {approvalValue && (
         <Alert severity="success" sx={{ mb: 2 }}>
           <Typography variant="body1" fontWeight="bold">
@@ -1884,7 +1896,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
   const renderContent = () => {
     const config = FIELD_CONFIG[fieldType] || FIELD_CONFIG.signature;
     const tabs = config.tabs || [];
-    
+
     if (tabs.length > 1) {
       // Multiple tabs (signature, witness signature, initials, stamp)
       return (
@@ -1896,25 +1908,25 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
           >
             {tabs.map((tab, index) => (
-              <Tab 
+              <Tab
                 key={tab}
                 icon={
                   tab === 'draw' ? <DrawIcon /> :
-                  tab === 'type' ? <TextIcon /> :
-                  tab === 'upload' ? <UploadIcon /> :
-                  tab === 'create' ? <StampIcon /> :
-                  null
+                    tab === 'type' ? <TextIcon /> :
+                      tab === 'upload' ? <UploadIcon /> :
+                        tab === 'create' ? <StampIcon /> :
+                          null
                 }
                 label={
                   tab === 'draw' ? 'Draw' :
-                  tab === 'type' ? 'Type' :
-                  tab === 'upload' ? 'Upload' :
-                  tab === 'create' ? 'Create' : tab
+                    tab === 'type' ? 'Type' :
+                      tab === 'upload' ? 'Upload' :
+                        tab === 'create' ? 'Create' : tab
                 }
               />
             ))}
           </Tabs>
-          
+
           {tabs[activeTab] === 'draw' && renderDrawTab()}
           {tabs[activeTab] === 'type' && renderTextTab()}
           {tabs[activeTab] === 'upload' && renderUploadTab()}
@@ -1924,7 +1936,7 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
     } else if (tabs.length === 1) {
       // Single tab for other field types
       const tabType = tabs[0];
-      switch(tabType) {
+      switch (tabType) {
         case 'calendar':
           return renderDateTab();
         case 'checkbox':
@@ -1956,24 +1968,24 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
             <CircularProgress />
           </Box>
         )}
-        
+
         {uploadError && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setUploadError('')}>
             {uploadError}
           </Alert>
         )}
-        
+
         {renderContent()}
-        
+
         <Divider sx={{ my: 3 }} />
-        
+
         {/* Action Buttons */}
         <Grid container spacing={2}>
           <Grid item xs={6}>
             <Button
               variant="outlined"
               onClick={() => {
-                switch(fieldType) {
+                switch (fieldType) {
                   case 'signature':
                   case 'witness_signature':
                   case 'initials':
@@ -2038,37 +2050,37 @@ const [fontSize, setFontSize] = useState(getDefaultFontSize());
 };
 
 // Modal wrapper component
-export const EnhancedSignaturePadModal = ({ 
-  open, 
-  onSave, 
-  onClose, 
+export const EnhancedSignaturePadModal = ({
+  open,
+  onSave,
+  onClose,
   existingSignature = null,
   recipientData = {},
   fieldType = 'signature',
   fieldLabel = '',
-  fieldOptions = [] 
+  fieldOptions = []
 }) => {
   const handleModalSave = (value, mode) => {
     if (!value) {
       console.error('No value to save');
       return;
     }
-    
+
     console.log(`Saving ${mode} value:`, {
       fieldType,
       value: typeof value === 'string' ? value.substring(0, 50) + '...' : value,
       mode
     });
-    
+
     onSave(value, mode);
-    
+
     if (mode === 'complete') {
       onClose();
     }
   };
 
   const getModalTitle = () => {
-    switch(fieldType) {
+    switch (fieldType) {
       case 'signature': return 'Add Signature';
       case 'initials': return 'Add Initials';
       case 'date': return 'Select Date';
@@ -2082,8 +2094,8 @@ export const EnhancedSignaturePadModal = ({
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onClose}
       maxWidth="md"
       fullWidth
@@ -2101,7 +2113,7 @@ export const EnhancedSignaturePadModal = ({
           </IconButton>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent>
         <EnhancedSignaturePad
           onSave={handleModalSave}
@@ -2110,10 +2122,10 @@ export const EnhancedSignaturePadModal = ({
           recipientData={recipientData}
           fieldType={fieldType}
           fieldLabel={fieldLabel}
-          fieldOptions={fieldOptions} 
+          fieldOptions={fieldOptions}
         />
       </DialogContent>
-      
+
       <DialogActions>
         <Button onClick={onClose} variant="outlined">
           Cancel

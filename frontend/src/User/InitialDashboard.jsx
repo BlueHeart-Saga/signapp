@@ -1,7 +1,7 @@
 import React from "react";
 import axios from "axios";
 
-import { Upload, FileText, Send, Sparkles, Gift } from "lucide-react";
+import { Gift } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getDocumentStats } from "../services/DocumentAPI";
 import { useAuth } from "../context/AuthContext";
