@@ -84,15 +84,15 @@ const SuccessDialog = ({ open, message }) => (
           animation: 'bounceIn 0.5s ease-out',
         }} />
       </Box>
-      
+
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: '#2E7D32' }}>
         Success!
       </Typography>
-      
+
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         {message}
       </Typography>
-      
+
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
         <CircularProgress size={20} sx={{ color: '#4CAF50' }} />
         <Typography variant="caption" color="text.secondary">
@@ -113,7 +113,7 @@ const OTPVerificationPage = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [emailMasked, setEmailMasked] = useState('');
-  
+
   // Add recipient and document info state
   const [recipientInfo, setRecipientInfo] = useState(null);
   const [documentInfo, setDocumentInfo] = useState(null);
@@ -122,7 +122,7 @@ const OTPVerificationPage = () => {
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
-  
+
   // New states for popups
   const [voidedDialogOpen, setVoidedDialogOpen] = useState(false);
   const [declinedTermsDialogOpen, setDeclinedTermsDialogOpen] = useState(false);
@@ -130,7 +130,7 @@ const OTPVerificationPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   const [documentVoided, setDocumentVoided] = useState(false);
-const [documentDeclined, setDocumentDeclined] = useState(false);
+  const [documentDeclined, setDocumentDeclined] = useState(false);
 
   // Fetch signing info first to check if terms need to be accepted
   useEffect(() => {
@@ -139,38 +139,38 @@ const [documentDeclined, setDocumentDeclined] = useState(false);
         setLoading(true);
         setError('');
         const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}`);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to fetch signing info: ${response.status} - ${errorText}`);
         }
-        
+
         const data = await response.json();
         console.log('Fetched signing data:', data);
 
 
         // 🔴 DOCUMENT VOIDED - Navigate to voided view page immediately
-      if (data.document?.is_voided || data.signing_info?.is_voided) {
-        setDocumentVoided(true);
-        // Navigate to voided view page
-        window.location.href = `/sign/${recipientId}/voided`;
-        return;
-      }
-      
-      /// 🟡 DOCUMENT DECLINED (by ANY recipient)
-      if (data.document?.status === 'declined' || data.signing_info?.document_status === 'declined') {
-        setDocumentDeclined(true);
-        // Navigate to declined view page
-        window.location.href = `/sign/${recipientId}/declined`;
-        return;
-      }
-      
-      // 🟠 RECIPIENT DECLINED (this specific recipient declined terms)
-      if (data.signing_info?.terms_status === 'declined') {
-        setDeclinedTermsDialogOpen(true);
-        return;
-      }
-        
+        if (data.document?.is_voided || data.signing_info?.is_voided) {
+          setDocumentVoided(true);
+          // Navigate to voided view page
+          window.location.href = `/sign/${recipientId}/voided`;
+          return;
+        }
+
+        /// 🟡 DOCUMENT DECLINED (by ANY recipient)
+        if (data.document?.status === 'declined' || data.signing_info?.document_status === 'declined') {
+          setDocumentDeclined(true);
+          // Navigate to declined view page
+          window.location.href = `/sign/${recipientId}/declined`;
+          return;
+        }
+
+        // 🟠 RECIPIENT DECLINED (this specific recipient declined terms)
+        if (data.signing_info?.terms_status === 'declined') {
+          setDeclinedTermsDialogOpen(true);
+          return;
+        }
+
         // Check data structure and set states accordingly
         if (data.recipient) {
           setRecipientInfo(data.recipient);
@@ -178,20 +178,20 @@ const [documentDeclined, setDocumentDeclined] = useState(false);
           // If data doesn't have nested recipient property, assume it's the recipient info
           setRecipientInfo(data);
         }
-        
+
         if (data.document) {
           setDocumentInfo(data.document);
         }
-        
+
         if (data.signing_info) {
           setSigningInfo(data.signing_info);
           setRequiresTerms(data.signing_info.requires_terms || false);
-          
+
           // Check if terms are already accepted
           if (data.signing_info.terms_status === 'accepted') {
             setTermsAccepted(true);
           }
-          
+
           // Check if terms were declined - show popup instead of redirect
           if (data.signing_info.terms_status === 'declined') {
             setDeclinedTermsDialogOpen(true);
@@ -200,44 +200,47 @@ const [documentDeclined, setDocumentDeclined] = useState(false);
         }
 
         // 🔴 DOCUMENT VOIDED
-if (data.document?.is_voided || data.signing_info?.is_voided) {
-  setDocumentVoided(true);
-  setVoidedDialogOpen(true);
-  return; // ⛔ stop OTP flow
-}
+        if (data.document?.is_voided || data.signing_info?.is_voided) {
+          setDocumentVoided(true);
+          setVoidedDialogOpen(true);
+          return; // ⛔ stop OTP flow
+        }
 
-// 🟠 DOCUMENT DECLINED
-if (data.signing_info?.status === 'declined') {
-  setDocumentDeclined(true);
-  return; // ⛔ stop OTP flow
-}
-        
+        // 🟠 DOCUMENT DECLINED
+        if (data.signing_info?.status === 'declined') {
+          setDocumentDeclined(true);
+          return; // ⛔ stop OTP flow
+        }
+
         // Check if OTP is already verified
         if (data.recipient?.otp_verified) {
           setOtpVerified(true);
-          
+
+          const termsRequired = data.signing_info?.requires_terms || false;
+          const termsAcceptedNow = data.signing_info?.terms_status === 'accepted';
+
           // If OTP already verified and terms accepted
-          if (!requiresTerms || (requiresTerms && data.signing_info?.terms_status === 'accepted')) {
+          if (!termsRequired || (termsRequired && termsAcceptedNow)) {
             // Show success message first
             setSuccessMessage('✅ Your identity is verified and terms are accepted! Redirecting to signing page...');
             setSuccessDialogOpen(true);
-            
+
             // Then navigate after showing success message
             setTimeout(() => {
               window.location.href = `/sign/${recipientId}`;
             }, 2500);
-          } else if (requiresTerms && data.signing_info?.terms_status !== 'accepted') {
+          } else if (termsRequired && !termsAcceptedNow) {
             // OTP verified but terms not accepted, show terms dialog
             setTermsDialogOpen(true);
           }
         }
-        
+
         // Check if document is voided - show popup instead of redirect
         if (data.document?.is_voided || data.signing_info?.is_voided) {
           setVoidedDialogOpen(true);
           return;
         }
-        
+
       } catch (err) {
         console.error('Error fetching signing info:', err);
         setError(`Failed to load document information: ${err.message}`);
@@ -257,7 +260,7 @@ if (data.signing_info?.status === 'declined') {
       const email = recipientInfo.email;
       const [localPart, domain] = email.split('@');
       if (localPart && domain) {
-        const maskedLocal = localPart.length > 2 
+        const maskedLocal = localPart.length > 2
           ? localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1)
           : '**';
         setEmailMasked(`${maskedLocal}@${domain}`);
@@ -301,18 +304,18 @@ if (data.signing_info?.status === 'declined') {
     try {
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/verify-otp`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           otp: otp.trim(),
-          recipient_id: recipientId 
+          recipient_id: recipientId
         }),
       });
 
       const responseText = await response.text();
       let data;
-      
+
       try {
         data = responseText ? JSON.parse(responseText) : {};
       } catch (parseError) {
@@ -327,7 +330,7 @@ if (data.signing_info?.status === 'declined') {
       if (data.verified) {
         setOtpVerified(true);
         setSuccess('OTP verified successfully!');
-        
+
         // Check if we need to show terms dialog
         if (requiresTerms && !termsAccepted) {
           setTermsDialogOpen(true);
@@ -335,7 +338,7 @@ if (data.signing_info?.status === 'declined') {
           // Show success message before redirecting
           setSuccessMessage('✅ Identity verified successfully! Redirecting to signing page...');
           setSuccessDialogOpen(true);
-          
+
           // Proceed to signing page after showing success
           setTimeout(() => {
             window.location.href = `/sign/${recipientId}`;
@@ -357,11 +360,11 @@ if (data.signing_info?.status === 'declined') {
   const handleResendOTP = async () => {
     setOtpLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/resend-otp`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ recipient_id: recipientId }),
@@ -369,7 +372,7 @@ if (data.signing_info?.status === 'declined') {
 
       const responseText = await response.text();
       let data;
-      
+
       try {
         data = responseText ? JSON.parse(responseText) : {};
       } catch (parseError) {
@@ -385,9 +388,9 @@ if (data.signing_info?.status === 'declined') {
       setResendTimer(60); // 60 seconds cooldown
       setAttempts(0);
       setOtp(''); // Clear OTP field
-      
+
       setTimeout(() => setSuccess(''), 3000);
-      
+
     } catch (err) {
       console.error('Resend OTP error:', err);
       setError(err.message || 'Network error');
@@ -396,16 +399,15 @@ if (data.signing_info?.status === 'declined') {
     }
   };
 
-  const handleAcceptTerms = async () => {
+  const handleAcceptTerms = async (always = false) => {
     try {
       setOtpLoading(true);
 
       // Check if terms were previously declined to use the correct endpoint
       const isReacceptance = signingInfo?.terms_status === 'declined';
-      const endpoint = `${API_BASE_URL}/signing/recipient/${recipientId}/${
-        isReacceptance ? 'reaccept-terms' : 'accept-terms'
-      }`;
-      
+      const endpoint = `${API_BASE_URL}/signing/recipient/${recipientId}/${isReacceptance ? 'reaccept-terms' : 'accept-terms'
+        }`;
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -413,23 +415,24 @@ if (data.signing_info?.status === 'declined') {
           accepted: true,
           accepted_at: new Date().toISOString(),
           ip_address: await getClientIP(),
-          user_agent: navigator.userAgent
+          user_agent: navigator.userAgent,
+          accept_always: always
         })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTermsAccepted(true);
         setTermsDialogOpen(false);
-        
+
         // Show success message before redirecting
-        const message = isReacceptance 
+        const message = isReacceptance
           ? '✅ Terms re-accepted successfully! Redirecting to signing page...'
           : '✅ Terms accepted successfully! Redirecting to signing page...';
-        
+
         setSuccessMessage(message);
         setSuccessDialogOpen(true);
-        
+
         // Redirect to signing page after showing success
         setTimeout(() => {
           window.location.href = `/sign/${recipientId}`;
@@ -459,12 +462,12 @@ if (data.signing_info?.status === 'declined') {
           user_agent: navigator.userAgent
         })
       });
-      
+
       if (response.ok) {
         setTermsDialogOpen(false);
         setTermsAccepted(false);
         setError('You have declined the terms and conditions. Signing process cancelled.');
-        
+
         setTimeout(() => {
           window.location.href = `/sign/${recipientId}/terms-declined`;
         }, 3000);
@@ -510,49 +513,49 @@ if (data.signing_info?.status === 'declined') {
   }
 
   if (documentVoided) {
-  return null; // dialog handles UI
-}
+    return null; // dialog handles UI
+  }
 
-if (documentDeclined) {
-  return (
-    <Container maxWidth="sm" sx={{ mt: 6 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 3, textAlign: 'center' }}>
-        <WarningIcon sx={{ fontSize: 64, color: '#ed6c02', mb: 2 }} />
+  if (documentDeclined) {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 6 }}>
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 3, textAlign: 'center' }}>
+          <WarningIcon sx={{ fontSize: 64, color: '#ed6c02', mb: 2 }} />
 
-        <Typography variant="h5" fontWeight={600} gutterBottom>
-          Document Declined
-        </Typography>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          This document has already been declined.  
-          Signing is no longer possible.
-        </Typography>
-
-        <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#fff8e1' }}>
-          <Typography variant="body2">
-            <strong>Document:</strong> {documentInfo?.filename}
+          <Typography variant="h5" fontWeight={600} gutterBottom>
+            Document Declined
           </Typography>
-          <Typography variant="body2">
-            <strong>Status:</strong>{' '}
-            <Chip label="DECLINED" color="warning" size="small" sx={{ ml: 1 }} />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            This document has already been declined.
+            Signing is no longer possible.
           </Typography>
+
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#fff8e1' }}>
+            <Typography variant="body2">
+              <strong>Document:</strong> {documentInfo?.filename}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Status:</strong>{' '}
+              <Chip label="DECLINED" color="warning" size="small" sx={{ ml: 1 }} />
+            </Typography>
+          </Paper>
+
+          <Button
+            variant="contained"
+            color="warning"
+            fullWidth
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+            onClick={() =>
+              window.location.href = `/sign/${recipientId}/declined`
+            }
+          >
+            View Declined Document
+          </Button>
         </Paper>
-
-        <Button
-          variant="contained"
-          color="warning"
-          fullWidth
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-          onClick={() =>
-            window.location.href = `/sign/${recipientId}/declined`
-          }
-        >
-          View Declined Document
-        </Button>
-      </Paper>
-    </Container>
-  );
-}
+      </Container>
+    );
+  }
 
 
   // Show error state if fetching failed
@@ -568,8 +571,8 @@ if (documentDeclined) {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               {error}
             </Typography>
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               onClick={() => window.location.reload()}
               sx={{ mt: 2 }}
             >
@@ -735,7 +738,7 @@ if (documentDeclined) {
                   {documentInfo?.name || documentInfo?.filename || 'Document'}
                 </Typography>
                 {termsAccepted && (
-                  <Chip 
+                  <Chip
                     icon={<CheckIcon />}
                     label="Terms Accepted"
                     color="success"
@@ -744,9 +747,9 @@ if (documentDeclined) {
                   />
                 )}
               </Box>
-              
+
               <Divider sx={{ mb: 2 }} />
-              
+
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary" display="block">
@@ -755,15 +758,15 @@ if (documentDeclined) {
                   </Typography>
                   <Typography variant="body2">{recipientInfo?.name || 'Unknown'}</Typography>
                 </Box>
-                
+
                 <Box>
                   <Typography variant="caption" color="text.secondary" display="block">
                     <EmailIcon sx={{ fontSize: 12, mr: 0.5 }} />
                     Email
                   </Typography>
-                  <Typography variant="body2">{ recipientInfo?.email || 'Not provided'}</Typography>
+                  <Typography variant="body2">{recipientInfo?.email || 'Not provided'}</Typography>
                 </Box>
-                
+
                 {/* <Box>
                   <Typography variant="caption" color="text.secondary" display="block">
                     Role
@@ -813,19 +816,19 @@ if (documentDeclined) {
               <LockIcon sx={{ fontSize: 16, mr: 1 }} />
               Enter 6-Digit Verification Code
             </Typography>
-            
+
             {/* OTP Input Boxes */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               gap: 1.5,
               mb: 4,
               position: 'relative',
               cursor: 'text'
             }}
-            onClick={() => {
-    document.getElementById('otp-hidden-input')?.focus();
-  }}>
+              onClick={() => {
+                document.getElementById('otp-hidden-input')?.focus();
+              }}>
               {[0, 1, 2, 3, 4, 5].map((index) => (
                 <Paper
                   key={index}
@@ -863,7 +866,7 @@ if (documentDeclined) {
                   >
                     {otp[index] || ''}
                   </Typography>
-                  
+
                   {/* Cursor animation for active field */}
                   {index === otp.length && (
                     <Box
@@ -881,7 +884,7 @@ if (documentDeclined) {
                       }}
                     />
                   )}
-                  
+
                   {/* Underline effect */}
                   <Box
                     sx={{
@@ -902,35 +905,35 @@ if (documentDeclined) {
 
             {/* Hidden input for keyboard entry */}
             <TextField
-  id="otp-hidden-input"
-  autoFocus
-  type="text"
-  inputMode="numeric"
-  value={otp}
-  onChange={(e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setOtp(value);
-    setError('');
-  }}
-  onPaste={(e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData('text')
-      .replace(/\D/g, '')
-      .slice(0, 6);
-    setOtp(pasted);
-  }}
-  inputProps={{ maxLength: 6 }}
-  sx={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: 0,          // ✅ KEY FIX
-    opacity: 0,
-    pointerEvents: 'none' // prevents layout & clicks
-  }}
-/>
+              id="otp-hidden-input"
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              value={otp}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setOtp(value);
+                setError('');
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pasted = e.clipboardData
+                  .getData('text')
+                  .replace(/\D/g, '')
+                  .slice(0, 6);
+                setOtp(pasted);
+              }}
+              inputProps={{ maxLength: 6 }}
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: 0,          // ✅ KEY FIX
+                opacity: 0,
+                pointerEvents: 'none' // prevents layout & clicks
+              }}
+            />
 
 
             {/* Helper text */}
@@ -949,9 +952,9 @@ if (documentDeclined) {
 
             {/* Attempts Counter */}
             {attempts > 0 && (
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 mb: 2,
                 animation: attempts > 2 ? 'shake 0.5s ease-in-out' : 'none'
@@ -966,26 +969,26 @@ if (documentDeclined) {
 
             {/* Error/Success Messages */}
             {error && (
-              <Alert 
-                severity="error" 
-                sx={{ 
+              <Alert
+                severity="error"
+                sx={{
                   mb: 2,
                   animation: 'fadeInUp 0.3s ease-out',
                   '& .MuiAlert-icon': {
                     animation: attempts > 2 ? 'shake 0.5s ease-in-out' : 'none'
                   }
-                }} 
+                }}
                 onClose={() => setError('')}
               >
                 {error}
               </Alert>
             )}
-            
+
             {success && (
-              <Alert 
-                severity="success" 
-                sx={{ 
-                  mb: 2, 
+              <Alert
+                severity="success"
+                sx={{
+                  mb: 2,
                   animation: 'fadeInUp 0.5s ease-out',
                   borderLeft: '4px solid #2E7D32',
                   backgroundColor: '#f0f9f0',
@@ -993,7 +996,7 @@ if (documentDeclined) {
                     color: '#2E7D32',
                     animation: 'pulse 2s infinite'
                   }
-                }} 
+                }}
                 onClose={() => setSuccess('')}
               >
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -1004,9 +1007,9 @@ if (documentDeclined) {
 
             {/* OTP Verification Status */}
             {otpVerified && (
-              <Alert 
-                severity="success" 
-                sx={{ 
+              <Alert
+                severity="success"
+                sx={{
                   mb: 2,
                   animation: 'fadeInUp 0.5s ease-out'
                 }}
@@ -1030,8 +1033,8 @@ if (documentDeclined) {
                   disabled={!otp || otp.length !== 6 || otpLoading}
                   fullWidth
                   size="large"
-                  sx={{ 
-                    height: 48, 
+                  sx={{
+                    height: 48,
                     borderRadius: 2,
                     fontSize: '1rem',
                     fontWeight: 600,
@@ -1059,8 +1062,8 @@ if (documentDeclined) {
                   onClick={() => setTermsDialogOpen(true)}
                   fullWidth
                   size="large"
-                  sx={{ 
-                    height: 48, 
+                  sx={{
+                    height: 48,
                     borderRadius: 2,
                     fontSize: '1rem',
                     fontWeight: 600,
@@ -1080,8 +1083,8 @@ if (documentDeclined) {
                   onClick={() => window.location.href = `/sign/${recipientId}`}
                   fullWidth
                   size="large"
-                  sx={{ 
-                    height: 48, 
+                  sx={{
+                    height: 48,
                     borderRadius: 2,
                     fontSize: '1rem',
                     fontWeight: 600,
@@ -1096,7 +1099,7 @@ if (documentDeclined) {
                   Proceed to Signing
                 </Button>
               )}
-              
+
               {!otpVerified && (
                 <Button
                   variant="outlined"
@@ -1104,7 +1107,7 @@ if (documentDeclined) {
                   disabled={resendTimer > 0 || otpLoading}
                   fullWidth
                   startIcon={<RefreshIcon />}
-                  sx={{ 
+                  sx={{
                     borderRadius: 2,
                     height: 44,
                     textTransform: 'none',
@@ -1128,12 +1131,12 @@ if (documentDeclined) {
             </Box>
 
             {/* Security Note */}
-            <Typography 
-              variant="caption" 
-              color="text.secondary" 
-              sx={{ 
-                mt: 3, 
-                display: 'block', 
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                mt: 3,
+                display: 'block',
                 textAlign: 'center',
                 fontSize: '0.75rem',
                 lineHeight: 1.5
@@ -1200,8 +1203,8 @@ if (documentDeclined) {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          bgcolor: '#f44336', 
+        <DialogTitle sx={{
+          bgcolor: '#f44336',
           color: 'white',
           py: 2
         }}>
@@ -1212,7 +1215,7 @@ if (documentDeclined) {
             </Typography>
           </Box>
         </DialogTitle>
-        
+
         <DialogContent sx={{ py: 3 }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <VoidIcon sx={{ fontSize: 64, color: '#f44336', mb: 2 }} />
@@ -1222,7 +1225,7 @@ if (documentDeclined) {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               The document "{documentInfo?.filename}" is no longer available for signing as it has been voided by the sender or administrator.
             </Typography>
-            
+
             <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#fff5f5', borderRadius: 1 }}>
               <Typography variant="caption" sx={{ fontWeight: 500, color: '#d32f2f' }}>
                 VOIDED DOCUMENT DETAILS
@@ -1244,7 +1247,7 @@ if (documentDeclined) {
             </Paper>
           </Box>
         </DialogContent>
-        
+
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Box sx={{ display: 'flex', gap: 2, width: '100%' }}>
             <Button
@@ -1280,8 +1283,8 @@ if (documentDeclined) {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          bgcolor: '#ff9800', 
+        <DialogTitle sx={{
+          bgcolor: '#ff9800',
           color: 'white',
           py: 2
         }}>
@@ -1292,7 +1295,7 @@ if (documentDeclined) {
             </Typography>
           </Box>
         </DialogTitle>
-        
+
         <DialogContent sx={{ py: 3 }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <BlockedIcon sx={{ fontSize: 64, color: '#ff9800', mb: 2 }} />
@@ -1302,13 +1305,13 @@ if (documentDeclined) {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               You have previously declined the terms and conditions for signing "{documentInfo?.filename}". To proceed with signing, you must re-accept the terms.
             </Typography>
-            
+
             <Alert severity="warning" sx={{ mb: 3 }}>
               <Typography variant="body2">
                 Declining terms prevents you from signing this document. If you wish to proceed, you must accept the updated terms.
               </Typography>
             </Alert>
-            
+
             <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fff8e1', borderRadius: 1 }}>
               <Typography variant="caption" sx={{ fontWeight: 500, color: '#ed6c02' }}>
                 SIGNING STATUS
@@ -1327,7 +1330,7 @@ if (documentDeclined) {
             </Paper>
           </Box>
         </DialogContent>
-        
+
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Box sx={{ display: 'flex', gap: 2, width: '100%' }}>
             <Button

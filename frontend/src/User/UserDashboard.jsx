@@ -423,7 +423,7 @@ const UserDashboard = () => {
 
   // Prepare & Send - navigate with document data
   const handlePrepareSend = (documentId, title) => {
-    navigate('/user/prepare-send', {
+    navigate(`/user/prepare-send/${documentId}`, {
       state: {
         document: { id: documentId, title }
       }
@@ -757,6 +757,7 @@ const UserDashboard = () => {
                 <span className="ss-word">Features</span>
                 <span className="ss-word">Documents</span>
                 <span className="ss-word">Signatures</span>
+                <span className="ss-word">Status</span>
               </div>
             </div>
           </div>

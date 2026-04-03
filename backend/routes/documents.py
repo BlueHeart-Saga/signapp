@@ -68,7 +68,8 @@ EVENT_TITLES = {
     "view_live_document": "Live Document Viewed",
     "recipient_signed_preview": "Signed Preview Viewed",
     "document_finalized": "Document Finalized",
-    "document_voided": "Document Voided"
+    "document_voided": "Document Voided",
+    "recipient_delegated": "Document Delegated"
 }
 
 EVENT_DESCRIPTIONS = {
@@ -728,6 +729,74 @@ def append_file_to_document(existing_pdf_bytes: bytes, new_file_bytes: bytes, fi
         return None
 
     return merge_pdfs([existing_pdf_bytes, new_pdf])
+
+def generate_and_store_page_thumbnails(pdf_bytes: bytes, document_id: str, filename: str, user_id: str):
+    """
+    Generates all page thumbnails for a PDF and uploads them to storage.
+    Returns a list of thumbnail reference objects.
+    """
+    try:
+        page_thumbnails = generate_all_page_thumbnails(pdf_bytes)
+        refs = []
+        for page_num, thumb_bytes in page_thumbnails.items():
+            path = storage.upload(
+                thumb_bytes,
+                f"{filename}_page_{page_num}_thumb.png",
+                folder=f"users/{user_id}/thumbnails/{document_id}/pages"
+            )
+            refs.append({
+                "page": page_num,
+                "thumbnail_path": path,
+                "is_preview": False
+            })
+        return refs
+    except Exception as e:
+        print(f"[generate_and_store_page_thumbnails] Error: {e}")
+        return []
+
+def update_document_summary_metadata(document_id: str):
+    """
+    Recalculates a document's total page count and its flattened list 
+    of page thumbnails based on all the files it currently contains.
+    """
+    doc_id = ObjectId(document_id)
+    all_files = list(db.document_files.find({"document_id": doc_id}).sort("order", 1))
+    
+    total_pages = 0
+    all_global_thumbs = []
+    
+    first_file_path = None
+    first_thumb_path = None
+    
+    for f in all_files:
+        if not first_file_path:
+            first_file_path = f.get("file_path")
+            first_thumb_path = f.get("thumbnail_path")
+            
+        file_thumbs = f.get("page_thumbnails", [])
+        for t in file_thumbs:
+            all_global_thumbs.append({
+                "page": total_pages + 1,
+                "thumbnail_path": t["thumbnail_path"],
+                "is_preview": False
+            })
+            total_pages += 1
+        
+        # fallback if file has no page_thumbnails yet but has a count
+        # (This happens if we haven't yet finished generating thumbnails for a newly added file)
+        if not file_thumbs and f["page_count"] > 0:
+            total_pages += f["page_count"]
+            
+    # Update main doc record
+    db.documents.update_one(
+        {"_id": doc_id},
+        {"$set": {
+            "page_count": total_pages,
+            "page_thumbnails": all_global_thumbs,
+            "pdf_file_path": first_file_path,
+            "preview_thumbnail_path": first_thumb_path
+        }}
+    )
 
 def guard_document_active(doc):
     if not doc:
@@ -1652,9 +1721,12 @@ async def upload_document(
         
     _log_event(str(doc_data["_id"]), current_user, "upload_document", log_metadata, request)
     
+    # Fetch final document for accurate serialization (size, status, etc.)
+    final_doc = db.documents.find_one({"_id": result.inserted_id})
+    
     return {
         "message": "Document uploaded successfully", 
-        "document": serialize_document(doc_data),
+        "document": serialize_document(final_doc),
         "envelope_id": envelope_id_value,
         "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id
     }
@@ -1733,10 +1805,16 @@ async def add_file_to_document(
         folder=f"users/{current_user['id']}/thumbnails/{document_id}"
     )
 
+    # Generate page-level thumbnails
+    page_thumbnails = generate_and_store_page_thumbnails(
+        pdf_bytes, str(document_id), file.filename, current_user["id"]
+    )
+
     db.document_files.insert_one({
         "document_id": ObjectId(document_id),
         "file_path": pdf_file_path,
         "thumbnail_path": preview_thumb_path,
+        "page_thumbnails": page_thumbnails,
         "filename": file.filename,
         "page_count": page_count,
         "order": next_order,
@@ -1745,12 +1823,12 @@ async def add_file_to_document(
         "has_preview": True
     })
 
+    # Update summary metadata (total page count, combined thumbnails)
+    update_document_summary_metadata(document_id)
+
     db.documents.update_one(
         {"_id": ObjectId(document_id)},
-        {
-            "$inc": {"page_count": page_count},
-            "$set": {"progress": 100, "processing_status": "Complete"}
-        }
+        {"$set": {"progress": 100, "processing_status": "Complete"}}
     )
 
     
@@ -2041,10 +2119,8 @@ async def delete_document_file(
     if not file:
         raise HTTPException(404, "File not found")
 
-    # Prevent deleting last file
+    # Fetch remaining files count
     total_files = db.document_files.count_documents({"document_id": doc_id})
-    if total_files <= 1:
-        raise HTTPException(400, "At least one file must remain")
 
     # ============================================
     # Delete from Azure Blob Storage
@@ -2063,21 +2139,35 @@ async def delete_document_file(
     # Remove DB record
     db.document_files.delete_one({"_id": file_oid})
 
-    # Reduce document page count
-    db.documents.update_one(
-        {"_id": doc_id},
-        {"$inc": {"page_count": -file["page_count"]}}
-    )
-
-    # Reorder remaining files
-    remaining = list(
-        db.document_files.find({"document_id": doc_id}).sort("order", 1)
-    )
-    for idx, f in enumerate(remaining, start=1):
-        db.document_files.update_one(
-            {"_id": f["_id"]},
-            {"$set": {"order": idx}}
+    # Update document state
+    if total_files <= 1:
+        # If it was the last file, clear all document-level summary fields
+        db.documents.update_one(
+            {"_id": doc_id},
+            {
+                "$set": {
+                    "page_count": 0,
+                    "pdf_file_path": None,
+                    "preview_thumbnail_path": None,
+                    "page_thumbnails": [],
+                    "processing_status": "No files",
+                    "progress": 0
+                }
+            }
         )
+    else:
+        # Reorder remaining files
+        remaining = list(
+            db.document_files.find({"document_id": doc_id}).sort("order", 1)
+        )
+        for idx, f in enumerate(remaining, start=1):
+            db.document_files.update_one(
+                {"_id": f["_id"]},
+                {"$set": {"order": idx}}
+            )
+
+        # Refresh overall document metadata (page count, page_thumbnails)
+        update_document_summary_metadata(document_id)
 
     # Audit log
     _log_event(
@@ -2152,6 +2242,8 @@ async def reorder_files(
             {"$set": {"order": item.order}}
         )
         
+    update_document_summary_metadata(document_id)
+
     _log_event(
         document_id,
         current_user,
@@ -2234,25 +2326,26 @@ async def replace_document_file(
     except Exception as e:
         print(f"Error deleting old files: {e}")
 
+    # Generate page-level thumbnails
+    page_thumbnails = generate_and_store_page_thumbnails(
+        pdf_bytes, str(document_id), file.filename, current_user["id"]
+    )
+
     # Update document_files
     db.document_files.update_one(
         {"_id": file_oid},
         {"$set": {
             "file_path": new_pdf_path,
             "thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumbnails,
             "filename": file.filename,
             "page_count": new_pages,
             "updated_at": datetime.utcnow()
         }}
     )
 
-    # Update document page count
-    diff = new_pages - old_pages
-    if diff != 0:
-        db.documents.update_one(
-            {"_id": doc_oid},
-            {"$inc": {"page_count": diff}}
-        )
+    # Update overall document summary (metadata)
+    update_document_summary_metadata(document_id)
 
     # Timeline log
     _log_event(
@@ -2436,15 +2529,19 @@ async def merge_selected_files(
         folder=f"users/{current_user['id']}/thumbnails/{document_id}"
     )
 
-    # Base file = FIRST selected
-    base_file = selected_files[0]
+    # Generate page-level thumbnails
+    page_thumbnails = generate_and_store_page_thumbnails(
+        merged_pdf, str(document_id), merged_filename, current_user["id"]
+    )
 
-    # Replace base file
+    # Update base file with merged content
+    base_file = selected_files[0]
     db.document_files.update_one(
         {"_id": base_file["_id"]},
         {"$set": {
             "file_path": merged_pdf_path,
             "thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumbnails,
             "filename": merged_filename,
             "page_count": total_pages,
             "updated_at": datetime.utcnow()
@@ -2476,13 +2573,8 @@ async def merge_selected_files(
             {"$set": {"order": idx}}
         )
 
-    # Update document page count
-    db.documents.update_one(
-        {"_id": doc_oid},
-        {"$set": {
-            "page_count": sum(f["page_count"] for f in remaining)
-        }}
-    )
+    # Refresh document global metadata
+    update_document_summary_metadata(document_id)
 
     # Timeline log
     _log_event(

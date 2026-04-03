@@ -12,7 +12,7 @@ from .documents import _log_event, get_merged_pdf, load_document_pdf, apply_comp
 from database import db
 from config import BACKEND_URL
 from .auth import get_current_user
-from .email_service import send_completed_document_to_recipients, SafeSignSummaryEngine, SafeSignCertificateEngine
+from .email_service import send_completed_document_to_recipients, SafeSignSummaryEngine, SafeSignCertificateEngine, generate_otp, send_role_based_email
 import re
 import uuid
 
@@ -75,6 +75,11 @@ class FormFillData(BaseModel):
     fields: dict
 
 class DeclineRequest(BaseModel):
+    reason: Optional[str] = None
+    
+class AssignToOthersRequest(BaseModel):
+    new_email: str
+    new_name: str
     reason: Optional[str] = None
     
     
@@ -287,7 +292,7 @@ async def _get_voided_document_preview(document, recipient, request):
     
     # Add professional status banner
     voided_at = document.get("voided_at", datetime.utcnow())
-    info_text = f"SafeView™ Verified • VOIDED ON {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    info_text = f"SafeSign Verified • VOIDED ON {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
     pdf_bytes = PDFEngine.apply_watermark(
         pdf_bytes,
         info_text,
@@ -365,7 +370,7 @@ async def get_signing_info(recipient_id: str):
         # Check terms status
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined"):
             # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
-            email = recipient.get("email")
+            email = recipient.get("email", "").lower()
             always_accepted = False
             if email:
                 pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
@@ -440,6 +445,81 @@ async def get_signing_info(recipient_id: str):
         print(f"Error getting recipient info: {str(e)}")
         raise HTTPException(400, "Invalid recipient ID")
 
+@router.get("/recipient/{recipient_id}/history")
+async def get_document_history_for_recipient(recipient_id: str):
+    """
+    Get detailed document history and activity logs for a recipient.
+    This provides data for the 'Document History' high-fidelity UI.
+    """
+    try:
+        rid = ObjectId(recipient_id)
+        recipient = db.recipients.find_one({"_id": rid})
+        if not recipient:
+            raise HTTPException(404, "Recipient not found")
+        
+        doc_id = recipient["document_id"]
+        document = db.documents.find_one({"_id": doc_id})
+        if not document:
+            raise HTTPException(404, "Document not found")
+
+        # 1. Document Details
+        owner = db.users.find_one({"_id": document["owner_id"]})
+        document_details = {
+            "id": str(document["_id"]),
+            "envelope_id": document.get("envelope_id"),
+            "filename": document.get("filename"),
+            "owner": {
+                "name": owner.get("full_name") or owner.get("name") if owner else "Unknown",
+                "email": document.get("owner_email"),
+                "organization": owner.get("organization_name") if owner else "N/A"
+            },
+            "created_at": document.get("uploaded_at").isoformat() if document.get("uploaded_at") else None,
+            "sent_at": document.get("sent_at").isoformat() if document.get("sent_at") else None,
+            "status": document.get("status"),
+            "time_zone": "(GMT +05:30) India Standard Time ( Asia/Kolkata )" # Hardcoded for now as per image or get from user pref
+        }
+
+        # 2. Recipients Information
+        all_recipients = list(db.recipients.find({"document_id": doc_id}).sort("signing_order", 1))
+        recipients_list = []
+        for idx, rec in enumerate(all_recipients):
+            recipients_list.append({
+                "index": idx + 1,
+                "name": rec.get("name"),
+                "email": rec.get("email"),
+                "role": rec.get("role", "signer"),
+                "status": rec.get("status"),
+                "received_at": rec.get("added_at").isoformat() if rec.get("added_at") else None,
+                "completed_at": (rec.get("signed_at") or rec.get("approved_at") or rec.get("form_completed_at")).isoformat() if (rec.get("signed_at") or rec.get("approved_at") or rec.get("form_completed_at")) else None
+            })
+
+        # 3. Activities / Timeline
+        timeline_logs = list(db.document_timeline.find({"document_id": doc_id}).sort("timestamp", -1))
+        activities = []
+        for log in timeline_logs:
+            actor = log.get("actor", {})
+            activities.append({
+                "timestamp": log.get("timestamp").isoformat() if log.get("timestamp") else None,
+                "action": log.get("type", "updated").upper(),
+                "title": log.get("title") or log.get("type", "").replace("_", " ").title(),
+                "performed_by": {
+                    "name": actor.get("name") or "System",
+                    "email": actor.get("email") or "",
+                    "ip": log.get("metadata", {}).get("ip", "Unknown")
+                },
+                "activity": log.get("description") or f"Document has been {log.get('type', 'updated').replace('_', ' ')}"
+            })
+
+        return {
+            "document": document_details,
+            "recipients": recipients_list,
+            "activities": activities
+        }
+
+    except Exception as e:
+        print(f"Error fetching history: {str(e)}")
+        raise HTTPException(500, f"Error fetching document history: {str(e)}")
+
 # ======================
 # OTP VERIFICATION
 # ======================
@@ -496,7 +576,7 @@ async def get_terms_status(recipient_id: str):
             raise HTTPException(404, "Recipient not found")
         
         # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
-        email = recipient.get("email")
+        email = recipient.get("email", "").lower()
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined") and email:
             pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
             if pref:
@@ -563,19 +643,21 @@ async def accept_terms(
 
         # ✅ STORE IN TERMS PREFERENCES IF "ALWAYS"
         if terms_data.accept_always:
-            db.terms_preferences.update_one(
-                {"email": recipient.get("email")},
-                {
-                    "$set": {
-                        "email": recipient.get("email"),
-                        "accepted_always": True,
-                        "updated_at": datetime.utcnow(),
-                        "ip": terms_data.ip_address or request.client.host,
-                        "ua": terms_data.user_agent or request.headers.get("user-agent")
-                    }
-                },
-                upsert=True
-            )
+            email = recipient.get("email", "").lower()
+            if email:
+                db.terms_preferences.update_one(
+                    {"email": email},
+                    {
+                        "$set": {
+                            "email": email,
+                            "accepted_always": True,
+                            "updated_at": datetime.utcnow(),
+                            "ip": terms_data.ip_address or request.client.host,
+                            "ua": terms_data.user_agent or request.headers.get("user-agent")
+                        }
+                    },
+                    upsert=True
+                )
         
         # Log the acceptance
         _log_event(
@@ -635,6 +717,24 @@ async def reaccept_terms(
             {"_id": rid},
             {"$set": update_data}
         )
+        
+        # ✅ STORE IN TERMS PREFERENCES IF "ALWAYS"
+        if terms_data.accept_always:
+            email = recipient.get("email", "").lower()
+            if email:
+                db.terms_preferences.update_one(
+                    {"email": email},
+                    {
+                        "$set": {
+                            "email": email,
+                            "accepted_always": True,
+                            "updated_at": datetime.utcnow(),
+                            "ip": terms_data.ip_address or request.client.host,
+                            "ua": terms_data.user_agent or request.headers.get("user-agent")
+                        }
+                    },
+                    upsert=True
+                )
         
         # Log the re-acceptance
         _log_event(
@@ -2541,7 +2641,7 @@ async def finalize_signed_document(
         raise HTTPException(404, "Document not found")
     
     recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
-    unsigned = [r for r in recipients if r.get("status") != "completed"]
+    unsigned = [r for r in recipients if r.get("status") not in ["completed", "declined"]]
     
     if unsigned:
         raise HTTPException(400, "Cannot finalize — remaining signers unfinished")
@@ -2599,10 +2699,124 @@ async def decline_document(
         }}
     )
     
-    # Optionally mark document as declined if all recipients decline
-    # For now, just update recipient status
+    # Mark document as declined if all recipients decline
+    # Or finalize if some completed and others (like this one) declined
+    all_recipients = list(db.recipients.find({"document_id": recipient["document_id"]}))
+    none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
+    any_completed = any(r.get("status") == "completed" for r in all_recipients)
+    all_declined = all(r.get("status") == "declined" for r in all_recipients)
+
+    if all_declined:
+        db.documents.update_one({"_id": recipient["document_id"]}, {"$set": {"status": "declined", "declined_at": datetime.utcnow()}})
+        _log_event(str(recipient["document_id"]), recipient, "document_voided", {"reason": "All recipients declined"}, request)
+    elif any_completed and none_pending:
+        # Finalize because everyone has taken action (some signed, some declined)
+        from .recipient_signing import finalize_document # Import inside to avoid circular if needed
+        finalize_document(recipient["document_id"], request=request)
     
     return {"message": "Document declined successfully"}
+
+# ======================
+# DELEGATION / ASSIGN TO OTHERS
+# ======================
+
+@router.post("/recipient/{recipient_id}/assign-to-others")
+async def assign_document_to_others(
+    recipient_id: str,
+    assign_request: AssignToOthersRequest,
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    """
+    Delegate the document to another recipient.
+    Replaces the current recipient's identity with the new one.
+    This generates a new OTP and sends an invite email automatically.
+    """
+    try:
+        rid = ObjectId(recipient_id)
+    except:
+        raise HTTPException(400, "Invalid recipient ID")
+
+    recipient = db.recipients.find_one({"_id": rid})
+    if not recipient:
+        raise HTTPException(404, "Recipient not found")
+
+    if recipient.get("status") == "completed":
+        raise HTTPException(400, "Completed recipient cannot delegate")
+
+    doc_id = recipient["document_id"]
+    document = db.documents.find_one({"_id": doc_id})
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    if document.get("status") not in ["sent", "in_progress"]:
+        raise HTTPException(400, "Document is not active for delegation")
+
+    # Store old info for audit history
+    old_info = {
+        "email": recipient.get("email"),
+        "name": recipient.get("name"),
+        "delegated_at": datetime.utcnow().isoformat(),
+        "reason": assign_request.reason
+    }
+
+    # Generate new OTP for the new recipient
+    new_otp = generate_otp()
+    otp_expires = datetime.utcnow() + timedelta(hours=24)
+
+    # Perform the replacement (maintain same ID but new identity)
+    update_result = db.recipients.update_one(
+        {"_id": rid},
+        {"$set": {
+            "email": assign_request.new_email.lower(),
+            "name": assign_request.new_name,
+            "status": "invited",
+            "otp": new_otp,
+            "otp_expires": otp_expires,
+            "otp_verified": False,
+            "delegated_from": old_info,
+            "assigned_at": datetime.utcnow(),
+            "sent_at": datetime.utcnow()
+        },
+        "$push": {
+            "delegation_history": old_info
+        }}
+    )
+
+    if update_result.modified_count == 0:
+        raise HTTPException(500, "Failed to update recipient details")
+
+    # Get the updated recipient object for email sending
+    updated_recipient = db.recipients.find_one({"_id": rid})
+
+    # Log the delegation event
+    _log_event(
+        str(doc_id),
+        recipient, # Log using old info as actor if possible or system
+        "recipient_delegated",
+        {
+            "from_email": recipient.get("email"),
+            "to_email": assign_request.new_email,
+            "to_name": assign_request.new_name,
+            "reason": assign_request.reason
+        },
+        request
+    )
+
+    # Trigger welcome email to the new recipient in background
+    background_tasks.add_task(
+        send_role_based_email,
+        recipient=updated_recipient,
+        document=document,
+        otp=new_otp,
+        common_message=document.get("common_message", ""),
+        personal_message=f"This document was delegated to you by {recipient.get('name')}. Reason: {assign_request.reason or 'No reason provided'}"
+    )
+
+    return {
+        "message": f"Document successfully delegated to {assign_request.new_name}",
+        "new_email": assign_request.new_email
+    }
 
 # ======================
 # VIEWER COMPLETION
@@ -2767,11 +2981,11 @@ async def download_signed_document(
         
         # Check if document is completed (signed)
         doc_status = document.get("status")
-        if doc_status != "completed":
-            raise HTTPException(
-                400, 
-                f"Document is not completed yet. Current status: {doc_status}"
-            )
+        # if doc_status != "completed":
+        #     raise HTTPException(
+        #         400, 
+        #         f"Document is not completed yet. Current status: {doc_status}"
+        #     )
         
         # Always start from base PDF (unified loader handles multiple files and fallbacks)
         pdf_bytes = load_document_pdf(document, str(document["_id"]))
@@ -2901,8 +3115,8 @@ async def download_recipient_package(
             raise HTTPException(404, "Document not found")
             
         # Verify document is completed
-        if document.get("status") != "completed":
-            raise HTTPException(403, "Document package only available after completion")
+        # if document.get("status") != "completed":
+        #     raise HTTPException(403, "Document package only available after completion")
             
         # Import package generator
         from .email_service import generate_document_package
@@ -2991,8 +3205,8 @@ async def download_signed_document_with_passkey(
             raise HTTPException(404, "Document not found")
         
         # Check if document is completed
-        if document.get("status") != "completed":
-            raise HTTPException(400, "Document is not completed yet")
+        # if document.get("status") != "completed":
+        #     raise HTTPException(400, "Document is not completed yet")
         
         # Decide if we need to apply fields
         signed_pdf_path = document.get("signed_pdf_path")
@@ -3709,11 +3923,11 @@ async def download_professional_certificate(
             raise HTTPException(404, "Document not found")
         
         # Check if document is completed
-        if document.get("status") != "completed":
-            raise HTTPException(
-                400, 
-                f"Certificate can only be generated for completed documents. Current status: {document.get('status')}"
-            )
+        # if document.get("status") != "completed":
+        #     raise HTTPException(
+        #         400, 
+        #         f"Certificate can only be generated for completed documents. Current status: {document.get('status')}"
+        #     )
         
         # ========== GATHER COMPLETE CERTIFICATE DATA ==========
         
@@ -4421,12 +4635,18 @@ async def manually_complete_recipient(
     doc_id = recipient["document_id"]
     update_document_statistics(doc_id)
     
-    # Check if all recipients are completed
+    # Check if all recipients have finished (either completed or declined)
     all_recipients = list(db.recipients.find({"document_id": doc_id}))
-    all_completed = all(r.get("status") == "completed" for r in all_recipients)
+    none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
+    any_completed = any(r.get("status") == "completed" for r in all_recipients)
     
-    if all_completed:
-        finalize_document(doc_id)
+    if none_pending and any_completed:
+        # Finalize the document if at least one person signed and no one is pending
+        finalize_document(
+            doc_id,
+            request=request,
+            background_tasks=background_tasks
+        )
         return {
             "message": "Recipient completed — document finalized",
             "completed": True,
@@ -4447,23 +4667,6 @@ async def manually_complete_recipient(
         request
     )
     
-    all_recipients = list(db.recipients.find({"document_id": doc_id}))
-    all_completed = all(r.get("status") == "completed" for r in all_recipients)
-    
-    if all_completed:
-        # Finalize document with background email sending
-        signed_pdf_path = finalize_document(
-            doc_id,
-            request=request,
-            background_tasks=background_tasks
-        )
-        
-        return {
-            "message": "Recipient completed — document finalized",
-            "completed": True,
-            "document_finalized": True,
-            "recipient_status": "completed"
-        }
     
     return {
         "message": "Recipient marked as completed",

@@ -965,63 +965,81 @@
 
 /* text block */
 .ss-loader-text {
-  color: #4a4a4a;
-  font-family: "Poppins", sans-serif;
-  font-weight: 500;
-  font-size: 25px;
-  box-sizing: content-box;
-  height: 40px;
-  padding: 10px 10px;
+  color: #1e293b;
+  font-family: "Inter", "Poppins", sans-serif;
+  font-weight: 600;
+  font-size: 24px;
+  height: 44px;
+  line-height: 44px;
   display: flex;
-  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.ss-loader-text p {
+  margin: 0;
+  color: #64748b;
+  display: inline-block;
 }
 
 /* words wrapper */
 .ss-rotating-words {
+  height: 44px;
+  padding-left: 10px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
 }
 
 /* animated words */
 .ss-word {
-  display: block;
-  height: 100%;
-  padding-left: 6px;
+  display: flex;
+  align-items: center;
+  height: 44px;
   color: #0d9488;
-  animation: ss-cycle-words 5s infinite;
+  white-space: nowrap;
+  font-weight: 700;
+  animation: ss-cycle-words 10s infinite cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* renamed keyframes */
+/* Perfect alignment keyframes for 6 words looping */
 @keyframes ss-cycle-words {
-  10% {
-    transform: translateY(-105%);
+
+  0%,
+  12% {
+    transform: translateY(0);
   }
 
-  25% {
-    transform: translateY(-100%);
+  16%,
+  28% {
+    transform: translateY(-44px);
   }
 
-  35% {
-    transform: translateY(-205%);
+  32%,
+  44% {
+    transform: translateY(-88px);
   }
 
-  50% {
-    transform: translateY(-200%);
-  }
-
+  48%,
   60% {
-    transform: translateY(-305%);
+    transform: translateY(-132px);
   }
 
-  75% {
-    transform: translateY(-300%);
+  64%,
+  76% {
+    transform: translateY(-176px);
   }
 
-  85% {
-    transform: translateY(-405%);
+  80%,
+  92% {
+    transform: translateY(-220px);
   }
 
   100% {
-    transform: translateY(-400%);
+    transform: translateY(0);
   }
 }
 

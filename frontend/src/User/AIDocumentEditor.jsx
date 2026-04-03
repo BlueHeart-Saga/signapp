@@ -139,7 +139,8 @@ export default function AIDocumentEditor() {
 
       const data = await res.json();
 
-      navigate("/user/prepare-send", {
+      const docId = data.document.id || data.document._id;
+      navigate(`/user/prepare-send/${docId}`, {
         state: {
           document: data.document,
           fromAI: true,

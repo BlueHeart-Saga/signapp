@@ -2,7 +2,7 @@
 .docusign-container {
   min-height: 100vh;
   margin: 0 auto;
-  
+
   background-color: white;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
@@ -246,7 +246,7 @@
   background: rgba(255, 255, 255, 0);
   /* border: 1px solid #E5E7EB; */
   /* border-left: 4px solid #4F46E5; */
-  
+
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 0.75rem;
@@ -855,12 +855,12 @@
   .docusign-main-content {
     flex-direction: column;
   }
-  
+
   .docusign-recipient-sidebar {
     width: 100%;
     position: static;
   }
-  
+
   .docusign-form-row {
     grid-template-columns: 1fr;
   }
@@ -872,30 +872,30 @@
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .docusign-document-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .docusign-document-details {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .docusign-section-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .docusign-summary {
     flex-direction: column;
     gap: 1.5rem;
   }
-  
+
   .docusign-summary-stats {
     justify-content: space-between;
     width: 100%;
@@ -1033,7 +1033,7 @@
   color: #6b7280;
   display: flex;
   align-items: center;
-      justify-content: flex-end;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -1341,6 +1341,7 @@
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1355,7 +1356,7 @@
 
 .docusign-inline-form {
   background: rgba(255, 255, 255, 0);
- 
+
   padding: 1rem;
   margin-bottom: 0.75rem;
   border-left: 4px solid;
@@ -1486,16 +1487,16 @@
   .docusign-inline-form-row {
     flex-wrap: wrap;
   }
-  
+
   .docusign-inline-field {
     min-width: calc(50% - 0.75rem);
   }
-  
+
   .docusign-email-field {
     min-width: calc(100% - 0.75rem);
     order: 3;
   }
-  
+
   .docusign-inline-actions {
     margin-left: auto;
   }
@@ -1505,7 +1506,7 @@
   .docusign-inline-field {
     min-width: 100%;
   }
-  
+
   .docusign-inline-actions {
     margin-left: 0;
     width: 100%;
@@ -1771,6 +1772,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1782,16 +1784,16 @@
   .docusign-inline-form-row {
     flex-wrap: wrap;
   }
-  
+
   .docusign-inline-field {
     min-width: calc(50% - 0.75rem);
   }
-  
+
   .docusign-email-field {
     min-width: calc(100% - 0.75rem);
     order: 3;
   }
-  
+
   .docusign-inline-actions {
     margin-left: auto;
   }
@@ -1801,7 +1803,7 @@
   .docusign-inline-field {
     min-width: 100%;
   }
-  
+
   .docusign-inline-actions {
     margin-left: 0;
     width: 100%;
@@ -1910,7 +1912,7 @@
 .rename-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1922,7 +1924,7 @@
   padding: 20px;
   border-radius: 8px;
   width: 360px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .rename-dialog h3 {
@@ -1934,15 +1936,17 @@
   padding: 10px;
   margin-bottom: 16px;
 }
+
 .rename-dialog input:focus {
-border-color: transparent;
+  border-color: transparent;
 }
 
 .rename-dialog input:active {
-border-color: transparent;
+  border-color: transparent;
 }
+
 .rename-dialog input:hover {
-border-color: transparent;
+  border-color: transparent;
 }
 
 .rename-dialog-actions {
@@ -1956,7 +1960,7 @@ border-color: transparent;
   color: white;
   padding: 8px 14px;
   border-radius: 4px;
-      border: 1px solid #ccc;
+  border: 1px solid #ccc;
 }
 
 .rename-btn-cancel {
@@ -1981,12 +1985,14 @@ border-color: transparent;
   border-radius: 8px;
   padding: 10px 36px 10px 12px;
   font-size: 15px;
-  outline: none;                 /* ✅ removes ugly default outline */
+  outline: none;
+  /* ✅ removes ugly default outline */
   transition: border 0.15s ease, box-shadow 0.15s ease;
 }
 
 .rename-input-wrapper input:focus {
-  border-color: rgb(46, 125, 50); /* ✅ SafeSign green */
+  border-color: rgb(46, 125, 50);
+  /* ✅ SafeSign green */
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
 }
 
@@ -2249,7 +2255,7 @@ border-color: transparent;
   position: absolute;
   bottom: 4px;
   right: 4px;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.75);
   color: #fff;
   font-size: 11px;
   padding: 2px 6px;
@@ -2272,17 +2278,22 @@ border-color: transparent;
   gap: 16px;
   align-items: flex-start;
 
-  overflow-x: auto;        /* ✅ horizontal scroll */
+  overflow-x: auto;
+  /* ✅ horizontal scroll */
   overflow-y: hidden;
   padding-bottom: 8px;
 
-  max-width: 100%;         /* ✅ prevent page expansion */
+  max-width: 100%;
+  /* ✅ prevent page expansion */
   box-sizing: border-box;
 }
+
 .zoho-doc-card,
 .zoho-add-card {
-  flex: 0 0 auto;          /* ✅ stop flex from resizing cards */
+  flex: 0 0 auto;
+  /* ✅ stop flex from resizing cards */
 }
+
 .zoho-doc-grid {
   scroll-behavior: smooth;
 }
@@ -2300,6 +2311,7 @@ border-color: transparent;
 .zoho-doc-grid::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .zoho-doc-grid {
   max-width: calc(300px * 4 + 16px * 3);
 }
@@ -2316,7 +2328,7 @@ border-color: transparent;
 }
 
 .zoho-doc-card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Hide drag icon & checkbox by default */
@@ -2356,10 +2368,12 @@ border-color: transparent;
   left: 8px;
   z-index: 2;
 }
+
 /* Always hide drag icon */
 .zoho-drag-icon {
   display: none !important;
 }
+
 /* Menu wrapper */
 .zoho-doc-menu {
   position: absolute;
@@ -2434,6 +2448,7 @@ border-color: transparent;
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2503,10 +2518,12 @@ border-color: transparent;
 
 /* Square Add Document Box */
 .zoho-add-card {
-  width: 300px;          /* same width & height */
+  width: 300px;
+  /* same width & height */
   height: 300px;
   border: 2px dashed #d1d5db;
-  border-radius: 10px;   /* Zoho-like */
+  border-radius: 10px;
+  /* Zoho-like */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2519,7 +2536,8 @@ border-color: transparent;
 
 /* Hover effect */
 .zoho-add-card:hover {
-  border-color: #10b981;      /* Zoho green */
+  border-color: #10b981;
+  /* Zoho green */
   background: #f0fdf4;
 }
 
@@ -2685,20 +2703,22 @@ border-color: transparent;
 .zoho-input,
 .zoho-select,
 .zoho-order-input {
-     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #D1D5DB;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  box-sizing: border-box; /* IMPORTANT */
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  /* IMPORTANT */
 }
 
 /* Hover */
 .zoho-input:hover,
 .zoho-select:hover,
 .zoho-order-input:hover {
-  border-color: rgb(13, 148, 136); /* light green */
+  border-color: rgb(13, 148, 136);
+  /* light green */
 }
 
 /* Focus (Zoho-like) */
@@ -2706,7 +2726,8 @@ border-color: transparent;
 .zoho-select:focus,
 .zoho-order-input:focus {
   outline: none;
-  border-color: rgb(13, 148, 136); /* SAME SIZE, no layout shift */
+  border-color: rgb(13, 148, 136);
+  /* SAME SIZE, no layout shift */
 }
 
 .zoho-order-input {
@@ -2720,7 +2741,7 @@ border-color: transparent;
   width: 38px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
-  
+
   color: #6b7280;
 }
 
@@ -2763,12 +2784,14 @@ border-color: transparent;
 /* Selected count text */
 .zoho-merge-bar span {
   font-weight: 500;
-  margin-right: auto; /* push buttons to right */
+  margin-right: auto;
+  /* push buttons to right */
 }
 
 /* Primary action (Merge) */
 .zoho-merge-action-btn {
-  background: #0d9488; /* Zoho green */
+  background: #0d9488;
+  /* Zoho green */
   color: #ffffff;
   border: 1px solid #0d9488;
   padding: 6px 14px;
@@ -2812,6 +2835,7 @@ border-color: transparent;
   justify-content: center;
   z-index: 1000;
 }
+
 /* Drag highlight */
 .zoho-doc-grid.drag-active {
   border: 2px dashed #0d9488;
@@ -2843,6 +2867,7 @@ border-color: transparent;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
   animation: zohoDialogIn 0.2s ease-out;
 }
+
 .merge-file-list {
   display: flex;
   flex-direction: column;
@@ -3016,6 +3041,7 @@ border-color: transparent;
     opacity: 0;
     transform: translateY(-6px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -3038,7 +3064,7 @@ border-color: transparent;
   padding: 28px;
   border-radius: 14px;
   text-align: center;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
 }
 
 .document-merge-gif {
@@ -3088,12 +3114,29 @@ border-color: transparent;
 
 
 @keyframes shakeError {
-  0% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-6px);
+  }
+
+  40% {
+    transform: translateX(6px);
+  }
+
+  60% {
+    transform: translateX(-4px);
+  }
+
+  80% {
+    transform: translateX(4px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .shake-error {
@@ -3106,18 +3149,36 @@ border-color: transparent;
 }
 
 @keyframes shakeError {
-  0% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-6px);
+  }
+
+  40% {
+    transform: translateX(6px);
+  }
+
+  60% {
+    transform: translateX(-4px);
+  }
+
+  80% {
+    transform: translateX(4px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .docusign-shake {
   animation: shakeError 0.35s ease;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
 }
+
 .contact-autocomplete {
   position: absolute;
   top: 100%;
@@ -3126,7 +3187,7 @@ border-color: transparent;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   margin-top: 6px;
   z-index: 30;
   max-height: 240px;
@@ -3151,6 +3212,7 @@ border-color: transparent;
   font-size: 12px;
   color: #6b7280;
 }
+
 .docusign-inline-field {
   position: relative;
 }
@@ -3170,11 +3232,13 @@ border-color: transparent;
     box-shadow: 0 0 0 rgba(13, 148, 136, 0);
     background: transparent;
   }
+
   30% {
     transform: scale(1.01);
     box-shadow: 0 10px 30px rgba(13, 148, 136, 0.25);
     background: rgba(13, 148, 136, 0.05);
   }
+
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 rgba(13, 148, 136, 0);
@@ -3189,9 +3253,10 @@ border-color: transparent;
 
 .docusign-btn-large:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   background: #ea580c;
 }
+
 /* More Settings Styles */
 .zoho-more-settings {
   margin-top: 1.5rem;
@@ -3199,7 +3264,7 @@ border-color: transparent;
   background: #fdfdfd;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
@@ -3251,8 +3316,15 @@ border-color: transparent;
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .zoho-setting-row {
@@ -3398,8 +3470,15 @@ border-color: transparent;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .settings-minimal-field {
@@ -3521,3 +3600,547 @@ border-color: transparent;
   accent-color: #0d9488;
 }
 
+/* New Add Document Dialog (Zoho-inspired) */
+.za-add-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  animation: zaFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.za-add-dialog {
+  width: 580px;
+  max-width: 95%;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: zaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes zaFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zaSlideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.za-add-header {
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.za-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.za-title-icon {
+  font-size: 20px;
+  color: #0d9488;
+  background: #f0fdfa;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.za-add-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.za-add-close {
+  background: #f8fafc;
+  border: none;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.za-add-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+.za-add-content {
+  padding: 32px;
+  background: #ffffff;
+}
+
+.za-dropzone {
+  display: block;
+  cursor: pointer;
+}
+
+.za-dropzone-inner {
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.za-dropzone:hover .za-dropzone-inner {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  transform: translateY(-2px);
+}
+
+.za-upload-hero {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.za-hero-icon {
+  font-size: 48px;
+  color: #0d9488;
+  z-index: 1;
+  position: relative;
+}
+
+.za-hero-glow {
+  position: absolute;
+  inset: -10px;
+  background: #0d9488;
+  opacity: 0.1;
+  filter: blur(15px);
+  border-radius: 50%;
+}
+
+.za-upload-main {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.za-upload-sub {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+}
+
+.za-upload-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 8px 18px;
+  border-radius: 10px;
+  color: #334155;
+  font-weight: 500;
+  font-size: 14px;
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.za-file-selected {
+  padding: 2px;
+}
+
+.za-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.za-file-icon-box {
+  width: 44px;
+  height: 44px;
+  background: #ffffff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0d9488;
+  font-size: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.za-file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.za-filename {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 15px;
+}
+
+.za-filesize {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.za-remove-selection {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 6px;
+}
+
+.za-remove-selection:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.za-upload-progress-box {
+  margin-top: 24px;
+}
+
+.za-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.za-progress-track {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.za-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.za-add-footer {
+  padding: 24px 32px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.za-btn-cancel {
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.za-btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.za-btn-primary {
+  padding: 10px 28px;
+  border-radius: 12px;
+  border: none;
+  background: #0d9488;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+}
+
+.za-btn-primary:hover:not(:disabled) {
+  background: #0f766e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
+}
+
+.za-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.za-btn-primary:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.za-loader-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Premium Modern Snackbar (Za-Styles) */
+.za-snackbar-wrapper {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  min-width: 320px;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  z-index: 10005;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: zaSnackbarSlideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid #e2e8f0;
+}
+
+@keyframes zaSnackbarSlideInRight {
+  from {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.za-snackbar-content {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 14px;
+}
+
+.za-snackbar-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  display: flex;
+}
+
+.za-snackbar-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.za-snackbar-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  transition: all 0.2s;
+}
+
+.za-snackbar-close:hover {
+  background: #f1f5f9;
+  color: #1f2937;
+}
+
+/* Success Variant */
+.za-snackbar-success .za-snackbar-icon {
+  color: #10b981;
+}
+
+.za-snackbar-success .za-snackbar-progress {
+  background: #10b981;
+}
+
+.za-snackbar-success {
+  border-left: 4px solid #10b981;
+}
+
+/* Error Variant */
+.za-snackbar-error .za-snackbar-icon {
+  color: #ef4444;
+}
+
+.za-snackbar-error .za-snackbar-progress {
+  background: #ef4444;
+}
+
+.za-snackbar-error {
+  border-left: 4px solid #ef4444;
+}
+
+/* Warning / Info Variant */
+.za-snackbar-warning .za-snackbar-icon,
+.za-snackbar-info .za-snackbar-icon {
+  color: #f59e0b;
+}
+
+.za-snackbar-warning .za-snackbar-progress,
+.za-snackbar-info .za-snackbar-progress {
+  background: #f59e0b;
+}
+
+.za-snackbar-warning,
+.za-snackbar-info {
+  border-left: 4px solid #f59e0b;
+}
+
+.za-snackbar-progress {
+  height: 3px;
+  width: 100%;
+  opacity: 0.3;
+  animation: zaSnackbarProgress 4s linear forwards;
+}
+
+@keyframes zaSnackbarProgress {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
+  }
+}
+
+/* Professional Document Merge Overlay */
+.document-merge-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(10px);
+  z-index: 11000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: zaFadeIn 0.3s ease-out;
+}
+
+.document-merge-card {
+  background: #ffffff;
+  padding: 48px 40px;
+  border-radius: 24px;
+  width: 420px;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: zaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.document-merge-gif {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 10px 15px rgba(13, 148, 136, 0.15));
+}
+
+.document-merge-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+}
+
+.document-merge-subtitle {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+.document-merge-progress-text {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0d9488;
+  margin-bottom: 16px;
+  font-family: 'JetBrains Mono', 'Inter', monospace;
+}
+
+.document-merge-progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.document-merge-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.document-merge-cancel-btn {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.document-merge-cancel-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+}

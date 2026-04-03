@@ -818,8 +818,9 @@ export default function DocumentsAndTemplates() {
         severity: "success",
       });
 
-      // Navigate to prepare-send
-      navigate('/user/prepare-send', {
+      // Navigate to prepare-send with ID
+      const docId = uploadedDocument.id || uploadedDocument._id;
+      navigate(`/user/prepare-send/${docId}`, {
         state: {
           document: uploadedDocument,
           fromTemplate: true,
@@ -991,7 +992,8 @@ export default function DocumentsAndTemplates() {
       const result = await uploadRes.json();
       const uploadedDocument = result.document || result;
 
-      navigate("/user/prepare-send", {
+      const docId = uploadedDocument.id || uploadedDocument._id;
+      navigate(`/user/prepare-send/${docId}`, {
         state: {
           document: uploadedDocument,
           fromDocument: true,

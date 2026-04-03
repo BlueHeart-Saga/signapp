@@ -109,44 +109,69 @@ const DocumentLeftBar = ({
     };
 
     const displayText = getDisplayText(fieldType, fieldLabel);
-
     const fieldTypeData = FIELD_TYPES[fieldType] || FIELD_TYPES.textbox;
     const baseWidth = fieldTypeData.defaultWidth || 160;
     const baseHeight = fieldTypeData.defaultHeight || 32;
 
-    // Create a high-fidelity drag preview that matches the document fields
+    // Create a high-fidelity drag preview container
     const dragPreview = document.createElement('div');
     dragPreview.id = 'drag-preview';
+
+    // We need more height to accommodate the label
+    const combinedHeight = (baseHeight + 25) * zoomLevel;
+
     dragPreview.style.cssText = `
       position: absolute;
       top: -1000px;
       left: -1000px;
       width: ${baseWidth * zoomLevel}px;
-      height: ${baseHeight * zoomLevel}px;
-      background: ${fieldColor.startsWith('hsl') ? fieldColor.replace('hsl', 'hsla').replace(')', ', 0.15)') : (fieldColor.startsWith('#') ? fieldColor + '15' : 'rgba(13, 148, 136, 0.15)')};
-      border: ${1.6 * zoomLevel}px solid ${fieldColor};
-      border-radius: ${8 * zoomLevel}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #344054;
-      font-family: sans-serif;
-      font-size: ${Math.min(11 * zoomLevel, (baseWidth * zoomLevel) / 5)}px;
-      font-weight: bold;
-      letter-spacing: ${0.5 * zoomLevel}px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      height: ${combinedHeight}px;
       pointer-events: none;
       z-index: -1000;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     `;
-    dragPreview.textContent = displayText;
+
+    const bgColor = fieldColor.startsWith('hsl')
+      ? fieldColor.replace('hsl', 'hsla').replace(')', ', 0.12)')
+      : (fieldColor.startsWith('#') ? fieldColor + '12' : 'rgba(13, 148, 136, 0.12)');
+
+    dragPreview.innerHTML = `
+      <div style="
+        font-size: ${10 * zoomLevel}px;
+        font-weight: 800;
+        color: ${fieldColor};
+        text-transform: uppercase;
+        margin-bottom: ${4 * zoomLevel}px;
+        letter-spacing: ${0.5 * zoomLevel}px;
+        padding-left: ${2 * zoomLevel}px;
+      ">
+        ${(selectedRecipient?.name || 'RECIPIENT').toUpperCase()}
+      </div>
+      <div style="
+        flex: 1;
+        background: ${bgColor};
+        border: ${1.8 * zoomLevel}px solid ${fieldColor};
+        border-radius: ${8 * zoomLevel}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #344054;
+        font-size: ${Math.min(11 * zoomLevel, (baseWidth * zoomLevel) / 6)}px;
+        font-weight: 800;
+        box-shadow: 0 8px 24px -6px rgba(0,0,0,0.15);
+      ">
+        ${displayText}
+      </div>
+    `;
 
     document.body.appendChild(dragPreview);
 
-    // Position drag image relative to mouse cursor (centered and scaled)
-    e.dataTransfer.setDragImage(dragPreview, (baseWidth * zoomLevel) / 2, (baseHeight * zoomLevel) / 2);
+    // Position drag image relative to mouse cursor
+    // Offset the Y to center the field box part on the cursor
+    e.dataTransfer.setDragImage(dragPreview, (baseWidth * zoomLevel) / 2, (combinedHeight) / 1.5);
 
-    // Remove the element after the drag has started
     setTimeout(() => {
       if (document.body.contains(dragPreview)) {
         document.body.removeChild(dragPreview);

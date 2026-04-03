@@ -141,6 +141,7 @@ export default function Settings() {
                 <span className="ss-word">Profile</span>
                 <span className="ss-word">Documents</span>
                 <span className="ss-word">Signatures</span>
+                <span className="ss-word">Status</span>
               </div>
             </div>
           </div>
@@ -171,9 +172,9 @@ export default function Settings() {
             />
           ) : user.profile_picture ? (
             <img
-  src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
-  style={styles.avatarImg}
-/>
+              src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
+              style={styles.avatarImg}
+            />
           ) : (
             <span style={{ color: "#9ca3af" }}>Upload</span>
           )}

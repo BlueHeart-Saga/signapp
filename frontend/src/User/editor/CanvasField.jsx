@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { Group, Rect, Text, Circle, Line, Transformer } from 'react-konva';
 import { FIELD_TYPES, getRecipientColor } from '../../config/fieldConfig';
 
@@ -78,28 +78,33 @@ const CanvasField = ({
 
   const handleTransformEnd = () => {
     const node = shapeRef.current;
+    if (!node) return;
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
-    const newWidth = Math.max(30, node.width() * scaleX);
-    const newHeight = Math.max(30, node.height() * scaleY);
+    const newWidth = Math.max(20, node.width() * scaleX);
+    const newHeight = Math.max(20, node.height() * scaleY);
 
-    // reset scale BEFORE saving
+    // Calculate displacement relative to the parent group
+    const innerX = node.x();
+    const innerY = node.y();
+
+    // Reset local node to maintain styling sanity
     node.scaleX(1);
     node.scaleY(1);
-
     node.width(newWidth);
     node.height(newHeight);
+    node.x(0);
+    node.y(0);
 
-    const newX = node.x();
-    const newY = node.y();
-
+    // Important: we must add the inner displacement to the parent's current position
+    // to get the new global position of the field
     onTransform(field.id, {
       width: Math.round(newWidth / scale),
       height: Math.round(newHeight / scale),
-      x: Math.round(newX / scale),
-      y: Math.round((newY - pageOffsetY) / scale)
+      x: Math.round((field.x * scale + innerX) / scale),
+      y: Math.round(((field.y * scale) + innerY) / scale)
     });
   };
 
@@ -128,8 +133,9 @@ const CanvasField = ({
   const isOtherPage = field.page !== currentPage;
   const opacity = showAllFields && !isCurrentPage ? 0.3 : 1;
 
-  const assignedRecipient = field.assignedRecipient ||
-    (field.recipient_id ? recipients.find(r => r.id === field.recipient_id) : null);
+  const assignedRecipient = useMemo(() =>
+    field.assignedRecipient || (field.recipient_id ? recipients.find(r => r.id === field.recipient_id) : null),
+    [field.assignedRecipient, field.recipient_id, recipients]);
 
   const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldType.color;
 
@@ -179,13 +185,15 @@ const CanvasField = ({
       <Group>
         {/* Main field box */}
         <Rect
-          width={Math.max(30, field.width * scale)}
-          height={Math.max(30, field.height * scale)}
+          id="field-rect" // Target this for transformation
+          ref={shapeRef}
+          width={field.width * scale}
+          height={field.height * scale}
           fill={bgColor}
           stroke={borderColor}
-          strokeWidth={isSelected ? 2.5 : 1.6}
+          strokeWidth={isSelected ? 0 : 1.6}
           cornerRadius={8}
-
+          onTransformEnd={isCurrentPage ? handleTransformEnd : undefined} // FIRE EVENT HERE
         />
 
         {/* Field label */}
@@ -198,6 +206,7 @@ const CanvasField = ({
           fontSize={fitFontSize}
           fontStyle="bold"
           fill="#344054"
+          listening={false} // Performance optimization
         />
       </Group>
     );
@@ -453,11 +462,10 @@ const CanvasField = ({
   return (
     <>
       <Group
-        ref={shapeRef}
         x={field.x * scale}
         y={field.y * scale + pageOffsetY}
-        width={Math.max(30, field.width * scale)}
-        height={Math.max(30, field.height * scale)}
+        width={field.width * scale}
+        height={field.height * scale}
         draggable={isCurrentPage || showAllFields}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
@@ -495,17 +503,21 @@ const CanvasField = ({
         {/* Field content */}
         {renderFieldContent()}
 
-        {/* Field label */}
-        {/* <Text
-          x={5 * scale}
-          y={-20 * scale}
-          text={`${assignedRecipient ? assignedRecipient.name.split(' ')[0] + ': ' : ''}${field.label || field.name}${field.required ? ' *' : ''}`}
-          fontSize={10 * scale}
-          fontFamily="Arial"
-          fill={validationError ? '#FF0000' : (isOtherPage ? '#888888' : (assignedRecipient ? recipientColor : '#666666'))}
-          width={field.width * scale}
-          fontStyle={isSelected ? 'bold' : 'normal'}
-        /> */}
+        {/* Professional Recipient Name Label */}
+        {assignedRecipient && (
+          <Text
+            x={2 * scale}
+            y={-18 * scale}
+            text={assignedRecipient.name.toUpperCase()}
+            fontSize={10 * scale}
+            fontFamily="'Inter', 'Arial', sans-serif"
+            fontStyle="bold"
+            fill={recipientColor}
+            letterSpacing={0.5 * scale}
+            opacity={opacity}
+            listening={false} // Performance optimization
+          />
+        )}
 
         {/* Validation error indicator */}
         {validationError && (

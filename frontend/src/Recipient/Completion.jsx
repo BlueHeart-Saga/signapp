@@ -157,14 +157,6 @@ const Completion = () => {
 
   /* ---------------- MAIN DOWNLOAD BUTTON (SIGNED DOCUMENT) ---------------- */
   const handleMainDownload = async () => {
-    if (!isDocumentCompleted) {
-      setSnackbar({
-        open: true,
-        msg: 'Document is not fully signed yet. Please wait for all recipients to complete signing.',
-        severity: 'warning'
-      });
-      return;
-    }
 
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/signed`,
@@ -174,14 +166,6 @@ const Completion = () => {
 
   /* ---------------- PASSWORD PROTECTED DOWNLOAD ---------------- */
   const handleSignedDownloadWithPassword = async () => {
-    if (!isDocumentCompleted) {
-      setSnackbar({
-        open: true,
-        msg: 'Document must be fully completed to download password-protected version',
-        severity: 'warning'
-      });
-      return;
-    }
 
     if (!downloadPassword || downloadPassword.length < 4) {
       setSnackbar({
@@ -228,14 +212,6 @@ const Completion = () => {
 
   /* ---------------- CERTIFICATE DOWNLOAD ---------------- */
   const handleCertificateDownload = async () => {
-    if (!isDocumentCompleted) {
-      setSnackbar({
-        open: true,
-        msg: 'Certificate is only available when the document is fully completed',
-        severity: 'warning'
-      });
-      return;
-    }
 
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/certificate`,
@@ -245,14 +221,6 @@ const Completion = () => {
 
   /* ---------------- PACKAGE DOWNLOAD (ZIP) ---------------- */
   const handlePackageDownload = async () => {
-    if (!isDocumentCompleted) {
-      setSnackbar({
-        open: true,
-        msg: 'The full package is only available once all recipients have signed.',
-        severity: 'warning'
-      });
-      return;
-    }
 
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/package`,
@@ -262,14 +230,6 @@ const Completion = () => {
 
   /* ---------------- EMAIL ---------------- */
   const handleEmail = async () => {
-    if (!isDocumentCompleted) {
-      setSnackbar({
-        open: true,
-        msg: 'Document must be fully completed before emailing',
-        severity: 'warning'
-      });
-      return;
-    }
 
     try {
       await fetch(
@@ -580,39 +540,23 @@ const Completion = () => {
           </Typography> */}
 
           <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap" gap={1}>
-            <Tooltip
-              title={!isDocumentCompleted ? "Document must be fully completed to email" : ""}
-              placement="top"
+            <Button
+              variant="outlined"
+              startIcon={<EmailIcon />}
+              onClick={handleEmail}
+              sx={{ minWidth: 140 }}
             >
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<EmailIcon />}
-                  onClick={handleEmail}
-                  disabled={!isDocumentCompleted}
-                  sx={{ minWidth: 140 }}
-                >
-                  Email to me
-                </Button>
-              </span>
-            </Tooltip>
+              Email to me
+            </Button>
 
-            <Tooltip
-              title={!isDocumentCompleted ? "Document must be fully completed to print" : ""}
-              placement="top"
+            <Button
+              variant="outlined"
+              startIcon={<PrintIcon />}
+              onClick={handlePrint}
+              sx={{ minWidth: 110 }}
             >
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<PrintIcon />}
-                  onClick={handlePrint}
-                  disabled={!isDocumentCompleted}
-                  sx={{ minWidth: 110 }}
-                >
-                  Print
-                </Button>
-              </span>
-            </Tooltip>
+              Print
+            </Button>
 
             <Button
               variant="contained"
@@ -650,62 +594,37 @@ const Completion = () => {
             }}
           >
             {/* 1. Package (ZIP) */}
-            <Tooltip
-              title={!isDocumentCompleted ? "Full package only available once all recipients sign" : ""}
-              placement="left"
+            <MenuItem
+              onClick={() => { handlePackageDownload(); setAnchorEl(null); }}
             >
-              <span>
-                <MenuItem
-                  onClick={() => { handlePackageDownload(); setAnchorEl(null); }}
-                  disabled={!isDocumentCompleted}
-                >
-                  <ListItemIcon>
-                    <ArchiveIcon fontSize="small" sx={{ color: '#6366f1' }} />
-                  </ListItemIcon>
-                  <ListItemText>Download Package (ZIP)</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
+              <ListItemIcon>
+                <ArchiveIcon fontSize="small" sx={{ color: '#6366f1' }} />
+              </ListItemIcon>
+              <ListItemText>Download Package (ZIP)</ListItemText>
+            </MenuItem>
 
             {/* 2. Signed PDF */}
-            <Tooltip
-              title={!isDocumentCompleted ? "Waiting for completion" : ""}
-              placement="left"
+            <MenuItem
+              onClick={() => { handleMainDownload(); setAnchorEl(null); }}
             >
-              <span>
-                <MenuItem
-                  onClick={() => { handleMainDownload(); setAnchorEl(null); }}
-                  disabled={!isDocumentCompleted}
-                >
-                  <ListItemIcon>
-                    <CheckIcon fontSize="small" sx={{ color: '#10b981' }} />
-                  </ListItemIcon>
-                  <ListItemText>Download Signed PDF</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
+              <ListItemIcon>
+                <CheckIcon fontSize="small" sx={{ color: '#10b981' }} />
+              </ListItemIcon>
+              <ListItemText>Download Signed PDF</ListItemText>
+            </MenuItem>
 
             {/* 3. Product Pass (Protected) */}
-            <Tooltip
-              title={!isDocumentCompleted ? "Document must be fully completed" : ""}
-              placement="left"
+            <MenuItem
+              onClick={() => {
+                setAnchorEl(null);
+                setPasswordDialog(true);
+              }}
             >
-              <span>
-                <MenuItem
-                  onClick={() => {
-                    if (!isDocumentCompleted) return;
-                    setAnchorEl(null);
-                    setPasswordDialog(true);
-                  }}
-                  disabled={!isDocumentCompleted}
-                >
-                  <ListItemIcon>
-                    <BlockedIcon fontSize="small" sx={{ color: '#f59e0b' }} />
-                  </ListItemIcon>
-                  <ListItemText>Download Product Pass (Protected)</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
+              <ListItemIcon>
+                <BlockedIcon fontSize="small" sx={{ color: '#f59e0b' }} />
+              </ListItemIcon>
+              <ListItemText>Download Product Pass (Protected)</ListItemText>
+            </MenuItem>
 
             <Divider />
 
@@ -736,26 +655,17 @@ const Completion = () => {
             </MenuItem>
 
             {/* 6. Certificate */}
-            <Tooltip
-              title={!isDocumentCompleted ? "Certificate only available when fully completed" : ""}
-              placement="left"
+            <MenuItem
+              onClick={() => {
+                handleCertificateDownload();
+                setAnchorEl(null);
+              }}
             >
-              <span>
-                <MenuItem
-                  onClick={() => {
-                    if (!isDocumentCompleted) return;
-                    handleCertificateDownload();
-                    setAnchorEl(null);
-                  }}
-                  disabled={!isDocumentCompleted}
-                >
-                  <ListItemIcon>
-                    <CertificateIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
-                  </ListItemIcon>
-                  <ListItemText>Certificate of Completion</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
+              <ListItemIcon>
+                <CertificateIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+              </ListItemIcon>
+              <ListItemText>Certificate of Completion</ListItemText>
+            </MenuItem>
           </Menu>
 
           {/* Pending Recipients List */}

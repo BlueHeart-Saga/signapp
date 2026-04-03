@@ -101,7 +101,8 @@ const DocumentThumbnails = ({
                     {Array.from({ length: numPages }, (_, i) => {
                         const pageNum = i + 1;
                         const isActive = currentPage === i;
-                        const stats = getPageFieldStats(pageNum);
+                        const pageFields = fields.filter(f => f.page === i);
+                        const hasFields = pageFields.length > 0;
                         const thumbUrl = thumbnails[pageNum];
 
                         return (
@@ -114,27 +115,27 @@ const DocumentThumbnails = ({
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: 0.5,
-                                    transition: 'transform 0.2s ease',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     '&:hover': {
-                                        transform: 'scale(1.02)'
+                                        transform: 'translateY(-2px)'
                                     }
                                 }}
                             >
                                 <Paper
-                                    elevation={isActive ? 4 : 1}
+                                    elevation={isActive ? 6 : 1}
                                     sx={{
-                                        width: 130,
-                                        height: 180,
+                                        width: 140,
+                                        height: 190,
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        border: isActive ? '2px solid #0d9488' : '1px solid #e0e0e0',
-                                        transition: 'all 0.2s ease',
-                                        borderRadius: 1,
+                                        border: isActive ? '3px solid #0d9488' : '1px solid #e5e7eb',
+                                        transition: 'all 0.3s ease',
+                                        borderRadius: '10px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        bgcolor: '#fff'
+                                        bgcolor: '#fff',
+                                        boxShadow: isActive ? '0 10px 15px -3px rgba(13, 148, 136, 0.2)' : 'none'
                                     }}
                                 >
                                     {thumbUrl ? (
@@ -145,51 +146,92 @@ const DocumentThumbnails = ({
                                             sx={{
                                                 width: '100%',
                                                 height: '100%',
-                                                objectFit: 'contain'
+                                                objectFit: 'cover'
                                             }}
                                             loading="lazy"
                                         />
                                     ) : (
-                                        <CircularProgress size={24} thickness={2} />
+                                        <CircularProgress size={20} thickness={3} sx={{ color: '#0d9488' }} />
                                     )}
 
-                                    {/* Indicators overlay */}
-                                    {stats.hasFields && (
+                                    {/* Mini-Map: Fields position tracking */}
+                                    <Box sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        pointerEvents: 'none',
+                                        zIndex: 2
+                                    }}>
+                                        {pageFields.map((f, idx) => {
+                                            // Mapping coordinates from 794x1123 to 140x190
+                                            const left = (f.x / 794) * 100;
+                                            const top = (f.y / 1123) * 100;
+                                            const width = (f.width / 794) * 100;
+                                            const height = (f.height / 1123) * 100;
+
+                                            return (
+                                                <Box
+                                                    key={idx}
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        left: `${left}%`,
+                                                        top: `${top}%`,
+                                                        width: `${Math.max(4, width)}%`,
+                                                        height: `${Math.max(4, height)}%`,
+                                                        backgroundColor: 'rgba(13, 148, 136, 0.6)',
+                                                        border: '1px solid rgba(13, 148, 136, 0.8)',
+                                                        borderRadius: '1px',
+                                                        animation: 'fadeIn 0.5s ease forwards'
+                                                    }}
+                                                />
+                                            );
+                                        })}
+                                    </Box>
+
+                                    {/* Floating Page Number & Count */}
+                                    <Box sx={{
+                                        position: 'absolute',
+                                        bottom: 8,
+                                        left: 8,
+                                        right: 8,
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        pointerEvents: 'none'
+                                    }}>
                                         <Box sx={{
-                                            position: 'absolute',
-                                            top: 4,
-                                            right: 4,
-                                            display: 'flex',
-                                            gap: 0.5
+                                            bgcolor: isActive ? '#0d9488' : 'rgba(0,0,0,0.6)',
+                                            color: '#fff',
+                                            px: 1,
+                                            py: 0.2,
+                                            borderRadius: '4px',
+                                            fontSize: '10px',
+                                            fontWeight: 700,
+                                            backdropFilter: 'blur(4px)'
                                         }}>
-                                            <Tooltip title={`${stats.count} fields on this page`}>
-                                                <Box sx={{
-                                                    bgcolor: '#0d9488',
-                                                    color: '#fff',
-                                                    width: 18,
-                                                    height: 18,
-                                                    borderRadius: '50%',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontSize: '10px',
-                                                    fontWeight: 'bold',
-                                                    boxShadow: 1
-                                                }}>
-                                                    {stats.count}
-                                                </Box>
-                                            </Tooltip>
+                                            {pageNum}
                                         </Box>
-                                    )}
-                                </Paper>
 
-                                <Typography
-                                    variant="caption"
-                                    fontWeight={isActive ? 700 : 500}
-                                    color={isActive ? "#0d9488" : "text.secondary"}
-                                >
-                                    Page {pageNum}
-                                </Typography>
+                                        {hasFields && (
+                                            <Box sx={{
+                                                bgcolor: '#0d9488',
+                                                color: '#fff',
+                                                px: 0.8,
+                                                py: 0.2,
+                                                borderRadius: '4px',
+                                                fontSize: '9px',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 0.2
+                                            }}>
+                                                {pageFields.length} <span style={{ opacity: 0.8, fontSize: '8px' }}>F</span>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Paper>
                             </Box>
                         );
                     })}

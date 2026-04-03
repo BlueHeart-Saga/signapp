@@ -311,7 +311,7 @@ const DocumentSummary = () => {
           <button
             className="doc-header-action"
             onClick={() =>
-              navigate("/user/prepare-send", {
+              navigate(`/user/prepare-send/${documentId}`, {
                 state: { document: docData }
               })
             }

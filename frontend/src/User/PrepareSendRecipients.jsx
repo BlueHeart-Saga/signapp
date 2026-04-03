@@ -36,6 +36,7 @@ import {
   Droppable,
   Draggable
 } from "@hello-pangea/dnd";
+import { CircularProgress } from '@mui/material';
 import { FaPen, FaExchangeAlt } from "react-icons/fa";
 import { FaGripVertical } from 'react-icons/fa';
 import { recipientAPI, RecipientRoles, RoleDescriptions } from '../services/api';
@@ -137,7 +138,8 @@ function ZohoFileCard({
   onReload,
   selectedFiles,
   setSelectedFiles,
-  onPreview
+  onPreview,
+  setConfirmDialog
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -165,18 +167,33 @@ function ZohoFileCard({
     onReload();
   };
 
-  const deleteFile = async () => {
-    if (!window.confirm("Delete this file?")) return;
-    await fetch(
-      `${API_BASE_URL}/documents/${documentId}/files/${file.id}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+  const deleteFile = () => {
+    setConfirmDialog({
+      open: true,
+      title: "Delete File?",
+      message: `Are you sure you want to remove "${file.filename}"? This action cannot be undone.`,
+      danger: true,
+      confirmText: "Delete",
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, loading: true }));
+        try {
+          await fetch(
+            `${API_BASE_URL}/documents/${documentId}/files/${file.id}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          onReload();
+        } catch (err) {
+          console.error("Delete failed", err);
+        } finally {
+          setConfirmDialog({ open: false });
+        }
       }
-    );
-    onReload();
+    });
   };
 
   useEffect(() => {
@@ -622,6 +639,15 @@ export default function PrepareSendRecipients() {
     onConfirm: null,
     danger: false,
   });
+
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar(prev => ({ ...prev, open: false }));
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
 
   const toggleFavorite = async (contactId) => {
     try {
@@ -1326,6 +1352,22 @@ export default function PrepareSendRecipients() {
 
     const rows = getFilledRecipients();
 
+    if (!files || files.length === 0) {
+      setConfirmDialog({
+        open: true,
+        title: "Document Required",
+        message: "You haven't added any documents to send. Please add at least one file to continue with the signing process.",
+        confirmText: "Add Document",
+        cancelText: "Cancel",
+        danger: false,
+        onConfirm: () => {
+          setConfirmDialog({ open: false });
+          setMergeOpen(true);
+        }
+      });
+      return;
+    }
+
     if (!rows.length && recipients.length === 0) {
       setSnackbar({
         open: true,
@@ -1590,6 +1632,7 @@ export default function PrepareSendRecipients() {
                           onReload={reloadFiles}
                           selectedFiles={selectedFiles}
                           setSelectedFiles={setSelectedFiles}
+                          setConfirmDialog={setConfirmDialog}
                           onPreview={(page) => {
                             setActivePage(page);
                             setViewerOpen(true);
@@ -2661,58 +2704,80 @@ export default function PrepareSendRecipients() {
 
 
       {mergeOpen && (
-        <div className="zoho-merge-backdrop">
-          <div className="zoho-merge-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="zoho-merge-header">
-              <h3>{mergeDoc ? "Replace File" : "Add File"}</h3>
+        <div className="za-add-backdrop">
+          <div className="za-add-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="za-add-header">
+              <div className="za-header-title">
+                <FaPlus className="za-title-icon" />
+                <h3>{mergeDoc ? "Replace Document" : "Add New Document"}</h3>
+              </div>
               <button
-                className="zoho-merge-close"
+                className="za-add-close"
                 onClick={() => {
                   setMergeOpen(false);
                   setMergeFile(null);
                   setMergeDoc(null);
                 }}
               >
-                ✕
+                <FaTimes />
               </button>
             </div>
 
-            <div className="zoho-merge-content">
-              <label className="zoho-merge-upload">
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.png,.jpg"
-                  onChange={(e) => setMergeFile(e.target.files[0])}
-                />
-                <div className="zoho-upload-box">
-                  <span className="zoho-upload-title">
-                    {mergeFile ? mergeFile.name : "Choose a file"}
-                  </span>
-                  <p className="zoho-upload-hint">
-                    PDF, Word, JPG, PNG
-                  </p>
-                </div>
-              </label>
+            <div className="za-add-content">
+              {!mergeFile ? (
+                <label className="za-dropzone">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg"
+                    onChange={(e) => setMergeFile(e.target.files[0])}
+                    hidden
+                  />
+                  <div className="za-dropzone-inner">
+                    <div className="za-upload-hero">
+                      <FaFilePdf className="za-hero-icon" />
+                      <div className="za-hero-glow"></div>
+                    </div>
+                    <span className="za-upload-main">Click or drag document here</span>
+                    <p className="za-upload-sub">Supports PDF, Word, and Images (Max 20MB)</p>
+                    <button className="za-upload-btn">Browse Files</button>
+                  </div>
+                </label>
+              ) : (
+                <div className="za-file-selected">
+                  <div className="za-selected-info">
+                    <div className="za-file-icon-box">
+                      <FaFileAlt />
+                    </div>
+                    <div className="za-file-details">
+                      <span className="za-filename">{mergeFile.name}</span>
+                      <span className="za-filesize">{(mergeFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                    <button className="za-remove-selection" onClick={() => setMergeFile(null)}>
+                      <FaTrash />
+                    </button>
+                  </div>
 
-              {mergeLoading && (
-                <div className="zoho-merge-progress-container">
-                  <div className="zoho-merge-progress-text">
-                    {processingMsg || (mergeProgress < 70 ? "Uploading..." : "Processing...")}
-                  </div>
-                  <div className="zoho-merge-progress">
-                    <div
-                      className="zoho-merge-progress-bar"
-                      style={{ width: `${mergeProgress}%` }}
-                    />
-                  </div>
-                  <div className="zoho-merge-percent">{mergeProgress}%</div>
+                  {mergeLoading && (
+                    <div className="za-upload-progress-box">
+                      <div className="za-progress-label">
+                        <span>{processingMsg || (mergeProgress < 70 ? "Uploading..." : "Processing...")}</span>
+                        <span>{mergeProgress}%</span>
+                      </div>
+                      <div className="za-progress-track">
+                        <div
+                          className="za-progress-fill"
+                          style={{ width: `${mergeProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="zoho-merge-footer">
+            <div className="za-add-footer">
               <button
-                className="zoho-btn-secondary"
+                className="za-btn-cancel"
                 onClick={() => {
                   setMergeOpen(false);
                   setMergeFile(null);
@@ -2724,7 +2789,7 @@ export default function PrepareSendRecipients() {
               </button>
 
               <button
-                className="zoho-btn-primary"
+                className="za-btn-primary"
                 disabled={!mergeFile || mergeLoading}
                 onClick={async () => {
                   try {
@@ -2732,8 +2797,7 @@ export default function PrepareSendRecipients() {
                     setMergeProgress(0);
                     setProcessingMsg("Initializing...");
 
-                    // 1. Polling logic
-                    const docId = documentId; // Use documentId from params
+                    const docId = documentId;
                     const startPoll = () => {
                       const interval = setInterval(async () => {
                         try {
@@ -2753,9 +2817,7 @@ export default function PrepareSendRecipients() {
 
                     const pollId = startPoll();
 
-                    // 2. Upload / Add
                     if (mergeDoc) {
-                      // REPLACE
                       const form = new FormData();
                       form.append("file", mergeFile);
                       await fetch(
@@ -2769,7 +2831,6 @@ export default function PrepareSendRecipients() {
                         }
                       );
                     } else {
-                      // ADD
                       await addFileToDocument(documentId, mergeFile, (p) => {
                         setMergeProgress(Math.round(p));
                         if (p >= 60) setProcessingMsg("Server Processing...");
@@ -2782,7 +2843,7 @@ export default function PrepareSendRecipients() {
 
                     setSnackbar({
                       open: true,
-                      message: mergeDoc ? "File replaced" : "File added",
+                      message: mergeDoc ? "File replaced successfully" : "File added successfully",
                       severity: "success",
                     });
 
@@ -2794,7 +2855,7 @@ export default function PrepareSendRecipients() {
                   } catch (err) {
                     setSnackbar({
                       open: true,
-                      message: "Process failed",
+                      message: "Process failed. Please try again.",
                       severity: "error",
                     });
                   } finally {
@@ -2804,17 +2865,22 @@ export default function PrepareSendRecipients() {
                   }
                 }}
               >
-                {mergeLoading ? "Processing…" : mergeDoc ? "Replace" : "Add"}
+                {mergeLoading ? (
+                  <span className="za-loader-wrap">
+                    <CircularProgress size={16} color="inherit" />
+                    Processing...
+                  </span>
+                ) : (
+                  <>{mergeDoc ? "Replace Document" : "Add Document"}</>
+                )}
               </button>
-
             </div>
           </div>
-
         </div>
       )}
 
 
-      {mergeLoading && (
+      {mergeLoading && !mergeOpen && (
         <div className="document-merge-overlay">
           <div className="document-merge-card">
 
@@ -2942,11 +3008,22 @@ export default function PrepareSendRecipients() {
 
 
       {snackbar.open && (
-        <div className={`snackbar snackbar-${snackbar.severity}`}>
-          {snackbar.message}
-          <button onClick={() => setSnackbar({ ...snackbar, open: false })}>
-            ✕
-          </button>
+        <div className={`za-snackbar-wrapper za-snackbar-${snackbar.severity}`}>
+          <div className="za-snackbar-content">
+            <div className="za-snackbar-icon">
+              {snackbar.severity === 'success' && <FaCheckCircle />}
+              {snackbar.severity === 'error' && <FaExclamationCircle />}
+              {(snackbar.severity === 'info' || snackbar.severity === 'warning') && <FaInfoCircle />}
+            </div>
+            <span className="za-snackbar-message">{snackbar.message}</span>
+            <button
+              className="za-snackbar-close"
+              onClick={() => setSnackbar({ ...snackbar, open: false })}
+            >
+              <FaTimes />
+            </button>
+          </div>
+          <div className="za-snackbar-progress"></div>
         </div>
       )}
 

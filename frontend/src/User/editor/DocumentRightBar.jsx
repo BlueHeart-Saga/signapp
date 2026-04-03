@@ -39,12 +39,12 @@ import {
 } from '@mui/icons-material';
 import { FIELD_TYPES, FIELD_ROLES, getRecipientColor, validateFieldAssignment, ROLE_FIELD_RULES } from '../../config/fieldConfig';
 
-const FieldPropertiesPanel = ({ 
-  field, 
-  onChange, 
-  onDelete, 
+const FieldPropertiesPanel = ({
+  field,
+  onChange,
+  onDelete,
   onDuplicate,
-  recipients = [], 
+  recipients = [],
   numPages = 1,
   onSelectRecipient
 }) => {
@@ -66,7 +66,7 @@ const FieldPropertiesPanel = ({
     if (field) {
       setLocalField({ ...field });
       validateAssignment(field.recipient_id, field.type);
-      
+
       setFieldSettings({
         groupName: field.group_name || `group_${Date.now()}`,
         dropdownOptions: field.dropdown_options || [],
@@ -92,7 +92,7 @@ const FieldPropertiesPanel = ({
       setValidationError('Recipient not found');
       return false;
     }
-    
+
     const isValid = validateFieldAssignment(fieldType, recipient.role);
     if (!isValid) {
       setValidationError(
@@ -101,21 +101,21 @@ const FieldPropertiesPanel = ({
     } else {
       setValidationError('');
     }
-    
+
     return isValid;
   };
 
   const handleChange = (key, value) => {
     const updated = { ...localField, [key]: value };
     setLocalField(updated);
-    
+
     if (key === 'recipient_id' || key === 'type') {
       validateAssignment(
         key === 'recipient_id' ? value : updated.recipient_id,
         key === 'type' ? value : updated.type
       );
     }
-    
+
     if (onChange) {
       onChange(field.id, updated);
     }
@@ -124,7 +124,7 @@ const FieldPropertiesPanel = ({
   const handleSettingChange = (setting, value) => {
     const newSettings = { ...fieldSettings, [setting]: value };
     setFieldSettings(newSettings);
-    
+
     const fieldUpdate = {};
     switch (setting) {
       case 'groupName':
@@ -154,7 +154,7 @@ const FieldPropertiesPanel = ({
       default:
         return;
     }
-    
+
     handleChange(Object.keys(fieldUpdate)[0], Object.values(fieldUpdate)[0]);
   };
 
@@ -219,163 +219,163 @@ const FieldPropertiesPanel = ({
       />
 
       {/* Field-Specific Settings */}
-      {(field.type === 'radio' || field.type === 'dropdown' || 
+      {(field.type === 'radio' || field.type === 'dropdown' ||
         field.type === 'mail' || field.type === 'checkbox') && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1,
-            color: fieldType.color 
-          }}>
-            <SettingsIcon fontSize="small" />
-            {fieldType.label} Settings
-          </Typography>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              color: fieldType.color
+            }}>
+              <SettingsIcon fontSize="small" />
+              {fieldType.label} Settings
+            </Typography>
 
-          {field.type === 'radio' && (
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Group Name"
-                value={fieldSettings.groupName}
-                onChange={(e) => handleSettingChange('groupName', e.target.value)}
-                helperText="Radio buttons with same group are mutually exclusive"
-                sx={{ mb: 1.5 }}
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={fieldSettings.checked}
-                    onChange={(e) => handleSettingChange('checked', e.target.checked)}
-                  />
-                }
-                label="Initially checked"
-              />
-            </Box>
-          )}
-
-          {field.type === 'dropdown' && (
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            {field.type === 'radio' && (
+              <Box sx={{ mb: 2 }}>
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="Add option..."
-                  value={fieldSettings.newOption}
-                  onChange={(e) => handleSettingChange('newOption', e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddDropdownOption()}
+                  label="Group Name"
+                  value={fieldSettings.groupName}
+                  onChange={(e) => handleSettingChange('groupName', e.target.value)}
+                  helperText="Radio buttons with same group are mutually exclusive"
+                  sx={{ mb: 1.5 }}
                 />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={handleAddDropdownOption}
-                  disabled={!fieldSettings.newOption.trim()}
-                >
-                  Add
-                </Button>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={fieldSettings.checked}
+                      onChange={(e) => handleSettingChange('checked', e.target.checked)}
+                    />
+                  }
+                  label="Initially checked"
+                />
               </Box>
+            )}
 
-              {fieldSettings.dropdownOptions.length > 0 ? (
-                <Paper variant="outlined" sx={{ maxHeight: 150, overflow: 'auto', mb: 1.5 }}>
-                  <List dense>
-                    {fieldSettings.dropdownOptions.map((option, index) => (
-                      <ListItem
-                        key={index}
-                        secondaryAction={
-                          <IconButton edge="end" size="small" onClick={() => handleRemoveDropdownOption(index)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        }
-                      >
-                        <ListItemIcon sx={{ minWidth: 36 }}>
-                          <DragIndicatorIcon sx={{ color: 'action.active' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={option} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Paper>
-              ) : (
-                <Alert severity="warning" sx={{ mb: 1.5 }}>
-                  Add at least one option
-                </Alert>
+            {field.type === 'dropdown' && (
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Add option..."
+                    value={fieldSettings.newOption}
+                    onChange={(e) => handleSettingChange('newOption', e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddDropdownOption()}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleAddDropdownOption}
+                    disabled={!fieldSettings.newOption.trim()}
+                  >
+                    Add
+                  </Button>
+                </Box>
+
+                {fieldSettings.dropdownOptions.length > 0 ? (
+                  <Paper variant="outlined" sx={{ maxHeight: 150, overflow: 'auto', mb: 1.5 }}>
+                    <List dense>
+                      {fieldSettings.dropdownOptions.map((option, index) => (
+                        <ListItem
+                          key={index}
+                          secondaryAction={
+                            <IconButton edge="end" size="small" onClick={() => handleRemoveDropdownOption(index)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          }
+                        >
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <DragIndicatorIcon sx={{ color: 'action.active' }} />
+                          </ListItemIcon>
+                          <ListItemText primary={option} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
+                ) : (
+                  <Alert severity="warning" sx={{ mb: 1.5 }}>
+                    Add at least one option
+                  </Alert>
+                )}
+              </Box>
+            )}
+
+            {field.type === 'mail' && (
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Placeholder Email"
+                  value={fieldSettings.placeholder}
+                  onChange={(e) => handleSettingChange('placeholder', e.target.value)}
+                  placeholder="example@domain.com"
+                  sx={{ mb: 1.5 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={fieldSettings.emailValidation}
+                      onChange={(e) => handleSettingChange('emailValidation', e.target.checked)}
+                    />
+                  }
+                  label="Validate email format"
+                />
+              </Box>
+            )}
+
+            {field.type === 'checkbox' && (
+              <Box sx={{ mb: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={fieldSettings.checked}
+                      onChange={(e) => handleSettingChange('checked', e.target.checked)}
+                    />
+                  }
+                  label="Initially checked"
+                />
+              </Box>
+            )}
+
+            {(field.type === 'textbox' || field.type === 'date') && (
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Placeholder"
+                  value={fieldSettings.placeholder}
+                  onChange={(e) => handleSettingChange('placeholder', e.target.value)}
+                  placeholder={field.type === 'date' ? "MM/DD/YYYY" : "Enter text..."}
+                />
+              </Box>
+            )}
+
+            {(field.type === 'textbox' || field.type === 'date' ||
+              field.type === 'mail' || field.type === 'dropdown') && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Font Size
+                  </Typography>
+                  <Slider
+                    size="small"
+                    value={fieldSettings.fontSize}
+                    onChange={(_, value) => handleSettingChange('fontSize', value)}
+                    min={8}
+                    max={24}
+                    step={1}
+                    valueLabelDisplay="auto"
+                  />
+                </Box>
               )}
-            </Box>
-          )}
-
-          {field.type === 'mail' && (
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Placeholder Email"
-                value={fieldSettings.placeholder}
-                onChange={(e) => handleSettingChange('placeholder', e.target.value)}
-                placeholder="example@domain.com"
-                sx={{ mb: 1.5 }}
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={fieldSettings.emailValidation}
-                    onChange={(e) => handleSettingChange('emailValidation', e.target.checked)}
-                  />
-                }
-                label="Validate email format"
-              />
-            </Box>
-          )}
-
-          {field.type === 'checkbox' && (
-            <Box sx={{ mb: 2 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={fieldSettings.checked}
-                    onChange={(e) => handleSettingChange('checked', e.target.checked)}
-                  />
-                }
-                label="Initially checked"
-              />
-            </Box>
-          )}
-
-          {(field.type === 'textbox' || field.type === 'date') && (
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Placeholder"
-                value={fieldSettings.placeholder}
-                onChange={(e) => handleSettingChange('placeholder', e.target.value)}
-                placeholder={field.type === 'date' ? "MM/DD/YYYY" : "Enter text..."}
-              />
-            </Box>
-          )}
-
-          {(field.type === 'textbox' || field.type === 'date' || 
-            field.type === 'mail' || field.type === 'dropdown') && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" gutterBottom>
-                Font Size
-              </Typography>
-              <Slider
-                size="small"
-                value={fieldSettings.fontSize}
-                onChange={(_, value) => handleSettingChange('fontSize', value)}
-                min={8}
-                max={24}
-                step={1}
-                valueLabelDisplay="auto"
-              />
-            </Box>
-          )}
-        </Box>
-      )}
+          </Box>
+        )}
 
       <Divider sx={{ my: 2 }} />
 
@@ -479,37 +479,91 @@ const FieldPropertiesPanel = ({
         </Button>
       </Box>
 
-      {/* Recipient Info */}
-      {currentRecipient && (
-        <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="caption" color="text.secondary" gutterBottom>
-            Assigned to:
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar sx={{ 
-              width: 24, 
-              height: 24,
-              bgcolor: getRecipientColor(currentRecipient),
-              fontSize: '0.75rem'
-            }}>
-              {currentRecipient.name?.charAt(0)}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {currentRecipient.name}
+      {/* Recipient Assignment */}
+      <Box sx={{ mt: 4, p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mb: 2,
+          color: '#0f172a'
+        }}>
+          <PersonIcon fontSize="small" sx={{ color: '#0d9488' }} />
+          Assigned Recipient
+        </Typography>
+
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label="Select Recipient"
+          value={localField.recipient_id || ''}
+          onChange={(e) => handleChange('recipient_id', e.target.value)}
+          error={!!validationError}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              bgcolor: 'white',
+              borderRadius: '8px'
+            }
+          }}
+        >
+          {recipients.map((recipient) => {
+            const recipientColor = getRecipientColor(recipient);
+            const isValid = validateFieldAssignment(field.type, recipient.role);
+
+            return (
+              <MenuItem
+                key={recipient.id}
+                value={recipient.id}
+                disabled={!isValid}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  py: 1.5
+                }}
+              >
+                <Avatar sx={{
+                  width: 28,
+                  height: 28,
+                  bgcolor: recipientColor,
+                  fontSize: '0.85rem',
+                  fontWeight: 600
+                }}>
+                  {recipient.name?.charAt(0) || 'R'}
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={500} noWrap>
+                    {recipient.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                    {FIELD_ROLES[recipient.role]?.name}
+                  </Typography>
+                </Box>
+                {!isValid && (
+                  <Tooltip title={`Incompatible with ${FIELD_TYPES[field.type]?.label}`}>
+                    <ErrorIcon sx={{ fontSize: 16, color: 'error.light' }} />
+                  </Tooltip>
+                )}
+              </MenuItem>
+            );
+          })}
+        </TextField>
+
+        {currentRecipient && (
+          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              bgcolor: getRecipientColor(currentRecipient)
+            }} />
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              Primary assignment for this field
             </Typography>
-            <Chip
-              label={FIELD_ROLES[currentRecipient.role]?.name}
-              size="small"
-              sx={{ 
-                height: 20,
-                fontSize: '0.65rem',
-                backgroundColor: `${getRecipientColor(currentRecipient)}20`,
-                color: getRecipientColor(currentRecipient)
-              }}
-            />
           </Box>
-        </Box>
-      )}
+        )}
+      </Box>
     </Box>
   );
 };
@@ -518,7 +572,7 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick, ge
   const getRecipientStats = (recipientId) => {
     const assignedFields = fields.filter(f => f.recipient_id === recipientId);
     const invalidFields = assignedFields.filter(f => getFieldValidationError(f));
-    
+
     return {
       total: assignedFields.length,
       invalid: invalidFields.length
@@ -548,19 +602,19 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick, ge
       <Typography variant="subtitle2" fontWeight={600} gutterBottom>
         Recipients ({recipients.length})
       </Typography>
-      
+
       <List dense>
         {recipients.map((recipient) => {
           const stats = getRecipientStats(recipient.id);
           const recipientColor = getRecipientColor(recipient);
-          
+
           return (
             <Card key={recipient.id} variant="outlined" sx={{ mb: 1 }}>
               <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <Avatar sx={{ 
-                    bgcolor: recipientColor, 
-                    width: 28, 
+                  <Avatar sx={{
+                    bgcolor: recipientColor,
+                    width: 28,
                     height: 28,
                     fontSize: '0.75rem'
                   }}>
@@ -592,7 +646,7 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick, ge
                       Fields
                     </Typography>
                   </Badge>
-                  
+
                   {stats.invalid > 0 && (
                     <Tooltip title={`${stats.invalid} incompatible fields`}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -645,7 +699,7 @@ const DocumentRightBar = ({
   };
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       width: expanded ? 360 : 0,
       height: '100%',
       display: 'flex',
@@ -657,7 +711,7 @@ const DocumentRightBar = ({
       visibility: expanded ? 'visible' : 'hidden'
     }}>
       {/* Properties Panel */}
-      <Paper sx={{ 
+      <Paper sx={{
         flex: 1,
         borderRadius: 2,
         overflow: 'auto',
@@ -674,7 +728,7 @@ const DocumentRightBar = ({
       </Paper>
 
       {/* Recipients Panel */}
-      <Paper sx={{ 
+      <Paper sx={{
         height: '40%',
         minHeight: 200,
         borderRadius: 2,

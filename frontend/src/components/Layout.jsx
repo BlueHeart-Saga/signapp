@@ -131,6 +131,7 @@ export default function Layout({ children }) {
                 <span className="ss-word">Features</span>
                 <span className="ss-word">Documents</span>
                 <span className="ss-word">Signatures</span>
+                <span className="ss-word">Status</span>
               </div>
             </div>
           </div>

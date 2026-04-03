@@ -90,7 +90,7 @@ const DocumentMainLayout = () => {
 
   // Sidebar state
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
-  const [thumbnailsVisible, setThumbnailsVisible] = useState(false);
+  const [thumbnailsVisible, setThumbnailsVisible] = useState(true);
 
   // Dialog states
   const [addRecipientDialogOpen, setAddRecipientDialogOpen] = useState(false);
@@ -527,10 +527,10 @@ const DocumentMainLayout = () => {
       type: fieldType,
       label: `${fieldConfig.label} ${fields.length + 1}`,
       placeholder: fieldConfig.placeholder,
-      x: Math.max(20, Math.min(x, 794 - (fieldConfig.defaultWidth || 100) - 20)),
-      y: Math.max(20, Math.min(y, 1123 - (fieldConfig.defaultHeight || 40) - 20)),
-      width: fieldConfig.defaultWidth || 100,
-      height: fieldConfig.defaultHeight || 40,
+      x: Math.max(20, Math.min(x, 794 - (fieldConfig.defaultWidth || 160) - 20)),
+      y: Math.max(20, Math.min(y, 1123 - (fieldConfig.defaultHeight || 32) - 20)),
+      width: fieldConfig.defaultWidth || 160,
+      height: fieldConfig.defaultHeight || 32,
       page: targetPage,
       required: false,
       recipient_id: selectedRecipient.id,
@@ -543,7 +543,8 @@ const DocumentMainLayout = () => {
 
     const newFields = [...fields, newField];
     commitFieldChange(newFields);
-    setSelectedFieldId(newField.id);
+    // Removed auto-selection to prevent accidental recipient reassignment when global picker changes
+    // setSelectedFieldId(newField.id);
 
     if (fieldType === 'radio' || fieldType === 'dropdown') {
       setRightSidebarExpanded(true);
@@ -613,7 +614,8 @@ const DocumentMainLayout = () => {
 
     const newFields = [...fields, newField];
     commitFieldChange(newFields);
-    setSelectedFieldId(newField.id);
+    // Removed auto-selection to stay consistent with drop behavior
+    // setSelectedFieldId(newField.id);
   }, [fields, commitFieldChange]);
 
   const handleSelectRecipient = useCallback((recipientId) => {

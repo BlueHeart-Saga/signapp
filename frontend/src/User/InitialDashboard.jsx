@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { getDocumentStats } from "../services/DocumentAPI";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-  import { setPageTitle } from "../utils/pageTitle";
+import { setPageTitle } from "../utils/pageTitle";
 import PremiumBannerSlider from "../components/PremiumBannerSlider";
 
 // External CSS styles
@@ -323,85 +323,85 @@ body {
 `;
 
 const InitialDashboard = () => {
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
-const [banners, setBanners] = useState([]);
-const [activeBanner, setActiveBanner] = useState(0);
-const [pauseBanner, setPauseBanner] = useState(false);
-
-
-
-useEffect(() => {
-  loadBanners();
-}, []);
-
-const loadBanners = async () => {
-  try {
-    const res = await axios.get(
-      `${process.env.REACT_APP_API_BASE_URL || "http://localhost:9000"}/banners/active`
-    );
-    setBanners(res.data || []);
-  } catch (err) {
-    console.error("Banner load failed", err);
-  }
-};
-
-useEffect(() => {
-  if (banners.length <= 1 || pauseBanner) return;
-
-  const interval = setInterval(() => {
-    setActiveBanner((prev) =>
-      prev === banners.length - 1 ? 0 : prev + 1
-    );
-  }, 30000); // 30 seconds
-
-  return () => clearInterval(interval);
-}, [banners, pauseBanner]);
+  const [banners, setBanners] = useState([]);
+  const [activeBanner, setActiveBanner] = useState(0);
+  const [pauseBanner, setPauseBanner] = useState(false);
 
 
 
+  useEffect(() => {
+    loadBanners();
+  }, []);
 
-const handleNavigate = (path) => {
-  navigate(path);
-};
+  const loadBanners = async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL || "http://localhost:9000"}/banners/active`
+      );
+      setBanners(res.data || []);
+    } catch (err) {
+      console.error("Banner load failed", err);
+    }
+  };
 
-  
+  useEffect(() => {
+    if (banners.length <= 1 || pauseBanner) return;
+
+    const interval = setInterval(() => {
+      setActiveBanner((prev) =>
+        prev === banners.length - 1 ? 0 : prev + 1
+      );
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [banners, pauseBanner]);
+
+
+
+
+  const handleNavigate = (path) => {
+    navigate(path);
+  };
+
+
 
   const [stats, setStats] = useState({
-  actionRequired: 0,
-  waiting: 0,
-  expiring: 0,
-  completed: 0
-});
-useEffect(() => {
-  loadStats();
-}, []);
+    actionRequired: 0,
+    waiting: 0,
+    expiring: 0,
+    completed: 0
+  });
+  useEffect(() => {
+    loadStats();
+  }, []);
 
-useEffect(() => {
-  setPageTitle(
-    "Organization Dashboard",
-    "View your activity, recent documents, and quick actions from your SafeSign dashboard."
-  );
-}, []);    
+  useEffect(() => {
+    setPageTitle(
+      "Organization Dashboard",
+      "View your activity, recent documents, and quick actions from your SafeSign dashboard."
+    );
+  }, []);
 
-const loadStats = async () => {
-  try {
-    const data = await getDocumentStats();
+  const loadStats = async () => {
+    try {
+      const data = await getDocumentStats();
 
-    setStats({
-      actionRequired: (data.sent || 0) + (data.in_progress || 0),
-      waiting: data.sent || 0,
-      expiring: data.expired || 0,
-      completed: data.completed || 0
-    });
-  } catch (err) {
-    console.error("Stats load failed", err);
-  }
-};
+      setStats({
+        actionRequired: (data.sent || 0) + (data.in_progress || 0),
+        waiting: data.sent || 0,
+        expiring: data.expired || 0,
+        completed: data.completed || 0
+      });
+    } catch (err) {
+      console.error("Stats load failed", err);
+    }
+  };
 
-const { user, loading } = useAuth();
+  const { user, loading } = useAuth();
 
- if (loading) {
+  if (loading) {
     return (
       <div className="ss-content-wrapper">
         <div className="ss-loading-overlay">
@@ -415,6 +415,7 @@ const { user, loading } = useAuth();
                 <span className="ss-word">Features</span>
                 <span className="ss-word">Documents</span>
                 <span className="ss-word">Signatures</span>
+                <span className="ss-word">Status</span>
               </div>
             </div>
           </div>
@@ -430,7 +431,7 @@ const { user, loading } = useAuth();
       <style>{styles}</style>
       <div className="ss-init-container">
         {/* Header */}
-        
+
         {/* Hero Section with Gradient Background */}
         <div className="ss-init-hero">
           <div className="ss-init-hero-content">
@@ -440,30 +441,30 @@ const { user, loading } = useAuth();
   className="ss-init-avatar"
 /> */}
 
-            
-            <div className="ss-init-signature-section">
-                <h2>
-  Welcome,{" "}
-  {(user?.full_name || "user").toUpperCase()}
-  
-</h2>
 
-<div className="ss-init-signature-label">
-  {user?.email
-    ? user.email
-        .split("@")[0]          // john.doe123
-        .replace(/[0-9]/g, "")  // john.doe
-        .replace(/[._]/g, " ")  // john doe
-        .replace(/\b\w/g, c => c.toUpperCase()) // John Doe
-    : "User"}
-  {/* {(user?.role || "user").toUpperCase()} */}
-    _ACCOUNT
-</div>
+            <div className="ss-init-signature-section">
+              <h2>
+                Welcome,{" "}
+                {(user?.full_name || "user").toUpperCase()}
+
+              </h2>
+
+              <div className="ss-init-signature-label">
+                {user?.email
+                  ? user.email
+                    .split("@")[0]          // john.doe123
+                    .replace(/[0-9]/g, "")  // john.doe
+                    .replace(/[._]/g, " ")  // john doe
+                    .replace(/\b\w/g, c => c.toUpperCase()) // John Doe
+                  : "User"}
+                {/* {(user?.role || "user").toUpperCase()} */}
+                _ACCOUNT
+              </div>
 
               <div className="ss-init-signature-box">
-               <span className="ss-init-signature-text">
-  {user?.organization_name || "Personal Workspace"}
-</span>
+                <span className="ss-init-signature-text">
+                  {user?.organization_name || "Personal Workspace"}
+                </span>
 
               </div>
             </div>
@@ -496,19 +497,19 @@ const { user, loading } = useAuth();
           <div className="ss-init-upload">
             <h3>Drop documents here to get started</h3>
             <button
-  className="ss-init-btn-primary"
-  onClick={() => {
-    if (stats.actionRequired > 0) {
-      handleNavigate("/user/documents");
-    } else if (stats.waiting > 0) {
-      handleNavigate("/user/documents");
-    } else {
-      handleNavigate("/user/documents");
-    }
-  }}
->
-  START NOW
-</button>
+              className="ss-init-btn-primary"
+              onClick={() => {
+                if (stats.actionRequired > 0) {
+                  handleNavigate("/user/documents");
+                } else if (stats.waiting > 0) {
+                  handleNavigate("/user/documents");
+                } else {
+                  handleNavigate("/user/documents");
+                }
+              }}
+            >
+              START NOW
+            </button>
 
           </div>
 
@@ -527,10 +528,10 @@ const { user, loading } = useAuth();
                 </div>
               </div>
             </div>
-            <button className="ss-init-btn-promo" onClick={ () => navigate("/user/subscription")}>
+            <button className="ss-init-btn-promo" onClick={() => navigate("/user/subscription")}>
               Upgrade <span>→</span>
             </button>
-            
+
             <div className="ss-init-sparkle ss-init-sparkle-1">✨</div>
             <div className="ss-init-sparkle ss-init-sparkle-2">💫</div>
           </div>
@@ -541,7 +542,7 @@ const { user, loading } = useAuth();
 
 
 
-<PremiumBannerSlider />
+        <PremiumBannerSlider />
 
       </div>
     </>

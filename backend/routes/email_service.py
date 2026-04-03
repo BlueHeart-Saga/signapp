@@ -160,10 +160,10 @@ class SafeSignSummaryEngine:
         canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
         canvas.drawString(40, 20, footer_text)
         
-        # SafeView™ Branding
+        # SafeSign Branding
         canvas.setFont("Helvetica-Bold", 7)
         canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
-        canvas.drawRightString(doc.width + 40, 20, "SafeView™ Verified")
+        canvas.drawRightString(doc.width + 40, 20, "SafeSign Verified")
         
         # Page number
         canvas.setFont("Helvetica", 7)
@@ -1170,10 +1170,10 @@ class SafeSignCertificateEngine:
         canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
         canvas.drawString(40, 20, footer_text)
         
-        # SafeView™ Branding
+        # SafeSign Branding
         canvas.setFont("Helvetica-Bold", 7)
         canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
-        canvas.drawRightString(doc.width + 40, 20, "SafeView™ Verified")
+        canvas.drawRightString(doc.width + 40, 20, "SafeSign Verified")
         
         # Page number
         canvas.setFont("Helvetica", 7)
@@ -3980,6 +3980,10 @@ async def send_completed_document_package(document_id: str):
         # Determine who should receive the package (Recipients + Owner)
         package_recipients = []
         for r in recipients:
+            # Skip recipients who declined - they should not receive the final package
+            if r.get("status") == "declined":
+                continue
+                
             package_recipients.append({
                 "email": r.get("email"),
                 "name": r.get("name", "Recipient"),
