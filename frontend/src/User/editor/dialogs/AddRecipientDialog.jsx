@@ -69,6 +69,10 @@ const AddRecipientDialog = ({
       newErrors.email = 'This email is already added';
     }
 
+    if (existingRecipients.some(r => r.signing_order === Number(recipientForm.signing_order))) {
+      newErrors.signing_order = 'This order number is already assigned';
+    }
+
     if (recipientForm.role === 'witness' && !recipientForm.witness_for) {
       newErrors.witness_for = 'Please select a signer to witness';
     }
@@ -220,10 +224,13 @@ const AddRecipientDialog = ({
                 name="signing_order"
                 type="number"
                 value={recipientForm.signing_order}
-                onChange={handleInputChange}
+                readOnly
+                inputProps={{
+                  readOnly: true,
+                  title: "Signing order will be managed automatically via drag-and-drop on the recipients page."
+                }}
                 disabled={loading}
-                inputProps={{ min: 1, max: 100 }}
-                sx={{ width: 100 }}
+                sx={{ width: 100, opacity: 0.8 }}
               />
             </Box>
           </Box>

@@ -376,10 +376,7 @@ export default function PrepareSendRecipients() {
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
   const [mergedFilename, setMergedFilename] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const [commonMessage, setCommonMessage] = useState(
-    document?.common_message || 'Please review and sign this document at your earliest convenience.'
-  );
-  const [isEditingCommonMessage, setIsEditingCommonMessage] = useState(false);
+  const [commonMessage, setCommonMessage] = useState("");
   const [isSavingMessages, setIsSavingMessages] = useState(false);
 
   const [renameOpen, setRenameOpen] = useState(false);
@@ -434,6 +431,10 @@ export default function PrepareSendRecipients() {
     }
   });
 
+  const [signingOrderEnabled, setSigningOrderEnabled] = useState(
+    document?.signing_order_enabled || false
+  );
+
   const [errors, setErrors] = useState({});
   const [signers, setSigners] = useState([]);
 
@@ -460,6 +461,8 @@ export default function PrepareSendRecipients() {
         });
         setExpiryDays(data.expiry_days || 0);
         setReminderPeriod(data.reminder_period || 0);
+        setSigningOrderEnabled(data.signing_order_enabled || false);
+        setCommonMessage(data.common_message || "");
       })
       .catch(() => setDocument(null))
       .finally(() => setDocLoading(false));
@@ -900,7 +903,7 @@ export default function PrepareSendRecipients() {
         throw new Error(err.detail || 'Failed to save');
       }
 
-      setIsEditingCommonMessage(false);
+      // No need to reset edit mode as it's now persistent
     } catch (error) {
       console.error('Save failed:', error.message);
     } finally {
@@ -941,7 +944,7 @@ export default function PrepareSendRecipients() {
         id: `new-${prev.length}`,
         name: '',
         email: '',
-        signing_order: recipients.length + prev.length + 1,
+        signing_order: (recipients.length || 0) + prev.length + 1,
         role: RecipientRoles.SIGNER,
         form_fields: [],
         witness_for: '',
@@ -1293,6 +1296,17 @@ export default function PrepareSendRecipients() {
       const email = row.email?.trim().toLowerCase();
       const order = Number(row.signing_order);
 
+      // Strict uniqueness check for pending forms
+      if (recipientForms.some((r, i) => i !== index && Number(r.signing_order) === order)) {
+        rowErrors.signing_order = "Duplicate order";
+      }
+
+      // Cross-check with existing recipients (except if we are editing)
+      if (recipients.some(r => r.signing_order === order && !row.id.includes(r.id))) {
+        // Only error if we're ADDING new ones. If editing, we assume they will be re-ordered.
+        if (row.isNew) rowErrors.signing_order = "Order already taken";
+      }
+
       if (!name) rowErrors.name = "Name is required";
       else if (name.length < 2) rowErrors.name = "Name too short";
 
@@ -1389,14 +1403,24 @@ export default function PrepareSendRecipients() {
       }
 
       // Automatically save common message and settings
-      if (isEditingCommonMessage) {
-        await saveCommonMessage();
-      }
+      await saveCommonMessage();
 
       // Save settings
       await saveDocumentSettings();
 
       await loadRecipients();
+      // Save signing order setting to document
+      await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          signing_order_enabled: signingOrderEnabled
+        })
+      });
+
       navigate(`/user/documentbuilder/${document.id}`);
 
     } catch (error) {
@@ -1687,7 +1711,7 @@ export default function PrepareSendRecipients() {
           }}
         />
 
-        <button
+        {/* <button
           className="zoho-rename-btn"
           onClick={() => {
             setNewFilename(document.filename.replace(/\.pdf$/i, ""));
@@ -1695,8 +1719,24 @@ export default function PrepareSendRecipients() {
           }}
         >
           <FaEdit size={20} />
-          {/* <span>Rename</span> */}
-        </button>
+          <span>Rename</span>
+        </button> */}
+      </div>
+
+      <div className="ds-form-row ds-form-inline ds-signing-flow-row">
+        <label className="ds-checkbox-wrapper">
+          <input
+            type="checkbox"
+            checked={signingOrderEnabled}
+            onChange={(e) => setSigningOrderEnabled(e.target.checked)}
+          />
+          <span className="ds-checkbox-label">Set signing order</span>
+        </label>
+        <span className="ds-flow-hint">
+          {signingOrderEnabled
+            ? "Recipients will sign one-by-one in the specified order."
+            : "All recipients can sign at the same time."}
+        </span>
       </div>
 
 
@@ -2204,10 +2244,9 @@ export default function PrepareSendRecipients() {
                       <input
                         type="number"
                         value={form.signing_order}
-                        onChange={(e) => handleInlineFormChange(index, 'signing_order', Number(e.target.value))}
-                        min="1"
-                        max="100"
-                        placeholder="Order"
+                        readOnly
+                        title="Change order by dragging"
+                        className="docusign-input-readonly"
                       />
                     </div>
 
@@ -2480,76 +2519,15 @@ export default function PrepareSendRecipients() {
       {/* Footer */}
       <div className="docusign-footer">
         {/* Common Message Section */}
-        {/* Common Message Section - Updated */}
-        <div className="zoho-common-message">
-          {/* Header */}
-          <div className="zoho-common-header">
-            <div className="zoho-common-title">
-              {/* <FaEnvelopeOpenText /> */}
-              <span>Message to all recipients</span>
-            </div>
-
-            {!isEditingCommonMessage && (
-              <button
-                className="zoho-common-edit-btn"
-                onClick={() => setIsEditingCommonMessage(true)}
-              >
-                <FaEdit /> Edit
-              </button>
-            )}
-          </div>
-
-          {/* <p className="zoho-common-hint">
-    This message will be sent to all recipients.
-    Personal messages (if added) will override this.
-  </p> */}
-
-          {/* Edit mode */}
-          {isEditingCommonMessage ? (
-            <div className="zoho-common-edit">
-              <textarea
-                className="zoho-common-textarea"
-                rows={4}
-                placeholder="Enter a common message for all recipients…"
-                value={commonMessage}
-                onChange={(e) => setCommonMessage(e.target.value)}
-
-              />
-
-              <div className="zoho-common-actions">
-                <button
-                  className="zoho-btn-primary"
-                  onClick={saveCommonMessage}
-                  disabled={isSavingMessages || !commonMessage.trim()}
-                >
-                  <FaCheck /> Save
-                </button>
-
-                <button
-                  className="zoho-btn-secondary"
-                  onClick={() => setIsEditingCommonMessage(false)}
-                  disabled={isSavingMessages}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="zoho-common-display" onClick={() => setIsEditingCommonMessage(true)}>
-              {commonMessage ? (
-                <>
-                  <p className="zoho-common-content">{commonMessage}</p>
-                  <div className="zoho-common-meta">
-                    <FaInfoCircle /> {commonMessage.length} characters
-                  </div>
-                </>
-              ) : (
-                <p className="zoho-common-empty">
-                  No common message added.
-                </p>
-              )}
-            </div>
-          )}
+        <div className="zoho-common-message-v2">
+          <label className="zoho-common-label-v2">Note to all recipients</label>
+          <textarea
+            className="zoho-common-textarea-v2"
+            value={commonMessage}
+            onChange={(e) => setCommonMessage(e.target.value)}
+            placeholder="Type your message here..."
+            rows={4}
+          />
         </div>
 
         {/* More Settings Section */}

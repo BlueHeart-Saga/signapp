@@ -79,12 +79,17 @@ class BulkRecipientTemplate(BaseModel):
     signing_order_start: int = 1
     role: RecipientRole = RecipientRole.SIGNER
 
+class ReorderItem(BaseModel):
+    recipient_id: str
+    signing_order: int
+
 class SendInvitesRequest(BaseModel):
     recipient_ids: List[str]
     common_message: Optional[str] = None
     personal_messages: Optional[dict] = {}  # {"recipient_id": "personal message"}
     expiry_days: Optional[int] = None  # None means use document setting
     reminder_period: Optional[int] = None  # None means use document setting
+    signing_order_enabled: bool = False  # Add this flag
     
     
 def generate_recipient_color(email: str) -> str:
@@ -801,13 +806,40 @@ async def send_invites_to_recipients(
         if not recipients:
             raise HTTPException(status_code=404, detail="No recipients found")
 
-        # Send invites in background - USE INVITES_DATA, NOT REQUEST
+        # ✅ NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
+        if invites_data.signing_order_enabled:
+            # Find the minimum signing order across all document recipients
+            all_doc_recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+            min_order = min(r.get("signing_order", 1) for r in all_doc_recipients)
+            
+            # Repopulate current recipients to only send email to those at the lowest order
+            recipients = [r for r in all_doc_recipients if r.get("signing_order", 1) == min_order]
+            
+            # Log the sequential flow start
+            _log_event(
+                document_id,
+                None,
+                "signing_order_activated",
+                {"first_order": min_order, "count": len(recipients)},
+                request
+            )
+            
+            # Mark all others as 'awaiting_previous'
+            db.recipients.update_many(
+                {
+                    "document_id": ObjectId(document_id),
+                    "signing_order": {"$gt": min_order}
+                },
+                {"$set": {"status": "awaiting_previous"}}
+            )
+        
+        # Send invites in background - This will now only process the filtered list
         background_tasks.add_task(
             send_bulk_invites,
             document_id,
             recipients,
-            invites_data.common_message,  # Fixed: use invites_data
-            invites_data.personal_messages,  # Fixed: use invites_data
+            invites_data.common_message or document.get("common_message", ""),
+            invites_data.personal_messages,
             current_user["email"]
         )
 
@@ -830,7 +862,8 @@ async def send_invites_to_recipients(
             "expiry_days": expiry_days,
             "reminder_period": reminder_period,
             "expires_at": expires_at,
-            "next_reminder_at": next_reminder_at
+            "next_reminder_at": next_reminder_at,
+            "signing_order_enabled": invites_data.signing_order_enabled  # Save this
         }
         
         db.documents.update_one(
@@ -838,10 +871,11 @@ async def send_invites_to_recipients(
             {"$set": update_fields}
         )
         
-        # Update recipient statuses - USE INVITES_DATA
+        # Update recipient statuses - ONLY FOR THOSE BEING INVITED NOW
+        invite_ids = [r["_id"] for r in recipients]
         db.recipients.update_many(
             {
-                "_id": {"$in": [ObjectId(rid) for rid in invites_data.recipient_ids]}  # Fixed: use invites_data
+                "_id": {"$in": invite_ids}
             },
             {
                 "$set": {
@@ -1140,7 +1174,7 @@ async def bulk_delete_recipients(
 async def reorder_recipients(
     request: Request,
     document_id: str,
-    new_order: List[dict],  # [{"recipient_id": "id", "signing_order": 1}, ...]
+    new_order: List[ReorderItem],  # Use the model here
     current_user: dict = Depends(get_current_user)
 ):
     """Update signing order for multiple recipients"""
@@ -1162,7 +1196,7 @@ async def reorder_recipients(
             )
         
         # Validate all recipients belong to this document
-        recipient_ids = [ObjectId(item["recipient_id"]) for item in new_order]
+        recipient_ids = [ObjectId(item.recipient_id) for item in new_order]
         recipients_count = db.recipients.count_documents({
             "_id": {"$in": recipient_ids},
             "document_id": ObjectId(document_id)
@@ -1178,10 +1212,10 @@ async def reorder_recipients(
         for item in new_order:
             db.recipients.update_one(
                 {
-                    "_id": ObjectId(item["recipient_id"]),
+                    "_id": ObjectId(item.recipient_id),
                     "document_id": ObjectId(document_id)
                 },
-                {"$set": {"signing_order": item["signing_order"]}}
+                {"$set": {"signing_order": item.signing_order}}
             )
             
         _log_event(
@@ -1190,7 +1224,7 @@ async def reorder_recipients(
             "recipients_reordered",
             {
                 "recipient_count": len(new_order),
-                "new_order": [{"id": item["recipient_id"], "order": item["signing_order"]} 
+                "new_order": [{"id": item.recipient_id, "order": item.signing_order} 
                             for item in new_order[:10]]  # Log first 10
             },
             request  # Need to add Request parameter

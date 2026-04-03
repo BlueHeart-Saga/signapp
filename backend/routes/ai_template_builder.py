@@ -8,12 +8,12 @@ from datetime import datetime, timezone
 from enum import Enum
 import base64
 from io import BytesIO
-from openai import RateLimitError
+import cohere
+from cohere import CohereAPIError
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field, validator
-import openai
 import PyPDF2
 from docx import Document as DocxDocument
 from bson import ObjectId
@@ -31,10 +31,26 @@ from .documents import serialize_document, serialize_field_with_recipient
 from .fields import normalize_field_value
 
 # Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
-# Initialize OpenAI client
-openai_client = openai.OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# Initialize Cohere client with robust version detection
+cohere_client = None
+co_version = None
+
+if COHERE_API_KEY:
+    try:
+        # Try V2 client first (preferred)
+        from cohere import ClientV2
+        cohere_client = ClientV2(api_key=COHERE_API_KEY)
+        co_version = 2
+    except (ImportError, AttributeError):
+        try:
+            # Fallback to V1 client
+            cohere_client = cohere.Client(api_key=COHERE_API_KEY)
+            co_version = 1
+        except Exception as e:
+            print(f"[COHERE INIT ERROR] {e}")
+            co_version = 0
 
 router = APIRouter(prefix="/api/ai/templates", tags=["AI Template Builder"])
 
@@ -160,60 +176,117 @@ class TemplateToDocumentRequest(BaseModel):
     auto_generate_envelope: bool = True
 
 # ========== HELPER FUNCTIONS ==========
-async def _safe_openai_call(model, messages, response_format):
+async def _safe_cohere_call(model, messages, response_format):
     retries = 5
     for attempt in range(retries):
         try:
-            return openai_client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=4000,
-                response_format={"type": response_format} if response_format == "json_object" else None
-            )
-        except RateLimitError:
-            wait = (attempt + 1) * 1.2
-            print(f"[OpenAI 429] Rate limited. Retrying in {wait}s...")
-            await asyncio.sleep(wait)
+            if co_version == 2:
+                # Cohere V2 usage
+                response = cohere_client.chat(
+                    model=model,
+                    messages=messages,
+                    response_format={"type": response_format} if response_format == "json_object" else None,
+                    temperature=0.3,
+                    max_tokens=4000
+                )
+                return response
+            else:
+                # Cohere V1 (classic) usage
+                # Extract preamble from system message and message from user message
+                preamble = messages[0]["content"] if messages[0]["role"] == "system" else ""
+                user_msg = messages[-1]["content"] if messages[-1]["role"] == "user" else ""
+                
+                # Convert history
+                history = []
+                for msg in messages[1:-1]:
+                    history.append({"role": "USER" if msg["role"] == "user" else "CHATBOT", "message": msg["content"]})
+                
+                response = cohere_client.chat(
+                    model=model,
+                    message=user_msg,
+                    preamble=preamble,
+                    chat_history=history,
+                    # Classic V1 doesn't consistently support response_format keyword in all SDK versions.
+                    temperature=0.3,
+                    max_tokens=4000
+                )
+                return response
+
+        except CohereAPIError as e:
+            if e.status_code == 429:
+                wait = (attempt + 1) * 4.0
+                print(f"[Cohere 429] Rate limited (Attempt {attempt + 1}/{retries}). Retrying in {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                print(f"[Cohere ERROR] {e}")
+                raise HTTPException(status_code=500, detail=f"Cohere service error: {str(e)}")
         except Exception as e:
-            print(f"[OpenAI ERROR] {e}")
-            raise HTTPException(status_code=500, detail=f"OpenAI call failed: {str(e)}")
+            if isinstance(e, HTTPException):
+                raise e
+            print(f"[AI ERROR] {e}")
+            raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
     
     raise HTTPException(
         status_code=429,
-        detail="OpenAI rate limit exceeded. Please wait a moment and try again."
+        detail="AI service is currently experiencing high traffic. Please try again in a few minutes."
     )
     
-async def analyze_with_openai(document_text: str, instructions: str, response_format="json_object") -> Dict:
-    if not openai_client:
-        raise HTTPException(status_code=500, detail="OpenAI client not configured")
+async def analyze_with_ai(document_text: str, instructions: str, response_format="json_object") -> Dict:
+    if not cohere_client:
+        raise HTTPException(status_code=500, detail="AI client not configured")
 
     try:
+        json_req = " STRICTLY return ONLY valid JSON." if response_format == "json_object" else ""
         messages = [
-            {"role": "system", "content": "You are a professional document template generator and legal expert. Always respond with valid JSON when requested."},
+            {"role": "system", "content": f"You are a professional document template generator and legal expert.{json_req}"},
             {"role": "user", "content": f"{instructions}\n\n{document_text}"}
         ]
 
-        model = "gpt-4o-mini" if len(document_text) < 4000 else "gpt-4o"
+        model = "command-r-08-2024" if len(document_text) < 4000 else "command-r-plus-08-2024"
 
         # SAFE CALL WRAPPER
-        response = await _safe_openai_call(model, messages, response_format)
+        response = await _safe_cohere_call(model, messages, response_format)
 
-        content = response.choices[0].message.content
+        if co_version == 2:
+            content = response.message.content[0].text
+        else:
+            content = response.text
 
         if response_format == "json_object":
+            # Extract the JSON object from the response string
             try:
-                return json.loads(content)
+                data = json.loads(content)
             except json.JSONDecodeError:
+                # Fallback: Find the first { and last } to handle preamble/postamble
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 if start != -1 and end != 0:
-                    return json.loads(content[start:end])
-                raise
+                    data = json.loads(content[start:end])
+                else:
+                    raise
+            
+            # Post-process content to handle Cohere's tendency to wrap HTML tags in braces
+            if isinstance(data, dict) and "content" in data:
+                c = data["content"]
+                # Fix triple braces: {{{h1}}} -> <h1>, {{{\/h1}}} -> </h1>
+                c = re.sub(r'{{{([a-z1-6]+)}}}', r'<\1>', c)
+                c = re.sub(r'{{{\/([a-z1-6]+)}}}', r'</\1>', c)
+                # Fix double braces: {{h1}} -> <h1>, {{\/h1}} -> </h1>
+                c = re.sub(r'{{([a-z1-6]+)}}', r'<\1>', c)
+                c = re.sub(r'{{\/([a-z1-6]+)}}', r'</\1>', c)
+                # Ensure fields stay as {{field_name}} - fix any over-conversion
+                # Re-check field format: {{field}} is already the standard
+                data["content"] = c
+                
+            return data
 
         return content
 
+    except HTTPException:
+        # Let FastAPI HTTPExceptions through (like our 429)
+        raise
     except Exception as e:
+        print(f"[ANALYSIS ERROR] {e}")
         raise HTTPException(status_code=500, detail=f"OpenAI analysis failed: {str(e)}")
 
 async def extract_document_text(file: UploadFile) -> Tuple[str, int]:
@@ -1620,7 +1693,7 @@ SPECIAL INSTRUCTIONS:"""
 RESPONSE FORMAT (MUST BE VALID JSON):
 {{
     "title": "Professional, descriptive title for the template",
-    "content": "Full template text with {{field_name}} placeholders. Use proper HTML tags for structure: <h1>, <h2>, <h3>, <p>, <section>, <div>.",
+    "content": "Full template text with {{field_name}} placeholders. Use ACTUAL standard HTML tags for structure: <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>. DO NOT wrap HTML tags in braces - use standard < > brackets.",
     "fields": [
         {{
             "name": "field_name_in_snake_case",
@@ -1962,14 +2035,14 @@ async def generate_ai_template(
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
         
-        if not openai_client:
+        if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         # Generate prompt
         prompt = await generate_template_prompt(request)
         
-        # Call OpenAI
-        ai_response = await analyze_with_openai("", prompt, response_format="json_object")
+        # Call AI
+        ai_response = await analyze_with_ai("", prompt, response_format="json_object")
         
         # Validate AI response
         if not isinstance(ai_response, dict):
@@ -2204,7 +2277,7 @@ async def analyze_document_for_template(
 ):
     """Analyze uploaded document to suggest template structure"""
     try:
-        if not openai_client:
+        if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         # Extract text from document
@@ -2254,7 +2327,7 @@ RESPONSE FORMAT (MUST BE VALID JSON):
 
 IMPORTANT: Use standardized field names in snake_case format."""
         
-        analysis = await analyze_with_openai(normalized_text, analysis_prompt, response_format="json_object")
+        analysis = await analyze_with_ai(normalized_text, analysis_prompt, response_format="json_object")
         
         # Ensure response has expected structure
         if not isinstance(analysis, dict):
@@ -2978,7 +3051,7 @@ async def suggest_smart_fields(
     Uses OpenAI to detect places where user input fields should be added.
     """
     try:
-        if not openai_client:
+        if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
 
         prompt = f"""
@@ -3035,7 +3108,7 @@ RESPONSE FORMAT (STRICT JSON):
 IMPORTANT: Fields should be placed INLINE with the text using {{field_name}} format.
 Calculate positions based on logical document flow."""
 
-        ai_result = await analyze_with_openai("", prompt, response_format="json_object")
+        ai_result = await analyze_with_ai("", prompt, response_format="json_object")
 
         # Safety fallback
         if not isinstance(ai_result, dict):
@@ -3062,7 +3135,7 @@ async def detect_and_position_placeholders(
     Detect placeholders in template content and suggest field positions.
     """
     try:
-        if not openai_client:
+        if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         # First, detect placeholders in content
@@ -3148,7 +3221,7 @@ RESPONSE FORMAT (STRICT JSON):
   "detection_summary": "Found X placeholders, suggested positions based on content flow"
 }}"""
 
-        ai_result = await analyze_with_openai("", prompt, response_format="json_object")
+        ai_result = await analyze_with_ai("", prompt, response_format="json_object")
         
         if not isinstance(ai_result, dict) or "suggested_fields" not in ai_result:
             # Fallback: assign default positions
@@ -3188,7 +3261,7 @@ async def auto_position_fields(
     Automatically calculate optimal positions for fields based on template content.
     """
     try:
-        if not openai_client:
+        if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         # Parse fields data
@@ -3260,7 +3333,7 @@ RESPONSE FORMAT (STRICT JSON):
 IMPORTANT: Calculate based on document structure. Fields should not overlap.
 Leave at least 2% spacing between fields."""
 
-        ai_result = await analyze_with_openai("", prompt, response_format="json_object")
+        ai_result = await analyze_with_ai("", prompt, response_format="json_object")
         
         # Merge AI positions with original field data
         if isinstance(ai_result, dict) and "positioned_fields" in ai_result:
@@ -3328,5 +3401,5 @@ Leave at least 2% spacing between fields."""
 # ========== MAIN FUNCTION FOR TESTING ==========
 if __name__ == "__main__":
     print("AI Template Builder Module Loaded Successfully")
-    print(f"OpenAI Configured: {openai_client is not None}")
+    print(f"Cohere Configured: {cohere_client is not None}")
     print(f"Available Endpoints: {[route.path for route in router.routes if hasattr(route, 'path')]}")

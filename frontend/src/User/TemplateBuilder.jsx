@@ -187,19 +187,19 @@ class TemplateAPIService {
       headers: await this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Generation failed');
     }
-    
+
     return await response.json();
   }
 
   static async analyzeDocument(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/ai/templates/analyze-document`, {
       method: 'POST',
@@ -208,19 +208,19 @@ class TemplateAPIService {
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Analysis failed');
     }
-    
+
     return await response.json();
   }
 
   static async suggestSmartFields(templateContent) {
     const formData = new FormData();
     formData.append('template_content', templateContent);
-    
+
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/ai/templates/smart-fields`, {
       method: 'POST',
@@ -229,7 +229,7 @@ class TemplateAPIService {
       },
       body: formData
     });
-    
+
     return await response.json();
   }
 
@@ -238,11 +238,11 @@ class TemplateAPIService {
       method: 'GET',
       headers: await this.getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch edit mode');
     }
-    
+
     return await response.text();
   }
 
@@ -251,11 +251,11 @@ class TemplateAPIService {
       method: 'GET',
       headers: await this.getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch preview mode');
     }
-    
+
     return await response.text();
   }
 
@@ -264,18 +264,18 @@ class TemplateAPIService {
       method: 'GET',
       headers: await this.getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch template in ${mode} mode`);
     }
-    
+
     return await response.text();
   }
 
   static async updateTemplateContent(templateId, content) {
     const formData = new FormData();
     formData.append('content', content);
-    
+
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/ai/templates/templates/${templateId}`, {
       method: 'PUT',
@@ -284,12 +284,12 @@ class TemplateAPIService {
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Update failed');
     }
-    
+
     return await response.json();
   }
 
@@ -299,12 +299,12 @@ class TemplateAPIService {
       headers: await this.getAuthHeaders(),
       body: JSON.stringify(fieldData)
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to add field');
     }
-    
+
     return await response.json();
   }
 
@@ -314,12 +314,12 @@ class TemplateAPIService {
       headers: await this.getAuthHeaders(),
       body: JSON.stringify(templateData)
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Save failed');
     }
-    
+
     return await response.json();
   }
 
@@ -330,11 +330,11 @@ class TemplateAPIService {
         headers: await this.getAuthHeaders(),
         body: JSON.stringify(updates)
       });
-      
+
       if (!response.ok) {
         throw new Error('Update failed');
       }
-      
+
       return await response.json();
     } catch (error) {
       // Try alternative endpoint
@@ -343,12 +343,12 @@ class TemplateAPIService {
         headers: await this.getAuthHeaders(),
         body: JSON.stringify(updates)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Update failed');
       }
-      
+
       return await response.json();
     }
   }
@@ -362,11 +362,11 @@ class TemplateAPIService {
           headers: await this.getAuthHeaders()
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Export failed');
       }
-      
+
       if (format === 'html') {
         return await response.text();
       } else {
@@ -381,11 +381,11 @@ class TemplateAPIService {
           headers: await this.getAuthHeaders()
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Export failed');
       }
-      
+
       if (format === 'html') {
         return await response.text();
       } else {
@@ -399,11 +399,11 @@ class TemplateAPIService {
       method: 'GET',
       headers: await this.getAuthHeaders()
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch versions');
     }
-    
+
     return await response.json();
   }
 
@@ -415,41 +415,41 @@ class TemplateAPIService {
         headers: await this.getAuthHeaders()
       }
     );
-    
+
     if (!response.ok) {
       throw new Error('Failed to restore version');
     }
-    
+
     return await response.json();
   }
 
   static async autoSaveTemplate(templateId, content, fields) {
-  const formData = new FormData();
-  formData.append('content', content);
-  formData.append('fields', JSON.stringify(fields));
-  formData.append('timestamp', new Date().toISOString());
-  
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${API_BASE_URL}/api/ai/templates/templates/${templateId}/autosave`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    console.warn('Auto-save failed');
-    return null;
+    const formData = new FormData();
+    formData.append('content', content);
+    formData.append('fields', JSON.stringify(fields));
+    formData.append('timestamp', new Date().toISOString());
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/ai/templates/templates/${templateId}/autosave`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      console.warn('Auto-save failed');
+      return null;
+    }
+
+    return await response.json();
   }
-  
-  return await response.json();
-}
-static async autoPositionFields(templateContent, fields) {
+  static async autoPositionFields(templateContent, fields) {
     const formData = new FormData();
     formData.append('template_content', templateContent);
     formData.append('fields_data', JSON.stringify(fields));
-    
+
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/ai/templates/auto-position-fields`, {
       method: 'POST',
@@ -458,18 +458,18 @@ static async autoPositionFields(templateContent, fields) {
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       throw new Error('Auto-positioning failed');
     }
-    
+
     return await response.json();
   }
-  
+
   static async detectAndPositionPlaceholders(templateContent) {
     const formData = new FormData();
     formData.append('template_content', templateContent);
-    
+
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/api/ai/templates/detect-and-position-placeholders`, {
       method: 'POST',
@@ -478,11 +478,11 @@ static async autoPositionFields(templateContent, fields) {
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       throw new Error('Placeholder detection failed');
     }
-    
+
     return await response.json();
   }
 }
@@ -578,7 +578,7 @@ const FIELD_TYPES = {
 // Helper function to render field components
 const getFieldComponent = (fieldType, fieldData, isPreview = false) => {
   const config = FIELD_TYPES[fieldType];
-  
+
   switch (fieldType) {
     case 'text':
       return (
@@ -688,7 +688,7 @@ const getFieldComponent = (fieldType, fieldData, isPreview = false) => {
 
 const LivePreview = ({ templateContent, fields, open, onClose, position = 'bottom-right' }) => {
   const previewRef = useRef(null);
-  
+
   const positions = {
     'top-right': { top: 80, right: 20 },
     'top-left': { top: 80, left: 20 },
@@ -716,9 +716,9 @@ const LivePreview = ({ templateContent, fields, open, onClose, position = 'botto
         flexDirection: 'column'
       }}
     >
-      <Box sx={{ 
-        p: 1, 
-        bgcolor: 'primary.main', 
+      <Box sx={{
+        p: 1,
+        bgcolor: 'primary.main',
         color: 'white',
         display: 'flex',
         justifyContent: 'space-between',
@@ -731,9 +731,9 @@ const LivePreview = ({ templateContent, fields, open, onClose, position = 'botto
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
-      
+
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        <Box sx={{ 
+        <Box sx={{
           transform: 'scale(0.3)',
           transformOrigin: 'top left',
           width: '8.5in',
@@ -743,8 +743,8 @@ const LivePreview = ({ templateContent, fields, open, onClose, position = 'botto
         }}>
           <Box sx={{ p: '1in' }}>
             {templateContent ? (
-              <Box 
-                sx={{ 
+              <Box
+                sx={{
                   whiteSpace: 'pre-wrap',
                   fontFamily: 'inherit',
                   fontSize: '12px',
@@ -757,7 +757,7 @@ const LivePreview = ({ templateContent, fields, open, onClose, position = 'botto
                 No content yet
               </Typography>
             )}
-            
+
             {fields.map((field) => (
               <Box
                 key={field.id}
@@ -769,10 +769,10 @@ const LivePreview = ({ templateContent, fields, open, onClose, position = 'botto
                   pointerEvents: 'none'
                 }}
               >
-                <Paper 
-                  sx={{ 
-                    p: 0.5, 
-                    bgcolor: 'white', 
+                <Paper
+                  sx={{
+                    p: 0.5,
+                    bgcolor: 'white',
                     border: '1px solid #ddd',
                     transform: 'scale(0.3)',
                     transformOrigin: 'top left'
@@ -804,19 +804,19 @@ const useAutoSave = (templateId, templateContent, fields, onSaveSuccess) => {
 
   const autoSave = useCallback(async () => {
     if (!templateId) return;
-    
+
     const contentChanged = lastContentRef.current !== templateContent;
     const fieldsChanged = JSON.stringify(lastFieldsRef.current) !== JSON.stringify(fields);
-    
+
     if (!contentChanged && !fieldsChanged) return;
-    
+
     setIsSaving(true);
     try {
       await TemplateAPIService.autoSaveTemplate(templateId, templateContent, fields);
-      
+
       lastContentRef.current = templateContent;
       lastFieldsRef.current = JSON.parse(JSON.stringify(fields));
-      
+
       if (onSaveSuccess) onSaveSuccess();
     } catch (error) {
       console.warn('Auto-save failed:', error);
@@ -860,10 +860,10 @@ const useAutoSave = (templateId, templateContent, fields, onSaveSuccess) => {
 // Document Canvas Component (Edit Mode)
 // ============================================
 
-const DocumentCanvas = ({ 
-  mode = 'edit', 
-  templateId, 
-  fields = [], 
+const DocumentCanvas = ({
+  mode = 'edit',
+  templateId,
+  fields = [],
   selectedFieldId,
   onFieldSelect,
   onFieldDelete,
@@ -908,36 +908,36 @@ const DocumentCanvas = ({
 
   const handleCanvasDrop = (e) => {
     e.preventDefault();
-    
+
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    
+
     const x = e.clientX - rect.left - 96;
     const y = e.clientY - rect.top - 96;
-    
+
     const fieldType = e.dataTransfer.getData('fieldType');
     if (fieldType && onFieldAddFromLibrary) {
       onFieldAddFromLibrary(fieldType, { x, y });
     }
-    
+
     const fieldId = e.dataTransfer.getData('fieldId');
     if (fieldId && onFieldMove) {
       onFieldMove(fieldId, { x, y });
     }
-    
+
     setIsDragging(false);
     setDropPosition(null);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    
+
     if (!containerRef.current) return;
-    
+
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left - 96;
     const y = e.clientY - rect.top - 96;
-    
+
     setDropPosition({ x, y });
   };
 
@@ -949,11 +949,11 @@ const DocumentCanvas = ({
 
   const renderEditMode = () => (
     <>
-      <Box 
+      <Box
         ref={containerRef}
-        sx={{ 
-          flex: 1, 
-          overflow: 'auto', 
+        sx={{
+          flex: 1,
+          overflow: 'auto',
           bgcolor: '#f8f9fa',
           position: 'relative'
         }}
@@ -993,10 +993,10 @@ const DocumentCanvas = ({
             position: 'relative'
           }}
         >
-          <Box 
+          <Box
             ref={contentEditableRef}
-            sx={{ 
-              p: '1in', 
+            sx={{
+              p: '1in',
               minHeight: '11in',
               outline: 'none',
               cursor: 'text'
@@ -1087,8 +1087,8 @@ const DocumentCanvas = ({
       >
         <Box sx={{ p: '1in', minHeight: '11in' }}>
           {templateContent ? (
-            <Box 
-              sx={{ 
+            <Box
+              sx={{
                 whiteSpace: 'pre-wrap',
                 fontFamily: 'inherit',
                 fontSize: 'inherit',
@@ -1101,7 +1101,7 @@ const DocumentCanvas = ({
               No content yet
             </Typography>
           )}
-          
+
           {fields.map((field) => (
             <Box
               key={field.id}
@@ -1142,17 +1142,17 @@ const DocumentCanvas = ({
           <RefreshIcon />
         </IconButton>
         <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        
+
         <Tooltip title="Toggle Live Preview">
-          <IconButton 
-            size="small" 
+          <IconButton
+            size="small"
             onClick={onToggleLivePreview}
             color={showLivePreview ? 'primary' : 'default'}
           >
             <PictureInPictureIcon />
           </IconButton>
         </Tooltip>
-        
+
         <Typography variant="body2" color="text.secondary">
           {mode === 'edit' ? 'Edit Mode - Click to edit text, drag to move fields' : 'Preview Mode'}
         </Typography>
@@ -1436,7 +1436,7 @@ const AISmartFieldSuggestions = ({ templateContent, onApplySuggestions }) => {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await TemplateAPIService.suggestSmartFields(templateContent);
       setSuggestions(result);
@@ -1453,7 +1453,7 @@ const AISmartFieldSuggestions = ({ templateContent, onApplySuggestions }) => {
         <AssistantIcon sx={{ mr: 1, color: 'primary.main' }} />
         <Typography variant="h6">AI Field Suggestions</Typography>
       </Box>
-      
+
       <Typography variant="body2" color="text.secondary" paragraph>
         Let AI analyze your template and suggest appropriate fields to add.
       </Typography>
@@ -1588,7 +1588,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
         height: fieldConfig.defaultHeight
       }
     };
-    
+
     setFields(prev => [...prev, newField]);
     setSelectedFieldId(newField.id);
     showSnackbar(`Added ${fieldConfig.label}`, 'success');
@@ -1618,7 +1618,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
         height: FIELD_TYPES[field.type]?.defaultHeight || 40
       }
     };
-    
+
     setFields(prev => [...prev, newField]);
     setSelectedFieldId(newField.id);
     showSnackbar('Added field from AI suggestion', 'success');
@@ -1627,9 +1627,9 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
   const handleAutoPositionFields = async () => {
     try {
       setLoading(true);
-      
+
       const result = await TemplateAPIService.autoPositionFields(templateContent, fields);
-      
+
       if (result.fields && result.fields.length > 0) {
         // Update fields with new positions
         const updatedFields = fields.map(field => {
@@ -1650,7 +1650,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
           }
           return field;
         });
-        
+
         setFields(updatedFields);
         showSnackbar(`Auto-positioned ${result.fields.length} fields`, 'success');
       }
@@ -1660,13 +1660,13 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
       setLoading(false);
     }
   };
-  
+
   const handleDetectPlaceholders = async () => {
     try {
       setLoading(true);
-      
+
       const result = await TemplateAPIService.detectAndPositionPlaceholders(templateContent);
-      
+
       if (result.suggested_fields && result.suggested_fields.length > 0) {
         // Add new fields based on detected placeholders
         const newFields = result.suggested_fields.map(field => ({
@@ -1686,7 +1686,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
             backgroundColor: '#FFFFFF'
           }
         }));
-        
+
         setFields(prev => [...prev, ...newFields]);
         showSnackbar(`Detected and added ${newFields.length} fields`, 'success');
       }
@@ -1717,14 +1717,14 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
       };
 
       let savedTemplate;
-      
+
       if (templateId) {
         savedTemplate = await TemplateAPIService.updateTemplate(templateId, templateData);
       } else {
         savedTemplate = await TemplateAPIService.saveTemplate(templateData);
         setTemplateId(savedTemplate._id || savedTemplate.id);
       }
-      
+
       setVersion(prev => Math.floor(prev) + 1);
       setLastSaveTime(new Date());
       showSnackbar('Template saved successfully!', 'success');
@@ -1744,7 +1744,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
 
     try {
       const result = await TemplateAPIService.exportTemplate(templateId, format);
-      
+
       if (format === 'html') {
         const blob = new Blob([result], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
@@ -1762,7 +1762,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
         a.click();
         URL.revokeObjectURL(url);
       }
-      
+
       showSnackbar(`Exported as ${format.toUpperCase()}`, 'success');
     } catch (error) {
       showSnackbar(`Export failed: ${error.message}`, 'error');
@@ -1783,7 +1783,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
             <IconButton edge="start" sx={{ mr: 2 }} onClick={onBack}>
               <BackIcon />
             </IconButton>
-            
+
             <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
               <TextField
                 variant="outlined"
@@ -1793,68 +1793,68 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
                 onChange={(e) => setTemplateName(e.target.value)}
                 sx={{ minWidth: 300 }}
               />
-              
+
               <Tooltip title={`Version ${version.toFixed(1)}`}>
-                <Chip 
-                  label={`v${version.toFixed(1)}`} 
-                  size="small" 
-                  variant="outlined" 
+                <Chip
+                  label={`v${version.toFixed(1)}`}
+                  size="small"
+                  variant="outlined"
                   color={isSaving ? "warning" : "default"}
                   icon={isSaving ? <CircularProgress size={16} /> : undefined}
                 />
               </Tooltip>
-              
+
               <Chip label={`${fields.length} fields`} size="small" color="primary" />
-              <Chip label={mode === 'edit' ? 'Edit Mode' : 'Preview Mode'} 
-                    color={mode === 'edit' ? 'primary' : 'secondary'} size="small" />
-              
+              <Chip label={mode === 'edit' ? 'Edit Mode' : 'Preview Mode'}
+                color={mode === 'edit' ? 'primary' : 'secondary'} size="small" />
+
               {lastSaveTime && (
                 <Typography variant="caption" color="text.secondary">
                   Last save: {lastSaveTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Typography>
               )}
             </Box>
-            
+
             <Box sx={{ display: 'flex', gap: 1 }}>
 
               <Tooltip title="Auto-position Fields">
-            <Button
-              variant="outlined"
-              startIcon={<AutoFixIcon />}
-              onClick={handleAutoPositionFields}
-              disabled={fields.length === 0}
-              size="small"
-            >
-              Auto-Position
-            </Button>
-          </Tooltip>
-          
-          <Tooltip title="Detect Placeholders">
-            <Button
-              variant="outlined"
-              startIcon={<AssistantIcon />}
-              onClick={handleDetectPlaceholders}
-              disabled={!templateContent}
-              size="small"
-            >
-              Detect Fields
-            </Button>
-          </Tooltip>
+                <Button
+                  variant="outlined"
+                  startIcon={<AutoFixIcon />}
+                  onClick={handleAutoPositionFields}
+                  disabled={fields.length === 0}
+                  size="small"
+                >
+                  Auto-Position
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Detect Placeholders">
+                <Button
+                  variant="outlined"
+                  startIcon={<AssistantIcon />}
+                  onClick={handleDetectPlaceholders}
+                  disabled={!templateContent}
+                  size="small"
+                >
+                  Detect Fields
+                </Button>
+              </Tooltip>
               <Tooltip title="Version History">
                 <IconButton onClick={() => setShowVersions(true)}>
                   <HistoryIcon />
                 </IconButton>
               </Tooltip>
-              
+
               <Tooltip title={mode === 'edit' ? 'Switch to Preview' : 'Switch to Edit'}>
-                <IconButton 
+                <IconButton
                   onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}
                   color={mode === 'edit' ? 'primary' : 'secondary'}
                 >
                   {mode === 'edit' ? <PreviewIcon /> : <EditIcon />}
                 </IconButton>
               </Tooltip>
-              
+
               <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
@@ -1863,7 +1863,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
               >
                 Export
               </Button>
-              
+
               <Button
                 variant="contained"
                 color="primary"
@@ -1903,46 +1903,46 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
                   templateContent={templateContent}
                   onApplySuggestions={handleApplyAISuggestions}
                 />
-                
+
                 <Accordion defaultExpanded>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography>Basic Fields</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     {['text', 'email', 'phone', 'number', 'date', 'textarea'].map(type => (
-                      <DraggableFieldItem 
-                        key={type} 
-                        fieldType={type} 
+                      <DraggableFieldItem
+                        key={type}
+                        fieldType={type}
                         onAddField={handleAddField}
                       />
                     ))}
                   </AccordionDetails>
                 </Accordion>
-                
+
                 <Accordion>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography>Signature Fields</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     {['signature'].map(type => (
-                      <DraggableFieldItem 
-                        key={type} 
-                        fieldType={type} 
+                      <DraggableFieldItem
+                        key={type}
+                        fieldType={type}
                         onAddField={handleAddField}
                       />
                     ))}
                   </AccordionDetails>
                 </Accordion>
-                
+
                 <Accordion>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography>Selection Fields</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     {['checkbox', 'dropdown'].map(type => (
-                      <DraggableFieldItem 
-                        key={type} 
-                        fieldType={type} 
+                      <DraggableFieldItem
+                        key={type}
+                        fieldType={type}
                         onAddField={handleAddField}
                       />
                     ))}
@@ -1962,7 +1962,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
 
           <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
             {loading && <LinearProgress />}
-            
+
             <Box sx={{ flexGrow: 1, p: 2, overflow: 'hidden' }}>
               <Paper sx={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <DocumentCanvas
@@ -2081,10 +2081,11 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
 const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const [error, setError] = useState(null);
+
   const generateTemplate = async () => {
     if (!description.trim()) return;
-    
+
     setLoading(true);
     try {
       const requestData = {
@@ -2094,11 +2095,12 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
         language: 'en',
         tone: 'professional'
       };
-      
+
       const response = await TemplateAPIService.generateAITemplate(requestData);
       onTemplateGenerated(response);
     } catch (error) {
       console.error('Generation failed:', error);
+      setError(error.message || 'Generation failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -2117,6 +2119,12 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+            <AlertTitle>Generation Failed</AlertTitle>
+            {error}
+          </Alert>
+        )}
         <Typography variant="h6" gutterBottom>Describe Your Template</Typography>
         <TextField
           fullWidth
@@ -2127,7 +2135,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           onChange={(e) => setDescription(e.target.value)}
           sx={{ mb: 3 }}
         />
-        
+
         <Button
           variant="contained"
           size="large"
@@ -2171,7 +2179,7 @@ const TemplateBuilderApp = () => {
       ) : (
         <TemplateBuilder
           template={generatedTemplate}
-          onSave={() => {}}
+          onSave={() => { }}
           onBack={handleBackToAI}
         />
       )}

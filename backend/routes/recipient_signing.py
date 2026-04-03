@@ -4653,6 +4653,43 @@ async def manually_complete_recipient(
             "document_finalized": True,
             "recipient_status": "completed"
         }
+
+    # ✅ SEQUENTIAL FLOW: TRIGGER NEXT SIGNER
+    document = db.documents.find_one({"_id": doc_id})
+    if document.get("signing_order_enabled"):
+        # Find current recipient's order
+        current_order = recipient.get("signing_order", 0)
+        
+        # Find if anyone else in current order is still pending
+        current_level_pending = db.recipients.count_documents({
+            "document_id": doc_id,
+            "signing_order": current_order,
+            "status": {"$nin": ["completed", "declined"]}
+        })
+        
+        if current_level_pending == 0:
+            # Everyone at current level finished, find next order
+            next_recipients = list(db.recipients.find({
+                "document_id": doc_id,
+                "signing_order": {"$gt": current_order},
+                "status": "awaiting_previous"
+            }).sort("signing_order", 1))
+            
+            if next_recipients:
+                # Group by order and take the lowest one
+                next_order = next_recipients[0]["signing_order"]
+                to_invite = [r for r in next_recipients if r["signing_order"] == next_order]
+                
+                # Send invites to the next level
+                from .email_service import send_bulk_invites
+                background_tasks.add_task(
+                    send_bulk_invites,
+                    str(doc_id),
+                    to_invite,
+                    document.get("common_message", ""),
+                    {}, # Personal messages already stored in recipient doc
+                    document.get("owner_email", "system@safesign.ai")
+                )
     
     # Log the manual completion
     _log_event(

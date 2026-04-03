@@ -107,6 +107,12 @@ export const recipientAPI = {
     return response.data;
   },
 
+  // Reorder recipients
+  reorderRecipients: async (documentId, newOrder) => {
+    const response = await api.post(`/recipients/${documentId}/reorder`, newOrder);
+    return response.data;
+  },
+
   // Send signing invites
   sendSigningInvites: async (documentId, inviteData) => {
     const response = await api.post(`/recipients/${documentId}/send-invites`, inviteData);
@@ -132,53 +138,53 @@ export const recipientAPI = {
   },
 
 
-   // Contact APIs
+  // Contact APIs
   getContacts: async (params = {}) => {
     const queryParams = new URLSearchParams(params).toString();
     const response = await api.get(`/recipients/contacts/?${queryParams}`);
     return response.data;
   },
-  
+
   getContact: async (contactId) => {
     const response = await api.get(`/recipients/contacts/${contactId}`);
     return response.data;
   },
-  
+
   createContact: async (contactData) => {
     const response = await api.post('/recipients/contacts/', contactData);
     return response.data;
   },
-  
+
   updateContact: async (contactId, contactData) => {
     const response = await api.put(`/recipients/contacts/${contactId}`, contactData);
     return response.data;
   },
-  
+
   deleteContact: async (contactId) => {
     const response = await api.delete(`/recipients/contacts/${contactId}`);
     return response.data;
   },
-  
+
   toggleFavorite: async (contactId, isFavorite) => {
     const response = await api.post(`/recipients/contacts/${contactId}/favorite`, { is_favorite: isFavorite });
     return response.data;
   },
-  
+
   getContactGroups: async () => {
     const response = await api.get('/recipients/contacts/groups/all');
     return response.data;
   },
-  
+
   searchContacts: async (query, limit = 10) => {
     const response = await api.get(`/recipients/contacts/search/suggest?q=${query}&limit=${limit}`);
     return response.data;
   },
-  
+
   importContacts: async (data) => {
     const response = await api.post('/recipients/contacts/import/recipients', data);
     return response.data;
   },
-  
+
   // New recipient with contact options
   addRecipientsWithContacts: async (documentId, recipients) => {
     const response = await api.post(`/recipients/${documentId}/add`, {
@@ -192,7 +198,7 @@ export const recipientAPI = {
     });
     return response.data;
   },
-  
+
   saveAsContact: async (recipientId, data) => {
     const response = await api.post(`/recipients/${recipientId}/save-contact`, data);
     return response.data;
@@ -205,15 +211,15 @@ export const recipientAPI = {
 // Signing API functions
 export const signingAPI = {
   // Get document for signing
-   getRecipientInfo: (recipientId) => 
+  getRecipientInfo: (recipientId) =>
     api.get(`/signing/recipient/${recipientId}`),
-    
+
   getSigningStatus: (recipientId) =>
     api.get(`/signing/recipient/${recipientId}/status`),
-    
+
   downloadDocument: (recipientId) =>
-    api.get(`/signing/recipient/${recipientId}/document`, { 
-      responseType: 'blob' 
+    api.get(`/signing/recipient/${recipientId}/document`, {
+      responseType: 'blob'
     }),
 
   // Verify OTP
@@ -237,7 +243,7 @@ export const signingAPI = {
 // Helper function for API calls
 export const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
-  
+
   const config = {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -248,12 +254,12 @@ export const apiRequest = async (endpoint, options = {}) => {
   };
 
   const response = await fetch(`${API_BASE}${endpoint}`, config);
-  
+
   if (!response.ok) {
     const error = await response.text();
     throw new Error(error || `HTTP error! status: ${response.status}`);
   }
-  
+
   return response.json();
 };
 
@@ -354,10 +360,10 @@ export const aiTemplatesAPI = {
   suggestSmartFields: (content) => api.post('/api/ai/templates/smart-fields', { template_content: content }),
 
   // Auto position fields
-  autoPositionFields: (content, fields) => 
-    api.post('/api/ai/templates/auto-position-fields', { 
-      template_content: content, 
-      fields_data: JSON.stringify(fields) 
+  autoPositionFields: (content, fields) =>
+    api.post('/api/ai/templates/auto-position-fields', {
+      template_content: content,
+      fields_data: JSON.stringify(fields)
     }),
 
   // Get template types

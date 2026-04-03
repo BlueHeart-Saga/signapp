@@ -124,7 +124,7 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 if not COHERE_API_KEY:
     raise Exception("COHERE_API_KEY not found")
 
-client = cohere.ClientV2(api_key=COHERE_API_KEY)
+cohere_client = cohere.Client(COHERE_API_KEY) if COHERE_API_KEY else None
 
 router = APIRouter(prefix="/ai", tags=["AI Documents"])
 
