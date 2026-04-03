@@ -3436,7 +3436,7 @@ async def send_completed_document_to_recipients(document_id: str):
                 recipient_role = recipient.get("role", "signer")
                 
                 # Send email with completed document
-                success = send_document_completion_email(
+                success = await send_document_completion_email(
                     recipient_email=recipient_email,
                     recipient_name=recipient_name,
                     document=document,
@@ -3518,7 +3518,7 @@ async def send_completed_document_to_recipients(document_id: str):
         traceback.print_exc()
         return False
     
-def send_document_completion_email(
+async def send_document_completion_email(
     recipient_email: str,
     recipient_name: str,
     document: dict,
@@ -3831,9 +3831,15 @@ def send_document_completion_email(
                     
                     <!-- Download Button -->
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{BACKEND_URL}/recipient/{str(recipient['_id']) if recipient else 'unknown'}/download/signed" class="download-button" style="color: white; background-color: #059669; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                        <a href="{BACKEND_URL}/signing/recipient/{str(recipient['_id']) if recipient else 'unknown'}/download/signed" class="download-button" style="color: white; background-color: #059669; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
                             Download Signed Document
                         </a>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: -10px; margin-bottom: 30px;">
+                        <p style="font-size: 14px; color: #6b7280;">
+                            A full document package (ZIP) is also attached to this email for your records.
+                        </p>
                     </div>
                     <!-- Attachment Info -->
                     <div class="attachment-info">
@@ -3895,6 +3901,30 @@ def send_document_completion_email(
             filename=f"signed_{document_name}"
         )
         msg.attach(pdf_attachment)
+        
+        # ✅ ATTACH FULL ZIP PACKAGE
+        try:
+            package_data = await generate_document_package(
+                document=document,
+                recipient=recipient,
+                sender_name=sender_name,
+                sender_email=sender_email,
+                sender_organization=sender_organization,
+                platform_name=platform_name,
+                logo_url=logo_url
+            )
+            
+            if package_data and package_data.get("zip_bytes"):
+                zip_attachment = MIMEApplication(package_data["zip_bytes"], _subtype="zip")
+                zip_attachment.add_header(
+                    "Content-Disposition",
+                    "attachment",
+                    filename=package_data["zip_filename"]
+                )
+                msg.attach(zip_attachment)
+                print(f"📦 Attached full ZIP package to completion email for {recipient_email}")
+        except Exception as ze:
+            print(f"⚠️ Warning: Could not generate/attach ZIP package to completion email: {str(ze)}")
         
         # Send email
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:

@@ -429,7 +429,33 @@ def serialize_document(doc):
             "witness": witness_count,
             "form_filler": form_filler_count,
             "viewer": viewer_count
-        }
+        },
+        "progress": doc.get("progress", 100),
+        "processing_status": doc.get("processing_status")
+    }
+
+@router.get("/{document_id}/status")
+async def get_document_status(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get real-time processing status of a document.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(404, "Document not found")
+        
+    return {
+        "id": document_id,
+        "status": doc.get("status", "draft"),
+        "progress": doc.get("progress", 0),
+        "processing_status": doc.get("processing_status", "Processing..."),
+        "page_count": doc.get("page_count", 0)
     }
     
 def log_activity(document_id, user, action):
@@ -1479,21 +1505,60 @@ async def upload_document(
                 detail=f"Document with envelope ID '{envelope_id_value}' already exists"
             )
 
+    # 1. Create Initial Document Record (Progress: 10%)
+    doc_data = {
+        "filename": file.filename,
+        "uploaded_at": datetime.utcnow(),
+        "owner_id": ObjectId(current_user["id"]),
+        "owner_email": current_user.get("email"),
+        "mime_type": file.content_type,
+        "size": 0, # Update later
+        "page_count": 0, # Update later
+        "status": "processing",
+        "progress": 10,
+        "processing_status": "Starting upload...",
+        "common_message": "Please review and sign this document at your earliest convenience.",
+        "expires_at": datetime.utcnow() + timedelta(days=30),
+        "source": "local",
+        "envelope_id": envelope_id_value
+    }
+    
+    result = db.documents.insert_one(doc_data)
+    document_id = str(result.inserted_id)
+
+    # 2. Read content (Progress: 20%)
     content = await file.read()
+    db.documents.update_one(
+        {"_id": result.inserted_id},
+        {"$set": {"size": len(content), "progress": 20, "processing_status": "Converting to PDF..."}}
+    )
+
+    # 3. Convert to PDF (Progress: 40%)
     converted_pdf_bytes = convert_to_pdf(content, file.filename)
 
+
     if not converted_pdf_bytes:
+        db.documents.update_one(
+            {"_id": result.inserted_id},
+            {"$set": {"status": "error", "processing_status": "PDF conversion failed"}}
+        )
         raise HTTPException(
             status_code=400,
             detail="File cannot be converted to PDF. The format may not be supported."
         )
 
     page_count = get_pdf_page_count(converted_pdf_bytes)
+    db.documents.update_one(
+        {"_id": result.inserted_id},
+        {"$set": {"page_count": page_count, "progress": 45, "processing_status": "Saving to storage..."}}
+    )
+
     
     # ============================================
     # NEW: Upload to Azure Blob Storage
     # ============================================
     
+    # 4. Upload Files (Progress: 60%)
     # Upload original file
     original_file_path = storage.upload(
         content, 
@@ -1520,6 +1585,12 @@ async def upload_document(
         f"{file.filename}_preview.png",
         folder=f"users/{current_user['id']}/thumbnails/previews"
     )
+    
+    db.documents.update_one(
+        {"_id": result.inserted_id},
+        {"$set": {"progress": 70, "processing_status": "Generating page thumbnails..."}}
+    )
+
 
     # Generate page thumbnails for navigation
     page_thumbnail_refs = []
@@ -1536,39 +1607,29 @@ async def upload_document(
             "thumbnail_path": page_thumb_path,
             "is_preview": False
         })
+        
+        # Incremental progress for many pages
+        if page_count > 0:
+            current_progress = 70 + int((page_num + 1) / page_count * 25)
+            db.documents.update_one(
+                {"_id": result.inserted_id},
+                {"$set": {"progress": min(current_progress, 95)}}
+            )
 
-    # Save document metadata
-    doc_data = {
-        "filename": file.filename,
-        "uploaded_at": datetime.utcnow(),
-        "owner_id": ObjectId(current_user["id"]),
-        "owner_email": current_user.get("email"),
-        "mime_type": file.content_type,
-        "size": len(content),
-        "page_count": page_count,
-        "status": "draft",
-        "common_message": "Please review and sign this document at your earliest convenience.",
-        
-        # Storage paths instead of GridFS IDs
-        "original_file_path": original_file_path,
+    # FINAL UPDATE (Progress: 100%)
+    final_updates = {
         "pdf_file_path": pdf_file_path,
-        "signed_pdf_path": None,
-        
-        "recipient_count": 0,
-        "signed_count": 0,
-        "source": "local",
-        "is_converted": is_converted,
-        "envelope_id": envelope_id_value,
-        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id,
+        "original_file_path": original_file_path,
         "preview_thumbnail_path": preview_thumb_path,
         "page_thumbnails": page_thumbnail_refs,
-        "has_preview": True
+        "status": "draft",
+        "progress": 100,
+        "processing_status": "Complete"
     }
-
-    result = db.documents.insert_one(doc_data)
-    doc_data["_id"] = result.inserted_id
     
-    # Register original PDF as first file
+    db.documents.update_one({"_id": result.inserted_id}, {"$set": final_updates})
+    
+    # Also insert entry into document_files for consistency
     db.document_files.insert_one({
         "document_id": result.inserted_id,
         "file_path": pdf_file_path,  # Changed from file_id
@@ -1617,13 +1678,35 @@ async def add_file_to_document(
     if doc["status"] != "draft":
         raise HTTPException(400, "Cannot add files after sending")
 
+    # Initial progress update (Progress: 30%)
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"progress": 30, "processing_status": "Reading new file..."}}
+    )
+
     content = await file.read()
+    
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"progress": 50, "processing_status": "Converting to PDF..."}}
+    )
+    
     pdf_bytes = convert_to_pdf(content, file.filename)
 
     if not pdf_bytes:
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$set": {"progress": 100, "processing_status": "Conversion failed"}}
+        )
         raise HTTPException(400, "File cannot be converted")
 
     page_count = get_pdf_page_count(pdf_bytes)
+    
+    db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"progress": 70, "processing_status": "Uploading to storage..."}}
+    )
+
 
     # ============================================
     # Upload to Azure Blob Storage
@@ -1664,8 +1747,12 @@ async def add_file_to_document(
 
     db.documents.update_one(
         {"_id": ObjectId(document_id)},
-        {"$inc": {"page_count": page_count}}
+        {
+            "$inc": {"page_count": page_count},
+            "$set": {"progress": 100, "processing_status": "Complete"}
+        }
     )
+
     
     _log_event(
         document_id,
@@ -1841,10 +1928,10 @@ async def view_file_preview(
 async def get_page_thumbnail(
     document_id: str,
     page_number: int,
+    request: Request,
     width: int = Query(200, ge=50, le=1000),
     height: int = Query(300, ge=50, le=1000),
-    token: Optional[str] = Query(None),
-    current_user: Optional[dict] = Depends(get_current_user)
+    token: Optional[str] = Query(None)
 ):
     """
     Get thumbnail for a specific page.
@@ -1855,38 +1942,27 @@ async def get_page_thumbnail(
     except:
         raise HTTPException(400, "Invalid document ID")
     
-    # Check permissions (same as before)
-    if token:
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = payload.get("id") or payload.get("_id")
-        except JWTError:
-            raise HTTPException(401, "Invalid token")
-            
+    # Use standard helper to get user from token (query or header)
+    user = await get_user_from_request(request)
+    
+    # Verify owner or recipient access
+    doc = db.documents.find_one({
+        "_id": doc_id,
+        "owner_id": ObjectId(user["id"])
+    })
+    
+    if not doc:
+        # Check if it's a recipient access
         recipient = db.recipients.find_one({
             "document_id": doc_id,
-            "$or": [
-                {"email": payload.get("email")},
-                {"_id": ObjectId(user_id) if user_id else None}
-            ]
+            "email": user["email"]
         })
         if not recipient:
-            raise HTTPException(403, "Not authorized")
-    elif current_user:
-        doc = db.documents.find_one({
-            "_id": doc_id,
-            "owner_id": ObjectId(current_user["id"])
-        })
-        if not doc:
-            raise HTTPException(403, "Not authorized")
-    else:
-        raise HTTPException(401, "Authentication required")
-    
-    # Get document
-    doc = db.documents.find_one({"_id": doc_id})
-    if not doc:
-        raise HTTPException(404, "Document not found")
-    
+            raise HTTPException(403, "Not authorized to view this document")
+        
+        # Load the base document for recipient too
+        doc = db.documents.find_one({"_id": doc_id})
+
     # Validate page number
     if page_number < 1 or page_number > doc.get("page_count", 0):
         raise HTTPException(400, f"Invalid page number. Must be between 1 and {doc.get('page_count', 0)}")
@@ -1930,8 +2006,7 @@ async def get_page_thumbnail(
     except Exception as e:
         print(f"Error generating thumbnail: {e}")
         raise HTTPException(500, "Error generating thumbnail")
-    
-    
+
 
 @router.delete("/{document_id}/files/{file_id}")
 async def delete_document_file(

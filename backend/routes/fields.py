@@ -47,10 +47,7 @@ ROLE_FIELD_RULES = {
         FieldType.initials.value,
         *UNIVERSAL_FIELDS,
     },
-    "witness": {
-        FieldType.witness_signature.value,
-        *UNIVERSAL_FIELDS,
-    },
+    "witness": "ALL",
     "approver": {
         FieldType.approval.value,
         *UNIVERSAL_FIELDS,
@@ -204,10 +201,10 @@ def serialize_field(field: Dict) -> Dict:
 
     # 🔥 UI must use canvas pixels, NOT PDF points
     serialized.update({
-        "x": field.get("canvas_x"),
-        "y": field.get("canvas_y"),
-        "width": field.get("canvas_width"),
-        "height": field.get("canvas_height"),
+        "x": field.get("canvas_x", field.get("x")),
+        "y": field.get("canvas_y", field.get("y")),
+        "width": field.get("width"),
+        "height": field.get("height"),
     })
 
     return serialized
@@ -225,10 +222,10 @@ def serialize_field_with_recipient(field, recipient_info=None):
         "type": field["type"],
         "page": field["page"],
         # Use PDF coordinates for rendering
-        "x": field.get("pdf_x", field.get("x", 0)),
-        "y": field.get("pdf_y", field.get("y", 0)),
-        "width": field.get("pdf_width", field.get("width", 100)),
-        "height": field.get("pdf_height", field.get("height", 30)),
+        "x": field.get("canvas_x", field.get("x", 0)),
+        "y": field.get("canvas_y", field.get("y", 0)),
+        "width": field.get("width", field.get("pdf_width", 100)),
+        "height": field.get("height", field.get("pdf_height", 30)),
         "required": field.get("required", True),
         "label": field.get("label"),
         "placeholder": field.get("placeholder"),
@@ -735,6 +732,8 @@ async def add_or_replace_fields(
                 # Canvas coordinates (pixels) - for frontend
                 "canvas_x": f.x,
                 "canvas_y": f.y,
+                "width": f.width,
+                "height": f.height,
                 "canvas_width": f.canvas_width,
                 "canvas_height": f.canvas_height,
 

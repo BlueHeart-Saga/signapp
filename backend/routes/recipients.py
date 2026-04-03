@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Query, Request
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, validator, Field
 from enum import Enum
@@ -812,8 +812,8 @@ async def send_invites_to_recipients(
         )
 
         # Update document status and store settings
-        expiry_days = invites_data.expiry_days if invites_data.expiry_days is not None else doc.get("expiry_days", 0)
-        reminder_period = invites_data.reminder_period if invites_data.reminder_period is not None else doc.get("reminder_period", 0)
+        expiry_days = invites_data.expiry_days if invites_data.expiry_days is not None else document.get("expiry_days", 0)
+        reminder_period = invites_data.reminder_period if invites_data.reminder_period is not None else document.get("reminder_period", 0)
         
         expires_at = None
         if expiry_days and expiry_days > 0:
@@ -826,7 +826,7 @@ async def send_invites_to_recipients(
         update_fields = {
             "status": "sent",
             "sent_at": datetime.utcnow(),
-            "common_message": invites_data.common_message or doc.get("common_message", ""),
+            "common_message": invites_data.common_message or document.get("common_message", ""),
             "expiry_days": expiry_days,
             "reminder_period": reminder_period,
             "expires_at": expires_at,

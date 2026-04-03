@@ -80,6 +80,7 @@ class DeclineRequest(BaseModel):
     
 class TermsAcceptance(BaseModel):
     accepted: bool
+    accept_always: Optional[bool] = False
     accepted_at: Optional[str] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
@@ -363,17 +364,38 @@ async def get_signing_info(recipient_id: str):
         
         # Check terms status
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined"):
-            return {
-                "recipient": serialize_recipient(recipient),
-                "document": serialize_document(document),
-                "signing_info": {
-                    "requires_terms": True,
-                    "requires_otp": not recipient.get("otp_verified", False),
-                    "can_sign_now": False,
-                    "terms_status": "pending",
-                    "document_status": doc_status
+            # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
+            email = recipient.get("email")
+            always_accepted = False
+            if email:
+                pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
+                if pref:
+                    always_accepted = True
+                    # AUTO-ACCEPT FOR THIS RECIPIENT
+                    db.recipients.update_one(
+                        {"_id": rid},
+                        {"$set": {
+                            "terms_accepted": True,
+                            "terms_accepted_at": datetime.utcnow(),
+                            "terms_ip_address": "auto-accepted-always",
+                            "terms_auto_accepted": True
+                        }}
+                    )
+                    # Refresh recipient object
+                    recipient = db.recipients.find_one({"_id": rid})
+
+            if not always_accepted:
+                return {
+                    "recipient": serialize_recipient(recipient),
+                    "document": serialize_document(document),
+                    "signing_info": {
+                        "requires_terms": True,
+                        "requires_otp": not recipient.get("otp_verified", False),
+                        "can_sign_now": False,
+                        "terms_status": "pending",
+                        "document_status": doc_status
+                    }
                 }
-            }
         
         if recipient.get("terms_declined"):
             return {
@@ -473,13 +495,31 @@ async def get_terms_status(recipient_id: str):
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
+        # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
+        email = recipient.get("email")
+        if not recipient.get("terms_accepted") and not recipient.get("terms_declined") and email:
+            pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
+            if pref:
+                # AUTO-ACCEPT FOR THIS RECIPIENT
+                db.recipients.update_one(
+                    {"_id": rid},
+                    {"$set": {
+                        "terms_accepted": True,
+                        "terms_accepted_at": datetime.utcnow(),
+                        "terms_ip_address": "auto-accepted-always",
+                        "terms_auto_accepted": True
+                    }}
+                )
+                # Refresh recipient object
+                recipient = db.recipients.find_one({"_id": rid})
+
         return {
             "terms_accepted": recipient.get("terms_accepted", False),
             "terms_accepted_at": recipient.get("terms_accepted_at"),
             "terms_declined": recipient.get("terms_declined", False),
             "terms_declined_at": recipient.get("terms_declined_at"),
             "terms_decline_reason": recipient.get("terms_decline_reason"),
-            "requires_terms": True  # Always require terms for signing
+            "requires_terms": not recipient.get("terms_accepted", False)
         }
     except:
         raise HTTPException(400, "Invalid recipient ID")
@@ -520,6 +560,22 @@ async def accept_terms(
             {"_id": rid},
             {"$set": update_data}
         )
+
+        # ✅ STORE IN TERMS PREFERENCES IF "ALWAYS"
+        if terms_data.accept_always:
+            db.terms_preferences.update_one(
+                {"email": recipient.get("email")},
+                {
+                    "$set": {
+                        "email": recipient.get("email"),
+                        "accepted_always": True,
+                        "updated_at": datetime.utcnow(),
+                        "ip": terms_data.ip_address or request.client.host,
+                        "ua": terms_data.user_agent or request.headers.get("user-agent")
+                    }
+                },
+                upsert=True
+            )
         
         # Log the acceptance
         _log_event(
