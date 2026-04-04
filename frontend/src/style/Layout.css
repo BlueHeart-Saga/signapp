@@ -10,31 +10,35 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  transition: margin-left 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 230px;
+  width: 100%;
+  min-width: 0;
+  /* Prevent overflow */
 }
 
 .main.collapsed {
   margin-left: 70px;
 }
 
+@media (max-width: 991px) {
+  .main {
+    margin-left: 70px;
+  }
+}
+
+@media (max-width: 768px) {
+
+  .main,
+  .main.collapsed {
+    margin-left: 0 !important;
+  }
+}
+
 .content {
   flex: 1;
   /* padding: 20px; */
   overflow-y: auto;
-}
-
-
-@media (max-width: 768px) {
-
-  .main {
-    margin-left: 70px !important;
-  }
-
-  .main.collapsed {
-    margin-left: 70px !important;
-  }
-
 }
 
 /* Global loading spinner styles */

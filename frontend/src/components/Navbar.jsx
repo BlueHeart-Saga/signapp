@@ -2,15 +2,15 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { Chip, Tooltip } from "@mui/material";
-import { 
-  Search, 
-  Bell, 
-  User, 
-  Settings, 
-  Menu, 
-  FileText, 
-  Clock, 
-  CheckCircle, 
+import {
+  Search,
+  Bell,
+  User,
+  Settings,
+  Menu,
+  FileText,
+  Clock,
+  CheckCircle,
   XCircle,
   AlertCircle,
   Eye,
@@ -171,20 +171,20 @@ const getUserRole = () => {
  */
 const formatRelativeDate = (dateString) => {
   if (!dateString) return 'Unknown';
-  
+
   try {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: diffDays > 365 ? 'numeric' : undefined
     });
@@ -202,10 +202,10 @@ const formatRelativeDate = (dateString) => {
  */
 const SubscriptionWarning = ({ subscription, onClick }) => {
   if (!subscription) return null;
-  
+
   const isExpired = subscription.status === "expired";
   const showWarning = isExpired || (subscription.days_remaining <= 3);
-  
+
   if (!showWarning) return null;
 
   const tooltipTitle = isExpired
@@ -221,8 +221,8 @@ const SubscriptionWarning = ({ subscription, onClick }) => {
         size="small"
         label={label}
         onClick={onClick}
-        sx={{ 
-          fontWeight: 600, 
+        sx={{
+          fontWeight: 600,
           cursor: 'pointer',
           '&:hover': { opacity: 0.9 }
         }}
@@ -234,14 +234,14 @@ const SubscriptionWarning = ({ subscription, onClick }) => {
 /**
  * Search Results Component
  */
-const SearchResults = ({ 
-  query, 
-  results, 
-  isLoading, 
+const SearchResults = ({
+  query,
+  results,
+  isLoading,
   recentSearches,
-  onResultClick, 
+  onResultClick,
   onViewAll,
-  onRecentClick 
+  onRecentClick
 }) => {
   if (!query) {
     // Recent searches view
@@ -253,7 +253,7 @@ const SearchResults = ({
             Recent Searches
           </span>
         </div>
-        
+
         {recentSearches.length > 0 ? (
           recentSearches.map((search) => (
             <div
@@ -322,7 +322,7 @@ const SearchResults = ({
           {results.length} found
         </span>
       </div>
-      
+
       {results.map((doc) => {
         const status = STATUS_CONFIG[doc.status] || STATUS_CONFIG.draft;
         const StatusIcon = status.icon;
@@ -366,7 +366,7 @@ const SearchResults = ({
         );
       })}
 
-      <div 
+      <div
         className="signapp-search-view-all"
         onClick={onViewAll}
       >
@@ -381,7 +381,7 @@ const SearchResults = ({
  * Icon Button Component
  */
 const IconButton = ({ icon: Icon, badge, onClick, title, className = "" }) => (
-  <button 
+  <button
     className={`signapp-navbar-icon-btn ${className}`}
     onClick={onClick}
     title={title}
@@ -398,22 +398,22 @@ const IconButton = ({ icon: Icon, badge, onClick, title, className = "" }) => (
 const Navbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  
+
   // State
   const [subscription, setSubscription] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  
+
   // Refs
   const searchRef = useRef(null);
   const inputRef = useRef(null);
-  
+
   // Custom hooks
   const debouncedQuery = useDebounce(searchQuery, SEARCH_CONFIG.DEBOUNCE_DELAY);
   const { recentSearches, saveRecentSearch } = useRecentSearches();
-  
+
   // Derived state
   const userRole = useMemo(getUserRole, []);
   const showSubscriptionWarning = subscription && (
@@ -438,65 +438,65 @@ const Navbar = ({ toggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-  const loadUser = async () => {
-    try {
-      const token = localStorage.getItem("token");
+    const loadUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
 
-      const res = await api.get("/auth/me", {
-        headers: {
-          Authorization: "Bearer " + token
-        }
-      });
+        const res = await api.get("/auth/me", {
+          headers: {
+            Authorization: "Bearer " + token
+          }
+        });
 
-      setUser(res.data);
-    } catch (err) {
-      console.error("Failed to load user");
-    }
-  };
+        setUser(res.data);
+      } catch (err) {
+        console.error("Failed to load user");
+      }
+    };
 
-  loadUser();
-}, []);
+    loadUser();
+  }, []);
 
   // Search documents
   // In your Navbar component, update the search effect:
-useEffect(() => {
-  const searchDocuments = async () => {
-    const trimmedQuery = debouncedQuery.trim();
-    
-    if (trimmedQuery.length < 2) { // Changed from 1 to 2
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
+  useEffect(() => {
+    const searchDocuments = async () => {
+      const trimmedQuery = debouncedQuery.trim();
 
-    setIsSearching(true);
-    try {
-      const response = await api.get(
-        `/documents/search?q=${encodeURIComponent(trimmedQuery)}&limit=8`
-      );
-      
-      // Handle both array response and wrapped response
-      const results = Array.isArray(response.data) ? response.data : 
-                     (response.data?.results || []);
-      
-      setSearchResults(results);
-    } catch (error) {
-      console.error("Search failed:", error);
-      
-      // Show user-friendly error
-      if (error.response?.status === 400) {
-        console.log("Invalid search query, showing empty results");
+      if (trimmedQuery.length < 2) { // Changed from 1 to 2
         setSearchResults([]);
-      } else {
-        setSearchResults([]);
+        setIsSearching(false);
+        return;
       }
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
-  searchDocuments();
-}, [debouncedQuery]);
+      setIsSearching(true);
+      try {
+        const response = await api.get(
+          `/documents/search?q=${encodeURIComponent(trimmedQuery)}&limit=8`
+        );
+
+        // Handle both array response and wrapped response
+        const results = Array.isArray(response.data) ? response.data :
+          (response.data?.results || []);
+
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Search failed:", error);
+
+        // Show user-friendly error
+        if (error.response?.status === 400) {
+          console.log("Invalid search query, showing empty results");
+          setSearchResults([]);
+        } else {
+          setSearchResults([]);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    searchDocuments();
+  }, [debouncedQuery]);
 
   // Click outside handler
   useClickOutside(searchRef, () => setShowResults(false));
@@ -516,8 +516,8 @@ useEffect(() => {
     saveRecentSearch(searchQuery, doc);
     setShowResults(false);
     setSearchQuery("");
-    
-    navigate(userRole === 'admin' 
+
+    navigate(userRole === 'admin'
       ? `/admin/documents/${doc.id}`
       : `/user/documents/${doc.id}`
     );
@@ -548,16 +548,16 @@ useEffect(() => {
       <div className="signapp-navbar-container">
         {/* Left Section */}
         <div className="signapp-navbar-left">
-          <button 
-            onClick={toggleSidebar} 
-            className="signapp-navbar-menu-btn" 
+          <button
+            onClick={toggleSidebar}
+            className="signapp-navbar-menu-btn"
             title="Toggle Sidebar"
           >
             <Menu className="signapp-navbar-menu-icon" />
           </button>
-          
-          <h1 
-            className="signapp-navbar-logo" 
+
+          <h1
+            className="signapp-navbar-logo"
             onClick={() => navigate('/')}
             role="button"
             tabIndex={0}
@@ -566,13 +566,13 @@ useEffect(() => {
             SafeSign
           </h1>
         </div>
-        
+
         {/* Right Section */}
         <div className="signapp-navbar-right">
           <SubscriptionBadge subscription={subscription} />
 
           {showSubscriptionWarning && (
-            <SubscriptionWarning 
+            <SubscriptionWarning
               subscription={subscription}
               onClick={() => navigate('/subscription')}
             />
@@ -582,11 +582,11 @@ useEffect(() => {
           <div className="signapp-navbar-search-wrapper" ref={searchRef}>
             <div className={`signapp-navbar-search ${showResults ? 'active' : ''}`}>
               <Search className="signapp-navbar-search-icon" />
-              
-              <input 
+
+              <input
                 ref={inputRef}
-                type="text" 
-                placeholder="Search documents... (⌘K)" 
+                type="text"
+                placeholder="Search documents... (⌘K)"
                 className="signapp-navbar-search-input"
                 value={searchQuery}
                 onChange={(e) => {
@@ -596,9 +596,9 @@ useEffect(() => {
                 onFocus={() => setShowResults(true)}
                 aria-label="Search documents"
               />
-              
+
               {searchQuery && (
-                <button 
+                <button
                   className="signapp-navbar-search-clear"
                   onClick={clearSearch}
                   aria-label="Clear search"
@@ -606,7 +606,7 @@ useEffect(() => {
                   ×
                 </button>
               )}
-              
+
               {isSearching && (
                 <div className="signapp-navbar-search-spinner">
                   <Loader size={16} className="spinning" />
@@ -631,37 +631,41 @@ useEffect(() => {
           </div>
 
           {/* Action Buttons */}
-          <IconButton 
-            icon={Bell} 
-            badge 
-            onClick={() => {}} 
+          <IconButton
+            icon={Bell}
+            badge
+            onClick={() => { }}
             title="Notifications"
           />
-          
-          <IconButton 
-            icon={Settings} 
-            onClick={() => navigate('/user/settings')} 
-            title="Settings"
-          />
-          
-          <div
-  className="signapp-navbar-profile"
-  onClick={() => navigate("/user/settings")}
->
-  {user?.profile_picture ? (
-    <img
-      src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
-      className="signapp-navbar-avatar"
-      alt="profile"
-    />
-  ) : (
-    <User className="signapp-navbar-avatar-icon" />
-  )}
 
-  <span className="signapp-navbar-username">
-    {user?.full_name || "User"}
-  </span>
-</div>
+          <IconButton
+            icon={Settings}
+            onClick={() => navigate('/user/settings')}
+            title="Settings"
+            className="navbar-settings-icon"
+          />
+
+          <div
+            className="signapp-navbar-profile"
+            onClick={() => navigate("/user/settings")}
+            title="My Profile"
+          >
+            {user?.profile_picture ? (
+              <img
+                src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
+                className="signapp-navbar-avatar"
+                alt="profile"
+              />
+            ) : (
+              <div className="signapp-navbar-avatar-fallback">
+                <User size={18} />
+              </div>
+            )}
+
+            <span className="signapp-navbar-username desktop-only">
+              Settings
+            </span>
+          </div>
         </div>
       </div>
     </header>

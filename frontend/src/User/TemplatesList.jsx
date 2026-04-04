@@ -759,7 +759,7 @@ const UserTemplatesList = () => {
                                 className="table-download-btn"
                                 disabled={!templateId}
                               >
-                                Download
+                               Download
                               </button>
                               <button
                                 onClick={() => handlePreview(templateId)}
@@ -784,143 +784,145 @@ const UserTemplatesList = () => {
                 </div>
               )}
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="pagination">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
-                    className="page-btn"
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div className="page-numbers">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (page <= 3) {
-                        pageNum = i + 1;
-                      } else if (page >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = page - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          className={`page-btn ${page === pageNum ? 'active' : ''}`}
-                          onClick={() => setPage(pageNum)}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage(page + 1)}
-                    className="page-btn"
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Preview Modal */}
-      {previewModalOpen && selectedTemplate && (
-        <div className="preview-modal">
-          <div className="preview-overlay" onClick={closePreviewModal} />
-          
-          <div className="preview-content">
-            <div className="preview-header">
-              <h2>{selectedTemplate.title}</h2>
-              <button 
-                className="close-btn"
-                onClick={closePreviewModal}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className="page-btn"
               >
-                ×
+                ← Previous
+              </button>
+                  
+              <div className="page-numbers">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                      
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`page-btn ${page === pageNum ? 'active' : ''}`}
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+                  
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+                className="page-btn"
+              >
+                Next →
               </button>
             </div>
+          )}
+        </>
+          )}
+      </div>
+    </div>
+
+      {/* Preview Modal */ }
+  {
+    previewModalOpen && selectedTemplate && (
+      <div className="preview-modal">
+        <div className="preview-overlay" onClick={closePreviewModal} />
+          
+        <div className="preview-content">
+          <div className="preview-header">
+            <h2>{selectedTemplate.title}</h2>
+            <button 
+              className="close-btn"
+              onClick={closePreviewModal}
+            >
+              ×
+            </button>
+          </div>
             
-            <div className="preview-body">
-              <div className="template-info">
-                <div className="info-row">
-                  <span className="label">Category:</span>
-                  <span className="value">{selectedTemplate.category_name}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Type:</span>
-                  <span className={`badge ${selectedTemplate.is_free ? 'free' : 'premium'}`}>
-                    {selectedTemplate.is_free ? "Free" : "Premium"}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Downloads:</span>
-                  <span className="value">{selectedTemplate.download_count || 0}</span>
-                </div>
-                {selectedTemplate.description && (
-                  <div className="info-row full-width">
-                    <span className="label">Description:</span>
-                    <p className="description">{selectedTemplate.description}</p>
-                  </div>
-                )}
-                {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
-                  <div className="info-row full-width">
-                    <span className="label">Tags:</span>
-                    <div className="tags">
-                      {selectedTemplate.tags.map((tag, index) => (
-                        <span key={index} className="tag">{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          <div className="preview-body">
+            <div className="template-info">
+              <div className="info-row">
+                <span className="label">Category:</span>
+                <span className="value">{selectedTemplate.category_name}</span>
               </div>
+              <div className="info-row">
+                <span className="label">Type:</span>
+                <span className={`badge ${selectedTemplate.is_free ? 'free' : 'premium'}`}>
+                  {selectedTemplate.is_free ? "Free" : "Premium"}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="label">Downloads:</span>
+                <span className="value">{selectedTemplate.download_count || 0}</span>
+              </div>
+              {selectedTemplate.description && (
+                <div className="info-row full-width">
+                  <span className="label">Description:</span>
+                  <p className="description">{selectedTemplate.description}</p>
+                </div>
+              )}
+              {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
+                <div className="info-row full-width">
+                  <span className="label">Tags:</span>
+                  <div className="tags">
+                    {selectedTemplate.tags.map((tag, index) => (
+                      <span key={index} className="tag">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
               
-              <div className="preview-actions">
-                <button
-                  onClick={useSelectedTemplate}
-                  className="primary-btn"
-                  disabled={isUploading || !getTemplateId(selectedTemplate)}
-                >
-                  {isUploading ? "Processing..." : "Use This Template"}
-                </button>
+            <div className="preview-actions">
+              <button
+                onClick={useSelectedTemplate}
+                className="primary-btn"
+                disabled={isUploading || !getTemplateId(selectedTemplate)}
+              >
+                {isUploading ? "Processing..." : "Use This Template"}
+              </button>
                 
-                <button
-                  onClick={previewPDFFromModal}
-                  className="secondary-btn"
-                  disabled={!getTemplateId(selectedTemplate)}
-                >
-                  View PDF
-                </button>
+              <button
+                onClick={previewPDFFromModal}
+                className="secondary-btn"
+                disabled={!getTemplateId(selectedTemplate)}
+              >
+                View PDF
+              </button>
                 
-                <button
-                  onClick={downloadSelectedTemplate}
-                  className={`download-btn ${selectedTemplate.is_free ? 'free-btn' : 'premium-btn'}`}
-                  disabled={!getTemplateId(selectedTemplate)}
-                >
-                  {selectedTemplate.is_free ? "Download Free" : "Purchase & Download"}
-                </button>
+              <button
+                onClick={downloadSelectedTemplate}
+                className={`download-btn ${selectedTemplate.is_free ? 'free-btn' : 'premium-btn'}`}
+                disabled={!getTemplateId(selectedTemplate)}
+              >
+                {selectedTemplate.is_free ? "Download Free" : "Purchase & Download"}
+              </button>
                 
-                <button
-                  className="cancel-btn"
-                  onClick={closePreviewModal}
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                className="cancel-btn"
+                onClick={closePreviewModal}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )
+  }
+    </div >
   );
 };
 

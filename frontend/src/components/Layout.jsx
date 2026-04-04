@@ -9,7 +9,7 @@ export default function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(true);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
   const hasCheckedRef = useRef(false);
@@ -29,14 +29,14 @@ export default function Layout({ children }) {
   useEffect(() => {
     // Prevent multiple checks
     if (hasCheckedRef.current) return;
-    
+
     const checkProfile = () => {
       try {
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
-        
+
         console.log("Checking profile - Token:", !!token, "User:", !!userStr);
-        
+
         if (!token || !userStr) {
           setIsChecking(false);
           return;
@@ -53,7 +53,7 @@ export default function Layout({ children }) {
 
         const profileComplete = isProfileComplete(user);
         console.log("Profile complete:", profileComplete, "User data:", user);
-        
+
         // Only show popup if profile is NOT complete
         if (!profileComplete) {
           // Small delay to ensure smooth UI
@@ -96,12 +96,12 @@ export default function Layout({ children }) {
   const handleProfileComplete = useCallback((updatedUser) => {
     console.log("Profile completed, updating state");
     setShowProfilePopup(false);
-    
+
     // Update localStorage with the new user data
     if (updatedUser) {
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
-    
+
     // Navigate to dashboard
     navigate("/user/dashboard");
   }, [navigate]);
@@ -113,30 +113,30 @@ export default function Layout({ children }) {
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(prev => !prev)} />
         <div className={`main ${collapsed ? "collapsed" : ""}`}>
           <Navbar toggleSidebar={toggleSidebar} />
-          <div className="content" style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
+          <div className="content" style={{
+            display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
             minHeight: '400px'
           }}>
             <div className="ss-content-wrapper">
-        <div className="ss-loading-overlay">
-          <div className="ss-spinner-container">
-            <div className="ss-loading-spinner"></div>
-            <div className="ss-loader-text">
-              <p>Loading</p>
-              <div className="ss-rotating-words">
-                <span className="ss-word">Status</span>
-                <span className="ss-word">Reports</span>
-                <span className="ss-word">Features</span>
-                <span className="ss-word">Documents</span>
-                <span className="ss-word">Signatures</span>
-                <span className="ss-word">Status</span>
+              <div className="ss-loading-overlay">
+                <div className="ss-spinner-container">
+                  <div className="ss-loading-spinner"></div>
+                  <div className="ss-loader-text">
+                    <p>Loading</p>
+                    <div className="ss-rotating-words">
+                      <span className="ss-word">Status</span>
+                      <span className="ss-word">Reports</span>
+                      <span className="ss-word">Features</span>
+                      <span className="ss-word">Documents</span>
+                      <span className="ss-word">Signatures</span>
+                      <span className="ss-word">Status</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
           </div>
         </div>
       </div>
@@ -145,6 +145,14 @@ export default function Layout({ children }) {
 
   return (
     <div className="layout">
+      {/* Mobile Sidebar Backdrop */}
+      {!collapsed && (
+        <div
+          className="sidebar-backdrop"
+          onClick={toggleSidebar}
+        />
+      )}
+
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(prev => !prev)}
@@ -163,6 +171,29 @@ export default function Layout({ children }) {
           />
         )}
       </div>
+
+      <style jsx>{`
+        .sidebar-backdrop {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(4px);
+          z-index: 999;
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+          .sidebar-backdrop {
+            display: block;
+          }
+        }
+      `}</style>
     </div>
   );
 }

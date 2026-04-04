@@ -165,21 +165,39 @@ export default function Sidebar({ collapsed, onToggle }) {
                 </div>
 
                 {showSub && (
-                  <div className={`safesign-sidebar__submenu ${collapsed ? "safesign-sidebar__submenu--floating" : ""}`}>
-                    {collapsed && <div className="safesign-sidebar__submenu-header">{item.name}</div>}
-                    {item.subItems.map((sub) => {
+                  <div
+                    className={`safesign-sidebar__submenu ${collapsed ? "safesign-sidebar__submenu--floating" : ""
+                      }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {collapsed && (
+                      <div className="safesign-sidebar__submenu-header">
+                        {item.name}
+                      </div>
+                    )}
+                    {item.subItems.map((sub, idx) => {
                       const params = new URLSearchParams(location.search);
                       const isActive = location.pathname === sub.path &&
                         params.get(sub.param || 'status') === sub.filter;
 
                       return (
                         <Link
-                          key={`${sub.path}-${sub.filter}`}
+                          key={idx}
                           to={`${sub.path}?${sub.param || 'status'}=${sub.filter}`}
                           className={`safesign-sidebar__submenu-link ${isActive ? "active" : ""}`}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.innerWidth <= 768) {
+                              onToggle();
+                            }
+                          }}
                         >
-                          <Circle size={collapsed ? 4 : 6} fill={isActive ? "#0d9488" : "transparent"} strokeWidth={3} />
+                          <Circle
+                            size={collapsed ? 4 : 6}
+                            fill={isActive ? "#0d9488" : "transparent"}
+                            strokeWidth={3}
+                            style={{ flexShrink: 0 }}
+                          />
                           <span>{sub.name}</span>
                         </Link>
                       );
@@ -241,15 +259,14 @@ export default function Sidebar({ collapsed, onToggle }) {
           width: 230px;
           height: 100vh;
           background: white;
-          border-right: 1px solid #595a5b3e;
-          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border-right: 1px solid #e2e8f0;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           position: fixed;
           left: 0;
           top: 0;
           box-shadow: 1px 0 3px rgba(0, 0, 0, 0.04);
           z-index: 1000;
         }
-          
 
         .safesign-sidebar--collapsed {
           width: 70px;
@@ -259,100 +276,88 @@ export default function Sidebar({ collapsed, onToggle }) {
           padding: 20px 16px;
           border-bottom: 1px solid #e2e8f0;
           background: white;
+          flex-shrink: 0;
         }
 
         .safesign-sidebar__logo {
           display: flex;
           align-items: center;
           gap: 10px;
-          justify-content: center;
-        }
-
-        .safesign-sidebar__logo-icon {
-          color: #0d9488;
-        }
-
-        .safesign-sidebar__logo-text {
-          font-size: 20px;
-          font-weight: 600;
-          letter-spacing: -0.3px;
-          color: #0d9488;
+          justify-content: flex-start;
+          padding-left: 4px;
         }
 
         .safesign-sidebar--collapsed .safesign-sidebar__logo {
           justify-content: center;
+          padding-left: 0;
+        }
+
+        .safesign-sidebar__logo-icon {
+          color: #0d9488;
+          flex-shrink: 0;
+        }
+
+        .safesign-sidebar__logo-text {
+          font-size: 19px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #0d9488;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .safesign-sidebar__nav {
           flex: 1;
           padding: 16px 12px;
           overflow-y: auto;
+          overflow-x: visible;
           scrollbar-width: thin;
-          scrollbar-color: #cbd5e1 transparent;
+          scrollbar-color: #e2e8f0 transparent;
         }
 
         .safesign-sidebar--collapsed .safesign-sidebar__nav {
-          overflow: visible !important;
+          overflow-x: visible;
+        }
+
+        .safesign-sidebar__nav::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .safesign-sidebar__nav::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
         }
 
         .safesign-sidebar__menu-group {
           position: relative;
         }
 
-        .safesign-sidebar__nav::-webkit-scrollbar {
-          width: 5px;
-        }
-
-        .safesign-sidebar__nav::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .safesign-sidebar__nav::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 3px;
-        }
-
         .safesign-sidebar__link {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 11px 14px;
+          padding: 10px 14px;
           margin-bottom: 4px;
-          color: #0d9488;
+          color: #475569;
           text-decoration: none;
           border-radius: 8px;
           transition: all 0.2s ease;
           font-size: 14px;
           font-weight: 500;
           position: relative;
+          cursor: pointer;
         }
 
         .safesign-sidebar__link:hover {
-          background: #f1f5f9;
-          color: #334155;
+          background: #f8fafc;
+          color: #0d9488;
         }
 
         .safesign-sidebar__link--active {
-          background: #e0f2fe;
+          background: #f0fdf9;
           color: #0d9488;
           font-weight: 600;
-        }
-
-        .safesign-sidebar__link--active::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          height: 20px;
-          width: 3px;
-          background: #0d9488;
-          border-radius: 0 2px 2px 0;
-        }
-
-        .safesign-sidebar--collapsed .safesign-sidebar__link {
-          justify-content: center;
-          padding: 11px;
         }
 
         .safesign-sidebar__link-icon {
@@ -364,32 +369,52 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__link-label {
           white-space: nowrap;
-          color: #475569;
-          font-weight: 500;
-          flex: 1;
         }
 
         .safesign-sidebar__chevron {
+          margin-left: auto;
           display: flex;
           align-items: center;
-          color: #64748b;
+          color: #94a3b8;
           transition: transform 0.2s;
         }
 
         .safesign-sidebar__submenu {
-          margin-left: 28px;
+          margin-left: 24px;
           padding-left: 12px;
-          border-left: 1px solid #e2e8f0;
+          border-left: 1px solid #f1f5f9;
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1px;
+          margin-top: 2px;
           margin-bottom: 8px;
-          animation: slideDownIn 0.2s ease-out;
         }
 
-        @keyframes slideDownIn {
-          from { opacity: 0; transform: translateY(-5px); }
-          to { opacity: 1; transform: translateY(0); }
+        .safesign-sidebar__submenu--floating {
+          position: absolute;
+          left: 100%;
+          top: 0;
+          margin-left: 12px;
+          min-width: 180px;
+          background: white;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          padding: 8px;
+          z-index: 1001;
+          margin-top: 0;
+          margin-bottom: 0;
+        }
+
+        .safesign-sidebar__submenu-header {
+          padding: 8px 12px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #f1f5f9;
+          margin-bottom: 4px;
         }
 
         .safesign-sidebar__submenu-link {
@@ -407,148 +432,81 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__submenu-link:hover {
           background: #f1f5f9;
-          color: #1e293b;
+          color: #0d9488;
         }
 
         .safesign-sidebar__submenu-link.active {
           color: #0d9488;
           background: #f0fdfa;
-          font-weight: 600;
-        }
-
-        .safesign-sidebar__submenu--floating {
-          position: absolute;
-          left: 54px;
-          top: -4px;
-          width: 170px;
-          background: white;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          z-index: 1100;
-          padding: 8px;
-          margin-left: 0;
-          border-left: 1px solid #e2e8f0;
-          animation: popIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .safesign-sidebar__submenu-header {
-          padding: 6px 12px;
-          font-size: 11px;
-          font-weight: 700;
-          color: #94a3b8;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          border-bottom: 1px solid #f1f5f9;
-          margin-bottom: 6px;
-        }
-
-        @keyframes popIn {
-          from { opacity: 0; transform: scale(0.95) translateX(-10px); }
-          to { opacity: 1; transform: scale(1) translateX(0); }
         }
 
         .safesign-sidebar__footer {
           padding: 16px 12px;
           border-top: 1px solid #f1f5f9;
-          background: #ffffff;
           display: flex;
           flex-direction: column;
           gap: 4px;
+          margin-top: auto;
+        }
+
+        .safesign-sidebar__settings, .safesign-sidebar__logout {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.2s;
+          cursor: pointer;
+          text-decoration: none;
         }
 
         .safesign-sidebar__settings {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 11px 14px;
-          color: #64748b;
-          text-decoration: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
+          color: #475569;
         }
 
         .safesign-sidebar__settings:hover {
-          background: #f1f5f9;
+          background: #f8fafc;
           color: #0d9488;
-          transform: translateX(2px);
         }
 
         .safesign-sidebar__settings--active {
-          background: #e0f2fe;
+          background: #f0fdf9;
           color: #0d9488;
-          font-weight: 600;
-        }
-
-        .safesign-sidebar__settings--active::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          height: 18px;
-          width: 3px;
-          background: #0d9488;
-          border-radius: 0 2px 2px 0;
         }
 
         .safesign-sidebar__logout {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          width: 100%;
-          padding: 11px 14px;
           background: transparent;
-          color: #ef4444;
           border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          color: #ef4444;
+          width: 100%;
+          text-align: left;
         }
 
         .safesign-sidebar__logout:hover {
           background: #fef2f2;
-          color: #dc2626;
-          transform: translateX(2px);
         }
 
-        .safesign-sidebar__logout:active {
-          transform: scale(0.98);
-        }
-
-        .safesign-sidebar--collapsed .safesign-sidebar__settings,
-        .safesign-sidebar--collapsed .safesign-sidebar__logout {
-          justify-content: center;
-          padding: 11px;
-        }
-
-        .safesign-sidebar--collapsed .safesign-sidebar__settings span,
-        .safesign-sidebar--collapsed .safesign-sidebar__logout span {
-          display: none;
+        @media (max-width: 991px) {
+          .safesign-sidebar:not(.safesign-sidebar--collapsed) {
+            width: 70px;
+          }
         }
 
         @media (max-width: 768px) {
           .safesign-sidebar {
-            width: 70px;
+            width: 260px !important;
+            transform: translateX(-100%);
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+          }
+          
+          .safesign-sidebar:not(.safesign-sidebar--collapsed) {
+             transform: translateX(0);
           }
 
-          .safesign-sidebar__logo-text,
-          .safesign-sidebar__link-label,
-          .safesign-sidebar__settings span,
-          .safesign-sidebar__logout span {
-            display: none;
-          }
-
-          .safesign-sidebar__link,
-          .safesign-sidebar__settings,
-          .safesign-sidebar__logout {
-            justify-content: center;
-            padding: 11px;
+          .safesign-sidebar--collapsed {
+            transform: translateX(-100%);
           }
         }
       `}</style>

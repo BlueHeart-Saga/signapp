@@ -2666,7 +2666,8 @@ async def finalize_signed_document(
 async def decline_document(
     recipient_id: str,
     decline_request: DeclineRequest,
-    request: Request
+    request: Request,
+    background_tasks: BackgroundTasks
 ):
     """Decline to sign document."""
     try:
@@ -2697,6 +2698,15 @@ async def decline_document(
             "decline_reason": decline_request.reason,
             "decline_ip": client_ip
         }}
+    )
+    
+    # ✅ NEW: Notify owner about recipient decline
+    from .email_service import send_recipient_activity_notification_to_owner
+    background_tasks.add_task(
+        send_recipient_activity_notification_to_owner,
+        recipient=recipient,
+        document=document,
+        status="declined"
     )
     
     # Mark document as declined if all recipients decline
@@ -2823,7 +2833,7 @@ async def assign_document_to_others(
 # ======================
 
 @router.post("/recipient/{recipient_id}/viewer-complete")
-async def complete_viewer(recipient_id: str, request: Request):
+async def complete_viewer(recipient_id: str, request: Request, background_tasks: BackgroundTasks):
     """Mark viewer as having completed review."""
     try:
         rid = ObjectId(recipient_id)
@@ -2840,6 +2850,8 @@ async def complete_viewer(recipient_id: str, request: Request):
     if not recipient.get("otp_verified"):
         raise HTTPException(403, "OTP verification required")
     
+    document = db.documents.find_one({"_id": recipient["document_id"]})
+
     # Mark viewer completed
     db.recipients.update_one(
         {"_id": rid},
@@ -2847,6 +2859,15 @@ async def complete_viewer(recipient_id: str, request: Request):
             "status": "completed",
             "viewer_at": datetime.utcnow()
         }}
+    )
+    
+    # ✅ NEW: Notify owner about viewer completion
+    from .email_service import send_recipient_activity_notification_to_owner
+    background_tasks.add_task(
+        send_recipient_activity_notification_to_owner,
+        recipient=recipient,
+        document=document,
+        status="completed"
     )
     
     # Update document statistics
@@ -4631,6 +4652,15 @@ async def manually_complete_recipient(
     
     db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
     
+    # ✅ NEW: Notify owner about recipient completion
+    from .email_service import send_recipient_activity_notification_to_owner
+    background_tasks.add_task(
+        send_recipient_activity_notification_to_owner,
+        recipient=recipient,
+        document=document,
+        status="completed"
+    )
+
     # Update document statistics
     doc_id = recipient["document_id"]
     update_document_statistics(doc_id)

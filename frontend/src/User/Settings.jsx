@@ -1,306 +1,883 @@
 import React, { useState, useEffect, useRef } from "react";
-import toast from "react-hot-toast";
+import {
+  FaUser,
+  FaLock,
+  FaCalendarAlt,
+  FaCamera,
+  FaEdit,
+  FaSignature,
+  FaStamp,
+  FaUpload
+} from "react-icons/fa";
+import { toast } from "react-hot-toast";
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
-export default function Settings() {
-
-  const [user, setUser] = useState(null);
-  const [fullName, setFullName] = useState("");
-  const [image, setImage] = useState(null);
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-
+const Settings = () => {
+  const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const stampInputRef = useRef(null);
 
-  const fileRef = useRef();
-  const token = localStorage.getItem("token");
+  // Profile Form State
+  const [profileForm, setProfileForm] = useState({
+    full_name: "",
+    first_name: "",
+    last_name: "",
+    company: "",
+    job_title: "",
+    date_format: "MMM dd yyyy HH:mm z",
+    time_zone: "Asia/Kolkata",
+  });
 
-  // Load user
+  // Password Form State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Schedule Form State
+  const [scheduleForm, setScheduleForm] = useState({
+    reminder_days: 3,
+    expiry_days: 30,
+  });
+
+  const [profilePic, setProfilePic] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [stampFile, setStampFile] = useState(null);
+  const [stampPreviewUrl, setStampPreviewUrl] = useState(null);
+
   useEffect(() => {
-
-    const loadUser = async () => {
-
-      const res = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          Authorization: "Bearer " + token
-        }
-      });
-
-      const data = await res.json();
-
-      setUser(data);
-      setFullName(data.full_name || "");
-
-    };
-
-    loadUser();
-
+    fetchUserData();
   }, []);
 
-  // Update profile
-  const updateProfile = async () => {
-
+  const fetchUserData = async () => {
     try {
-
-      setLoading(true);
-
-      const formData = new FormData();
-      formData.append("full_name", fullName);
-
-      if (image) {
-        formData.append("profile_picture", image);
-      }
-
-      await fetch(`${API_BASE_URL}/auth/update-profile`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
-          Authorization: "Bearer " + token
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: formData
       });
-
-      toast.success("Profile updated");
-
-      setUser({
-        ...user,
-        full_name: fullName,
-        profile_picture: image
-          ? URL.createObjectURL(image)
-          : user.profile_picture
+      const data = await response.json();
+      setUser(data);
+      setProfileForm({
+        full_name: data.full_name || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        company: data.company || "",
+        job_title: data.job_title || "",
+        date_format: data.date_format || "MMM dd yyyy HH:mm z",
+        time_zone: data.time_zone || "Asia/Kolkata",
       });
-
-    } catch (err) {
-
-      console.error(err);
-      toast.error("Profile update failed");
-
-    } finally {
-
-      setLoading(false);
-
+      setScheduleForm({
+        reminder_days: data.reminder_days || 3,
+        expiry_days: data.expiry_days || 30,
+      });
+      if (data.profile_picture) {
+        setPreviewUrl(`data:${data.profile_picture.content_type};base64,${data.profile_picture.data}`);
+      }
+      if (data.stamp_image) {
+        setStampPreviewUrl(`data:${data.stamp_image.content_type};base64,${data.stamp_image.data}`);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      toast.error("Failed to load user settings");
     }
-
   };
 
-  // Change password
-  const changePassword = async () => {
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("full_name", profileForm.full_name);
+      formData.append("first_name", profileForm.first_name);
+      formData.append("last_name", profileForm.last_name);
+      formData.append("company", profileForm.company);
+      formData.append("job_title", profileForm.job_title);
+      formData.append("date_format", profileForm.date_format);
+      formData.append("time_zone", profileForm.time_zone);
+      formData.append("reminder_days", scheduleForm.reminder_days);
+      formData.append("expiry_days", scheduleForm.expiry_days);
 
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      if (profilePic) {
+        formData.append("profile_picture", profilePic);
+      }
+      if (stampFile) {
+        formData.append("stamp_image", stampFile);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/auth/update-profile`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        toast.success("Profile updated successfully");
+        const updatedData = await response.json();
+        localStorage.setItem("user", JSON.stringify(updatedData.user));
+        setUser(updatedData.user);
+
+        // Refresh previews from server data
+        if (updatedData.user.profile_picture) {
+          setPreviewUrl(`data:${updatedData.user.profile_picture.content_type};base64,${updatedData.user.profile_picture.data}`);
+        }
+        if (updatedData.user.stamp_image) {
+          setStampPreviewUrl(`data:${updatedData.user.stamp_image.content_type};base64,${updatedData.user.stamp_image.data}`);
+        }
+        setStampFile(null); // Clear local file state
+        setProfilePic(null);
+      } else {
+        toast.error("Failed to update profile");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New passwords do not match");
       return;
     }
-
+    setLoading(true);
     try {
-
-      setLoading(true);
-
-      await fetch(`${API_BASE_URL}/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + token
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword
-        })
+          current_password: passwordForm.currentPassword,
+          new_password: passwordForm.newPassword,
+        }),
       });
 
-      toast.success("Password updated");
-
-      setCurrentPassword("");
-      setNewPassword("");
-
-    } catch (err) {
-
-      console.error(err);
-      toast.error("Password change failed");
-
+      if (response.ok) {
+        toast.success("Password changed successfully");
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.detail || "Failed to change password");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-  if (!user)
-    return (
-      <div className="ss-content-wrapper">
-        <div className="ss-loading-overlay">
-          <div className="ss-spinner-container">
-            <div className="ss-loading-spinner"></div>
-            <div className="ss-loader-text">
-              <p>Loading</p>
-              <div className="ss-rotating-words">
-                <span className="ss-word">Status</span>
-                <span className="ss-word">Reports</span>
-                <span className="ss-word">Profile</span>
-                <span className="ss-word">Documents</span>
-                <span className="ss-word">Signatures</span>
-                <span className="ss-word">Status</span>
-              </div>
-            </div>
-          </div>
-        </div>
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfilePic(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleStampChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setStampFile(file);
+      setStampPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const getSignatureText = () => {
+    const fn = profileForm.first_name || "";
+    const ln = profileForm.last_name || "";
+    return `${fn} ${ln}`.trim() || "User Signature";
+  };
+
+  const getInitialText = () => {
+    const fn = profileForm.first_name?.charAt(0) || "";
+    const ln = profileForm.last_name?.charAt(0) || "";
+    return `${fn}${ln}`.toUpperCase() || "US";
+  };
+
+  const DefaultStamp = () => (
+    <div className="default-stamp">
+      <div className="stamp-inner-circle">
+        <span className="stamp-user-name">{user?.full_name || "User Name"}</span>
+        <span className="stamp-current-date">{new Date().toLocaleDateString('en-GB')}</span>
       </div>
-    );
-
-  return (
-    <div style={styles.page}>
-
-      <h1 style={styles.title}>Account Settings</h1>
-
-      {/* Profile */}
-
-      <div style={styles.card}>
-
-        <h2 style={styles.sectionTitle}>Profile</h2>
-
-        <div
-          style={styles.avatar}
-          onClick={() => fileRef.current.click()}
-        >
-
-          {image ? (
-            <img
-              src={URL.createObjectURL(image)}
-              style={styles.avatarImg}
-            />
-          ) : user.profile_picture ? (
-            <img
-              src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
-              style={styles.avatarImg}
-            />
-          ) : (
-            <span style={{ color: "#9ca3af" }}>Upload</span>
-          )}
-
-        </div>
-
-        <input
-          type="file"
-          ref={fileRef}
-          style={{ display: "none" }}
-          onChange={(e) => setImage(e.target.files[0])}
-        />
-
-        <input
-          type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          style={styles.input}
-        />
-
-        <button
-          style={styles.button}
-          onClick={updateProfile}
-        >
-          {loading ? "Updating..." : "Update Profile"}
-        </button>
-
-      </div>
-
-      {/* Password */}
-
-      <div style={styles.card}>
-
-        <h2 style={styles.sectionTitle}>Change Password</h2>
-
-        <input
-          type="password"
-          placeholder="Current password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          style={styles.input}
-        />
-
-        <input
-          type="password"
-          placeholder="New password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          style={styles.input}
-        />
-
-        <button
-          style={styles.button}
-          onClick={changePassword}
-        >
-          {loading ? "Updating..." : "Change Password"}
-        </button>
-
-      </div>
-
     </div>
   );
-}
 
-const styles = {
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return (
+          <div className="settings-profile-content">
+            <div className="profile-top-info">
+              <div className="avatar-section">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Profile" className="profile-img-large" />
+                ) : (
+                  <div className="profile-placeholder-large">
+                    {user?.full_name?.charAt(0) || "U"}
+                  </div>
+                )}
+                <label htmlFor="avatar-upload" className="avatar-overlay">
+                  <FaCamera />
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+              <div className="profile-identity-text">
+                <h2>{user?.first_name || user?.full_name || "User"}</h2>
+                <p>{user?.email || "user@example.com"}</p>
+              </div>
+            </div>
 
-  page: {
-    maxWidth: 700,
-    margin: "40px auto",
-    padding: 20,
-    fontFamily: "Inter"
-  },
+            <form onSubmit={handleProfileUpdate} className="profile-form-layout">
+              {/* Signature Row */}
+              <div className="form-row">
+                <label className="row-label">Signature and initial</label>
+                <div className="row-input signature-container">
+                  <div className="signature-preview-box handwriting">
+                    {getSignatureText()}
+                  </div>
+                  <div className="initial-preview-box handwriting">
+                    {getInitialText()}
+                  </div>
+                </div>
+              </div>
 
-  title: {
-    fontSize: 26,
-    marginBottom: 30
-  },
+              {/* Stamp Row */}
+              <div className="form-row">
+                <label className="row-label">Stamp</label>
+                <div className="row-input stamp-container">
+                  <div className="stamp-preview-box">
+                    {stampPreviewUrl ? (
+                      <img src={stampPreviewUrl} alt="Stamp" className="stamp-preview-img" />
+                    ) : (
+                      <DefaultStamp />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="stamp-upload-btn"
+                    onClick={() => stampInputRef.current.click()}
+                  >
+                    <FaUpload /> Upload Stamp
+                  </button>
+                  <input
+                    type="file"
+                    ref={stampInputRef}
+                    hidden
+                    accept="image/*"
+                    onChange={handleStampChange}
+                  />
+                </div>
+              </div>
 
-  card: {
-    background: "#fff",
-    padding: 30,
-    borderRadius: 12,
-    marginBottom: 25,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    display: "flex",
-    flexDirection: "column",
-    gap: 15
-  },
+              {/* Basic Info Rows */}
+              <div className="form-row">
+                <label className="row-label">First name</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.first_name}
+                    onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
+                    className="styled-input"
+                  />
+                </div>
+              </div>
 
-  sectionTitle: {
-    fontSize: 18
-  },
+              <div className="form-row">
+                <label className="row-label">Last name</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.last_name}
+                    onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
+                    className="styled-input"
+                  />
+                </div>
+              </div>
 
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: "50%",
-    background: "#f3f4f6",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    cursor: "pointer",
-    border: "2px solid #e5e7eb"
-  },
+              <div className="form-row">
+                <label className="row-label">Company</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.company}
+                    onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })}
+                    className="styled-input"
+                  />
+                </div>
+              </div>
 
-  avatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover"
-  },
+              <div className="form-row">
+                <label className="row-label">Job title</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.job_title}
+                    onChange={(e) => setProfileForm({ ...profileForm, job_title: e.target.value })}
+                    className="styled-input"
+                  />
+                </div>
+              </div>
 
-  input: {
-    padding: 12,
-    borderRadius: 8,
-    border: "1px solid #d1d5db"
-  },
+              <div className="form-row">
+                <label className="row-label">Date format</label>
+                <div className="row-input">
+                  <select
+                    value={profileForm.date_format}
+                    onChange={(e) => setProfileForm({ ...profileForm, date_format: e.target.value })}
+                    className="styled-select"
+                  >
+                    <option value="MMM dd yyyy HH:mm z">MMM dd yyyy HH:mm z</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  </select>
+                </div>
+              </div>
 
-  button: {
-    padding: 12,
-    borderRadius: 8,
-    border: "none",
-    background: "linear-gradient(135deg,#0d9488,#14b8a6)",
-    color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer"
-  }
+              <div className="form-row">
+                <label className="row-label">Time zone</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.time_zone}
+                    onChange={(e) => setProfileForm({ ...profileForm, time_zone: e.target.value })}
+                    className="styled-input disabled-like"
+                  />
+                </div>
+              </div>
 
+              <div className="form-actions-footer">
+                <button type="submit" className="update-btn" disabled={loading}>
+                  {loading ? "Updating..." : "Update"}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      case "password":
+        return (
+          <div className="settings-profile-content">
+            <h3 className="tab-header-title">Reset Password</h3>
+            <form onSubmit={handlePasswordChange} className="profile-form-layout narrow-form">
+              <div className="form-row">
+                <label className="row-label">Current Password</label>
+                <div className="row-input">
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    className="styled-input"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <label className="row-label">New Password</label>
+                <div className="row-input">
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="styled-input"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <label className="row-label">Confirm Password</label>
+                <div className="row-input">
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    className="styled-input"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-actions-footer">
+                <button type="submit" className="update-btn" disabled={loading}>
+                  {loading ? "Changing..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      case "schedule":
+        return (
+          <div className="settings-profile-content">
+            <h3 className="tab-header-title">Schedule Settings</h3>
+            <form onSubmit={handleProfileUpdate} className="profile-form-layout narrow-form">
+              <div className="form-row">
+                <label className="row-label">Reminder Days</label>
+                <div className="row-input">
+                  <input
+                    type="number"
+                    value={scheduleForm.reminder_days}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, reminder_days: parseInt(e.target.value) })}
+                    className="styled-input mini"
+                  />
+                  <span className="input-hint-text">days</span>
+                </div>
+              </div>
+              <div className="form-row">
+                <label className="row-label">Expiry Days</label>
+                <div className="row-input">
+                  <input
+                    type="number"
+                    value={scheduleForm.expiry_days}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, expiry_days: parseInt(e.target.value) })}
+                    className="styled-input mini"
+                  />
+                  <span className="input-hint-text">days</span>
+                </div>
+              </div>
+              <div className="form-actions-footer">
+                <button type="submit" className="update-btn" disabled={loading}>
+                  {loading ? "Saving..." : "Save Schedule"}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="settings-layout">
+      <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet" />
+
+      <div className="settings-header">
+        <h1 className="settings-title">Profile</h1>
+      </div>
+
+      <div className="settings-body">
+        <aside className="settings-sidebar">
+          <nav className="settings-nav">
+            <button
+              className={`nav-item ${activeTab === "profile" ? "active" : ""}`}
+              onClick={() => setActiveTab("profile")}
+            >
+              <span>My profile</span>
+            </button>
+            <button
+              className={`nav-item ${activeTab === "password" ? "active" : ""}`}
+              onClick={() => setActiveTab("password")}
+            >
+              <span>Reset password</span>
+            </button>
+            <button
+              className={`nav-item ${activeTab === "schedule" ? "active" : ""}`}
+              onClick={() => setActiveTab("schedule")}
+            >
+              <span>Schedule</span>
+            </button>
+          </nav>
+        </aside>
+
+        <main className="settings-main">
+          {renderTabContent()}
+        </main>
+      </div>
+
+      <style jsx>{`
+        .settings-layout {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          background: white;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: #333;
+          overflow: hidden;
+        }
+
+        .settings-header {
+          padding: 15px 30px;
+          border-bottom: 2px solid #f0f0f0;
+          background: white;
+          flex-shrink: 0;
+        }
+
+        .settings-title {
+          font-size: 24px;
+          font-weight: 400;
+          margin: 0;
+          color: #1a1a1a;
+        }
+
+        .settings-body {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .settings-sidebar {
+          width: 220px;
+          background: #eef0f2;
+          flex-shrink: 0;
+          height: 100%;
+        }
+
+        .settings-nav {
+          display: flex;
+          flex-direction: column;
+          padding: 0;
+        }
+
+        .nav-item {
+          text-align: left;
+          padding: 18px 25px;
+          border: none;
+          background: transparent;
+          font-size: 14px;
+          font-weight: 500;
+          color: #333;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+          background: #e2e4e6;
+        }
+
+        .nav-item.active {
+          color: #0d9488;
+          font-weight: 600;
+          background: #ffffff;
+        }
+
+        /* Main Content Styles */
+        .settings-main {
+          flex: 1;
+          background: white;
+          overflow-y: auto;
+          padding: 40px 60px;
+        }
+
+        .settings-profile-content {
+          max-width: 900px;
+        }
+
+        .profile-top-info {
+          display: flex;
+          align-items: center;
+          gap: 25px;
+          margin-bottom: 40px;
+        }
+
+        .avatar-section {
+          position: relative;
+          width: 80px;
+          height: 80px;
+        }
+
+        .profile-img-large {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 1px solid #ddd;
+        }
+
+        .profile-placeholder-large {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: #000;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 32px;
+          font-weight: 700;
+        }
+
+        .avatar-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          opacity: 0;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+
+        .avatar-overlay:hover {
+          opacity: 1;
+        }
+
+        .profile-identity-text h2 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 500;
+        }
+
+        .profile-identity-text p {
+          margin: 5px 0 0;
+          color: #666;
+          font-size: 14px;
+        }
+
+        /* Form Layout Table-like */
+        .profile-form-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 25px;
+        }
+
+        .form-row {
+          display: flex;
+          align-items: center;
+        }
+
+        .row-label {
+          width: 180px;
+          font-size: 14px;
+          color: #333;
+          flex-shrink: 0;
+        }
+
+        .row-input {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .styled-input, .styled-select {
+          width: 100%;
+          max-width: 350px;
+          padding: 8px 12px;
+          border: 1px solid #dcdde1;
+          border-radius: 4px;
+          background: #f1f2f6;
+          font-size: 14px;
+          color: #2f3640;
+          outline: none;
+        }
+
+        .styled-input:focus, .styled-select:focus {
+          border-color: #0d9488;
+          background: #fff;
+        }
+
+        .disabled-like {
+          cursor: default;
+        }
+
+        .mini {
+          width: 80px !important;
+        }
+
+        .input-hint-text {
+          font-size: 14px;
+          color: #666;
+        }
+
+        /* Signature and Stamp Previews */
+        .signature-container, .stamp-container {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .signature-preview-box {
+          width: 350px;
+          height: 80px;
+          border: 1px solid #dcdde1;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 32px;
+          white-space: nowrap;
+          overflow: hidden;
+          background: #fff;
+        }
+
+        .initial-preview-box {
+          width: 80px;
+          height: 80px;
+          border: 1px solid #dcdde1;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 32px;
+          background: #fff;
+        }
+
+        .handwriting {
+          font-family: 'Great Vibes', cursive;
+          color: #222;
+        }
+
+        .stamp-preview-box {
+          width: 350px;
+          height: 120px;
+          border: 1px solid #dcdde1;
+          border-radius: 4px;
+          background: #fff;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .stamp-preview-img {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+        }
+
+        .stamp-upload-btn {
+          padding: 8px 16px;
+          border: 1px solid #0d9488;
+          border-radius: 4px;
+          background: #fff;
+          color: #0d9488;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+
+        .stamp-upload-btn:hover {
+          background: #0d948810;
+        }
+
+        /* Default Stamp UI */
+        .default-stamp {
+          width: 110px;
+          height: 110px;
+          border: 2px solid #ef4444; /* Red stamp color */
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          opacity: 0.8;
+          transform: rotate(-15deg);
+        }
+
+        .stamp-inner-circle {
+          width: 100%;
+          height: 100%;
+          border: 1px solid #ef4444;
+          border-radius: 50%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .stamp-user-name {
+          font-size: 11px;
+          font-weight: 700;
+          color: #ef4444;
+          text-transform: uppercase;
+          line-height: 1.1;
+          max-width: 80px;
+          margin-bottom: 2px;
+        }
+
+        .stamp-current-date {
+          font-size: 9px;
+          font-weight: 500;
+          color: #ef4444;
+        }
+
+        .edit-icon-btn {
+          background: transparent;
+          border: none;
+          color: #666;
+          cursor: pointer;
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .edit-icon-btn:hover {
+          color: #0d9488;
+        }
+
+        .form-actions-footer {
+          margin-top: 30px;
+          padding-top: 30px;
+          border-top: 1px solid #f0f0f0;
+        }
+
+        .update-btn {
+          padding: 10px 40px;
+          background: #0d9488;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .update-btn:hover {
+          background: #0f766d;
+        }
+
+        .update-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+        }
+
+        .tab-header-title {
+          font-size: 18px;
+          font-weight: 500;
+          margin-bottom: 25px;
+        }
+
+        .narrow-form {
+          max-width: 600px;
+        }
+
+        /* Scrollbar styles */
+        .settings-main::-webkit-scrollbar {
+          width: 6px;
+        }
+        .settings-main::-webkit-scrollbar-thumb {
+          background: #ddd;
+          border-radius: 10px;
+        }
+      `}</style>
+    </div>
+  );
 };
+
+export default Settings;

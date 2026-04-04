@@ -3,8 +3,9 @@ import axios from "axios";
 import {
   FaPlus, FaTrash, FaEye, FaToggleOn, FaToggleOff,
   FaEdit, FaSave, FaTimes, FaCalendarAlt, FaTags,
-  FaPalette, FaSort, FaChartLine, FaImage
+  FaPalette, FaSort, FaChartLine, FaImage, FaChevronDown, FaChevronUp, FaExternalLinkAlt, FaCheckCircle, FaExclamationCircle
 } from "react-icons/fa";
+import { MdOutlineDashboard, MdSmartButton, MdOutlineLink } from "react-icons/md";
 import "../style/AdminBanner.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
@@ -16,9 +17,8 @@ export default function AdminBanner() {
   const [stats, setStats] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [filter, setFilter] = useState("all"); // all, active, inactive
+  const [filter, setFilter] = useState("all");
 
-  // Form states
   const [formData, setFormData] = useState({
     title: "",
     subtitle: "",
@@ -27,7 +27,7 @@ export default function AdminBanner() {
     button_text: "Learn More",
     order: 1,
     is_active: true,
-    background_color: "#667eea",
+    background_color: "#0d9488",
     text_color: "#ffffff",
     button_color: "#fbbf24",
     button_text_color: "#1f2937",
@@ -41,7 +41,6 @@ export default function AdminBanner() {
 
   const token = localStorage.getItem("token");
 
-  /* ================= Load Banners ================= */
   const loadBanners = async () => {
     try {
       setLoading(true);
@@ -51,7 +50,6 @@ export default function AdminBanner() {
       setBanners(res.data.banners || res.data);
     } catch (err) {
       console.error("Failed to load banners:", err);
-      alert("Failed to load banners");
     } finally {
       setLoading(false);
     }
@@ -73,26 +71,21 @@ export default function AdminBanner() {
     loadStats();
   }, []);
 
-  /* ================= Filter Banners ================= */
   const filteredBanners = banners.filter(banner => {
     if (filter === "active") return banner.is_active;
     if (filter === "inactive") return !banner.is_active;
     return true;
   }).sort((a, b) => a.order - b.order);
 
-  /* ================= Handle File Upload ================= */
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      
-      // Create preview URL
       const preview = URL.createObjectURL(selectedFile);
       setFilePreview(preview);
     }
   };
 
-  /* ================= Upload Banner ================= */
   const uploadBanner = async () => {
     if (!formData.title || !file) {
       alert("Title and image are required");
@@ -100,89 +93,50 @@ export default function AdminBanner() {
     }
 
     const formDataToSend = new FormData();
-    
-    // Append all form fields
     Object.keys(formData).forEach(key => {
       if (formData[key] !== "" && formData[key] !== null) {
         formDataToSend.append(key, formData[key]);
       }
     });
-    
     formDataToSend.append("file", file);
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/banners`, formDataToSend, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+      await axios.post(`${API_BASE_URL}/banners`, formDataToSend, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
-
-      alert(res.data.message || "Banner uploaded successfully");
       resetForm();
       loadBanners();
       loadStats();
     } catch (err) {
-      console.error("Upload error:", err);
-      alert(err.response?.data?.detail || "Banner upload failed");
+      alert(err.response?.data?.detail || "Upload failed");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= Update Banner ================= */
   const updateBanner = async (id) => {
     const formDataToSend = new FormData();
-    
-    // Append only changed fields
     Object.keys(formData).forEach(key => {
       if (formData[key] !== "" && formData[key] !== null) {
         formDataToSend.append(key, formData[key]);
       }
     });
 
+    setLoading(true);
     try {
-      const res = await axios.put(`${API_BASE_URL}/banners/${id}`, formDataToSend, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+      await axios.put(`${API_BASE_URL}/banners/${id}`, formDataToSend, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
-
-      alert(res.data.message || "Banner updated successfully");
       setEditingId(null);
       loadBanners();
     } catch (err) {
-      console.error("Update error:", err);
       alert(err.response?.data?.detail || "Update failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ================= Update Banner Image ================= */
-  const updateBannerImage = async (id, newFile) => {
-    if (!newFile) return;
-
-    const formDataToSend = new FormData();
-    formDataToSend.append("file", newFile);
-
-    try {
-      const res = await axios.put(`${API_BASE_URL}/banners/${id}/image`, formDataToSend, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert(res.data.message || "Image updated successfully");
-      loadBanners();
-    } catch (err) {
-      console.error("Image update error:", err);
-      alert(err.response?.data?.detail || "Failed to update image");
-    }
-  };
-
-  /* ================= Toggle Active ================= */
   const toggleBanner = async (id, currentStatus) => {
     try {
       await axios.put(
@@ -191,20 +145,18 @@ export default function AdminBanner() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       loadBanners();
+      loadStats();
     } catch (err) {
-      alert("Failed to update banner status");
+      alert("Failed to update status");
     }
   };
 
-  /* ================= Delete Banner ================= */
   const deleteBanner = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this banner? This action cannot be undone.")) return;
-
+    if (!window.confirm("Delete this banner?")) return;
     try {
       await axios.delete(`${API_BASE_URL}/banners/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert("Banner deleted successfully");
       loadBanners();
       loadStats();
     } catch (err) {
@@ -212,7 +164,6 @@ export default function AdminBanner() {
     }
   };
 
-  /* ================= Reset Form ================= */
   const resetForm = () => {
     setFormData({
       title: "",
@@ -222,7 +173,7 @@ export default function AdminBanner() {
       button_text: "Learn More",
       order: banners.length + 1,
       is_active: true,
-      background_color: "#667eea",
+      background_color: "#0d9488",
       text_color: "#ffffff",
       button_color: "#fbbf24",
       button_text_color: "#1f2937",
@@ -234,9 +185,9 @@ export default function AdminBanner() {
     setFile(null);
     setFilePreview(null);
     setShowAdvanced(false);
+    setEditingId(null);
   };
 
-  /* ================= Start Editing ================= */
   const startEdit = (banner) => {
     setEditingId(banner.id);
     setFormData({
@@ -247,7 +198,7 @@ export default function AdminBanner() {
       button_text: banner.button_text || "Learn More",
       order: banner.order || 1,
       is_active: banner.is_active,
-      background_color: banner.background_color || "#667eea",
+      background_color: banner.background_color || "#0d9488",
       text_color: banner.text_color || "#ffffff",
       button_color: banner.button_color || "#fbbf24",
       button_text_color: banner.button_text_color || "#1f2937",
@@ -257,539 +208,321 @@ export default function AdminBanner() {
       end_date: banner.end_date || ""
     });
     setFilePreview(banner.image_url || `${API_BASE_URL}/banners/file/${banner.id}`);
+    setShowAdvanced(true);
   };
 
-  /* ================= Cancel Edit ================= */
-  const cancelEdit = () => {
-    setEditingId(null);
-    resetForm();
-  };
-
-  /* ================= Get Banner Stats ================= */
-  const getBannerStats = async (id) => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/banners/${id}/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return res.data.stats;
-    } catch (err) {
-      console.error("Failed to load banner stats:", err);
-      return null;
-    }
-  };
-
-  /* ================= Format Date ================= */
   const formatDate = (dateString) => {
     if (!dateString) return "No date set";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
   };
 
-  /* ================= Handle Input Change ================= */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div className="admin-banner-container">
-      {/* Header */}
-      <div className="admin-header">
-        <h2>Banner Management</h2>
-        <p>Manage and customize promotional banners for your application</p>
+    <div className="abm-container">
+      {/* Dynamic Header */}
+      <div className="abm-header">
+        <h2 className="abm-header-title">Marketing Banners</h2>
+        <p className="abm-header-subtitle">Design and deploy high-conversion promotional assets for your platform</p>
       </div>
 
-      {/* Stats Overview */}
-      {stats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{banners.length}</div>
-            <div className="stat-label">Total Banners</div>
+      {/* Modern Stats Grid */}
+      <div className="abm-stats-grid">
+        <div className="abm-stat-card">
+          <div className="abm-stat-icon-wrapper">
+            <FaImage />
           </div>
-          <div className="stat-card">
-            <div className="stat-value">{banners.filter(b => b.is_active).length}</div>
-            <div className="stat-label">Active Banners</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">
-              {stats.total_clicks || 0}
-            </div>
-            <div className="stat-label">Total Clicks</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">
-              {stats.avg_ctr ? `${stats.avg_ctr}%` : "0%"}
-            </div>
-            <div className="stat-label">Avg. CTR</div>
+          <div className="abm-stat-content">
+            <div className="abm-stat-value">{banners.length}</div>
+            <div className="abm-stat-label">Total Assets</div>
           </div>
         </div>
-      )}
+        <div className="abm-stat-card">
+          <div className="abm-stat-icon-wrapper" style={{ background: '#f0fdf4', color: '#10b981' }}>
+            <FaCheckCircle />
+          </div>
+          <div className="abm-stat-content">
+            <div className="abm-stat-value">{banners.filter(b => b.is_active).length}</div>
+            <div className="abm-stat-label">Live Banners</div>
+          </div>
+        </div>
+        <div className="abm-stat-card">
+          <div className="abm-stat-icon-wrapper" style={{ background: '#fef2f2', color: '#ef4444' }}>
+            <FaChartLine />
+          </div>
+          <div className="abm-stat-content">
+            <div className="abm-stat-value">{stats?.total_clicks || 0}</div>
+            <div className="abm-stat-label">Engagements</div>
+          </div>
+        </div>
+        <div className="abm-stat-card">
+          <div className="abm-stat-icon-wrapper" style={{ background: '#fefce8', color: '#eab308' }}>
+            <MdSmartButton />
+          </div>
+          <div className="abm-stat-content">
+            <div className="abm-stat-value">{stats?.avg_ctr ? `${stats.avg_ctr}%` : "0%"}</div>
+            <div className="abm-stat-label">Avg. CTR</div>
+          </div>
+        </div>
+      </div>
 
-      {/* Main Content Grid */}
-      <div className="admin-content-grid">
-        {/* Left Column: Add/Edit Banner */}
-        <div className="admin-form-section">
-          <div className="admin-card">
-            <div className="card-header">
-              <h3>
-                {editingId ? <><FaEdit /> Edit Banner</> : <><FaPlus /> Add New Banner</>}
+      <div className="abm-content-grid">
+        {/* Editor Side */}
+        <div className="abm-form-section">
+          <div className="abm-card">
+            <div className="abm-card-header">
+              <h3 className="abm-card-title">
+                {editingId ? <><FaEdit /> Refresh Content</> : <><FaPlus /> Build New Banner</>}
               </h3>
               {editingId && (
-                <button className="btn-secondary" onClick={cancelEdit}>
-                  <FaTimes /> Cancel
+                <button className="abm-cancel-btn" onClick={resetForm}>
+                  Reset
                 </button>
               )}
             </div>
 
-            <div className="form-grid">
-              {/* Basic Information */}
-              <div className="form-group">
-                <label>Title *</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  placeholder="Enter banner title"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Subtitle</label>
-                <input
-                  type="text"
-                  name="subtitle"
-                  value={formData.subtitle}
-                  onChange={handleInputChange}
-                  placeholder="Optional subtitle"
-                />
-              </div>
-
-              <div className="form-group full-width">
-                <label>Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Brief description for the banner"
-                  rows={3}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Link URL</label>
-                <input
-                  type="text"
-                  name="link"
-                  value={formData.link}
-                  onChange={handleInputChange}
-                  placeholder="Where banner should link to"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Button Text</label>
-                <input
-                  type="text"
-                  name="button_text"
-                  value={formData.button_text}
-                  onChange={handleInputChange}
-                  placeholder="Learn More"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Display Order</label>
-                <input
-                  type="number"
-                  name="order"
-                  value={formData.order}
-                  onChange={handleInputChange}
-                  min="1"
-                />
-              </div>
-
-              {/* Image Upload */}
-              <div className="form-group full-width">
-                <label>Banner Image *</label>
-                <div className="file-upload-area">
+            <div className="abm-form-body">
+              <div className="abm-form-grid">
+                <div className="abm-form-group">
+                  <label className="abm-form-label"><MdOutlineDashboard /> Headline *</label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    id="banner-upload"
-                    style={{ display: 'none' }}
+                    type="text"
+                    name="title"
+                    className="abm-form-input"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Enter short, punchy headline"
+                    required
                   />
-                  <label htmlFor="banner-upload" className="upload-label">
-                    <FaImage /> {file ? "Change Image" : "Choose Image"}
-                  </label>
-                  
-                  {(filePreview || file) && (
-                    <div className="image-preview">
-                      <img
-                        src={filePreview || (file && URL.createObjectURL(file))}
-                        alt="Preview"
-                      />
-                      <div className="preview-overlay">
-                        <span>{file?.name || "Current Banner"}</span>
+                </div>
+
+                <div className="abm-form-group">
+                  <label className="abm-form-label"><MdOutlineDashboard /> Tagline</label>
+                  <input
+                    type="text"
+                    name="subtitle"
+                    className="abm-form-input"
+                    value={formData.subtitle}
+                    onChange={handleInputChange}
+                    placeholder="Brief supporting text"
+                  />
+                </div>
+
+                <div className="abm-form-group">
+                  <label className="abm-form-label"><MdOutlineLink /> Destination Link</label>
+                  <input
+                    type="text"
+                    name="link"
+                    className="abm-form-input"
+                    value={formData.link}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com/promo"
+                  />
+                </div>
+
+                {/* File Upload Area */}
+                <div className="abm-form-group">
+                  <label className="abm-form-label"><FaImage /> Visual Asset *</label>
+                  <div className="abm-upload-area" onClick={() => document.getElementById('banner-input').click()}>
+                    <input
+                      type="file"
+                      id="banner-input"
+                      hidden
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                    <FaCloudUploadAlt className="abm-upload-icon" />
+                    <div>
+                      <span className="abm-upload-label">{file ? "Change Selection" : "Drag or Click to Upload"}</span>
+                    </div>
+                    <p className="abm-upload-hint">SVG, PNG or WEBP (Max 2MB)</p>
+                  </div>
+
+                  {filePreview && (
+                    <div className="abm-image-preview">
+                      <img src={filePreview} alt="Preview" />
+                      <div className="abm-preview-overlay">Live Preview</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Advanced Configuration */}
+                <div className="abm-adv-header" onClick={() => setShowAdvanced(!showAdvanced)}>
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#475569' }}>
+                    <FaPalette style={{ marginRight: '8px' }} /> Visual Configuration
+                  </span>
+                  {showAdvanced ? <FaChevronUp /> : <FaChevronDown />}
+                </div>
+
+                {showAdvanced && (
+                  <div className="abm-adv-content">
+                    <div className="abm-colors-grid">
+                      <div className="abm-form-group">
+                        <label className="abm-form-label">Background</label>
+                        <div className="abm-color-input-wrapper">
+                          <input
+                            type="color"
+                            value={formData.background_color}
+                            onChange={(e) => setFormData(p => ({ ...p, background_color: e.target.value }))}
+                          />
+                          <input type="text" className="abm-color-hex" value={formData.background_color} readOnly />
+                        </div>
+                      </div>
+                      <div className="abm-form-group">
+                        <label className="abm-form-label">Button</label>
+                        <div className="abm-color-input-wrapper">
+                          <input
+                            type="color"
+                            value={formData.button_color}
+                            onChange={(e) => setFormData(p => ({ ...p, button_color: e.target.value }))}
+                          />
+                          <input type="text" className="abm-color-hex" value={formData.button_color} readOnly />
+                        </div>
                       </div>
                     </div>
-                  )}
-                  
-                  <p className="upload-hint">
-                    Recommended: 1200×500px, max 5MB (PNG, JPG, WEBP)
-                  </p>
-                </div>
-              </div>
 
-              {/* Advanced Options Toggle */}
-              <div className="form-group full-width">
+                    <div className="abm-form-group">
+                      <label className="abm-form-label"><FaSort /> Priority Order</label>
+                      <input
+                        type="number"
+                        name="order"
+                        className="abm-form-input"
+                        value={formData.order}
+                        onChange={handleInputChange}
+                        min="1"
+                      />
+                    </div>
+
+                    <div className="abm-form-group">
+                      <label className="abm-form-label">Visibility</label>
+                      <div className="abm-toggle-input" onClick={() => setFormData(p => ({ ...p, is_active: !p.is_active }))}>
+                        <div className={`abm-ios-track ${formData.is_active ? 'active' : ''}`}>
+                          <div className="abm-ios-handle"></div>
+                        </div>
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{formData.is_active ? "Public" : "Draft"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <button
-                  type="button"
-                  className="advanced-toggle"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                >
-                  {showAdvanced ? "Hide Advanced Options" : "Show Advanced Options"}
-                </button>
-              </div>
-
-              {/* Advanced Options */}
-              {showAdvanced && (
-                <>
-                  {/* Color Settings */}
-                  <div className="form-group">
-                    <label><FaPalette /> Background Color</label>
-                    <div className="color-input">
-                      <input
-                        type="color"
-                        value={formData.background_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          background_color: e.target.value
-                        }))}
-                      />
-                      <input
-                        type="text"
-                        value={formData.background_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          background_color: e.target.value
-                        }))}
-                        placeholder="#667eea"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label><FaPalette /> Text Color</label>
-                    <div className="color-input">
-                      <input
-                        type="color"
-                        value={formData.text_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          text_color: e.target.value
-                        }))}
-                      />
-                      <input
-                        type="text"
-                        value={formData.text_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          text_color: e.target.value
-                        }))}
-                        placeholder="#ffffff"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label><FaPalette /> Button Color</label>
-                    <div className="color-input">
-                      <input
-                        type="color"
-                        value={formData.button_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          button_color: e.target.value
-                        }))}
-                      />
-                      <input
-                        type="text"
-                        value={formData.button_color}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          button_color: e.target.value
-                        }))}
-                        placeholder="#fbbf24"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dates */}
-                  <div className="form-group">
-                    <label><FaCalendarAlt /> Start Date</label>
-                    <input
-                      type="datetime-local"
-                      name="start_date"
-                      value={formData.start_date}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label><FaCalendarAlt /> End Date</label>
-                    <input
-                      type="datetime-local"
-                      name="end_date"
-                      value={formData.end_date}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  {/* Lists */}
-                  <div className="form-group">
-                    <label><FaTags /> Features</label>
-                    <input
-                      type="text"
-                      name="features"
-                      value={formData.features}
-                      onChange={handleInputChange}
-                      placeholder="Comma-separated features"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label><FaTags /> Tags</label>
-                    <input
-                      type="text"
-                      name="tags"
-                      value={formData.tags}
-                      onChange={handleInputChange}
-                      placeholder="Comma-separated tags"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Status</label>
-                    <div className="toggle-switch">
-                      <label className="switch">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_active}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            is_active: e.target.checked
-                          }))}
-                        />
-                        <span className="slider"></span>
-                      </label>
-                      <span className="toggle-label">
-                        {formData.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Submit Button */}
-              <div className="form-group full-width">
-                <button
-                  className={editingId ? "btn-warning" : "btn-primary"}
+                  className="abm-submit-btn"
                   onClick={editingId ? () => updateBanner(editingId) : uploadBanner}
-                  disabled={loading || !formData.title || !file}
+                  disabled={loading || !formData.title || (!file && !editingId)}
                 >
-                  {loading ? (
-                    "Processing..."
-                  ) : editingId ? (
-                    <>
-                      <FaSave /> Update Banner
-                    </>
-                  ) : (
-                    <>
-                      <FaPlus /> Add Banner
-                    </>
-                  )}
+                  {loading ? <div className="abm-loader"></div> : editingId ? "Save Changes" : "Deploy Banner"}
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Banner List */}
-        <div className="banner-list-section">
-          <div className="admin-card">
-            <div className="card-header">
-              <h3>All Banners ({filteredBanners.length})</h3>
-              <div className="filter-controls">
-                <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                  <option value="all">All Banners</option>
-                  <option value="active">Active Only</option>
-                  <option value="inactive">Inactive Only</option>
-                </select>
-              </div>
+        {/* Assets Side */}
+        <div className="abm-list-section">
+          <div className="abm-card">
+            <div className="abm-table-controls">
+              <h3>Live Assets ({filteredBanners.length})</h3>
+              <select value={filter} onChange={(e) => setFilter(e.target.value)} className="abm-form-select">
+                <option value="all">Every State</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
             </div>
 
-            {loading ? (
-              <div className="loading-state">
-                <div className="spinner"></div>
-                <p>Loading banners...</p>
-              </div>
-            ) : filteredBanners.length === 0 ? (
-              <div className="empty-state">
-                <p>No banners found</p>
-              </div>
-            ) : (
-              <div className="banners-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Preview</th>
-                      <th>Details</th>
-                      <th>Order</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredBanners.map((banner) => (
-                      <tr key={banner.id} className={!banner.is_active ? "inactive" : ""}>
-                        <td className="preview-cell">
-                          <img
-                            src={`${API_BASE_URL}/banners/file/${banner.id}`}
-                            alt={banner.title}
-                            className="banner-thumbnail"
-                            onError={(e) => {
-                              e.target.src = "https://via.placeholder.com/150x60?text=No+Image";
-                            }}
-                          />
-                        </td>
-                        <td className="details-cell">
-                          <strong>{banner.title}</strong>
-                          {banner.subtitle && <div className="banner-subtitle">{banner.subtitle}</div>}
-                          {banner.description && (
-                            <div className="banner-description">{banner.description}</div>
-                          )}
+            <div className="abm-table-container">
+              <table className="abm-table">
+                <thead>
+                  <tr>
+                    <th>Asset Preview</th>
+                    <th>Engagement Details</th>
+                    <th>Priority</th>
+                    <th>Visibility</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBanners.map((banner) => (
+                    <tr key={banner.id}>
+                      <td>
+                        <img
+                          src={`${API_BASE_URL}/banners/file/${banner.id}`}
+                          alt="Banner"
+                          style={{ width: '140px', borderRadius: '8px', border: '1px solid #f1f5f9', cursor: 'pointer' }}
+                          onClick={() => setPreviewUrl(`${API_BASE_URL}/banners/file/${banner.id}`)}
+                        />
+                      </td>
+                      <td>
+                        <div className="abm-banner-info">
+                          <span className="abm-banner-title">{banner.title}</span>
+                          <span className="abm-banner-desc">{banner.subtitle || "No tagline provided"}</span>
                           {banner.link && (
-                            <div className="banner-link">
-                              <a href={banner.link} target="_blank" rel="noreferrer">
-                                {banner.link}
-                              </a>
-                            </div>
+                            <a href={banner.link} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#0d9488', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <FaExternalLinkAlt size={10} /> View Destination
+                            </a>
                           )}
-                          {banner.tags?.length > 0 && (
-                            <div className="banner-tags">
-                              {banner.tags.map((tag, idx) => (
-                                <span key={idx} className="tag">{tag}</span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="order-cell">
-                          <div className="order-badge">{banner.order}</div>
-                        </td>
-                        <td className="status-cell">
-                          <div className={`status-badge ${banner.is_active ? "active" : "inactive"}`}>
-                            {banner.is_active ? "Active" : "Inactive"}
-                          </div>
-                          {(banner.start_date || banner.end_date) && (
-                            <div className="date-info">
-                              {banner.start_date && (
-                                <div>From: {formatDate(banner.start_date)}</div>
-                              )}
-                              {banner.end_date && (
-                                <div>To: {formatDate(banner.end_date)}</div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="actions-cell">
-                          <div className="action-buttons">
-                            <button
-                              className="btn-icon btn-view"
-                              onClick={() => {
-                                setPreviewUrl(`${API_BASE_URL}/banners/file/${banner.id}`);
-                              }}
-                              title="View Full Size"
-                            >
-                              <FaEye />
-                            </button>
-                            
-                            <button
-                              className="btn-icon btn-edit"
-                              onClick={() => startEdit(banner)}
-                              title="Edit Banner"
-                            >
-                              <FaEdit />
-                            </button>
-                            
-                            <button
-                              className="btn-icon btn-toggle"
-                              onClick={() => toggleBanner(banner.id, banner.is_active)}
-                              title={banner.is_active ? "Deactivate" : "Activate"}
-                            >
-                              {banner.is_active ? <FaToggleOn /> : <FaToggleOff />}
-                            </button>
-                            
-                            <button
-                              className="btn-icon btn-danger"
-                              onClick={() => deleteBanner(banner.id)}
-                              title="Delete Banner"
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
-                          
-                          {banner.clicks !== undefined && (
-                            <div className="banner-stats">
-                              <span className="stat-item">
-                               <FaEye /> {banner.impressions || 0}
-                              </span>
-                              <span className="stat-item">
-                                 {banner.clicks || 0}
-                              </span>
-                              {banner.impressions > 0 && (
-                                <span className="stat-item">
-                                   {((banner.clicks / banner.impressions) * 100).toFixed(1)}%
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="abm-order-badge">{banner.order}</div>
+                      </td>
+                      <td>
+                        <div className={`abm-status-badge ${banner.is_active ? "active" : "inactive"}`}>
+                          {banner.is_active ? <FaCheckCircle /> : <FaExclamationCircle />}
+                          {banner.is_active ? "Live" : "Inactive"}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="abm-actions">
+                          <button className="abm-btn-icon" onClick={() => startEdit(banner)} title="Edit Configuration">
+                            <FaEdit />
+                          </button>
+                          <button className={`abm-btn-icon ${banner.is_active ? 'active' : ''}`} onClick={() => toggleBanner(banner.id, banner.is_active)} title={banner.is_active ? "Deactivate" : "Activate"}>
+                            {banner.is_active ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
+                          </button>
+                          <button className="abm-btn-icon delete" onClick={() => deleteBanner(banner.id)} title="Purge Asset">
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Preview Modal */}
+      {/* Premium Preview Modal */}
       {previewUrl && (
-        <div className="modal-overlay" onClick={() => setPreviewUrl(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Banner Preview</h3>
-              <button className="close-btn" onClick={() => setPreviewUrl(null)}>
+        <div className="abm-modal-overlay" onClick={() => setPreviewUrl(null)}>
+          <div className="abm-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="abm-modal-header">
+              <h3>High-Fidelity Preview</h3>
+              <button className="abm-btn-icon" onClick={() => setPreviewUrl(null)}>
                 <FaTimes />
               </button>
             </div>
-            <div className="modal-body">
-              <img src={previewUrl} alt="Banner Preview" className="full-preview" />
-            </div>
+            <img src={previewUrl} alt="Full Size" className="abm-full-preview" />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// Missing icon fix
+function FaCloudUploadAlt(props) {
+  return (
+    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 640 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M537.6 226.6c4.1-10.7 6.4-22.4 6.4-34.6 0-53-43-96-96-96-19.7 0-38.1 6-53.3 16.2C367 64.2 315.3 32 256 32c-88.4 0-160 71.6-160 160 0 2.7.1 5.4.2 8.1C40.2 219.8 0 273.2 0 336c0 79.5 64.5 144 144 144h368c70.7 0 128-57.3 128-128 0-61.9-44-113.6-102.4-125.4zM393.4 288H320v112c0 8.8-7.2 16-16 16h-48c-8.8 0-16-7.2-16-16V288h-73.4c-14.2 0-21.3-17.2-11.3-27.3l105.4-105.4c6.2-6.2 16.4-6.2 22.6 0l105.4 105.4c10.1 10.1 2.9 27.3-11.3 27.3z"></path>
+    </svg>
   );
 }

@@ -2399,8 +2399,202 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     </html>
     """
     
-    subject = f"{'🔁' if is_resend else '🔐'} {'New OTP' if is_resend else 'OTP'} for Document: {document['filename']}"
+    subject = f"{'🔐' if not is_resend else '🔁'} OTP Verification - {document['filename']}"
     return send_email(recipient['email'], subject, html_content)
+
+def build_completion_summary_html(recipients: list) -> str:
+    """Build a professional HTML table showing recipient completion status and timeline."""
+    rows = ""
+    for r in recipients:
+        name = r.get("name", "Recipient")
+        email = r.get("email", "")
+        status = r.get("status", "pending").replace('_', ' ').title()
+        
+        # Determine completion time
+        comp_time = None
+        if r.get("status") == "completed":
+            comp_time = r.get("completed_at") or r.get("signed_at") or r.get("approved_at") or r.get("viewer_at")
+        elif r.get("status") == "declined":
+            comp_time = r.get("declined_at")
+            
+        time_str = comp_time.strftime("%b %d, %Y %I:%M %p") if comp_time and isinstance(comp_time, datetime) else "—"
+        status_color = "#059669" if r.get("status") == "completed" else ("#dc2626" if r.get("status") == "declined" else "#64748b")
+        
+        rows += f"""
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px 8px;">
+                <div style="font-weight: 600; color: #1e293b;">{name}</div>
+                <div style="font-size: 12px; color: #64748b;">{email}</div>
+            </td>
+            <td style="padding: 12px 8px; color: {status_color}; font-weight: 500;">{status}</td>
+            <td style="padding: 12px 8px; color: #64748b; font-size: 12px;">{time_str}</td>
+        </tr>
+        """
+        
+    return f"""
+    <div style="margin-top: 30px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+        <div style="background: #f8fafc; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 14px;">
+            Document Signing Completion Summary
+        </div>
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: #ffffff; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <th style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0;">Participant</th>
+                    <th style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0;">Status</th>
+                    <th style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0;">Completion Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    </div>
+    """
+
+def send_recipient_activity_notification_to_owner(
+    recipient: dict,
+    document: dict,
+    status: str = "completed"
+) -> bool:
+    """
+    Send real-time progress update email to document owner when a recipient acts.
+    Supports statuses: 'completed', 'declined', 'skipped'.
+    """
+    try:
+        # Get branding info
+        branding = db.branding.find_one({}) or {}
+        platform_name = branding.get("platform_name", "SafeSign")
+        logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
+        current_year = datetime.now().strftime('%Y')
+        
+        # Get owner/sender info
+        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner_email = document.get("owner_email") or (owner.get("email") if owner else "")
+        if not owner_email:
+            print("❌ Cannot notify owner: Owner email missing")
+            return False
+
+        recipient_name = recipient.get("name", "Recipient")
+        recipient_email = recipient.get("email", "")
+        document_name = document.get("filename", "Document")
+        timestamp = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+        
+        # Status-specific formatting
+        status_colors = {
+            "completed": "#059669", # Green
+            "declined": "#dc2626",  # Red
+            "skipped": "#d97706"    # Orange
+        }
+        status_text = {
+            "completed": "Successfully Completed Signing",
+            "declined": "Declined to Sign",
+            "skipped": "Skipped Signing Step"
+        }
+        status_emojis = {
+            "completed": "✅",
+            "declined": "❌",
+            "skipped": "⏩"
+        }
+        
+        color = status_colors.get(status, "#374151")
+        text = status_text.get(status, status.title())
+        emoji = status_emojis.get(status, "🔔")
+        
+        subject = f"{emoji} {recipient_name} {status.title()} Signing – {document_name}"
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .container {{ max-width: 600px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
+                .header {{ background: #0d9488; color: white; padding: 30px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .status-badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-weight: 500; font-size: 14px; background-color: {color}; margin-bottom: 20px; }}
+                .details-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }}
+                .details-table td {{ padding: 12px 0; border-bottom: 1px solid #e5e7eb; }}
+                .label {{ color: #6b7280; width: 140px; }}
+                .value {{ font-weight: 600; color: #111827; }}
+                .footer {{ background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e5e7eb; }}
+                .button {{ display: inline-block; background: #0d9488; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin:0; font-size: 20px;">Signing Progress Update</h1>
+                </div>
+                <div class="content">
+                    <div class="status-badge">{text}</div>
+                    <p>Hello,</p>
+                    <p>This is an automated update regarding your document <strong>{document_name}</strong>. A recipient has just updated their status.</p>
+                    
+                    <table class="details-table">
+                        <tr>
+                            <td class="label">Recipient</td>
+                            <td class="value">{recipient_name} ({recipient_email})</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Status</td>
+                            <td class="value" style="color: {color};">{text}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Timestamp</td>
+                            <td class="value">{timestamp}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Document</td>
+                            <td class="value">{document_name}</td>
+                        </tr>
+                    </table>
+                    
+                    <div style="text-align: center;">
+                        <a href="{FRONTEND_URL}/dashboard/documents/{document['_id']}" class="button">View Document Status</a>
+                    </div>
+                </div>
+                <div class="footer">
+                    © {current_year} {platform_name}. Secure electronic signatures.<br>
+                    This is an automated notification.
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Check idempotency to avoid double notifications for the same status
+        existing = db.document_activity.find_one({
+            "document_id": document["_id"],
+            "action": f"owner_notified_{status}",
+            "recipient_email": recipient_email
+        })
+        
+        if existing:
+            print(f"ℹ️ Owner already notified for {status} status of {recipient_email}")
+            return True
+
+        # Send email
+        success = send_email(owner_email, subject, html_content)
+        
+        if success:
+            # Log the notification in activity
+            db.document_activity.insert_one({
+                "document_id": document["_id"],
+                "action": f"owner_notified_{status}",
+                "recipient_email": recipient_email,
+                "recipient_name": recipient_name,
+                "owner_email": owner_email,
+                "timestamp": datetime.utcnow(),
+                "status_notified": status
+            })
+            print(f"✅ Owner notified: {recipient_name} {status}")
+            
+        return success
+        
+    except Exception as e:
+        print(f"❌ Error notifying owner of recipient activity: {str(e)}")
+        return False
 
 def get_role_color(role: str, element: str = 'gradient') -> str:
     """Get color scheme based on role"""
@@ -3973,6 +4167,9 @@ async def send_completed_document_package(document_id: str):
             print(f"❌ No recipients found for document {document_id}")
             return False
         
+        # Build completion summary HTML (Timeline)
+        summary_html = build_completion_summary_html(recipients)
+        
         # Pre-generate common package data (Signed doc, Summary, Certificate)
         # This optimization ensures we don't re-render for every recipient
         from .documents import load_document_pdf, apply_completed_fields_to_pdf
@@ -4000,6 +4197,9 @@ async def send_completed_document_package(document_id: str):
                 "recipient_obj": recipients[0] if recipients else None # Use first recipient for context if needed
             })
             
+        success_count = 0
+        failed_recipients = []
+
         for target in package_recipients:
             try:
                 recipient_email = target["email"]
@@ -4023,7 +4223,7 @@ async def send_completed_document_package(document_id: str):
                     if is_owner:
                         subject = f"🔔 All Recipients Signed: {document.get('filename')} - Final Package Ready"
                     
-                    # Send email with ZIP attachment
+                    # Send email with ZIP attachment and Summary
                     success = send_package_email(
                         recipient_email=recipient_email,
                         recipient_name=recipient_name,
@@ -4035,7 +4235,8 @@ async def send_completed_document_package(document_id: str):
                         sender_organization=sender_organization,
                         platform_name=platform_name,
                         logo_url=logo_url,
-                        subject_override=subject
+                        subject_override=subject,
+                        summary_html=summary_html # Pass the summary
                     )
                     
                     if success:
@@ -4427,7 +4628,7 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
         
     except Exception as e:
         print(f"❌ Error preparing summary data: {str(e)}")
-        # Return minimal summary data as fallback
+        # Return minimal summary data as fallback.
         return {
             "envelope_id": document.get("envelope_id", "N/A"),
             "document_name": document.get("filename", "Unknown"),
@@ -4593,7 +4794,8 @@ def send_package_email(
     sender_organization: str,
     platform_name: str,
     logo_url: str = None,
-    subject_override: str = None
+    subject_override: str = None,
+    summary_html: str = None
 ) -> bool:
     """
     Send email with ZIP attachment containing all signed documents
@@ -4799,6 +5001,8 @@ def send_package_email(
                             </tr>
                         </table>
                     </div>
+
+                    {summary_html if summary_html else ""}
                     
                     <div class="package-section">
                         <div class="package-icon">📦</div>

@@ -9,7 +9,13 @@ from enum import Enum
 import base64
 from io import BytesIO
 import cohere
-from cohere import CohereAPIError
+try:
+    from cohere import CohereAPIError
+except ImportError:
+    try:
+        from cohere.errors import ApiError as CohereAPIError
+    except ImportError:
+        CohereAPIError = Exception
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
@@ -39,17 +45,21 @@ co_version = None
 
 if COHERE_API_KEY:
     try:
-        # Try V2 client first (preferred)
-        from cohere import ClientV2
-        cohere_client = ClientV2(api_key=COHERE_API_KEY)
-        co_version = 2
-    except (ImportError, AttributeError):
-        try:
+        # Try V2 client first (preferred in newer SDKs)
+        if hasattr(cohere, 'ClientV2'):
+            cohere_client = cohere.ClientV2(api_key=COHERE_API_KEY)
+            co_version = 2
+        else:
             # Fallback to V1 client
             cohere_client = cohere.Client(api_key=COHERE_API_KEY)
             co_version = 1
-        except Exception as e:
-            print(f"[COHERE INIT ERROR] {e}")
+    except Exception as e:
+        print(f"[COHERE INIT ERROR] {e}")
+        # Try fallback one more time just in case
+        try:
+            cohere_client = cohere.Client(api_key=COHERE_API_KEY)
+            co_version = 1
+        except:
             co_version = 0
 
 router = APIRouter(prefix="/api/ai/templates", tags=["AI Template Builder"])

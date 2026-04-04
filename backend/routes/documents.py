@@ -1574,6 +1574,10 @@ async def upload_document(
                 detail=f"Document with envelope ID '{envelope_id_value}' already exists"
             )
 
+    # Default expiry and reminder from user settings
+    reminder_days = current_user.get("reminder_days", 3)
+    expiry_days = current_user.get("expiry_days", 30)
+
     # 1. Create Initial Document Record (Progress: 10%)
     doc_data = {
         "filename": file.filename,
@@ -1587,7 +1591,9 @@ async def upload_document(
         "progress": 10,
         "processing_status": "Starting upload...",
         "common_message": "Please review and sign this document at your earliest convenience.",
-        "expires_at": datetime.utcnow() + timedelta(days=30),
+        "expires_at": datetime.utcnow() + timedelta(days=expiry_days),
+        "expiry_days": expiry_days,
+        "reminder_period": reminder_days,
         "source": "local",
         "envelope_id": envelope_id_value
     }

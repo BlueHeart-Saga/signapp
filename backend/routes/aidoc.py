@@ -124,7 +124,13 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 if not COHERE_API_KEY:
     raise Exception("COHERE_API_KEY not found")
 
-cohere_client = cohere.Client(COHERE_API_KEY) if COHERE_API_KEY else None
+# Initialize client with robust detection
+client = None
+if COHERE_API_KEY:
+    if hasattr(cohere, 'ClientV2'):
+        client = cohere.ClientV2(api_key=COHERE_API_KEY)
+    else:
+        client = cohere.Client(api_key=COHERE_API_KEY)
 
 router = APIRouter(prefix="/ai", tags=["AI Documents"])
 
@@ -187,6 +193,8 @@ Text:
 
 @router.post("/generate")
 async def generate_document(data: GenerateDocumentRequest):
+    if not client:
+        raise HTTPException(500, "Cohere client not initialized")
     try:
         response = client.chat(
             model="command-r-plus-08-2024",
@@ -204,9 +212,15 @@ async def generate_document(data: GenerateDocumentRequest):
             max_tokens=1500
         )
 
+        # Handle different response formats between V1 and V2
+        if hasattr(response, 'message'):
+            content = response.message.content[0].text.strip()
+        else:
+            content = response.text.strip()
+
         return {
             "success": True,
-            "content_html": response.message.content[0].text.strip()
+            "content_html": content
         }
 
     except Exception as e:
@@ -218,6 +232,8 @@ async def generate_document(data: GenerateDocumentRequest):
 
 @router.post("/generate-stream")
 async def generate_stream(data: GenerateDocumentRequest):
+    if not client:
+        raise HTTPException(500, "Cohere client not initialized")
 
     async def event_generator():
         total_chars = 0
@@ -241,20 +257,24 @@ async def generate_stream(data: GenerateDocumentRequest):
             )
 
             for event in stream:
-                delta = getattr(event, "delta", None)
-                if not delta:
-                    continue
-
-                content = getattr(delta, "content", None)
-                if not content:
-                    continue
-
-                for block in content:
-                    text = getattr(block, "text", None)
-                    if text:
-                        total_chars += len(text)
-                        chunk_count += 1
-                        yield text
+                # Handle V2 stream format
+                if hasattr(event, "delta"):
+                    delta = getattr(event, "delta", None)
+                    if not delta: continue
+                    content = getattr(delta, "content", None)
+                    if not content: continue
+                    for block in content:
+                        text = getattr(block, "text", None)
+                        if text:
+                            total_chars += len(text)
+                            chunk_count += 1
+                            yield text
+                # Handle V1 stream format
+                elif hasattr(event, "text"):
+                    text = event.text
+                    total_chars += len(text)
+                    chunk_count += 1
+                    yield text
 
         except Exception as e:
             print("❌ STREAM ERROR:", str(e))
@@ -277,75 +297,14 @@ async def generate_stream(data: GenerateDocumentRequest):
         media_type="text/html; charset=utf-8"
     )
 
-@router.post("/generate-stream-temp")
-async def generate_stream_temp(data: GenerateDocumentRequest):
-
-    async def event_generator():
-        # HTML shell start
-        yield """
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8"/>
-<title>AI Draft</title>
-<style>
-  body { font-family: Arial, sans-serif; line-height: 1.6; padding: 24px; }
-  h1, h2 { color: #1f2937; }
-  p, li { color: #374151; }
-</style>
-</head>
-<body>
-<!-- AI_STREAM_START -->
-"""
-
-        try:
-            stream = client.chat_stream(
-                model="command-r-plus-08-2024",
-                messages=[
-                    {"role": "system", "content": "You are a legal document drafting assistant."},
-                    {"role": "user", "content": build_document_prompt(data)}
-                ],
-                temperature=0.2,
-                max_tokens=1500,
-            )
-
-            for event in stream:
-                delta = getattr(event, "delta", None)
-                if not delta:
-                    continue
-
-                content = getattr(delta, "content", None)
-                if not content:
-                    continue
-
-                for block in content:
-                    text = getattr(block, "text", None)
-                    if text:
-                        yield text
-
-        except Exception as e:
-            yield f"<p style='color:red'>Error: {str(e)}</p>"
-
-        finally:
-            # HTML shell end
-            yield """
-<!-- AI_STREAM_END -->
-</body>
-</html>
-"""
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/html; charset=utf-8"
-    )
-
-
 # =====================================================
 # REWRITE
 # =====================================================
 
 @router.post("/rewrite")
 async def rewrite_clause(data: RewriteRequest):
+    if not client:
+        raise HTTPException(500, "Cohere client not initialized")
     try:
         response = client.chat(
             model="command-r",
@@ -363,59 +322,15 @@ async def rewrite_clause(data: RewriteRequest):
             max_tokens=400
         )
 
-        return {
-            "success": True,
-            "content_html": response.message.content[0].text.strip()
-        }
-
-    except Exception as e:
-        raise HTTPException(500, f"Cohere rewrite error: {str(e)}")
-
-# =====================================================
-# SAVE (MOCK → DB READY)
-# =====================================================
-
-@router.post("/save")
-async def save_ai_document(data: SaveAIDocumentRequest):
-    # TODO: Replace with real DB insert
-    return {
-        "success": True,
-        "document": {
-            "id": 123,
-            "filename": f"{data.title}.pdf",
-            "status": "draft",
-            "source": "ai"
-        }
-    }
-
-
-
-# =====================================================
-# REWRITE
-# =====================================================
-
-@router.post("/rewrite")
-async def rewrite_clause(data: RewriteRequest):
-    try:
-        response = client.chat(
-            model="command-r",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You rewrite legal clauses."
-                },
-                {
-                    "role": "user",
-                    "content": build_rewrite_prompt(data.action, data.text)
-                }
-            ],
-            temperature=0.3,
-            max_tokens=400
-        )
+        # Handle different response formats
+        if hasattr(response, 'message'):
+            content = response.message.content[0].text.strip()
+        else:
+            content = response.text.strip()
 
         return {
             "success": True,
-            "content_html": response.message.content[0].text.strip()
+            "content_html": content
         }
 
     except Exception as e:
