@@ -1339,7 +1339,11 @@ export default function DocumentsAndTemplates() {
                     </h3>
                     <div className="dt-popular-list">
                       {popularTemplates.map((template) => (
-                        <div key={template.id || template._id} className="dt-popular-item">
+                        <div
+                          key={template.id || template._id}
+                          className="dt-popular-item"
+                          onClick={() => handleSearchChange(template.title)}
+                        >
                           <div className="dt-popular-info">
                             <strong>{template.title}</strong>
                             <small>{template.category_name}</small>
@@ -1359,6 +1363,7 @@ export default function DocumentsAndTemplates() {
                 {/* Search Bar */}
                 <div className="dt-search-container">
                   <div className="dt-search-wrapper">
+                    <FaSearch className="dt-search-icon" />
                     <input
                       type="text"
                       placeholder="Search templates by title, description, or tags..."
@@ -1368,7 +1373,7 @@ export default function DocumentsAndTemplates() {
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                       className="dt-search-input"
                     />
-                    <button className="dt-search-btn">
+                    <button className="dt-search-btn" onClick={() => fetchTemplates()}>
                       <FaSearch />
                     </button>
 

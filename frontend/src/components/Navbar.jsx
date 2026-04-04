@@ -631,24 +631,26 @@ const Navbar = ({ toggleSidebar }) => {
           </div>
 
           {/* Action Buttons */}
-          <IconButton
+          {/* <IconButton
             icon={Bell}
             badge
             onClick={() => { }}
             title="Notifications"
           />
 
-          <IconButton
-            icon={Settings}
-            onClick={() => navigate('/user/settings')}
-            title="Settings"
-            className="navbar-settings-icon"
-          />
-
+          {userRole === "user" && (
+            <IconButton
+              icon={Settings}
+              onClick={() => navigate('/user/settings')}
+              title="Settings"
+              className="navbar-settings-icon"
+            />
+          )} */}
           <div
             className="signapp-navbar-profile"
-            onClick={() => navigate("/user/settings")}
-            title="My Profile"
+            onClick={userRole === "user" ? () => navigate("/user/settings") : undefined}
+            title={userRole === "user" ? "My Profile" : ""}
+            style={{ cursor: userRole === "user" ? "pointer" : "default" }}
           >
             {user?.profile_picture ? (
               <img
@@ -663,7 +665,7 @@ const Navbar = ({ toggleSidebar }) => {
             )}
 
             <span className="signapp-navbar-username desktop-only">
-              Settings
+              {user?.full_name || user?.email || "SafeSign User"}
             </span>
           </div>
         </div>

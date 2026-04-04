@@ -228,14 +228,16 @@ export default function Sidebar({ collapsed, onToggle }) {
       </nav>
 
       <div className="safesign-sidebar__footer">
-        <Link
-          to="/user/settings"
-          className={`safesign-sidebar__settings ${location.pathname === "/user/settings" ? "safesign-sidebar__settings--active" : ""}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Settings size={18} />
-          {!collapsed && <span>Settings</span>}
-        </Link>
+        {role === "user" && (
+          <Link
+            to="/user/settings"
+            className={`safesign-sidebar__settings ${location.pathname === "/user/settings" ? "safesign-sidebar__settings--active" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Settings size={18} />
+            {!collapsed && <span>Settings</span>}
+          </Link>
+        )}
 
         {/* Logout Button */}
         <button
