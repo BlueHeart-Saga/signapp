@@ -45,9 +45,9 @@ export default function DynamicLogo() {
         },
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error('Upload failed');
-      
+
       alert("Logo updated successfully");
       fetchBranding();
       setSelectedFile(null);
@@ -76,9 +76,9 @@ export default function DynamicLogo() {
         },
         body: formData,
       });
-      
+
       if (!response.ok) throw new Error('Update failed');
-      
+
       alert("Branding updated successfully");
     } catch (err) {
       console.error(err);
@@ -105,12 +105,12 @@ export default function DynamicLogo() {
             <Image style={styles.icon} />
             Current Branding Preview
           </h2>
-          
+
           <div style={styles.previewBox}>
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt="Platform Logo" 
+              <img
+                src={logoUrl}
+                alt="Platform Logo"
                 style={styles.logoImage}
               />
             ) : (
@@ -118,7 +118,7 @@ export default function DynamicLogo() {
                 <Image style={styles.placeholderIcon} />
               </div>
             )}
-            
+
             <h3 style={styles.previewTitle}>
               {platformName || "SafeSign"}
             </h3>
@@ -136,7 +136,7 @@ export default function DynamicLogo() {
               <Upload style={styles.icon} />
               Upload New Logo
             </h2>
-            
+
             <div style={styles.formContent}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>
@@ -154,7 +154,7 @@ export default function DynamicLogo() {
                   </p>
                 )}
               </div>
-              
+
               <button
                 onClick={handleLogoUpload}
                 disabled={loading || !selectedFile}
@@ -175,7 +175,7 @@ export default function DynamicLogo() {
               <Type style={styles.icon} />
               Platform Name & Tagline
             </h2>
-            
+
             <div style={styles.formContent}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>
@@ -189,7 +189,7 @@ export default function DynamicLogo() {
                   style={styles.input}
                 />
               </div>
-              
+
               <div style={styles.formGroup}>
                 <label style={styles.label}>
                   Tagline
@@ -202,7 +202,7 @@ export default function DynamicLogo() {
                   style={styles.textarea}
                 />
               </div>
-              
+
               <button
                 onClick={handleBrandingUpdate}
                 disabled={loading}
@@ -225,7 +225,7 @@ export default function DynamicLogo() {
             <div>
               <h3 style={styles.infoTitle}>Branding Guidelines</h3>
               <p style={styles.infoText}>
-                For best results, use a logo with transparent background (PNG format) with dimensions of at least 400x200 pixels. 
+                For best results, use a logo with transparent background (PNG format) with dimensions of at least 400x200 pixels.
                 Your platform name and tagline will be displayed across your application.
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function DynamicLogo() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(to bottom right, #eff6ff, #ffffff)',
+    background: '#ffffff',
     padding: '32px 16px',
   },
   maxWidth: {
@@ -266,7 +266,7 @@ const styles = {
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
     padding: '32px',
     marginBottom: '24px',
-    border: '1px solid #dbeafe',
+    border: '1px solid #ccfbf1',
   },
   cardTitle: {
     fontSize: '24px',
@@ -280,10 +280,10 @@ const styles = {
   icon: {
     width: '24px',
     height: '24px',
-    color: '#2563eb',
+    color: '#0f766e',
   },
   previewBox: {
-    background: 'linear-gradient(to bottom right, #eff6ff, #dbeafe)',
+    background: 'linear-gradient(to bottom right, #f0fdfa, #ccfbf1)',
     borderRadius: '12px',
     padding: '64px 32px',
     display: 'flex',
@@ -291,7 +291,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '280px',
-    border: '2px solid #bfdbfe',
+    border: '2px solid #99f6e4',
   },
   logoImage: {
     maxWidth: '200px',
@@ -385,7 +385,7 @@ const styles = {
   },
   button: {
     width: '100%',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0f766e',
     color: 'white',
     fontWeight: '600',
     padding: '12px 24px',
@@ -397,7 +397,7 @@ const styles = {
     justifyContent: 'center',
     gap: '8px',
     fontSize: '16px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    boxShadow: '0 4px 6px -1px rgba(15, 118, 110, 0.2)',
     transition: 'all 0.2s',
   },
   buttonIcon: {
@@ -411,8 +411,8 @@ const styles = {
   },
   infoCard: {
     marginTop: '24px',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #bfdbfe',
+    backgroundColor: '#f0fdfa',
+    border: '1px solid #99f6e4',
     borderRadius: '12px',
     padding: '24px',
   },
@@ -424,19 +424,19 @@ const styles = {
   infoIcon: {
     width: '20px',
     height: '20px',
-    color: '#2563eb',
+    color: '#0f766e',
     flexShrink: 0,
     marginTop: '2px',
   },
   infoTitle: {
     fontWeight: '600',
-    color: '#1e3a8a',
+    color: '#134e4a',
     marginBottom: '4px',
     fontSize: '16px',
   },
   infoText: {
     fontSize: '14px',
-    color: '#1e40af',
+    color: '#0f766e',
     lineHeight: '1.5',
   },
 };

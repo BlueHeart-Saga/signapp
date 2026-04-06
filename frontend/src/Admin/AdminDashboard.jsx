@@ -89,12 +89,12 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:900
 
 // Stat Card Component
 const StatCard = ({ title, value, icon, color, trend, trendValue, subtitle }) => (
-  <Card sx={{ 
+  <Card sx={{
     height: '100%',
     transition: 'all 0.2s ease',
-    '&:hover': { 
+    '&:hover': {
       transform: 'translateY(-2px)',
-      boxShadow: 3 
+      boxShadow: 3
     }
   }}>
     <CardContent sx={{ p: 2.5 }}>
@@ -121,8 +121,8 @@ const StatCard = ({ title, value, icon, color, trend, trendValue, subtitle }) =>
               size="small"
               label={trendValue}
               color={trend === 'up' ? 'success' : 'error'}
-              icon={trend === 'up' ? 
-                <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : 
+              icon={trend === 'up' ?
+                <ArrowUpwardIcon sx={{ fontSize: 14 }} /> :
                 <ArrowDownwardIcon sx={{ fontSize: 14 }} />
               }
               sx={{ height: 24, '& .MuiChip-label': { px: 1, fontSize: '0.75rem' } }}
@@ -169,9 +169,9 @@ const ActivityItem = ({ log }) => {
               {log.action?.replace(/_/g, ' ')}
             </Typography>
             {log.target_email && (
-              <Chip 
-                label={log.target_email.split('@')[0]} 
-                size="small" 
+              <Chip
+                label={log.target_email.split('@')[0]}
+                size="small"
                 variant="outlined"
                 sx={{ height: 20, '& .MuiChip-label': { px: 1, fontSize: '0.7rem' } }}
               />
@@ -193,17 +193,17 @@ const DocumentRow = ({ doc }) => (
   <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
     <TableCell>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar sx={{ 
-          width: 36, 
-          height: 36, 
-          bgcolor: 
+        <Avatar sx={{
+          width: 36,
+          height: 36,
+          bgcolor:
             doc.status === 'completed' ? 'success.light' :
-            doc.status === 'pending' ? 'warning.light' :
-            'info.light'
+              doc.status === 'pending' ? 'warning.light' :
+                'info.light'
         }}>
           {doc.status === 'completed' ? <CompletedIcon sx={{ fontSize: 18 }} /> :
-           doc.status === 'pending' ? <PendingIcon sx={{ fontSize: 18 }} /> :
-           <DocumentIcon sx={{ fontSize: 18 }} />}
+            doc.status === 'pending' ? <PendingIcon sx={{ fontSize: 18 }} /> :
+              <DocumentIcon sx={{ fontSize: 18 }} />}
         </Avatar>
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -221,8 +221,8 @@ const DocumentRow = ({ doc }) => (
         size="small"
         color={
           doc.status === 'completed' ? 'success' :
-          doc.status === 'pending' ? 'warning' :
-          'default'
+            doc.status === 'pending' ? 'warning' :
+              'default'
         }
         sx={{ height: 24, '& .MuiChip-label': { px: 1.5, fontSize: '0.75rem', fontWeight: 600 } }}
       />
@@ -257,7 +257,7 @@ const UserRow = ({ user }) => (
   <TableRow sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
     <TableCell>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.light', fontSize: '0.875rem' }}>
+        <Avatar sx={{ width: 36, height: 36, bgcolor: '#f0fdfa', color: '#0f766e', fontSize: '0.875rem' }}>
           {user.email?.charAt(0).toUpperCase()}
         </Avatar>
         <Box>
@@ -274,8 +274,8 @@ const UserRow = ({ user }) => (
       <Chip
         label={user.role?.toUpperCase()}
         size="small"
-        color={user.role === 'admin' ? 'error' : 'primary'}
-        sx={{ height: 24, '& .MuiChip-label': { px: 1.5, fontSize: '0.75rem', fontWeight: 600 } }}
+        color={user.role === 'admin' ? 'error' : 'default'}
+        sx={{ height: 24, ...(user.role !== 'admin' && { bgcolor: '#0f766e', color: '#ffffff' }), '& .MuiChip-label': { px: 1.5, fontSize: '0.75rem', fontWeight: 600 } }}
       />
     </TableCell>
     <TableCell>
@@ -335,7 +335,7 @@ export default function AdminDashboard() {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to fetch dashboard data');
       }
-      
+
       const data = await response.json();
       setDashboardData(data);
     } catch (err) {
@@ -431,7 +431,7 @@ export default function AdminDashboard() {
     loadData();
   }, []);
 
-   const handleRefresh = () => {
+  const handleRefresh = () => {
     loadData();
   };
 
@@ -465,11 +465,11 @@ export default function AdminDashboard() {
   return (
     <Box sx={{ bgcolor: '#f8f9fa', minHeight: '100vh' }}>
       {/* Top Navigation Bar - Full Width */}
-      <Paper sx={{ 
-        borderRadius: 0, 
-        px: 4, 
-        py: 1.5, 
-        borderBottom: 1, 
+      <Paper sx={{
+        borderRadius: 0,
+        px: 4,
+        py: 1.5,
+        borderBottom: 1,
         borderColor: 'divider',
         position: 'sticky',
         top: 0,
@@ -478,18 +478,17 @@ export default function AdminDashboard() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <DashboardIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+              <DashboardIcon sx={{ color: '#0f766e', fontSize: 28 }} />
               <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.25rem' }}>
                 SafeSign Admin
               </Typography>
-              <Chip 
+              <Chip
                 label="PRODUCTION"
                 size="small"
-                color="primary"
-                sx={{ height: 24, '& .MuiChip-label': { px: 1.5, fontSize: '0.7rem', fontWeight: 600 } }}
+                sx={{ height: 24, bgcolor: '#0f766e', color: '#ffffff', '& .MuiChip-label': { px: 1.5, fontSize: '0.7rem', fontWeight: 600 } }}
               />
             </Box>
-            
+
             <TextField
               size="small"
               placeholder="Search users, documents, logs..."
@@ -534,11 +533,11 @@ export default function AdminDashboard() {
                 <HelpIcon fontSize="small" />
               </IconButton>
             </Tooltip> */}
-            
+
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-            
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+              <Avatar sx={{ width: 40, height: 40, bgcolor: '#0f766e' }}>
                 {currentUser?.email?.charAt(0).toUpperCase()}
               </Avatar>
               <Box>
@@ -654,7 +653,7 @@ export default function AdminDashboard() {
               variant="outlined"
               size="medium"
               startIcon={<GetAppIcon />}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: 'none', color: '#0f766e', borderColor: '#0f766e', '&:hover': { borderColor: '#0c5e57', bgcolor: '#f0fdfa' } }}
             >
               Export Report
             </Button>
@@ -664,7 +663,7 @@ export default function AdminDashboard() {
               startIcon={<RefreshIcon />}
               onClick={handleRefresh}
               disabled={refreshing}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: 'none', bgcolor: '#0f766e', '&:hover': { bgcolor: '#0c5e57' } }}
             >
               {refreshing ? 'Refreshing...' : 'Refresh Data'}
             </Button>
@@ -798,7 +797,7 @@ export default function AdminDashboard() {
               <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
                 Recent Documents
               </Typography>
-              <Chip 
+              <Chip
                 label={`${recentDocuments.length} documents`}
                 size="small"
                 variant="outlined"
@@ -808,7 +807,7 @@ export default function AdminDashboard() {
               <Button
                 size="small"
                 startIcon={<FilterListIcon />}
-                sx={{ textTransform: 'none' }}
+                sx={{ textTransform: 'none', color: '#0f766e' }}
               >
                 Filter
               </Button>
@@ -818,13 +817,13 @@ export default function AdminDashboard() {
                 component={Link}
                 to="/documents"
                 endIcon={<VisibilityIcon fontSize="small" />}
-                sx={{ textTransform: 'none' }}
+                sx={{ textTransform: 'none', bgcolor: '#0f766e', '&:hover': { bgcolor: '#0c5e57' } }}
               >
                 View All Documents
               </Button>
             </Box>
           </Box>
-          
+
           <TableContainer>
             <Table>
               <TableHead>
@@ -853,7 +852,7 @@ export default function AdminDashboard() {
                         size="small"
                         component={Link}
                         to="/documents/create"
-                        sx={{ mt: 2, textTransform: 'none' }}
+                        sx={{ mt: 2, textTransform: 'none', color: '#0f766e', borderColor: '#0f766e', '&:hover': { borderColor: '#0c5e57', bgcolor: '#f0fdfa' } }}
                       >
                         Create First Document
                       </Button>
@@ -872,7 +871,7 @@ export default function AdminDashboard() {
               <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
                 New Users
               </Typography>
-              <Chip 
+              <Chip
                 label={`${recentUsers.length} users`}
                 size="small"
                 variant="outlined"
@@ -882,7 +881,7 @@ export default function AdminDashboard() {
               <Button
                 size="small"
                 startIcon={<FilterListIcon />}
-                sx={{ textTransform: 'none' }}
+                sx={{ textTransform: 'none', color: '#0f766e' }}
               >
                 Filter
               </Button>
@@ -892,13 +891,13 @@ export default function AdminDashboard() {
                 component={Link}
                 to="/admin/users"
                 endIcon={<VisibilityIcon fontSize="small" />}
-                sx={{ textTransform: 'none' }}
+                sx={{ textTransform: 'none', bgcolor: '#0f766e', '&:hover': { bgcolor: '#0c5e57' } }}
               >
                 View All Users
               </Button>
             </Box>
           </Box>
-          
+
           <TableContainer>
             <Table>
               <TableHead>
@@ -927,7 +926,7 @@ export default function AdminDashboard() {
                         size="small"
                         component={Link}
                         to="/admin/users/create"
-                        sx={{ mt: 2, textTransform: 'none' }}
+                        sx={{ mt: 2, textTransform: 'none', color: '#0f766e', borderColor: '#0f766e', '&:hover': { borderColor: '#0c5e57', bgcolor: '#f0fdfa' } }}
                       >
                         Add First User
                       </Button>
@@ -941,160 +940,160 @@ export default function AdminDashboard() {
 
         {/* Activity Logs and System Status - Full Width Two Columns */}
         {/* <Grid container spacing={2} sx={{ mb: 3 }}> */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
-                    Activity Logs
-                  </Typography>
-                  <Chip 
-                    label={`${activityLogs.length} events`}
-                    size="small"
-                    variant="outlined"
-                  />
-                </Box>
-                <Button
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
+                  Activity Logs
+                </Typography>
+                <Chip
+                  label={`${activityLogs.length} events`}
                   size="small"
                   variant="outlined"
-                  component={Link}
-                  to="/admin/logs"
-                  endIcon={<VisibilityIcon fontSize="small" />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  View All Logs
-                </Button>
+                />
               </Box>
-              
-              <List sx={{ p: 0 }}>
-                {activityLogs.slice(0, 6).map((log, index) => (
-                  <React.Fragment key={index}>
-                    <ActivityItem log={log} />
-                    {index < Math.min(activityLogs.length, 6) - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-                {activityLogs.length === 0 && (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <HistoryIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
-                    <Typography variant="body1" color="text.secondary">
-                      No activity logs
-                    </Typography>
-                  </Box>
-                )}
-              </List>
-            </Paper>
-          </Grid>
+              <Button
+                size="small"
+                variant="outlined"
+                component={Link}
+                to="/admin/logs"
+                endIcon={<VisibilityIcon fontSize="small" />}
+                sx={{ textTransform: 'none', color: '#0f766e', borderColor: '#0f766e', '&:hover': { borderColor: '#0c5e57', bgcolor: '#f0fdfa' } }}
+              >
+                View All Logs
+              </Button>
+            </Box>
 
-        
+            <List sx={{ p: 0 }}>
+              {activityLogs.slice(0, 6).map((log, index) => (
+                <React.Fragment key={index}>
+                  <ActivityItem log={log} />
+                  {index < Math.min(activityLogs.length, 6) - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+              {activityLogs.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <HistoryIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    No activity logs
+                  </Typography>
+                </Box>
+              )}
+            </List>
+          </Paper>
+        </Grid>
+
+
         {/* </Grid> */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem', mb: 2 }}>
-                System Status
-              </Typography>
-              
-              <Stack spacing={2.5}>
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem', mb: 2 }}>
+              System Status
+            </Typography>
+
+            <Stack spacing={2.5}>
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>System Health</Typography>
+                  <Chip label="98.5%" size="small" color="success" sx={{ height: 20 }} />
+                </Box>
+                <LinearProgress variant="determinate" value={98.5} sx={{ height: 6, borderRadius: 3 }} />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
+                  <Typography variant="body2">API Service</Typography>
+                </Box>
+                <Chip label="Operational" size="small" color="success" sx={{ height: 24 }} />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
+                  <Typography variant="body2">Database</Typography>
+                </Box>
+                <Chip label="Healthy" size="small" color="success" sx={{ height: 24 }} />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
+                  <Typography variant="body2">Storage</Typography>
+                </Box>
+                <Chip label="85% used" size="small" color="warning" sx={{ height: 24 }} />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
+                  <Typography variant="body2">Cache Service</Typography>
+                </Box>
+                <Chip label="Operational" size="small" color="success" sx={{ height: 24 }} />
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>Quick Stats</Typography>
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption">Active Sessions</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>247</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption">API Calls (24h)</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>12.4k</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption">Avg Response Time</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>234ms</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption">Error Rate</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main' }}>0.02%</Typography>
+                  </Box>
+                </Stack>
+              </Box>
+
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>Storage Usage</Typography>
+                <Box sx={{ mb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="caption">Documents</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>4.2 GB</Typography>
+                  </Box>
+                  <LinearProgress variant="determinate" value={60} sx={{ height: 4, borderRadius: 2 }} />
+                </Box>
                 <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>System Health</Typography>
-                    <Chip label="98.5%" size="small" color="success" sx={{ height: 20 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="caption">Backups</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>2.8 GB</Typography>
                   </Box>
-                  <LinearProgress variant="determinate" value={98.5} sx={{ height: 6, borderRadius: 3 }} />
+                  <LinearProgress variant="determinate" value={40} sx={{ height: 4, borderRadius: 2 }} />
                 </Box>
+              </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
-                    <Typography variant="body2">API Service</Typography>
-                  </Box>
-                  <Chip label="Operational" size="small" color="success" sx={{ height: 24 }} />
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
-                    <Typography variant="body2">Database</Typography>
-                  </Box>
-                  <Chip label="Healthy" size="small" color="success" sx={{ height: 24 }} />
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
-                    <Typography variant="body2">Storage</Typography>
-                  </Box>
-                  <Chip label="85% used" size="small" color="warning" sx={{ height: 24 }} />
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
-                    <Typography variant="body2">Cache Service</Typography>
-                  </Box>
-                  <Chip label="Operational" size="small" color="success" sx={{ height: 24 }} />
-                </Box>
-
-                <Divider />
-
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>Quick Stats</Typography>
-                  <Stack spacing={1.5}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Active Sessions</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>247</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">API Calls (24h)</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>12.4k</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Avg Response Time</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>234ms</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Error Rate</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main' }}>0.02%</Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>Storage Usage</Typography>
-                  <Box sx={{ mb: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="caption">Documents</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>4.2 GB</Typography>
-                    </Box>
-                    <LinearProgress variant="determinate" value={60} sx={{ height: 4, borderRadius: 2 }} />
-                  </Box>
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="caption">Backups</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>2.8 GB</Typography>
-                    </Box>
-                    <LinearProgress variant="determinate" value={40} sx={{ height: 4, borderRadius: 2 }} />
-                  </Box>
-                </Box>
-
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  size="small"
-                  startIcon={<UpdateIcon />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  System Update Available
-                </Button>
-              </Stack>
-            </Paper>
-          </Grid>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                startIcon={<UpdateIcon />}
+                sx={{ textTransform: 'none', color: '#0f766e', borderColor: '#0f766e', '&:hover': { borderColor: '#0c5e57', bgcolor: '#f0fdfa' } }}
+              >
+                System Update Available
+              </Button>
+            </Stack>
+          </Paper>
+        </Grid>
 
         {/* Performance Metrics - Full Width */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.1rem', mb: 3 }}>
             Performance Metrics
           </Typography>
-          
+
           <Grid container spacing={3}>
             <Grid item xs={12} md={4}>
               <Box>
@@ -1107,8 +1106,7 @@ export default function AdminDashboard() {
                 <LinearProgress
                   variant="determinate"
                   value={Math.min((dashboardData?.users?.new_month || 0) * 2, 100)}
-                  sx={{ height: 8, borderRadius: 4 }}
-                  color="primary"
+                  sx={{ height: 8, borderRadius: 4, bgcolor: '#f0fdfa', '& .MuiLinearProgress-bar': { bgcolor: '#0f766e' } }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                   <Typography variant="caption" color="text.secondary">Target: 500</Typography>
@@ -1116,7 +1114,7 @@ export default function AdminDashboard() {
                 </Box>
               </Box>
             </Grid>
-            
+
             <Grid item xs={12} md={4}>
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1139,7 +1137,7 @@ export default function AdminDashboard() {
                 </Box>
               </Box>
             </Grid>
-            
+
             <Grid item xs={12} md={4}>
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>

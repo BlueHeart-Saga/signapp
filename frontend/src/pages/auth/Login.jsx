@@ -869,7 +869,7 @@ import Circle from "@mui/icons-material/Circle";
 import Explore from "@mui/icons-material/Explore";
 import People from "@mui/icons-material/People";
 import Upgrade from "@mui/icons-material/Upgrade";
-import { 
+import {
   FaCrown,
 } from 'react-icons/fa';
 
@@ -902,7 +902,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
   const [showProfilePopup, setShowProfilePopup] = useState(false);
 
-  
+
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -951,23 +951,23 @@ const Login = ({ onLogin, onError, compact = false }) => {
     let interval;
     if (isAutoPlaying) {
       interval = setInterval(() => {
-        setCurrentImageIndex((prevIndex) => 
+        setCurrentImageIndex((prevIndex) =>
           prevIndex === images.length - 1 ? 0 : prevIndex + 1
         );
       }, 5000); // Change image every 5 seconds
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [isAutoPlaying, images.length]);
 
   useEffect(() => {
-  setPageTitle(
-    "Login",
-    "Sign in to your SafeSign account to manage documents, signatures, and workflows."
-  );
-}, []);     
+    setPageTitle(
+      "Login",
+      "Sign in to your SafeSign account to manage documents, signatures, and workflows."
+    );
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1015,49 +1015,44 @@ const Login = ({ onLogin, onError, compact = false }) => {
       // const token = res.data?.access_token;
       // if (!token) throw new Error("Invalid token received.");
 
-      
+
 
       const token = res.data?.access_token;
-const user = res.data?.user;
+      const user = res.data?.user;
 
-if (!token || !user) {
-  throw new Error("Invalid login response");
-}
-
-
+      if (!token || !user) {
+        throw new Error("Invalid login response");
+      }
 
 
 
-// 🔥 THIS IS THE FIX
-setToken(token);   // updates axios + localStorage
-setUser(user);     // updates context immediately
+
+
+      // 🔥 THIS IS THE FIX
+      setToken(token);   // updates axios + localStorage
+      setUser(user);     // updates context immediately
 
 
 
-setSuccessMsg("✅ Login successful! Redirecting...");
+      setSuccessMsg("✅ Login successful! Redirecting...");
 
 
-setTimeout(() => {
-  if (!user.full_name) {
-    setShowProfilePopup(true);
-    return;
-  }
-
-  switch (user.role) {
-    case "admin":
-      navigate("/admin/dashboard");
-      break;
-    case "recipient":
-      navigate("/recipient/home");
-      break;
-    default:
-      navigate("/user");
-  }
-}, 700);
+      setTimeout(() => {
+        switch (user.role) {
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          case "recipient":
+            navigate("/recipient/home");
+            break;
+          default:
+            navigate("/user");
+        }
+      }, 700);
 
 
       // setSuccessMsg("✅ Login successful! Redirecting...");
-      
+
 
       // const decoded = jwtDecode(token);
       // const role = decoded?.role?.toLowerCase() || "user";
@@ -1082,29 +1077,29 @@ setTimeout(() => {
       //   }
       // }, 1500);
 
-    }catch (err) {
-  console.error("Login Error:", err);
+    } catch (err) {
+      console.error("Login Error:", err);
 
-  let message = "Login failed. Please try again.";
+      let message = "Login failed. Please try again.";
 
-  if (err.response) {
-    const data = err.response.data;
+      if (err.response) {
+        const data = err.response.data;
 
-    if (typeof data.detail === "string") {
-      message = data.detail;
-    } else if (typeof data.detail === "object") {
-      message = data.detail.message || data.detail.error || message;
-    } else if (data.message) {
-      message = data.message;
-    }
-  } 
-  else if (err.request) {
-    message = "Unable to connect to server.";
-  }
+        if (typeof data.detail === "string") {
+          message = data.detail;
+        } else if (typeof data.detail === "object") {
+          message = data.detail.message || data.detail.error || message;
+        } else if (data.message) {
+          message = data.message;
+        }
+      }
+      else if (err.request) {
+        message = "Unable to connect to server.";
+      }
 
-  toast.error(message);
-  onError?.(message);
-} finally {
+      toast.error(message);
+      onError?.(message);
+    } finally {
       setLoading(false);
     }
   };
@@ -1126,7 +1121,7 @@ setTimeout(() => {
 
   // Carousel navigation
   const nextImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1
     );
     setIsAutoPlaying(false);
@@ -1134,7 +1129,7 @@ setTimeout(() => {
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
     );
     setIsAutoPlaying(false);
@@ -1158,7 +1153,7 @@ setTimeout(() => {
         Your documents and signatures are protected with military-grade encryption, 
         secure infrastructure, and globally recognized compliance standards.
       </p> */}
-      
+
       <div className="security-grid">
         <div className="security-item">
           <div className="security-icon-wrapper">
@@ -1169,7 +1164,7 @@ setTimeout(() => {
             <p>Uptime SLA</p>
           </div>
         </div>
-        
+
         <div className="security-item">
           <div className="security-icon-wrapper">
             <Lock />
@@ -1179,7 +1174,7 @@ setTimeout(() => {
             <p>AES Encryption</p>
           </div>
         </div>
-        
+
         <div className="security-item">
           <div className="security-icon-wrapper">
             <AccessTime />
@@ -1190,7 +1185,7 @@ setTimeout(() => {
           </div>
         </div>
       </div>
-      
+
       {/* <div className="security-buttons">
         <button className="demo-btn">Request a Demo →</button>
         <button className="trial-btn">Start Free Trial</button>
@@ -1211,7 +1206,7 @@ setTimeout(() => {
           <span className="brand-name">{brandName}</span>
         </button>
 
-        <motion.div 
+        <motion.div
           className="login-container"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1308,25 +1303,25 @@ setTimeout(() => {
       {/* Animated Background Icons */}
 
       {/* Left Side - Hero with Image Carousel */}
-      
+
       <div className="login-hero">
-        
-        
+
+
         {/* Image Carousel */}
 
         <div className="hero-overlay">
 
           <div className="avatar avatar-left">
-    {/* <img src="/images/avatar1.jpg" alt="User" /> */}
-  </div>
+            {/* <img src="/images/avatar1.jpg" alt="User" /> */}
+          </div>
 
-  <div className="avatar avatar-right">
-    {/* <img src="/images/avatar2.jpg" alt="User" /> */}
-  </div>
+          <div className="avatar avatar-right">
+            {/* <img src="/images/avatar2.jpg" alt="User" /> */}
+          </div>
 
 
           <div className="hero-content">
-           {/* <div className="brand-logo" onClick={goToHome}>
+            {/* <div className="brand-logo" onClick={goToHome}>
   {logoUrl ? (
     <div className="logo-with-name">
       <img src={logoUrl} alt="logo" className="hero-logo" />
@@ -1340,8 +1335,8 @@ setTimeout(() => {
   )}
 </div> */}
 
- {/* Image */}
-  {/* <motion.img
+            {/* Image */}
+            {/* <motion.img
   key={currentImageIndex}
   src={images[currentImageIndex]}
   alt="Login visual"
@@ -1371,31 +1366,31 @@ setTimeout(() => {
               </p>
             </div> */}
 
-<div className="connections-visual">
-  
-
-  <div className="main-circle">
-    <div className="bg-circle"></div>
-
-    <img
-      src={images[currentImageIndex]}
-      alt="Smart Signing"
-      className="person-image"
-    />
-  </div>
-
-</div>
-
-<div className="hero-text2 center">
-  <h1>Building Stronger Connections</h1>
-  <p className="hero-subtitle2">
-    Through Secure Signing
-  </p>
-</div>
+            <div className="connections-visual">
 
 
+              <div className="main-circle">
+                <div className="bg-circle"></div>
 
-            
+                <img
+                  src={images[currentImageIndex]}
+                  alt="Smart Signing"
+                  className="person-image"
+                />
+              </div>
+
+            </div>
+
+            <div className="hero-text2 center">
+              <h1>Building Stronger Connections</h1>
+              <p className="hero-subtitle2">
+                Through Secure Signing
+              </p>
+            </div>
+
+
+
+
             {/* <SecurityFeatures /> */}
           </div>
         </div>
@@ -1408,62 +1403,62 @@ setTimeout(() => {
         </button> */}
 
         <div className="top-nav">
-  <button className="nav-item active" onClick={goToHome}>
-    <Home fontSize="small" />
-    <span>Home</span>
-  </button>
+          <button className="nav-item active" onClick={goToHome}>
+            <Home fontSize="small" />
+            <span>Home</span>
+          </button>
 
-  <button className="nav-item" onClick={() => navigate("/aboutus")}>
-    <Explore fontSize="small" />
-    <span>Explore</span>
-  </button>
+          <button className="nav-item" onClick={() => navigate("/aboutus")}>
+            <Explore fontSize="small" />
+            <span>Explore</span>
+          </button>
 
-  <button className="nav-item" onClick={() => navigate("/contactus")}>
-    <People fontSize="small" />
-    <span>Let’s Talk</span>
-  </button>
+          <button className="nav-item" onClick={() => navigate("/contactus")}>
+            <People fontSize="small" />
+            <span>Let’s Talk</span>
+          </button>
 
-  <button className="nav-item upgrade" onClick={() => navigate("/pricing")}>
-    <FaCrown fontSize="small" />
-    <span>Upgrade</span>
-  </button>
-</div>
+          <button className="nav-item upgrade" onClick={() => navigate("/pricing")}>
+            <FaCrown fontSize="small" />
+            <span>Upgrade</span>
+          </button>
+        </div>
 
 
         <div className="login-wrapper">
-          <motion.div 
+          <motion.div
             className="login-card"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
-            <div  style={{ textAlign: "center", marginBottom: "20px" }}>
-                         <div className="brand-logo" onClick={goToHome}>
-  {logoUrl ? (
-    <div className="logo-with-name">
-      <img src={logoUrl} alt="logo" className="hero-logo" />
-      <span className="hero-brand-name">{brandName}</span>
-    </div>
-  ) : (
-    <div className="logo-placeholder">
-      <Shield className="logo-icon" />
-      <span className="hero-brand-name">{brandName}</span>
-    </div>
-  )}
-</div>
-  <h2
-    style={{
-      fontSize: "22px",
-      fontWeight: "600",
-      color: "#0d9488",
-      letterSpacing: "0.3px",
-      marginBottom: "6px"
-    }}
-  >
-    Welcome Back
-  </h2>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <div className="brand-logo" onClick={goToHome}>
+                {logoUrl ? (
+                  <div className="logo-with-name">
+                    <img src={logoUrl} alt="logo" className="hero-logo" />
+                    <span className="hero-brand-name">{brandName}</span>
+                  </div>
+                ) : (
+                  <div className="logo-placeholder">
+                    <Shield className="logo-icon" />
+                    <span className="hero-brand-name">{brandName}</span>
+                  </div>
+                )}
+              </div>
+              <h2
+                style={{
+                  fontSize: "22px",
+                  fontWeight: "600",
+                  color: "#0d9488",
+                  letterSpacing: "0.3px",
+                  marginBottom: "6px"
+                }}
+              >
+                Welcome Back
+              </h2>
 
-  {/* <p
+              {/* <p
     style={{
       fontSize: "13px",
       color: "#6b7280",
@@ -1472,7 +1467,7 @@ setTimeout(() => {
   >
     Sign in to continue to your workspace
   </p> */}
-</div>
+            </div>
 
 
             <button className="google-btn" onClick={handleGoogleSignIn}>
@@ -1563,7 +1558,7 @@ setTimeout(() => {
           </motion.div>
         </div>
       </div>
-      
+
     </div>
   );
 };

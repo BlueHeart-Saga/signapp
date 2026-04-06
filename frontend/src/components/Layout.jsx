@@ -97,13 +97,31 @@ export default function Layout({ children }) {
     console.log("Profile completed, updating state");
     setShowProfilePopup(false);
 
+    let role = "user";
     // Update localStorage with the new user data
     if (updatedUser) {
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      role = updatedUser.role || localStorage.getItem("role") || "user";
+    } else {
+      const uStr = localStorage.getItem("user");
+      if (uStr) {
+        try {
+          const u = JSON.parse(uStr);
+          role = u.role || localStorage.getItem("role") || "user";
+        } catch (e) { }
+      }
     }
 
-    // Navigate to dashboard
-    navigate("/user/dashboard");
+    role = String(role).toLowerCase();
+
+    // Navigate to appropriate dashboard
+    if (role === "admin") {
+      navigate("/admin/dashboard");
+    } else if (role === "recipient") {
+      navigate("/recipient/home");
+    } else {
+      navigate("/user/dashboard");
+    }
   }, [navigate]);
 
   // Don't render children while checking (prevents flash)
