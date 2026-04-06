@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi import UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, validator, ValidationError
+from pydantic import BaseModel, EmailStr, field_validator, ValidationError
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -288,13 +288,13 @@ class UserRegister(BaseModel):
     secret_key: str = ""
     full_name: str = ""
 
-    @validator('password')
+    @field_validator('password')
     def password_strength(cls, v):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters')
         return v
 
-    @validator('role')
+    @field_validator('role')
     def validate_role(cls, v):
         if v.lower() not in ['admin', 'user', 'recipient']:
             raise ValueError('Role must be admin, user, or recipient')

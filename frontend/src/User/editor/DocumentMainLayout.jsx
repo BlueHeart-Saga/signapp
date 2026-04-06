@@ -794,10 +794,11 @@ const DocumentMainLayout = () => {
   const handleForceSaveAndNavigate = async () => {
     try {
       setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
-      await autosaveService.forceSave(fields);
+      await handleSaveFields();
       navigate(pendingNavigation);
     } catch (error) {
-      showSnackbar('Failed to save. Please try again.', 'error');
+      // handleSaveFields already shows a snackbar on error; don't double-report
+      // Stay on the dialog so the user can try again or leave without saving
     } finally {
       setShowUnsavedChangesDialog(false);
       setPendingNavigation(null);
@@ -1354,9 +1355,9 @@ const DocumentMainLayout = () => {
           <Button
             onClick={handleForceSaveAndNavigate}
             variant="contained"
-            disabled={autoSaveStatus.isSaving}
+            disabled={saving || autoSaveStatus.isSaving}
           >
-            {autoSaveStatus.isSaving ? 'Saving...' : 'Save & Leave'}
+            {saving || autoSaveStatus.isSaving ? 'Saving...' : 'Save & Leave'}
           </Button>
         </DialogActions>
       </Dialog>

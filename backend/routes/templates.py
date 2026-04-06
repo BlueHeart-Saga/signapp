@@ -8,7 +8,7 @@ import fitz  # PyMuPDF
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 # Import your existing dependencies
 from database import db
 from .auth import get_current_user
+from .converter import convert_to_pdf
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
@@ -52,10 +53,9 @@ class FieldItem(BaseModel):
     font_family: Optional[str] = "Helvetica"
     options: Optional[List[str]] = None  # For dropdown fields
     
-    class Config:
-        json_encoders = {
-            ObjectId: str
-        }
+    model_config = ConfigDict(
+        json_encoders={ObjectId: str}
+    )
 
 class SignatureData(BaseModel):
     image_data: str  # base64 encoded signature image
@@ -178,15 +178,18 @@ async def upload_pdf(
     auto_detect: bool = Form(True),
     current_user: dict = Depends(get_current_user)
 ):
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(400, "Only PDF files are allowed")
-
-    pdf_bytes = await file.read()
+    file_bytes = await file.read()
+    
+    pdf_bytes = convert_to_pdf(file_bytes, file.filename)
+    if not pdf_bytes:
+        raise HTTPException(400, "The file could not be converted to a PDF.")
+        
+    pdf_filename = file.filename.rsplit(".", 1)[0] + ".pdf"
 
     # 1️⃣ Store PDF in GridFS
     pdf_file_id = fs.put(
         pdf_bytes,
-        filename=file.filename,
+        filename=pdf_filename,
         content_type="application/pdf"
     )
 

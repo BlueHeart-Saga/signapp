@@ -5830,9 +5830,16 @@ async def send_completed_document(
                 detail=f"Cannot send completed document. Current status: {doc.get('status')}"
             )
         
-        # ✅ UPDATE: Pass document_id to the background task
+        # Trigger both completion (Final Copy) for recipients and package ZIP for owner
+        from .email_service import send_completed_document_package
+        
         background_tasks.add_task(
             send_completed_document_to_recipients,
+            document_id=document_id
+        )
+        
+        background_tasks.add_task(
+            send_completed_document_package,
             document_id=document_id
         )
         

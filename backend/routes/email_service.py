@@ -2551,7 +2551,7 @@ def send_recipient_activity_notification_to_owner(
                     </table>
                     
                     <div style="text-align: center;">
-                        <a href="{FRONTEND_URL}/dashboard/documents/{document['_id']}" class="button">View Document Status</a>
+                        <a href="{FRONTEND_URL}/user/document-summary/{document['_id']}" class="button">View Document Status</a>
                     </div>
                 </div>
                 <div class="footer">
@@ -3623,6 +3623,10 @@ async def send_completed_document_to_recipients(document_id: str):
         failed_recipients = []
         
         for recipient in recipients:
+            # Skip recipients who declined - they should not receive the final document
+            if recipient.get("status") == "declined":
+                continue
+                
             try:
                 # Prepare recipient-specific data
                 recipient_name = recipient.get("name", recipient.get("email", ""))
@@ -4174,19 +4178,8 @@ async def send_completed_document_package(document_id: str):
         # This optimization ensures we don't re-render for every recipient
         from .documents import load_document_pdf, apply_completed_fields_to_pdf
         
-        # Determine who should receive the package (Recipients + Owner)
+        # Determine who should receive the package (ONLY Owner now for ZIP Packages, recipients get it in completion email)
         package_recipients = []
-        for r in recipients:
-            # Skip recipients who declined - they should not receive the final package
-            if r.get("status") == "declined":
-                continue
-                
-            package_recipients.append({
-                "email": r.get("email"),
-                "name": r.get("name", "Recipient"),
-                "is_owner": False,
-                "recipient_obj": r
-            })
             
         # Add Owner (Sender) to the list
         if owner:
@@ -5113,12 +5106,13 @@ async def trigger_completed_emails(
         if doc.get("status") != "completed":
             return {"success": False, "message": "Document is not yet completed/signed"}
             
-        # Trigger in background
+        # Trigger in background - ZIP package to owner, Final Copy to recipients
         background_tasks.add_task(send_completed_document_package, document_id=document_id)
+        background_tasks.add_task(send_completed_document_to_recipients, document_id=document_id)
         
         return {
             "success": True, 
-            "message": f"Completion emails scheduled for document {document_id}"
+            "message": f"Completion emails (Final Copy for recipients, Package ZIP for owner) scheduled for document {document_id}"
         }
     except Exception as e:
         return {"success": False, "message": str(e)}

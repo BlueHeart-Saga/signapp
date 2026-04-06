@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from bson import ObjectId
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationInfo
 from typing import List, Optional, Union, Any, Dict
 from enum import Enum
 
@@ -88,19 +88,18 @@ class FieldCreate(BaseModel):
     checked: Optional[bool] = False
     group_name: Optional[str] = Field(None, description="For radio button groups")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
-    @validator('dropdown_options')
-    def validate_dropdown_options(cls, v, values):
-        if 'type' in values and values['type'] == FieldType.dropdown:
+    @field_validator('dropdown_options')
+    def validate_dropdown_options(cls, v, info: ValidationInfo):
+        if info.data.get('type') == FieldType.dropdown:
             if not v or len(v) == 0:
                 raise ValueError('dropdown_options is required for dropdown fields')
         return v
 
-    @validator('placeholder')
-    def validate_mail_placeholder(cls, v, values):
-        if 'type' in values and values['type'] == FieldType.mail:
+    @field_validator('placeholder')
+    def validate_mail_placeholder(cls, v, info: ValidationInfo):
+        if info.data.get('type') == FieldType.mail:
             if not v:
                 raise ValueError('placeholder is required for mail fields')
         return v

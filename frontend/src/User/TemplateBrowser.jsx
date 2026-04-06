@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FaTimes, 
-  FaSearch, 
-  FaFilePdf, 
-  FaFileWord, 
+import {
+  FaTimes,
+  FaSearch,
+  FaFilePdf,
+  FaFileWord,
   FaFileAlt,
   FaFolderOpen,
   FaPlus,
@@ -33,35 +33,35 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
-const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
 
   const token = localStorage.getItem("token");
 
   // Helper function to get consistent template ID
   const getTemplateId = (template) => {
     if (!template) return null;
-    
+
     // Handle MongoDB ObjectId format
     if (template._id && typeof template._id === 'object' && template._id.$oid) {
       return template._id.$oid;
     }
-    
+
     // Handle string ID
     if (typeof template._id === 'string') return template._id;
-    
+
     // Handle direct ID field
     if (template.id) return template.id;
-    
+
     // Handle templateId field
     if (template.templateId) return template.templateId;
-    
+
     return null;
   };
 
   // Helper function to normalize template data
   const normalizeTemplate = (template) => {
     const templateId = getTemplateId(template);
-    
+
     return {
       // Core template data
       id: templateId,
@@ -77,7 +77,7 @@ const [pdfUrl, setPdfUrl] = useState("");
       is_free: template.is_free || false,
       download_count: template.download_count || 0,
       tags: template.tags || [],
-      
+
       // Original API data for reference
       _raw: template
     };
@@ -86,13 +86,13 @@ const [pdfUrl, setPdfUrl] = useState("");
   // Load all templates from API
   const loadTemplates = async () => {
     if (!isOpen || !token) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch(`${API_BASE}/admin/templates/user/available?page=1&limit=100`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -103,10 +103,10 @@ const [pdfUrl, setPdfUrl] = useState("");
       }
 
       const data = await response.json();
-      
+
       // Normalize and process templates
       const processedTemplates = (data.templates || []).map(normalizeTemplate);
-      
+
       setTemplates(processedTemplates);
       setFilteredTemplates(processedTemplates);
 
@@ -119,7 +119,7 @@ const [pdfUrl, setPdfUrl] = useState("");
     } catch (err) {
       console.error('Error loading templates:', err);
       setError(err.message || 'Failed to load templates. Please check your connection and try again.');
-      
+
       // Load fallback data
       loadFallbackData();
     } finally {
@@ -128,48 +128,48 @@ const [pdfUrl, setPdfUrl] = useState("");
   };
 
   const handleViewTemplatePdf = async (template) => {
-  const templateId = template?.id || template?.templateId;
+    const templateId = template?.id || template?.templateId;
 
-  if (!templateId) {
-    alert("Template ID not found");
-    return;
-  }
+    if (!templateId) {
+      alert("Template ID not found");
+      return;
+    }
 
-  try {
-    const res = await fetch(
-      `${API_BASE}/admin/templates/user/download/${templateId}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    try {
+      const res = await fetch(
+        `${API_BASE}/admin/templates/user/download/${templateId}?format=pdf`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    if (!res.ok) throw new Error("Failed to load template PDF");
+      if (!res.ok) throw new Error("Failed to load template PDF");
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
 
-    setPdfUrl(url);
-    setShowPdfViewer(true);
-  } catch (err) {
-    console.error(err);
-    alert("Unable to open PDF");
-  }
-};
+      setPdfUrl(url);
+      setShowPdfViewer(true);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open PDF");
+    }
+  };
 
 
   // Load template categories
   const loadCategories = async () => {
     try {
       const response = await fetch(`${API_BASE}/admin/templates/user/categories`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const categoryList = ['all', ...(data.categories || []).map(cat => ({
@@ -187,12 +187,12 @@ const [pdfUrl, setPdfUrl] = useState("");
   const loadPopularTemplates = async () => {
     try {
       const response = await fetch(`${API_BASE}/admin/templates/user/stats/popular?limit=5`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const popular = (data.popular_templates || []).map(normalizeTemplate);
@@ -237,7 +237,7 @@ const [pdfUrl, setPdfUrl] = useState("");
         tags: ['legal', 'nda', 'confidential']
       }
     ];
-    
+
     const processedFallback = fallbackData.map(normalizeTemplate);
     setTemplates(processedFallback);
     setFilteredTemplates(processedFallback);
@@ -247,7 +247,7 @@ const [pdfUrl, setPdfUrl] = useState("");
   // Handle template search
   const handleSearch = (term) => {
     setSearchTerm(term);
-    
+
     if (!term.trim()) {
       applyCategoryFilter(selectedCategory);
       return;
@@ -259,10 +259,10 @@ const [pdfUrl, setPdfUrl] = useState("");
       const matchesTitle = template.title?.toLowerCase().includes(searchLower) || false;
       const matchesDesc = template.description.toLowerCase().includes(searchLower);
       const matchesCategory = template.category.toLowerCase().includes(searchLower);
-      const matchesTags = template.tags?.some(tag => 
+      const matchesTags = template.tags?.some(tag =>
         tag.toLowerCase().includes(searchLower)
       ) || false;
-      
+
       return matchesName || matchesTitle || matchesDesc || matchesCategory || matchesTags;
     });
 
@@ -274,7 +274,7 @@ const [pdfUrl, setPdfUrl] = useState("");
     if (category === 'all') {
       setFilteredTemplates(templates);
     } else {
-      const filtered = templates.filter(template => 
+      const filtered = templates.filter(template =>
         template.category === category || template.category_name === category
       );
       setFilteredTemplates(filtered);
@@ -302,7 +302,7 @@ const [pdfUrl, setPdfUrl] = useState("");
     }
 
     setIsSelecting(true);
-    
+
     try {
       // Create a clean template object to pass
       const selectedTemplateData = {
@@ -316,27 +316,27 @@ const [pdfUrl, setPdfUrl] = useState("");
         category_name: template.category_name || template.category,
         is_free: template.is_free,
         download_count: template.download_count || 0,
-        
+
         // Additional useful fields
         fileType: template.fileType,
         fileSize: template.fileSize,
         lastModified: template.lastModified,
         tags: template.tags || [],
-        
+
         // Include raw data if available
         rawData: template._raw || template
       };
 
       console.log('Passing template data to parent:', selectedTemplateData);
-      
+
       // Pass to parent component
       onTemplateSelect(selectedTemplateData);
-      
+
       // Close modal after successful selection
       setTimeout(() => {
         onClose();
       }, 100);
-      
+
     } catch (err) {
       console.error('Error selecting template:', err);
       setError('Failed to select template. Please try again.');
@@ -348,7 +348,7 @@ const [pdfUrl, setPdfUrl] = useState("");
   // Get appropriate file icon
   const getFileIcon = (fileType) => {
     const type = (fileType || 'pdf').toLowerCase();
-    
+
     switch (type) {
       case 'pdf':
         return <FaFilePdf className="tempbrowser-file-icon tempbrowser-icon-pdf" />;
@@ -366,7 +366,7 @@ const [pdfUrl, setPdfUrl] = useState("");
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -410,8 +410,8 @@ const [pdfUrl, setPdfUrl] = useState("");
               {loading ? 'Loading templates...' : `Choose from ${templates.length} professional templates`}
             </p>
           </div>
-          <button 
-            className="tempbrowser-close-btn" 
+          <button
+            className="tempbrowser-close-btn"
             onClick={onClose}
             disabled={isSelecting}
           >
@@ -425,7 +425,7 @@ const [pdfUrl, setPdfUrl] = useState("");
             <div className="tempbrowser-error-banner">
               <div className="tempbrowser-error-content">
                 <span className="tempbrowser-error-text">{error}</span>
-                <button 
+                <button
                   onClick={loadTemplates}
                   className="tempbrowser-retry-btn"
                   disabled={loading}
@@ -465,7 +465,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                   {categories.map(category => {
                     const categoryName = typeof category === 'string' ? category : category.name;
                     const categoryId = typeof category === 'string' ? category : category.id;
-                    
+
                     return (
                       <button
                         key={categoryId || categoryName}
@@ -475,8 +475,8 @@ const [pdfUrl, setPdfUrl] = useState("");
                       >
                         {categoryName === 'all' ? 'All Categories' : categoryName}
                         <span className="tempbrowser-category-count">
-                          {categoryName === 'all' 
-                            ? templates.length 
+                          {categoryName === 'all'
+                            ? templates.length
                             : templates.filter(t => t.category === categoryName || t.category_name === categoryName).length}
                         </span>
                       </button>
@@ -494,7 +494,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                   </h3>
                   <div className="tempbrowser-popular-list">
                     {popularTemplates.map(template => (
-                      <div 
+                      <div
                         key={template.id}
                         className="tempbrowser-popular-item"
                         onClick={() => !isSelecting && handlePreview(template)}
@@ -554,7 +554,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                         {selectedCategory !== 'all' && ` in ${selectedCategory}`}
                       </span>
                     </div>
-                    
+
                     <div className="tempbrowser-category-select-wrapper">
                       <select
                         value={selectedCategory}
@@ -565,8 +565,8 @@ const [pdfUrl, setPdfUrl] = useState("");
                         {categories.map(category => {
                           const categoryName = typeof category === 'string' ? category : category.name;
                           return (
-                            <option 
-                              key={categoryName} 
+                            <option
+                              key={categoryName}
                               value={categoryName}
                             >
                               {categoryName === 'all' ? 'All Categories' : categoryName}
@@ -584,7 +584,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                       <FaFolderOpen className="tempbrowser-empty-icon" />
                       <h4>No templates found</h4>
                       <p>Try adjusting your search or filter criteria</p>
-                      <button 
+                      <button
                         className="tempbrowser-clear-filters-btn"
                         onClick={() => {
                           setSearchTerm('');
@@ -599,8 +599,8 @@ const [pdfUrl, setPdfUrl] = useState("");
                     /* Grid View */
                     <div className="tempbrowser-grid">
                       {filteredTemplates.map(template => (
-                        <div 
-                          key={template.id} 
+                        <div
+                          key={template.id}
                           className="tempbrowser-template-card"
                         >
                           {/* Card Header with Badges */}
@@ -617,7 +617,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                           <div className="tempbrowser-card-thumbnail">
                             {getFileIcon(template.fileType)}
                             <div className="tempbrowser-thumbnail-overlay">
-                              <button 
+                              <button
                                 className="tempbrowser-preview-btn"
                                 onClick={() => !isSelecting && handlePreview(template)}
                                 disabled={isSelecting}
@@ -631,7 +631,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                           <div className="tempbrowser-card-content">
                             <h4 className="tempbrowser-template-title">{template.name}</h4>
                             <p className="tempbrowser-template-description">{template.description}</p>
-                            
+
                             <div className="tempbrowser-template-meta">
                               <span className="tempbrowser-category-tag">
                                 {template.category}
@@ -663,30 +663,30 @@ const [pdfUrl, setPdfUrl] = useState("");
 
                           {/* Action Buttons */}
                           <div className="tempbrowser-card-actions">
-  <button 
-    className="tempbrowser-btn tempbrowser-btn-outline"
-    onClick={() => handleViewTemplatePdf(template)}
-    disabled={isSelecting}
-  >
-    <FaEye /> View PDF
-  </button>
+                            <button
+                              className="tempbrowser-btn tempbrowser-btn-outline"
+                              onClick={() => handleViewTemplatePdf(template)}
+                              disabled={isSelecting}
+                            >
+                              <FaEye /> View PDF
+                            </button>
 
-  <button 
-    className="tempbrowser-btn tempbrowser-btn-primary"
-    onClick={() => !isSelecting && handleTemplateSelect(template)}
-    disabled={isSelecting}
-  >
-    {isSelecting ? (
-      <>
-        <FaSpinner className="tempbrowser-spinner" /> Selecting...
-      </>
-    ) : (
-      <>
-        <FaPlus /> Use Template
-      </>
-    )}
-  </button>
-</div>
+                            <button
+                              className="tempbrowser-btn tempbrowser-btn-primary"
+                              onClick={() => !isSelecting && handleTemplateSelect(template)}
+                              disabled={isSelecting}
+                            >
+                              {isSelecting ? (
+                                <>
+                                  <FaSpinner className="tempbrowser-spinner" /> Selecting...
+                                </>
+                              ) : (
+                                <>
+                                  <FaPlus /> Use Template
+                                </>
+                              )}
+                            </button>
+                          </div>
 
                         </div>
                       ))}
@@ -726,22 +726,22 @@ const [pdfUrl, setPdfUrl] = useState("");
                               </td>
                               <td>{template.download_count || 0}</td>
                               <td className="tempbrowser-actions-cell">
-  <button 
-    className="tempbrowser-btn tempbrowser-btn-sm tempbrowser-btn-outline"
-    onClick={() => handleViewTemplatePdf(template)}
-    disabled={isSelecting}
-  >
-    View PDF
-  </button>
+                                <button
+                                  className="tempbrowser-btn tempbrowser-btn-sm tempbrowser-btn-outline"
+                                  onClick={() => handleViewTemplatePdf(template)}
+                                  disabled={isSelecting}
+                                >
+                                  View PDF
+                                </button>
 
-  <button 
-    className="tempbrowser-btn tempbrowser-btn-sm tempbrowser-btn-primary"
-    onClick={() => !isSelecting && handleTemplateSelect(template)}
-    disabled={isSelecting}
-  >
-    {isSelecting ? '...' : 'Use'}
-  </button>
-</td>
+                                <button
+                                  className="tempbrowser-btn tempbrowser-btn-sm tempbrowser-btn-primary"
+                                  onClick={() => !isSelecting && handleTemplateSelect(template)}
+                                  disabled={isSelecting}
+                                >
+                                  {isSelecting ? '...' : 'Use'}
+                                </button>
+                              </td>
 
                             </tr>
                           ))}
@@ -757,8 +757,8 @@ const [pdfUrl, setPdfUrl] = useState("");
 
         {/* Footer */}
         <div className="tempbrowser-footer">
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="tempbrowser-btn tempbrowser-btn-secondary"
             disabled={isSelecting}
           >
@@ -766,8 +766,8 @@ const [pdfUrl, setPdfUrl] = useState("");
           </button>
           <div className="tempbrowser-footer-info">
             <span className="tempbrowser-selected-count">
-              {selectedCategory === 'all' 
-                ? `${templates.length} total templates` 
+              {selectedCategory === 'all'
+                ? `${templates.length} total templates`
                 : `${filteredTemplates.length} templates in "${selectedCategory}"`}
             </span>
           </div>
@@ -780,7 +780,7 @@ const [pdfUrl, setPdfUrl] = useState("");
           <div className="tempbrowser-preview-modal">
             <div className="tempbrowser-preview-header">
               <h3>{selectedTemplate.name}</h3>
-              <button 
+              <button
                 className="tempbrowser-close-btn"
                 onClick={() => !isSelecting && setPreviewModalOpen(false)}
                 disabled={isSelecting}
@@ -788,7 +788,7 @@ const [pdfUrl, setPdfUrl] = useState("");
                 {isSelecting ? <FaSpinner className="tempbrowser-spinner" /> : <FaTimes />}
               </button>
             </div>
-            
+
             <div className="tempbrowser-preview-content">
               <div className="tempbrowser-preview-info">
                 <div className="tempbrowser-preview-row">
@@ -825,16 +825,16 @@ const [pdfUrl, setPdfUrl] = useState("");
                 )}
               </div>
             </div>
-            
+
             <div className="tempbrowser-preview-actions">
-              <button 
+              <button
                 className="tempbrowser-btn tempbrowser-btn-secondary"
                 onClick={() => !isSelecting && setPreviewModalOpen(false)}
                 disabled={isSelecting}
               >
                 Close
               </button>
-              <button 
+              <button
                 className="tempbrowser-btn tempbrowser-btn-primary"
                 onClick={() => !isSelecting && handleTemplateSelect(selectedTemplate)}
                 disabled={isSelecting}
@@ -856,34 +856,34 @@ const [pdfUrl, setPdfUrl] = useState("");
 
 
       {showPdfViewer && (
-  <div className="tempbrowser-preview-overlay">
-    <div className="tempbrowser-preview-modal" style={{ width: "80%", height: "85%" }}>
-      <div className="tempbrowser-preview-header">
-        <h3>Template PDF Preview</h3>
-        <button
-          className="tempbrowser-close-btn"
-          onClick={() => {
-            setShowPdfViewer(false);
-            URL.revokeObjectURL(pdfUrl);
-            setPdfUrl("");
-          }}
-        >
-          <FaTimes />
-        </button>
-      </div>
+        <div className="tempbrowser-preview-overlay">
+          <div className="tempbrowser-preview-modal" style={{ width: "80%", height: "85%" }}>
+            <div className="tempbrowser-preview-header">
+              <h3>Template PDF Preview</h3>
+              <button
+                className="tempbrowser-close-btn"
+                onClick={() => {
+                  setShowPdfViewer(false);
+                  URL.revokeObjectURL(pdfUrl);
+                  setPdfUrl("");
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
 
-      <div className="tempbrowser-preview-content" style={{ height: "100%" }}>
-        <iframe
-          src={pdfUrl}
-          title="Template PDF"
-          width="100%"
-          height="100%"
-          style={{ border: "none" }}
-        />
-      </div>
-    </div>
-  </div>
-)}
+            <div className="tempbrowser-preview-content" style={{ height: "100%" }}>
+              <iframe
+                src={pdfUrl}
+                title="Template PDF"
+                width="100%"
+                height="100%"
+                style={{ border: "none" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -39,7 +39,7 @@ def serialize_contact(contact):
     }
 
 
-@router.post("/", response_model=ContactResponse)
+@router.post("", response_model=ContactResponse)
 async def create_contact(
     data: ContactCreate,
     current_user: dict = Depends(get_current_user)
@@ -66,7 +66,7 @@ async def create_contact(
     return serialize_contact(contact)
 
 
-@router.get("/", response_model=List[ContactResponse])
+@router.get("", response_model=List[ContactResponse])
 async def get_contacts(
     favorite: Optional[bool] = None,
     current_user: dict = Depends(get_current_user)

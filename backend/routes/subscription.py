@@ -7,7 +7,7 @@ from enum import Enum
 from bson import ObjectId
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, status, Request
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict, ValidationInfo
 
 from database import db
 from routes.auth import get_current_user
@@ -163,15 +163,15 @@ class SubscriptionCreate(BaseModel):
     custom_price: Optional[float] = Field(None, ge=0)
     enterprise_requirements: Optional[str] = None
     
-    @validator('plan_type')
+    @field_validator('plan_type')
     def validate_plan_type(cls, v):
         if v == PlanType.FREE_TRIAL:
             raise ValueError("Free trial cannot be manually subscribed")
         return v
     
-    @validator('custom_duration_days', 'custom_price', always=True)
-    def validate_enterprise_fields(cls, v, values):
-        if values.get('plan_type') == PlanType.ENTERPRISE:
+    @field_validator('custom_duration_days', 'custom_price')
+    def validate_enterprise_fields(cls, v, info: ValidationInfo):
+        if info.data.get('plan_type') == PlanType.ENTERPRISE:
             # Enterprise fields are optional
             return v
         return None
@@ -200,11 +200,11 @@ class SubscriptionResponse(BaseModel):
     stripe_customer_id: Optional[str]
     created_at: datetime
 
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            ObjectId: str
-        }
+    model_config = ConfigDict(
+        use_enum_values=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 class PlanInfo(BaseModel):
     plan_type: PlanType
@@ -248,10 +248,10 @@ class PaymentResponse(BaseModel):
     transaction_id: Optional[str] = None
     created_at: datetime
     
-    class Config:
-        json_encoders = {
-            ObjectId: str
-        }
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 class SubscriptionHistoryResponse(BaseModel):
     subscriptions: List[Dict[str, Any]]

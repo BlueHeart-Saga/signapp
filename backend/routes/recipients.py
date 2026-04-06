@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Qu
 from bson import ObjectId
 from datetime import datetime, timedelta
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, validator, Field
+from pydantic import BaseModel, EmailStr, field_validator, Field, ValidationInfo
 from enum import Enum
 import hashlib
 from typing import Optional
@@ -42,21 +42,21 @@ class RecipientCreate(BaseModel):
         "view_instructions": "Please review the document carefully before signing"
     })
 
-    @validator('name')
+    @field_validator('name')
     def name_not_empty(cls, v):
         if not v.strip():
             raise ValueError('Name cannot be empty')
         return v.strip()
 
-    @validator('signing_order')
+    @field_validator('signing_order')
     def signing_order_positive(cls, v):
         if v < 1:
             raise ValueError('Signing order must be at least 1')
         return v
 
-    @validator('witness_for')
-    def validate_witness_for(cls, v, values):
-        if values.get('role') == RecipientRole.WITNESS and not v:
+    @field_validator('witness_for')
+    def validate_witness_for(cls, v, info: ValidationInfo):
+        if info.data.get('role') == RecipientRole.WITNESS and not v:
             raise ValueError('Witness must specify who they are witnessing')
         return v
 

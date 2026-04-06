@@ -11,21 +11,21 @@ const UserTemplatesList = () => {
   const [limit] = useState(9);
   const [totalPages, setTotalPages] = useState(1);
   const [totalTemplates, setTotalTemplates] = useState(0);
-  
+
   // Filter states
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [freeOnly, setFreeOnly] = useState(false);
   const [categories, setCategories] = useState([]);
-  
+
   // UI states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [popularTemplates, setPopularTemplates] = useState([]);
-  const [viewMode, setViewMode] = useState("grid");
+  const [viewMode, setViewMode] = useState("list");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+
   // Template action states
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -38,22 +38,22 @@ const UserTemplatesList = () => {
   // Helper function to get template ID (handles both string and object _id)
   const getTemplateId = (template) => {
     if (!template) return null;
-    
+
     // If _id is an object with $oid property (MongoDB BSON format)
     if (template._id && typeof template._id === 'object' && template._id.$oid) {
       return template._id.$oid;
     }
-    
+
     // If _id is already a string
     if (typeof template._id === 'string') {
       return template._id;
     }
-    
+
     // If id property exists
     if (template.id) {
       return template.id;
     }
-    
+
     return null;
   };
 
@@ -83,14 +83,14 @@ const UserTemplatesList = () => {
       }
 
       const data = await res.json();
-      
+
       // Ensure templates have proper IDs
       const processedTemplates = (data.templates || []).map(template => ({
         ...template,
         // Extract ID for easy access
         id: getTemplateId(template),
       }));
-      
+
       setTemplates(processedTemplates);
       setTotalPages(data.pagination?.pages || 1);
       setTotalTemplates(data.pagination?.total || 0);
@@ -110,13 +110,13 @@ const UserTemplatesList = () => {
         },
       });
       const data = await res.json();
-      
+
       // Process categories to ensure proper IDs
       const processedCategories = (data.categories || []).map(cat => ({
         ...cat,
         id: getTemplateId(cat),
       }));
-      
+
       setCategories(processedCategories);
     } catch (err) {
       console.error("Category fetch failed:", err);
@@ -132,13 +132,13 @@ const UserTemplatesList = () => {
         },
       });
       const data = await res.json();
-      
+
       // Process popular templates to ensure proper IDs
       const processedTemplates = (data.popular_templates || []).map(template => ({
         ...template,
         id: getTemplateId(template),
       }));
-      
+
       setPopularTemplates(processedTemplates);
     } catch (err) {
       console.error("Popular templates fetch failed:", err);
@@ -155,13 +155,13 @@ const UserTemplatesList = () => {
       const res = await fetch(`${API_BASE_URL}/admin/templates/user/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (!res.ok) {
         throw new Error("Failed to load template details");
       }
-      
+
       const template = await res.json();
-      
+
       // Ensure the template has a proper ID
       return {
         ...template,
@@ -180,7 +180,7 @@ const UserTemplatesList = () => {
         alert("Template ID is missing");
         return;
       }
-      
+
       const template = await getTemplateDetails(templateId);
       setSelectedTemplate(template);
       setPreviewModalOpen(true);
@@ -198,14 +198,14 @@ const UserTemplatesList = () => {
       }
 
       const res = await fetch(
-  `${API_BASE_URL}/admin/templates/user/download/${templateId}`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  }
-);
+        `${API_BASE_URL}/admin/templates/user/download/${templateId}?format=pdf`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
 
       if (!res.ok) {
@@ -215,15 +215,15 @@ const UserTemplatesList = () => {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       setPdfPreviewUrl(url);
-      
+
       // Open PDF in new tab
       const newWindow = window.open(url, '_blank');
-      
+
       if (!newWindow) {
         alert("Please allow pop-ups to view the PDF");
         return;
       }
-      
+
       // Clean up after some time
       setTimeout(() => {
         URL.revokeObjectURL(url);
@@ -247,14 +247,14 @@ const UserTemplatesList = () => {
 
       // Step 1: Download template file
       const res = await fetch(
-  `${API_BASE_URL}/admin/templates/user/download/${templateId}`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  }
-);
+        `${API_BASE_URL}/admin/templates/user/download/${templateId}?format=pdf`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
 
       if (!res.ok) {
@@ -308,14 +308,14 @@ const UserTemplatesList = () => {
       }
 
       const res = await fetch(
-  `${API_BASE_URL}/admin/templates/user/download/${templateId}`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  }
-);
+        `${API_BASE_URL}/admin/templates/user/download/${templateId}?format=original`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
 
       if (!res.ok) {
@@ -327,7 +327,7 @@ const UserTemplatesList = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      
+
       const contentDisposition = res.headers.get("Content-Disposition");
       let filename = templateTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".pdf";
       if (contentDisposition) {
@@ -336,7 +336,7 @@ const UserTemplatesList = () => {
           filename = filenameMatch[1];
         }
       }
-      
+
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -475,11 +475,11 @@ const UserTemplatesList = () => {
         <div className="sidebar">
           <div className="filter-section">
             <h3>Filter Templates</h3>
-            
+
             <div className="filter-group">
               <label>Category</label>
-              <select 
-                value={categoryId} 
+              <select
+                value={categoryId}
                 onChange={(e) => {
                   setCategoryId(e.target.value);
                   setPage(1);
@@ -575,7 +575,7 @@ const UserTemplatesList = () => {
                 className="search-input"
               />
               <button className="search-btn">🔍</button>
-              
+
               {showSuggestions && suggestions.length > 0 && (
                 <div className="suggestions-dropdown">
                   {suggestions.map((suggestion, index) => (
@@ -594,7 +594,7 @@ const UserTemplatesList = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="results-info">
               Showing {templates.length} of {totalTemplates} templates
               {search && ` for "${search}"`}
@@ -621,8 +621,8 @@ const UserTemplatesList = () => {
           {isUploading && (
             <div className="upload-progress-container">
               <div className="upload-progress-bar">
-                <div 
-                  className="upload-progress-fill" 
+                <div
+                  className="upload-progress-fill"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
@@ -653,7 +653,7 @@ const UserTemplatesList = () => {
                 <div className="templates-grid">
                   {templates.map((template) => {
                     const templateId = getTemplateId(template);
-                    
+
                     return (
                       <div key={templateId} className="template-card">
                         <div className="card-header">
@@ -664,15 +664,15 @@ const UserTemplatesList = () => {
                             ⬇️ {template.download_count || 0}
                           </span>
                         </div>
-                        
+
                         <div className="card-body">
                           <h3>{template.title}</h3>
                           <p className="description">{template.description || "No description"}</p>
-                          
+
                           <div className="category">
                             📁 {template.category_name}
                           </div>
-                          
+
                           {template.tags && template.tags.length > 0 && (
                             <div className="tags">
                               {template.tags.slice(0, 3).map((tag, index) => (
@@ -684,7 +684,7 @@ const UserTemplatesList = () => {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="card-footer">
                           <button
                             onClick={() => handleDownload(
@@ -735,7 +735,7 @@ const UserTemplatesList = () => {
                     <tbody>
                       {templates.map((template) => {
                         const templateId = getTemplateId(template);
-                        
+
                         return (
                           <tr key={templateId}>
                             <td>
@@ -759,7 +759,7 @@ const UserTemplatesList = () => {
                                 className="table-download-btn"
                                 disabled={!templateId}
                               >
-                               Download
+                                Download
                               </button>
                               <button
                                 onClick={() => handlePreview(templateId)}
@@ -784,144 +784,144 @@ const UserTemplatesList = () => {
                 </div>
               )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-                className="page-btn"
-              >
-                ← Previous
-              </button>
-                  
-              <div className="page-numbers">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (page <= 3) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = page - 2 + i;
-                  }
-                      
-                  return (
-                    <button
-                      key={pageNum}
-                      className={`page-btn ${page === pageNum ? 'active' : ''}`}
-                      onClick={() => setPage(pageNum)}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-                  
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage(page + 1)}
-                className="page-btn"
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </>
-          )}
-      </div>
-    </div>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                    className="page-btn"
+                  >
+                    ← Previous
+                  </button>
 
-      {/* Preview Modal */ }
-  {
-    previewModalOpen && selectedTemplate && (
-      <div className="preview-modal">
-        <div className="preview-overlay" onClick={closePreviewModal} />
-          
-        <div className="preview-content">
-          <div className="preview-header">
-            <h2>{selectedTemplate.title}</h2>
-            <button 
-              className="close-btn"
-              onClick={closePreviewModal}
-            >
-              ×
-            </button>
-          </div>
-            
-          <div className="preview-body">
-            <div className="template-info">
-              <div className="info-row">
-                <span className="label">Category:</span>
-                <span className="value">{selectedTemplate.category_name}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Type:</span>
-                <span className={`badge ${selectedTemplate.is_free ? 'free' : 'premium'}`}>
-                  {selectedTemplate.is_free ? "Free" : "Premium"}
-                </span>
-              </div>
-              <div className="info-row">
-                <span className="label">Downloads:</span>
-                <span className="value">{selectedTemplate.download_count || 0}</span>
-              </div>
-              {selectedTemplate.description && (
-                <div className="info-row full-width">
-                  <span className="label">Description:</span>
-                  <p className="description">{selectedTemplate.description}</p>
-                </div>
-              )}
-              {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
-                <div className="info-row full-width">
-                  <span className="label">Tags:</span>
-                  <div className="tags">
-                    {selectedTemplate.tags.map((tag, index) => (
-                      <span key={index} className="tag">{tag}</span>
-                    ))}
+                  <div className="page-numbers">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (page <= 3) {
+                        pageNum = i + 1;
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = page - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          className={`page-btn ${page === pageNum ? 'active' : ''}`}
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => setPage(page + 1)}
+                    className="page-btn"
+                  >
+                    Next →
+                  </button>
                 </div>
               )}
-            </div>
-              
-            <div className="preview-actions">
-              <button
-                onClick={useSelectedTemplate}
-                className="primary-btn"
-                disabled={isUploading || !getTemplateId(selectedTemplate)}
-              >
-                {isUploading ? "Processing..." : "Use This Template"}
-              </button>
-                
-              <button
-                onClick={previewPDFFromModal}
-                className="secondary-btn"
-                disabled={!getTemplateId(selectedTemplate)}
-              >
-                View PDF
-              </button>
-                
-              <button
-                onClick={downloadSelectedTemplate}
-                className={`download-btn ${selectedTemplate.is_free ? 'free-btn' : 'premium-btn'}`}
-                disabled={!getTemplateId(selectedTemplate)}
-              >
-                {selectedTemplate.is_free ? "Download Free" : "Purchase & Download"}
-              </button>
-                
-              <button
-                className="cancel-btn"
-                onClick={closePreviewModal}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
-    )
-  }
+
+      {/* Preview Modal */}
+      {
+        previewModalOpen && selectedTemplate && (
+          <div className="preview-modal">
+            <div className="preview-overlay" onClick={closePreviewModal} />
+
+            <div className="preview-content">
+              <div className="preview-header">
+                <h2>{selectedTemplate.title}</h2>
+                <button
+                  className="close-btn"
+                  onClick={closePreviewModal}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="preview-body">
+                <div className="template-info">
+                  <div className="info-row">
+                    <span className="label">Category:</span>
+                    <span className="value">{selectedTemplate.category_name}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Type:</span>
+                    <span className={`badge ${selectedTemplate.is_free ? 'free' : 'premium'}`}>
+                      {selectedTemplate.is_free ? "Free" : "Premium"}
+                    </span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Downloads:</span>
+                    <span className="value">{selectedTemplate.download_count || 0}</span>
+                  </div>
+                  {selectedTemplate.description && (
+                    <div className="info-row full-width">
+                      <span className="label">Description:</span>
+                      <p className="description">{selectedTemplate.description}</p>
+                    </div>
+                  )}
+                  {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
+                    <div className="info-row full-width">
+                      <span className="label">Tags:</span>
+                      <div className="tags">
+                        {selectedTemplate.tags.map((tag, index) => (
+                          <span key={index} className="tag">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="preview-actions">
+                  <button
+                    onClick={useSelectedTemplate}
+                    className="primary-btn"
+                    disabled={isUploading || !getTemplateId(selectedTemplate)}
+                  >
+                    {isUploading ? "Processing..." : "Use This Template"}
+                  </button>
+
+                  <button
+                    onClick={previewPDFFromModal}
+                    className="secondary-btn"
+                    disabled={!getTemplateId(selectedTemplate)}
+                  >
+                    View PDF
+                  </button>
+
+                  <button
+                    onClick={downloadSelectedTemplate}
+                    className={`download-btn ${selectedTemplate.is_free ? 'free-btn' : 'premium-btn'}`}
+                    disabled={!getTemplateId(selectedTemplate)}
+                  >
+                    {selectedTemplate.is_free ? "Download Free" : "Purchase & Download"}
+                  </button>
+
+                  <button
+                    className="cancel-btn"
+                    onClick={closePreviewModal}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
     </div >
   );
 };

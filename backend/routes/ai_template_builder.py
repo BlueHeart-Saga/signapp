@@ -19,8 +19,8 @@ except ImportError:
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
-from pydantic import BaseModel, Field, validator
-import PyPDF2
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+import pypdf
 from docx import Document as DocxDocument
 from bson import ObjectId
 
@@ -134,8 +134,7 @@ class TemplateFieldSchema(BaseModel):
     validation_rules: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 class AITemplateRequest(BaseModel):
     description: str
@@ -150,7 +149,7 @@ class AITemplateRequest(BaseModel):
     generate_html: bool = True
     include_styles: bool = True
 
-    @validator('description')
+    @field_validator('description')
     def description_not_empty(cls, v):
         if not v or len(v.strip()) < 10:
             raise ValueError('Description must be at least 10 characters')
@@ -309,7 +308,7 @@ async def extract_document_text(file: UploadFile) -> Tuple[str, int]:
         page_count = 1
         
         if file_extension == 'pdf':
-            pdf_reader = PyPDF2.PdfReader(BytesIO(content))
+            pdf_reader = pypdf.PdfReader(BytesIO(content))
             text = ""
             for page in pdf_reader.pages:
                 text += page.extract_text() + "\n\n"

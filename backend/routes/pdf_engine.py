@@ -2410,9 +2410,15 @@ class PDFEngine:
         Minimal envelope header (just ID and page numbers).
         Less intrusive, doesn't shift content.
         """
-        pdf = PDFEngine.open_pdf(pdf_bytes)
-        
-        if len(pdf) == 0:
+        try:
+            pdf = PDFEngine.open_pdf(pdf_bytes)
+            
+            # 🛡️ SAFETY CHECK: Ensure it's a valid PDF with pages
+            if not pdf or not hasattr(pdf, "is_pdf") or not pdf.is_pdf or len(pdf) == 0:
+                if pdf: pdf.close()
+                return pdf_bytes
+        except Exception as e:
+            print(f"Skipping envelope header: {e}")
             return pdf_bytes
         
         # Parse color
@@ -2425,30 +2431,25 @@ class PDFEngine:
             r, g, b = 0.05, 0.58, 0.53  # #0d9488 teal
         
         for page_num, page in enumerate(pdf):
-            rect = page.rect
-            
-            # Add header bar at top
-            header_height = 20
-            
-            # Add separator line (no background)
-            # page.draw_line(
-            #     fitz.Point(rect.x0, rect.y0 + header_height),
-            #     fitz.Point(rect.x1, rect.y0 + header_height),
-            #     color=(r * 0.3, g * 0.3, b * 0.3),
-            #     width=0.5,
-            #     overlay=True
-            # )
-            
-            # Left side: Envelope ID in teal color
-            id_text = f"📄 Envelope: {envelope_id}"
-            page.insert_text(
-                fitz.Point(rect.x0 + 10, rect.y0 + 12),
-                id_text,
-                fontsize=9,
-                fontname="Helvetica",
-                color=(r, g, b),
-                overlay=True
-            )
+            try:
+                rect = page.rect
+                
+                # Add header bar at top
+                header_height = 20
+                
+                # Left side: Envelope ID in teal color
+                id_text = f"📄 Envelope: {envelope_id}"
+                page.insert_text(
+                    fitz.Point(rect.x0 + 10, rect.y0 + 12),
+                    id_text,
+                    fontsize=9,
+                    fontname="Helvetica",
+                    color=(r, g, b),
+                    overlay=True
+                )
+            except Exception as e:
+                print(f"Error inserting header on page {page_num}: {e}")
+                continue
             
             # Right side: Page number in gray
             # page_text = f"Page {page_num + 1} of {len(pdf)}"
@@ -2479,7 +2480,7 @@ class PDFEngine:
         Returns:
             Encrypted PDF bytes
         """
-        from PyPDF2 import PdfReader, PdfWriter
+        from pypdf import PdfReader, PdfWriter
         
         reader = PdfReader(BytesIO(pdf_bytes))
         writer = PdfWriter()
@@ -2646,7 +2647,7 @@ class PDFEngine:
         Encrypt PDF with password protection.
         """
         try:
-            from PyPDF2 import PdfReader, PdfWriter
+            from pypdf import PdfReader, PdfWriter
             import io  # Add this import
             
             reader = PdfReader(io.BytesIO(pdf_bytes))

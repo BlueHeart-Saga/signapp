@@ -864,7 +864,7 @@
 # from fastapi.responses import JSONResponse, HTMLResponse
 # from pydantic import BaseModel, Field, validator
 # import openai
-# import PyPDF2
+# import pypdf
 # from docx import Document as DocxDocument
 
 # from database import (

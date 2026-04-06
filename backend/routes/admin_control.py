@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Query, Path
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -19,8 +19,7 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     email_verified: Optional[bool] = None
     
-    class Config:
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(extra="forbid")
 
 class UserCreate(BaseModel):
     email: EmailStr

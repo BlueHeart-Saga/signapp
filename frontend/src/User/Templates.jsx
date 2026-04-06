@@ -402,7 +402,7 @@ export default function DocumentsAndTemplates() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState("");
   const [popularTemplates, setPopularTemplates] = useState([]);
-  const [viewMode, setViewMode] = useState("grid");
+  const [viewMode, setViewMode] = useState("list");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -542,7 +542,7 @@ export default function DocumentsAndTemplates() {
 
     try {
       const res = await fetch(
-        `${API_BASE}/admin/templates/user/download/${templateId}`,
+        `${API_BASE}/admin/templates/user/download/${templateId}?format=pdf`,
         {
           method: "POST",
           headers: {
@@ -760,7 +760,7 @@ export default function DocumentsAndTemplates() {
 
       // Step 1: Download template
       const downloadRes = await fetch(
-        `${API_BASE}/admin/templates/user/download/${templateId}`,
+        `${API_BASE}/admin/templates/user/download/${templateId}?format=pdf`,
         {
           method: "POST",
           headers: {
@@ -857,7 +857,7 @@ export default function DocumentsAndTemplates() {
       }
 
       const res = await fetch(
-        `${API_BASE}/admin/templates/user/download/${templateId}`,
+        `${API_BASE}/admin/templates/user/download/${templateId}?format=original`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` } }
       );
 

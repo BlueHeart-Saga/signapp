@@ -9,6 +9,7 @@ import uuid
 from database import db
 from .auth import role_required, serialize_doc
 from storage import storage  # Import Azure storage provider
+from .converter import convert_to_pdf, get_pdf_page_count
 
 router = APIRouter(prefix="/admin/templates", tags=["Admin Templates"])
 
@@ -40,25 +41,17 @@ def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def save_template_to_storage(file: UploadFile, template_id: str, metadata: dict) -> str:
+def save_template_to_storage(file_bytes: bytes, filename: str, template_id: str, metadata: dict) -> str:
     """Save uploaded template file to Azure Blob Storage and return file path"""
-    if not allowed_file(file.filename):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS.keys())}"
-        )
     
-    # Generate unique filename
-    ext = file.filename.rsplit('.', 1)[1].lower()
+    # Generate unique filename using original ext
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
     unique_filename = f"{template_id}_{uuid.uuid4().hex}.{ext}"
-    
-    # Read file content
-    file_content = file.file.read()
     
     # Upload to Azure Blob Storage
     try:
         file_path = storage.upload(
-            file_content,
+            file_bytes,
             unique_filename,
             folder=f"templates/{template_id}"
         )
@@ -230,6 +223,65 @@ async def delete_category(
             detail="Error deleting category"
         )
 
+@router.put("/categories/{category_id}", summary="Update template category")
+async def update_category(
+    category_id: str,
+    category: TemplateCategory,
+    current_user: dict = Depends(role_required(["admin"]))
+):
+    """Update an existing template category"""
+    try:
+        if not ObjectId.is_valid(category_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid category ID format"
+            )
+        
+        # Check if another category has the same name
+        duplicate_category = db.template_categories.find_one({
+            "name": {"$regex": f"^{category.name}$", "$options": "i"},
+            "is_active": True,
+            "_id": {"$ne": ObjectId(category_id)}
+        })
+        
+        if duplicate_category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Another category with this name already exists"
+            )
+        
+        # Update category
+        update_data = {
+            "name": category.name,
+            "description": category.description or "",
+            "updated_at": datetime.utcnow(),
+            "updated_by": str(current_user["id"])
+        }
+        
+        result = db.template_categories.update_one(
+            {"_id": ObjectId(category_id)},
+            {"$set": update_data}
+        )
+        
+        # If name changed, update all templates in this category
+        db.document_templates.update_many(
+            {"category_id": category_id},
+            {"$set": {"category_name": category.name}}
+        )
+        
+        return {
+            "message": "Category updated successfully",
+            "category_id": category_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating category"
+        )
+
 # Template Management
 @router.post("/upload", summary="Upload a new document template")
 async def upload_template(
@@ -275,15 +327,37 @@ async def upload_template(
         }
         
         # Save template file to Azure Blob Storage
-        file_path = save_template_to_storage(file, template_id, metadata)
+        file_content = await file.read()
+        converted_pdf_bytes = convert_to_pdf(file_content, file.filename)
+        
+        if not converted_pdf_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail="File cannot be converted to PDF. Format may not be supported."
+            )
+            
+        pdf_filename = file.filename.rsplit(".", 1)[0] + ".pdf"
+        page_count = get_pdf_page_count(converted_pdf_bytes)
+        
+        # Save the converted PDF
+        pdf_file_path = save_template_to_storage(converted_pdf_bytes, pdf_filename, template_id, metadata)
+        
+        # Save the original file as well
+        original_file_path = save_template_to_storage(file_content, file.filename, template_id, metadata)
+        
+        original_content_type = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'application/octet-stream'
         
         # Update template with file information
         db.document_templates.update_one(
             {"_id": result.inserted_id},
             {"$set": {
-                "filename": file.filename,
-                "file_path": file_path,  # Changed from file_id to file_path
-                "content_type": ALLOWED_EXTENSIONS.get(file.filename.rsplit('.', 1)[1].lower(), "application/octet-stream")
+                "filename": pdf_filename,
+                "file_path": pdf_file_path,
+                "content_type": "application/pdf",
+                "page_count": page_count,
+                "original_filename": file.filename,
+                "original_file_path": original_file_path,
+                "original_content_type": original_content_type
             }}
         )
         
@@ -464,6 +538,135 @@ async def update_template_status(
             detail="Error updating template status"
         )
 
+@router.put("/{template_id}", summary="Update template details")
+async def update_template(
+    template_id: str,
+    title: str = Form(..., min_length=3, max_length=200),
+    description: Optional[str] = Form(None),
+    category_id: str = Form(...),
+    tags: str = Form(""),
+    is_free: bool = Form(True),
+    file: Optional[UploadFile] = File(None),
+    current_user: dict = Depends(role_required(["admin"]))
+):
+    """Update detailed information about a template, with optional file replacement"""
+    try:
+        if not ObjectId.is_valid(template_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid template ID format"
+            )
+        
+        # Get existing template
+        template = db.document_templates.find_one({"_id": ObjectId(template_id)})
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Template not found"
+            )
+        
+        # Validate category
+        category = validate_category_exists(category_id)
+        
+        # Parse tags
+        tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
+        
+        # Check if category changed
+        old_category_id = template.get("category_id")
+        category_changed = old_category_id != category_id
+        
+        # Prepare update data
+        update_data = {
+            "title": title,
+            "description": description or "",
+            "category_id": category_id,
+            "category_name": category["name"],
+            "tags": tag_list,
+            "is_free": is_free,
+            "updated_at": datetime.utcnow(),
+            "updated_by": str(current_user["id"])
+        }
+        
+        # Handle file re-upload
+        if file:
+            # Delete old file
+            old_file_path = template.get("file_path")
+            if old_file_path:
+                delete_template_from_storage(old_file_path)
+            
+            # Convert and save new file
+            file_content = await file.read()
+            converted_pdf_bytes = convert_to_pdf(file_content, file.filename)
+            
+            if not converted_pdf_bytes:
+                raise HTTPException(
+                    status_code=400,
+                    detail="File cannot be converted to PDF. Format may not be supported."
+                )
+                
+            pdf_filename = file.filename.rsplit(".", 1)[0] + ".pdf"
+            page_count = get_pdf_page_count(converted_pdf_bytes)
+            
+            # FIX: Create metadata for the new file
+            metadata = {
+                "created_by": str(current_user["id"]),
+                "title": title,
+                "category": category["name"],
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            
+            # Save the new PDF
+            new_file_path = save_template_to_storage(converted_pdf_bytes, pdf_filename, template_id, metadata)
+            # Save the new original file
+            new_original_file_path = save_template_to_storage(file_content, file.filename, template_id, metadata)
+            
+            original_content_type = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'application/octet-stream'
+            
+            update_data["file_path"] = new_file_path
+            update_data["filename"] = pdf_filename
+            update_data["content_type"] = "application/pdf"
+            update_data["page_count"] = page_count
+            update_data["original_file_path"] = new_original_file_path
+            update_data["original_filename"] = file.filename
+            update_data["original_content_type"] = original_content_type
+        
+        # Update template
+        result = db.document_templates.update_one(
+            {"_id": ObjectId(template_id)},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0 and not file:
+            # Maybe no changes were made
+            return {"message": "No changes made to template", "template_id": template_id}
+            
+        # Update category counts if changed
+        if category_changed and template.get("is_active"):
+            # Decrement old category
+            db.template_categories.update_one(
+                {"_id": ObjectId(old_category_id)},
+                {"$inc": {"template_count": -1}}
+            )
+            # Increment new category
+            db.template_categories.update_one(
+                {"_id": ObjectId(category_id)},
+                {"$inc": {"template_count": 1}}
+            )
+            
+        return {
+            "message": "Template updated successfully",
+            "template_id": template_id,
+            "template": serialize_doc(db.document_templates.find_one({"_id": ObjectId(template_id)}))
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating template: {str(e)}"
+        )
+
 @router.delete("/{template_id}", summary="Delete template")
 async def delete_template(
     template_id: str,
@@ -565,6 +768,7 @@ async def get_template_stats(
 @router.get("/download/{template_id}", summary="Download template file")
 async def download_template(
     template_id: str,
+    format: Optional[str] = Query("original", description="Format to download ('original' or 'pdf')"),
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Download template file"""
@@ -587,8 +791,14 @@ async def download_template(
                 detail="Template not found or inactive"
             )
         
-        file_path = template.get("file_path")
-        filename = template.get("filename", "template")
+        if format == "pdf":
+            file_path = template.get("file_path")
+            filename = template.get("filename", "template.pdf")
+            content_type = template.get("content_type", "application/pdf")
+        else:
+            file_path = template.get("original_file_path", template.get("file_path"))
+            filename = template.get("original_filename", template.get("filename", "template"))
+            content_type = template.get("original_content_type", template.get("content_type", "application/octet-stream"))
         
         if not file_path:
             raise HTTPException(
@@ -616,7 +826,7 @@ async def download_template(
         
         return StreamingResponse(
             content=io.BytesIO(file_bytes),
-            media_type=template.get("content_type", "application/octet-stream"),
+            media_type=content_type,
             headers={
                 "Content-Disposition": f"attachment; filename={filename}"
             }
@@ -793,6 +1003,7 @@ async def get_user_template_details(
 @router.post("/user/download/{template_id}", summary="Download template as user")
 async def user_download_template(
     template_id: str,
+    format: Optional[str] = Query("original", description="Format to download ('original' or 'pdf')"),
     current_user: dict = Depends(role_required(["user", "admin"]))
 ):
     """Download template file as a user"""
@@ -822,8 +1033,14 @@ async def user_download_template(
             # For now, we'll allow all users to download
             pass
         
-        file_path = template.get("file_path")
-        filename = template.get("filename", "template")
+        if format == "pdf":
+            file_path = template.get("file_path")
+            filename = template.get("filename", "template.pdf")
+            content_type = template.get("content_type", "application/pdf")
+        else:
+            file_path = template.get("original_file_path", template.get("file_path"))
+            filename = template.get("original_filename", template.get("filename", "template"))
+            content_type = template.get("original_content_type", template.get("content_type", "application/octet-stream"))
         
         if not file_path:
             raise HTTPException(
@@ -861,7 +1078,7 @@ async def user_download_template(
         
         return StreamingResponse(
             content=io.BytesIO(file_bytes),
-            media_type=template.get("content_type", "application/octet-stream"),
+            media_type=content_type,
             headers={
                 "Content-Disposition": f"attachment; filename={filename}"
             }

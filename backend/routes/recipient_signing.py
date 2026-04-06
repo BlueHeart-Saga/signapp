@@ -2472,14 +2472,23 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         request
     )
     
-    # ✅ UPDATED: Send ZIP package with all documents
+    # ✅ TRIGGER BACKGROUND EMAILS
     if background_tasks:
-        from backend.routes.email_service import send_completed_document_package
+        from routes.email_service import send_completed_document_package, send_completed_document_to_recipients
+        
+        # 1. Send "Final Copy" to Recipients (Already includes ZIP package)
+        background_tasks.add_task(
+            send_completed_document_to_recipients,
+            document_id=str(document_id)
+        )
+        
+        # 2. Send "ZIP Package" to Owner ONLY
         background_tasks.add_task(
             send_completed_document_package,
             document_id=str(document_id)
         )
-        print(f"📦 Scheduled document package (ZIP) emails for document {document_id}")
+        
+        print(f"📦 Scheduled both Final Copy (Recipients) and Package ZIP (Owner) for document {document_id}")
     
     return signed_pdf_path
 
@@ -4650,6 +4659,18 @@ async def manually_complete_recipient(
         "completed_via": "manual"  # To distinguish from automatic completion
     })
     
+    # Update document statistics
+    doc_id = recipient["document_id"]
+    if isinstance(doc_id, str):
+        try:
+            doc_id = ObjectId(doc_id)
+        except:
+            raise HTTPException(400, "Invalid document ID in recipient record")
+            
+    document = db.documents.find_one({"_id": doc_id})
+    if not document:
+        raise HTTPException(404, "Document not found")
+        
     db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
     
     # ✅ NEW: Notify owner about recipient completion
@@ -4660,9 +4681,6 @@ async def manually_complete_recipient(
         document=document,
         status="completed"
     )
-
-    # Update document statistics
-    doc_id = recipient["document_id"]
     update_document_statistics(doc_id)
     
     # Check if all recipients have finished (either completed or declined)
@@ -4685,7 +4703,7 @@ async def manually_complete_recipient(
         }
 
     # ✅ SEQUENTIAL FLOW: TRIGGER NEXT SIGNER
-    document = db.documents.find_one({"_id": doc_id})
+    # Re-use the existing 'document' variable already fetched above
     if document.get("signing_order_enabled"):
         # Find current recipient's order
         current_order = recipient.get("signing_order", 0)
@@ -4775,12 +4793,18 @@ async def trigger_completed_emails(
                 "sent_at": document.get("completed_email_sent_at")
             }
         
-        # Trigger email sending in background
+        from .email_service import send_completed_document_to_recipients, send_completed_document_package
+        
+        # Trigger both completion (Final Copy) for recipients and package ZIP for owner
         background_tasks.add_task(
             send_completed_document_to_recipients,
             document_id=str(document["_id"])
         )
         
+        background_tasks.add_task(
+            send_completed_document_package,
+            document_id=str(document["_id"])
+        )
         # Log the action
         _log_event(
             str(document["_id"]),

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 import openai
 from bson import ObjectId
@@ -195,13 +195,13 @@ class TemplateRequest(BaseModel):
     enhance_placeholders: Optional[bool] = True
     document_type: Optional[str] = "letter"
     
-    @validator('template_type')
+    @field_validator('template_type')
     def validate_template_type(cls, v):
         if not v or v.strip() == "":
             return "Business Letter"
         return v
     
-    @validator('document_type')
+    @field_validator('document_type')
     def validate_document_type(cls, v):
         if not v or v.strip() == "":
             return "letters"

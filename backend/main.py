@@ -20,7 +20,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(BASE_DIR, "static")
+
+# Ensure static directory exists
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Add SessionMiddleware for OAuth
 app.add_middleware(
