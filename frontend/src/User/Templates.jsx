@@ -378,10 +378,14 @@ import { documentsAPI } from '../services/api';
 import { uploadDocument } from '../services/DocumentAPI';
 import '../style/documents.css';
 import '../style/TemplatesList.css';
+import { useAuth } from '../context/AuthContext';
+import SubscriptionExpiredBlock from '../components/SubscriptionExpiredBlock';
+import { CircularProgress, Box } from '@mui/material';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 export default function DocumentsAndTemplates() {
+  const { user, loading: authLoading } = useAuth();
   // ============ DOCUMENTS STATE ============
   const [documents, setDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
@@ -425,7 +429,11 @@ export default function DocumentsAndTemplates() {
     onConfirm: null,
   });
 
-
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // ============ UI STATE ============
   const [activeTab, setActiveTab] = useState('templates'); // 'documents' or 'templates'
@@ -435,11 +443,6 @@ export default function DocumentsAndTemplates() {
   const location = useLocation();
 
 
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
   // Sync activeTab with URL query parameter
   useEffect(() => {
@@ -1020,6 +1023,18 @@ export default function DocumentsAndTemplates() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [page, templateSearch, categoryId, freeOnly]);
+
+  if (authLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', bgcolor: '#f8fafc' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user?.has_active_subscription) {
+    return <SubscriptionExpiredBlock />;
+  }
 
   // ============ RENDER ============
   return (

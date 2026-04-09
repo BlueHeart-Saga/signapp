@@ -131,10 +131,25 @@ async def generate_workflow_document(
             else:
                 raise e
         
+        # Robust content extraction
         if hasattr(response, 'message'):
-            html_content = response.message.content[0].text.strip()
-        else:
+            # V2 SDK check
+            msg = response.message
+            if isinstance(msg, str):
+                html_content = msg.strip()
+            elif hasattr(msg, 'content') and isinstance(msg.content, list) and len(msg.content) > 0:
+                html_content = msg.content[0].text.strip()
+            else:
+                html_content = str(msg).strip()
+        elif hasattr(response, 'text'):
+            # V1 SDK check
             html_content = response.text.strip()
+        elif isinstance(response, str):
+            # Direct string return
+            html_content = response.strip()
+        else:
+            # Fallback for unexpected formats
+            html_content = str(response).strip()
 
         # 2. Convert HTML/Text to PDF using ReportLab
         pdf_buffer = io.BytesIO()
@@ -227,9 +242,22 @@ async def generate_workflow_document(
 
         # 5. Create Recipients and Fields based on Markers
         # Group markers by signer index if possible
-        # For simplicity, we'll create one 'Signer 1' and assign all 'signer_1' markers
-        
         recipients_map = {} # marker_prefix -> recipient_id
+        
+        # 🔹 Always add OR find the owner/sender as the first recipient 
+        # This makes the document "ready" for the professional editor
+        owner_recipient = {
+            "document_id": document_id,
+            "name": current_user.get("full_name") or current_user.get("name") or "Owner",
+            "email": current_user.get("email"),
+            "role": "signer",
+            "signing_order": 0,
+            "status": "created",
+            "added_at": datetime.utcnow(),
+            "is_owner": True
+        }
+        res = db.recipients.insert_one(owner_recipient)
+        recipients_map["owner"] = res.inserted_id
         
         for marker in detected_markers:
             # Extract role/rank from marker name like 'signer_1_signature'

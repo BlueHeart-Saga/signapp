@@ -18,6 +18,8 @@ import {
   InputAdornment,
   Divider
 } from "@mui/material";
+import { useAuth } from "../context/AuthContext";
+import SubscriptionExpiredBlock from "../components/SubscriptionExpiredBlock";
 
 import {
   Star,
@@ -32,6 +34,7 @@ import {
 import { contactsAPI } from "../services/contactsAPI";
 
 const Contacts = () => {
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState([]);
   const [search, setSearch] = useState("");
@@ -101,12 +104,16 @@ const Contacts = () => {
     );
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 10, textAlign: "center" }}>
         <CircularProgress />
       </Container>
     );
+  }
+
+  if (!user?.has_active_subscription) {
+    return <SubscriptionExpiredBlock />;
   }
 
   return (

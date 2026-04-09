@@ -133,23 +133,23 @@ class FieldResponse(BaseModel):
     width: float
     height: float
     required: bool
-    label: Optional[str]
-    placeholder: Optional[str]
-    font_size: Optional[int]
-    dropdown_options: Optional[List[str]]
-    email_validation: Optional[bool]
-    checked: Optional[bool]
-    group_name: Optional[str]
-    canvas_x: Optional[float]
-    canvas_y: Optional[float]
-    canvas_width: Optional[float]
-    canvas_height: Optional[float]
-    pdf_x: Optional[float]
-    pdf_y: Optional[float]
-    pdf_width: Optional[float]
-    pdf_height: Optional[float]
+    label: Optional[str] = None
+    placeholder: Optional[str] = None
+    font_size: Optional[int] = None
+    dropdown_options: Optional[List[str]] = None
+    email_validation: Optional[bool] = None
+    checked: Optional[bool] = None
+    group_name: Optional[str] = None
+    canvas_x: Optional[float] = None
+    canvas_y: Optional[float] = None
+    canvas_width: Optional[float] = None
+    canvas_height: Optional[float] = None
+    pdf_x: Optional[float] = None
+    pdf_y: Optional[float] = None
+    pdf_width: Optional[float] = None
+    pdf_height: Optional[float] = None
     added_at: str
-    modified_at: Optional[str]
+    modified_at: Optional[str] = None
 
 # ---------------------------
 # HELPERS - FIXED

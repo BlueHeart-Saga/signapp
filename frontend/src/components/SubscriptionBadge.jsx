@@ -9,7 +9,35 @@ import { useNavigate } from "react-router-dom";
 export default function SubscriptionBadge({ subscription }) {
   const navigate = useNavigate();
 
-  if (!subscription) return null;
+  if (!subscription) {
+    return (
+      <Tooltip title="Unlock full features with a premium plan" arrow>
+        <Chip
+          icon={<WorkspacePremiumIcon />}
+          label="Upgrade"
+          variant="outlined"
+          clickable
+          onClick={() => navigate("/user/subscription")}
+          sx={{
+            fontWeight: 700,
+            borderRadius: "8px",
+            borderWidth: "1.5px",
+            px: 0.5,
+            height: 30,
+            color: '#3b82f6',
+            borderColor: 'rgba(59, 130, 246, 0.4)',
+            background: 'rgba(59, 130, 246, 0.04)',
+            "&:hover": {
+              borderColor: '#3b82f6',
+              background: 'rgba(59, 130, 246, 0.08)',
+              transform: "translateY(-1px)",
+              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)"
+            }
+          }}
+        />
+      </Tooltip>
+    );
+  }
 
   const { plan_name, days_remaining, expiry_date, status, plan_type } =
     subscription;
@@ -17,6 +45,7 @@ export default function SubscriptionBadge({ subscription }) {
   // PLAN BASED COLOR
   const getColor = () => {
     if (status === "expired") return "error";
+    if (status === "cancelled") return "primary";
     if (days_remaining <= 5) return "warning";
 
     switch (plan_type) {
@@ -34,6 +63,7 @@ export default function SubscriptionBadge({ subscription }) {
   // PLAN LABEL
   const getLabel = () => {
     if (status === "expired") return "Expired";
+    if (status === "cancelled") return "Upgrade";
     if (plan_type === "trial") return "Trial";
     if (plan_type === "monthly") return `${plan_name}`;
     if (plan_type === "yearly") return `${plan_name}`;

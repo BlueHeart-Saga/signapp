@@ -69,9 +69,10 @@ import {
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 
-const DocumentMainLayout = () => {
+const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const navigate = useNavigate();
-  const { documentId } = useParams();
+  const { documentId: paramDocumentId } = useParams();
+  const documentId = propDocumentId || paramDocumentId;
 
   // ==================== STATE MANAGEMENT ====================
   const [document, setDocument] = useState(null);
@@ -997,7 +998,7 @@ const DocumentMainLayout = () => {
         </Alert>
         <Button
           variant="contained"
-          onClick={() => navigate('/user/documents')}
+          onClick={() => onBack ? onBack() : navigate('/user/documents')}
           startIcon={<ArrowBackIcon />}
         >
           Back to Documents
@@ -1014,7 +1015,7 @@ const DocumentMainLayout = () => {
           <IconButton
             edge="start"
             color="inherit"
-            onClick={() => handleNavigateWithCheck('/user/documents')}
+            onClick={() => onBack ? onBack() : handleNavigateWithCheck('/user/documents')}
             sx={{ mr: 2 }}
           >
             <ArrowBackIcon />

@@ -163,8 +163,11 @@ import {
   RemoveRedEye as RemoveRedEyeIcon
 } from '@mui/icons-material';
 import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useNavigate } from 'react-router-dom';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import DocumentMainLayout from './editor/DocumentMainLayout';
+import { useAuth } from '../context/AuthContext';
+import SubscriptionExpiredBlock from '../components/SubscriptionExpiredBlock';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -2167,9 +2170,13 @@ const PROMPT_SUGGESTIONS = [
 
 const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [tags, setTags] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [promptsDialogOpen, setPromptsDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [generatedDocId, setGeneratedDocId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -2181,16 +2188,18 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
     try {
       const requestData = {
         prompt: description,
-        document_type: 'Contract', // Could be dynamic
+        document_type: 'Contract',
+        category: category,
+        tags: tags,
         language: 'English',
         country: 'India'
       };
 
       const response = await TemplateAPIService.generateAIWorkflow(requestData);
-      
+
       if (response.success && response.document_id) {
-        // Professional flow: Redirect directly to the document builder
-        navigate(`/builder/${response.document_id}`);
+        setGeneratedDocId(response.document_id);
+        setPreviewDialogOpen(true);
       } else {
         throw new Error(response.message || 'Workflow generation failed');
       }
@@ -2244,7 +2253,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           }}>
             <AutoAwesomeIcon sx={{ fontSize: 32, color: '#0d9488' }} />
           </Box>
-          <Typography variant="h3" fontWeight="800" sx={{
+          <Typography variant="h4" fontWeight="800" sx={{
             color: '#1a1a1a',
             mb: 2,
             letterSpacing: '-0.5px',
@@ -2295,6 +2304,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                   py: 2.5,
                   fontSize: '1.15rem',
                   color: '#1a1a1a',
+                  className: 'no-scrollbar',
                   '& textarea': {
                     scrollbarWidth: 'none',
                     '&::-webkit-scrollbar': { display: 'none' }
@@ -2363,6 +2373,40 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
             </Box>
           </Paper>
 
+          {/* Metadata Section */}
+          <Grow in={true} timeout={1200}>
+            <Box sx={{ mt: 3, width: '100%', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'flex', gap: 2, width: '100%' }}>
+                <TextField
+                  fullWidth
+                  label="Category (optional)"
+                  placeholder="e.g. Legal, HR, Sales"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  variant="outlined"
+                  sx={{
+                    bgcolor: 'white',
+                    '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+                    '& .MuiInputLabel-root': { color: '#666' }
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Tags (comma separated)"
+                  placeholder="e.g. urgent, confidential"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  variant="outlined"
+                  sx={{
+                    bgcolor: 'white',
+                    '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+                    '& .MuiInputLabel-root': { color: '#666' }
+                  }}
+                />
+              </Box>
+            </Box>
+          </Grow>
+
           {/* Prompt Suggestions */}
           {!description && !loading && (
             <Fade in={true} timeout={1200}>
@@ -2412,6 +2456,76 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           </Alert>
         </Zoom>
       )}
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={previewDialogOpen}
+        onClose={() => setPreviewDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: '20px', height: '90vh' }
+        }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 1,
+          borderBottom: '1px solid #eee'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{
+              p: 1,
+              borderRadius: '10px',
+              bgcolor: alpha('#0d9488', 0.1),
+              display: 'flex'
+            }}>
+              <VisibilityIcon sx={{ color: '#0d9488' }} />
+            </Box>
+            <Typography variant="h6" fontWeight="700">Document Preview</Typography>
+          </Box>
+          <IconButton onClick={() => setPreviewDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, bgcolor: '#f4f4f4', overflow: 'hidden' }}>
+          {generatedDocId && (
+            <iframe
+              src={`${API_BASE_URL}/documents/${generatedDocId}/builder-pdf?token=${localStorage.getItem('token')}`}
+              width="100%"
+              height="100%"
+              style={{ border: 'none' }}
+              title="Document Preview"
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, borderTop: '1px solid #eee', bgcolor: 'white' }}>
+          <Button
+            onClick={() => setPreviewDialogOpen(false)}
+            sx={{ color: '#666', textTransform: 'none', fontWeight: 600 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setPreviewDialogOpen(false);
+              onTemplateGenerated(generatedDocId);
+            }}
+            sx={{
+              bgcolor: '#0d9488',
+              borderRadius: '12px',
+              px: 4,
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': { bgcolor: '#0f766e' }
+            }}
+          >
+            Continue to Editor
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Example Prompts Dialog */}
       <Dialog
@@ -2498,30 +2612,42 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
 // ============================================
 
 const TemplateBuilderApp = () => {
+  const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState('ai-generator');
-  const [generatedTemplate, setGeneratedTemplate] = useState(null);
+  const [generatedDocumentId, setGeneratedDocumentId] = useState(null);
 
-  const handleAITemplateGenerated = (template) => {
-    setGeneratedTemplate(template);
+  const handleAITemplateGenerated = (documentId) => {
+    setGeneratedDocumentId(documentId);
     setCurrentView('builder');
   };
 
   const handleBackToAI = () => {
     setCurrentView('ai-generator');
-    setGeneratedTemplate(null);
+    setGeneratedDocumentId(null);
   };
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', bgcolor: '#f8fafc' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user?.has_active_subscription) {
+    return <SubscriptionExpiredBlock />;
+  }
+
   return (
-    <Box sx={{ height: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ height: '100vh', width: '100vw', bgcolor: '#f8fafc', overflow: 'hidden' }}>
       {currentView === 'ai-generator' ? (
         <AITemplateGenerator
           onTemplateGenerated={handleAITemplateGenerated}
-          onBack={() => console.log('Navigate back')}
+          onBack={() => window.history.back()}
         />
       ) : (
-        <TemplateBuilder
-          template={generatedTemplate}
-          onSave={() => { }}
+        <DocumentMainLayout
+          documentId={generatedDocumentId}
           onBack={handleBackToAI}
         />
       )}
