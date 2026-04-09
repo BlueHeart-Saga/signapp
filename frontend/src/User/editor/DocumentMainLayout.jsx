@@ -98,6 +98,13 @@ const DocumentMainLayout = () => {
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [canvasHeight, setCanvasHeight] = useState(1123); // Default A4 height
+
+  // Handle PDF load from WorkArea to get actual proportions
+  const handlePdfLoaded = useCallback((actualHeight) => {
+    console.log(`[MAIN-LAYOUT] PDF Loaded with actual height: ${actualHeight}`);
+    setCanvasHeight(actualHeight);
+  }, []);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
 
   // Snackbar state
@@ -205,22 +212,47 @@ const DocumentMainLayout = () => {
       async (fieldsToSave) => {
         if (!autoSaveEnabled) return fieldsToSave;
 
-        const payload = fieldsToSave.map(field => ({
-          id: field.isNew ? undefined : field.id,
-          page: field.page ?? 0,
-          x: field.x ?? 0,
-          y: field.y ?? 0,
-          width: field.width ?? FIELD_TYPES[field.type]?.defaultWidth ?? 100,
-          height: field.height ?? FIELD_TYPES[field.type]?.defaultHeight ?? 40,
-          type: field.type,
-          recipient_id: field.recipient_id ?? null,
-          label: field.label,
-          placeholder: field.placeholder,
-          required: field.required ?? false,
-          ...(field.type === 'dropdown' && { dropdown_options: field.dropdown_options }),
-          ...(field.type === 'radio' && { group_name: field.group_name }),
-          ...(field.type === 'mail' && { email_validation: field.email_validation })
-        }));
+        const PDF_PAGE_WIDTH = 612;
+        const PDF_PAGE_HEIGHT = 792;
+        const CANVAS_WIDTH = 794;
+        const CANVAS_HEIGHT = canvasHeight || 1123;
+
+        const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
+        const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
+
+        const payload = fieldsToSave.map(field => {
+          const normalizedX = field.x ?? 50;
+          const normalizedY = field.y ?? 50;
+          const normalizedWidth = field.width ?? 100;
+          const normalizedHeight = field.height ?? 40;
+
+          const basePayload = {
+            id: field.isNew ? undefined : field.id,
+            page: field.page ?? 0,
+            x: normalizedX,
+            y: normalizedY,
+            width: normalizedWidth,
+            height: normalizedHeight,
+            pdf_x: normalizedX * scaleX,
+            pdf_y: normalizedY * scaleY,
+            pdf_width: normalizedWidth * scaleX,
+            pdf_height: normalizedHeight * scaleY,
+            page_width: PDF_PAGE_WIDTH,
+            page_height: PDF_PAGE_HEIGHT,
+            canvas_width: CANVAS_WIDTH,
+            canvas_height: CANVAS_HEIGHT,
+            type: field.type,
+            recipient_id: field.recipient_id ?? null,
+            label: field.label,
+            placeholder: field.placeholder,
+            required: field.required ?? false,
+            ...(field.type === 'dropdown' && { dropdown_options: field.dropdown_options }),
+            ...(field.type === 'radio' && { group_name: field.group_name }),
+            ...(field.type === 'mail' && { email_validation: field.email_validation }),
+            ...(field.type === 'checkbox' && { checked: Boolean(field.checked) })
+          };
+          return basePayload;
+        });
 
         await documentAPI.saveFields(documentId, payload);
         return fieldsToSave.map(f => ({ ...f, isNew: false }));
@@ -267,7 +299,7 @@ const DocumentMainLayout = () => {
       window.removeEventListener('autosave:failed', handleAutosaveFailed);
       service.cancel();
     };
-  }, [documentId, autoSaveEnabled, showSnackbar]);
+  }, [documentId, autoSaveEnabled, showSnackbar, canvasHeight]);
 
 
   const handleFieldDelete = useCallback((fieldId) => {
@@ -305,7 +337,7 @@ const DocumentMainLayout = () => {
       const PDF_PAGE_WIDTH = 612;
       const PDF_PAGE_HEIGHT = 792;
       const CANVAS_WIDTH = 794;
-      const CANVAS_HEIGHT = 1123;
+      const CANVAS_HEIGHT = canvasHeight || 1123; // Use dynamic height from state
 
       const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
       const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
@@ -314,15 +346,8 @@ const DocumentMainLayout = () => {
       const validatedPayload = fields.map(field => {
         const backendPage = Math.max(0, Math.min(field.page ?? 0, numPages - 1));
 
-        // Ensure recipient_id is valid
-        if (!field.recipient_id) {
-          throw new Error(`Field "${field.label || field.type}" has no recipient assigned`);
-        }
-
+        // Support unassigned fields in drafts
         const recipient = recipients.find(r => r.id === field.recipient_id);
-        if (!recipient) {
-          throw new Error(`Recipient not found for field "${field.label || field.type}"`);
-        }
 
         const normalizedX = field.x ?? 50;
         const normalizedY = field.y ?? 50;
@@ -330,7 +355,7 @@ const DocumentMainLayout = () => {
         const normalizedHeight = field.height ?? 40;
 
         const pdfX = normalizedX * scaleX;
-        const pdfY = normalizedY * scaleY + backendPage * PDF_PAGE_HEIGHT;
+        const pdfY = normalizedY * scaleY; // Remove backendPage * PDF_PAGE_HEIGHT stacking
         const pdfWidth = normalizedWidth * scaleX;
         const pdfHeight = normalizedHeight * scaleY;
 
@@ -355,6 +380,12 @@ const DocumentMainLayout = () => {
           label: field.label ?? '',
           placeholder: field.placeholder ?? ''
         };
+
+        console.log(`[COORD-DEBUG] Save: ${field.type} (Page ${backendPage})`, {
+          canvas: { x: normalizedX, y: normalizedY },
+          pdf: { x: pdfX, y: pdfY },
+          scale: { sx: scaleX, sy: scaleY }
+        });
 
         // Add field-specific properties
         if (field.type === 'dropdown') {
@@ -447,6 +478,19 @@ const DocumentMainLayout = () => {
 
 
 
+
+  const handlePreviewClick = async () => {
+    // Save current changes first to ensure preview is up-to-date
+    if (autoSaveStatus.hasUnsavedChanges && document?.status === 'draft') {
+      try {
+        await handleSaveFields();
+      } catch (err) {
+        console.error('Auto-save before preview failed:', err);
+        // We still show preview, but it might be slightly outdated
+      }
+    }
+    setPreviewDialogOpen(true);
+  };
 
   // Auto-save when fields change
   // Update auto-save effect
@@ -746,6 +790,19 @@ const DocumentMainLayout = () => {
 
       if (recipientIds.length === 0) {
         showSnackbar('Please add recipients first', 'warning');
+        return;
+      }
+
+      // Final validation check: Roles other than viewer/approver must have fields
+      const ROLES_WITHOUT_FIELDS = ['viewer', 'approver'];
+      const missingFields = recipients.filter(r => {
+        if (ROLES_WITHOUT_FIELDS.includes(r.role)) return false;
+        return !fields.some(f => f.recipient_id === r.id);
+      });
+
+      if (missingFields.length > 0) {
+        showSnackbar(`${missingFields.length} recipient(s) need at least one field assigned.`, 'error');
+        setFinishDialogOpen(true);
         return;
       }
 
@@ -1083,7 +1140,8 @@ const DocumentMainLayout = () => {
               variant="outlined"
               size="small"
               startIcon={<VisibilityIcon />}
-              onClick={() => setPreviewDialogOpen(true)}
+              onClick={handlePreviewClick}
+              disabled={saving}
               sx={{
                 color: '#0d9488',
                 borderColor: '#0d9488',
@@ -1195,6 +1253,8 @@ const DocumentMainLayout = () => {
           getFieldValidationError={getFieldValidationError}
           invalidFields={invalidFields}
           unassignedFields={unassignedFields}
+          canvasHeight={canvasHeight}
+          onPdfLoaded={handlePdfLoaded}
         />
 
         {/* Document Thumbnails Sidebar (Toggleable, Zoho-style) */}
@@ -1211,6 +1271,7 @@ const DocumentMainLayout = () => {
               currentPage={currentPage}
               onPageChange={setCurrentPage}
               fields={fields}
+              canvasHeight={canvasHeight}
             />
           </Box>
         )}

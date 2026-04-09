@@ -806,6 +806,24 @@ async def send_invites_to_recipients(
         if not recipients:
             raise HTTPException(status_code=404, detail="No recipients found")
 
+        # ✅ NEW: Validate that all required recipients have fields before sending
+        # Recipients with roles other than 'viewer' or 'approver' MUST have fields
+        ROLES_WITHOUT_FIELDS = [RecipientRole.VIEWER, RecipientRole.APPROVER]
+        
+        # Get all fields for this document to check assignment
+        all_fields = list(db.signature_fields.find({"document_id": ObjectId(document_id)}))
+        # Store assigned recipient IDs as strings for easy comparison
+        assigned_recipient_ids = {str(f.get("recipient_id")) for f in all_fields if f.get("recipient_id")}
+        
+        for recipient in recipients:
+            role = recipient.get("role", RecipientRole.SIGNER)
+            if role not in ROLES_WITHOUT_FIELDS:
+                if str(recipient["_id"]) not in assigned_recipient_ids:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Recipient {recipient['email']} ({role}) must have at least one field assigned before sending."
+                    )
+
         # ✅ NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
         if invites_data.signing_order_enabled:
             # Find the minimum signing order across all document recipients

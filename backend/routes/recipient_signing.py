@@ -176,6 +176,9 @@ async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
 
 def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
     """Check if recipient can sign based on signing order."""
+    doc = db.documents.find_one({"_id": document_id})
+    signing_order_enabled = doc.get("signing_order_enabled", False) if doc else False
+    
     all_recipients = list(db.recipients.find(
         {"document_id": document_id}
     ).sort("signing_order", 1))
@@ -189,13 +192,24 @@ def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
     if not current_recipient:
         return False
     
+    if not signing_order_enabled:
+        print(f"✅ Signing order disabled for document {document_id}. Recipient {recipient_id} can sign.")
+        return True
+
     current_order = current_recipient.get("signing_order", 1)
     previous_signers = [
         r for r in all_recipients 
         if r.get("signing_order", 1) < current_order
     ]
     
-    return all(r.get("status") == "completed" for r in previous_signers)
+    blocking_signers = [r for r in previous_signers if r.get("status") != "completed"]
+    
+    if not blocking_signers:
+        print(f"✅ Recipient {recipient_id} (Order: {current_order}) can sign now.")
+        return True
+    else:
+        print(f"⏳ Recipient {recipient_id} (Order: {current_order}) is BLOCKED by: {[r.get('email') for r in blocking_signers]}")
+        return False
 
 def update_document_statistics(document_id: ObjectId):
     """Update document statistics after recipient completion."""

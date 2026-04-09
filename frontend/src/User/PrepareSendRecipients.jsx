@@ -338,6 +338,94 @@ export default function PrepareSendRecipients() {
   const [docLoading, setDocLoading] = useState(!location.state?.document);
 
   const [recipients, setRecipients] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setCurrentUser(data))
+      .catch(console.error);
+  }, []);
+
+  const isMeAlreadyAdded = () => {
+    if (!currentUser) return false;
+    const sameInRecipients = recipients.some(r => r.email.toLowerCase() === currentUser.email.toLowerCase());
+    const sameInForms = recipientForms.some(f => f.email.toLowerCase() === currentUser.email.toLowerCase());
+    return sameInRecipients || sameInForms;
+  };
+
+  const handleAddMe = () => {
+    if (!currentUser) return;
+    if (isMeAlreadyAdded()) {
+      setSnackbar({
+        open: true,
+        message: "You have already been added as a recipient.",
+        severity: "info"
+      });
+      return;
+    }
+
+    setRecipientForms(prev => {
+      const emptyIndex = prev.findIndex(f => f.isNew && !f.name && !f.email);
+      if (emptyIndex !== -1) {
+        const updated = [...prev];
+        updated[emptyIndex] = {
+          ...updated[emptyIndex],
+          name: currentUser.full_name || currentUser.name || "Me",
+          email: currentUser.email
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            id: `new-${Date.now()}`,
+            name: currentUser.full_name || currentUser.name || "Me",
+            email: currentUser.email,
+            signing_order: (recipients.length || 0) + prev.length + 1,
+            role: RecipientRoles.SIGNER,
+            form_fields: [],
+            witness_for: '',
+            personal_message: '',
+            document_info: {
+              show_details: true,
+              custom_message: '',
+              view_instructions: 'Please review the document carefully before signing'
+            },
+            isNew: true,
+            color: '#0d9488'
+          }
+        ];
+      }
+    });
+  };
+
+  const checkDuplicate = (excludeId, excludeIndex, value, field) => {
+    if (!value?.trim()) return false;
+    const val = value.trim().toLowerCase();
+
+    // Check against existing recipients list (excluding self by ID)
+    const inRecipients = recipients.some(r =>
+      r.id !== excludeId && (
+        (field === 'email' && r.email.toLowerCase() === val) ||
+        (field === 'name' && (r.name || "").toLowerCase() === val)
+      )
+    );
+    if (inRecipients) return true;
+
+    // Check against unsaved form list (excluding self by index)
+    const inOtherForms = recipientForms.some((f, i) =>
+      i !== excludeIndex && (
+        (field === 'email' && (f.email || "").toLowerCase() === val) ||
+        (field === 'name' && (f.name || "").toLowerCase() === val)
+      )
+    );
+    return inOtherForms;
+  };
   const [availableRoles, setAvailableRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1351,6 +1439,7 @@ export default function PrepareSendRecipients() {
         body: JSON.stringify({
           expiry_days: expiryDays,
           reminder_period: reminderPeriod,
+          signing_order_enabled: signingOrderEnabled, // ✅ Added for persistence
         }),
       });
       setIsEditingSettings(false);
@@ -1723,21 +1812,65 @@ export default function PrepareSendRecipients() {
         </button> */}
       </div>
 
-      <div className="ds-form-row ds-form-inline ds-signing-flow-row">
-        <label className="ds-checkbox-wrapper">
-          <input
-            type="checkbox"
-            checked={signingOrderEnabled}
-            onChange={(e) => setSigningOrderEnabled(e.target.checked)}
-          />
-          <span className="ds-checkbox-label">Set signing order</span>
-        </label>
-        <span className="ds-flow-hint">
+      {/* Signing Order & Add Me row - Moved below Document Name */}
+      <div className="ds-signing-order-ctrl-row">
+        <div className="ds-signing-order-checkbox-group">
+          <label className={`ds-signing-order-label-box ${signingOrderEnabled ? 'active' : ''}`}>
+            <input
+              type="checkbox"
+              checked={signingOrderEnabled}
+              onChange={async (e) => {
+                const enabled = e.target.checked;
+                setSigningOrderEnabled(enabled);
+                try {
+                  const response = await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${localStorage.getItem("token")}`
+                    },
+                    body: JSON.stringify({
+                      signing_order_enabled: enabled
+                    })
+                  });
+                  if (!response.ok) throw new Error("Update failed");
+                } catch (err) {
+                  setSigningOrderEnabled(!enabled);
+                  setSnackbar({
+                    open: true,
+                    message: "Failed to update signing order",
+                    severity: "error"
+                  });
+                }
+              }}
+            />
+            <span className="ds-checkbox-custom">
+              {signingOrderEnabled && <FaCheck className="ds-check-icon" />}
+            </span>
+            <span className="ds-checkbox-text">Send in order</span>
+          </label>
+
+          <button
+            className="ds-add-me-btn"
+            onClick={handleAddMe}
+            disabled={isMeAlreadyAdded()}
+            title={isMeAlreadyAdded() ? "Already added" : "Add yourself as a recipient"}
+          >
+            Add me
+          </button>
+        </div>
+
+        <div className="ds-signing-order-desc">
           {signingOrderEnabled
             ? "Recipients will sign one-by-one in the specified order."
             : "All recipients can sign at the same time."}
-        </span>
+        </div>
       </div>
+
+
+
+
+
 
 
 
@@ -1956,7 +2089,7 @@ export default function PrepareSendRecipients() {
                               value={recipient.name}
                               onClick={() => handleEditRecipient(recipient)}
                               readOnly
-                              className="zoho-input"
+                              className={`zoho-input ${checkDuplicate(recipient.id, -1, recipient.name, 'name') ? 'is-duplicate' : ''}`}
                             />
 
                             {/* Email */}
@@ -1964,7 +2097,7 @@ export default function PrepareSendRecipients() {
                               value={recipient.email}
                               onClick={() => handleEditRecipient(recipient)}
                               readOnly
-                              className="zoho-input"
+                              className={`zoho-input ${checkDuplicate(recipient.id, -1, recipient.email, 'email') ? 'is-duplicate' : ''}`}
                             />
 
                             {/* Contact icon */}
@@ -2023,6 +2156,7 @@ export default function PrepareSendRecipients() {
               <FaUserPlus /> Add Recipients
             </h3>
 
+
             {/* Single inline form */}
             <div className="docusign-recipient-forms">
               {recipientForms.map((form, index) => (
@@ -2061,9 +2195,8 @@ export default function PrepareSendRecipients() {
                           handleInlineFormChange(index, "name", value);
                           searchContacts(value);          // reuse existing API
                         }}
-
                         placeholder="Name *"
-                        className={errors.name ? 'docusign-input-error' : ''}
+                        className={`${errors[index]?.name ? 'docusign-input-error' : ''} ${checkDuplicate(null, index, form.name, 'name') ? 'is-duplicate' : ''}`}
                       />
                       {activeInput?.index === index &&
                         activeInput?.field === "name" &&
@@ -2109,7 +2242,7 @@ export default function PrepareSendRecipients() {
                             searchContacts(value);
                           }}
                           placeholder="Email *"
-                          className={errors[index]?.email ? "docusign-input-error" : ""}
+                          className={`${errors[index]?.email ? "docusign-input-error" : ""} ${checkDuplicate(null, index, form.email, 'email') ? 'is-duplicate' : ''}`}
                         />
 
                         <button
@@ -2518,20 +2651,7 @@ export default function PrepareSendRecipients() {
 
       {/* Footer */}
       <div className="docusign-footer">
-        {/* Common Message Section */}
-        <div className="zoho-common-message-v2">
-          <label className="zoho-common-label-v2">Note to all recipients</label>
-          <textarea
-            className="zoho-common-textarea-v2"
-            value={commonMessage}
-            onChange={(e) => setCommonMessage(e.target.value)}
-            placeholder="Type your message here..."
-            rows={4}
-          />
-        </div>
-
-        {/* More Settings Section */}
-        {/* Simple & Professional More Settings */}
+        {/* More Settings Section (Moved ABOVE Note) */}
         <div className="settings-minimal">
           <div className="settings-minimal-header" onClick={() => setIsEditingSettings(!isEditingSettings)}>
             <span className="settings-minimal-label">More settings</span>
@@ -2621,6 +2741,8 @@ export default function PrepareSendRecipients() {
                 </label>
               </div>
 
+              {/* Set signing order removed from here */}
+
               <div className="settings-minimal-actions">
                 <button
                   className="settings-minimal-save"
@@ -2640,6 +2762,19 @@ export default function PrepareSendRecipients() {
             </div>
           )}
         </div>
+
+        {/* Note to all recipients (Moved BELOW Settings) */}
+        <div className="zoho-common-message-v2">
+          <label className="zoho-common-label-v2">Note to all recipients</label>
+          <textarea
+            className="zoho-common-textarea-v2"
+            value={commonMessage}
+            onChange={(e) => setCommonMessage(e.target.value)}
+            placeholder="Type your message here..."
+            rows={4}
+          />
+        </div>
+
 
         <div className="docusign-summary">
           <div className="docusign-summary-stats">
@@ -2681,329 +2816,337 @@ export default function PrepareSendRecipients() {
 
 
 
-      {mergeOpen && (
-        <div className="za-add-backdrop">
-          <div className="za-add-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="za-add-header">
-              <div className="za-header-title">
-                <FaPlus className="za-title-icon" />
-                <h3>{mergeDoc ? "Replace Document" : "Add New Document"}</h3>
+      {
+        mergeOpen && (
+          <div className="za-add-backdrop">
+            <div className="za-add-dialog" onClick={(e) => e.stopPropagation()}>
+              <div className="za-add-header">
+                <div className="za-header-title">
+                  <FaPlus className="za-title-icon" />
+                  <h3>{mergeDoc ? "Replace Document" : "Add New Document"}</h3>
+                </div>
+                <button
+                  className="za-add-close"
+                  onClick={() => {
+                    setMergeOpen(false);
+                    setMergeFile(null);
+                    setMergeDoc(null);
+                  }}
+                >
+                  <FaTimes />
+                </button>
               </div>
+
+              <div className="za-add-content">
+                {!mergeFile ? (
+                  <label className="za-dropzone">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.png,.jpg"
+                      onChange={(e) => setMergeFile(e.target.files[0])}
+                      hidden
+                    />
+                    <div className="za-dropzone-inner">
+                      <div className="za-upload-hero">
+                        <FaFilePdf className="za-hero-icon" />
+                        <div className="za-hero-glow"></div>
+                      </div>
+                      <span className="za-upload-main">Click or drag document here</span>
+                      <p className="za-upload-sub">Supports PDF, Word, and Images (Max 20MB)</p>
+                      <button className="za-upload-btn">Browse Files</button>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="za-file-selected">
+                    <div className="za-selected-info">
+                      <div className="za-file-icon-box">
+                        <FaFileAlt />
+                      </div>
+                      <div className="za-file-details">
+                        <span className="za-filename">{mergeFile.name}</span>
+                        <span className="za-filesize">{(mergeFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                      <button className="za-remove-selection" onClick={() => setMergeFile(null)}>
+                        <FaTrash />
+                      </button>
+                    </div>
+
+                    {mergeLoading && (
+                      <div className="za-upload-progress-box">
+                        <div className="za-progress-label">
+                          <span>{processingMsg || (mergeProgress < 70 ? "Uploading..." : "Processing...")}</span>
+                          <span>{mergeProgress}%</span>
+                        </div>
+                        <div className="za-progress-track">
+                          <div
+                            className="za-progress-fill"
+                            style={{ width: `${mergeProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="za-add-footer">
+                <button
+                  className="za-btn-cancel"
+                  onClick={() => {
+                    setMergeOpen(false);
+                    setMergeFile(null);
+                    setMergeDoc(null);
+                  }}
+                  disabled={mergeLoading}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="za-btn-primary"
+                  disabled={!mergeFile || mergeLoading}
+                  onClick={async () => {
+                    try {
+                      setMergeLoading(true);
+                      setMergeProgress(0);
+                      setProcessingMsg("Initializing...");
+
+                      const docId = documentId;
+                      const startPoll = () => {
+                        const interval = setInterval(async () => {
+                          try {
+                            const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
+                              headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+                            }).then(r => r.json());
+
+                            if (statusRes.progress > 70) {
+                              setMergeProgress(statusRes.progress);
+                              if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
+                            }
+                            if (statusRes.progress >= 100) clearInterval(interval);
+                          } catch (e) { console.warn("Poll err", e); }
+                        }, 1000);
+                        return interval;
+                      };
+
+                      const pollId = startPoll();
+
+                      if (mergeDoc) {
+                        const form = new FormData();
+                        form.append("file", mergeFile);
+                        await fetch(
+                          `${API_BASE_URL}/documents/${documentId}/files/${mergeDoc.id}/replace`,
+                          {
+                            method: "PUT",
+                            headers: {
+                              Authorization: `Bearer ${localStorage.getItem("token")}`,
+                            },
+                            body: form,
+                          }
+                        );
+                      } else {
+                        await addFileToDocument(documentId, mergeFile, (p) => {
+                          setMergeProgress(Math.round(p));
+                          if (p >= 60) setProcessingMsg("Server Processing...");
+                        });
+                      }
+
+                      clearInterval(pollId);
+                      setMergeProgress(100);
+                      setProcessingMsg("Complete!");
+
+                      setSnackbar({
+                        open: true,
+                        message: mergeDoc ? "File replaced successfully" : "File added successfully",
+                        severity: "success",
+                      });
+
+                      await reloadFiles();
+                      setMergeOpen(false);
+                      setMergeFile(null);
+                      setMergeDoc(null);
+
+                    } catch (err) {
+                      setSnackbar({
+                        open: true,
+                        message: "Process failed. Please try again.",
+                        severity: "error",
+                      });
+                    } finally {
+                      setMergeLoading(false);
+                      setMergeProgress(0);
+                      setProcessingMsg("");
+                    }
+                  }}
+                >
+                  {mergeLoading ? (
+                    <span className="za-loader-wrap">
+                      <CircularProgress size={16} color="inherit" />
+                      Processing...
+                    </span>
+                  ) : (
+                    <>{mergeDoc ? "Replace Document" : "Add Document"}</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+
+      {
+        mergeLoading && !mergeOpen && (
+          <div className="document-merge-overlay">
+            <div className="document-merge-card">
+
+              {/* Animated status */}
+              <img
+                src="/images/uploading.gif"
+                alt="Merging documents"
+                className="document-merge-gif"
+              />
+
+              <h3 className="document-merge-title">
+                {processingMsg || "Merging documents"}
+              </h3>
+
+              <p className="document-merge-subtitle">
+                Please wait while we process your files.
+              </p>
+
+
+              {/* Progress */}
+              <div className="document-merge-progress-text">
+                {mergeProgress}%
+              </div>
+
+              <div className="document-merge-progress-bar">
+                <div
+                  className="document-merge-progress-fill"
+                  style={{ width: `${mergeProgress}%` }}
+                />
+              </div>
+
+              {/* Action */}
               <button
-                className="za-add-close"
-                onClick={() => {
-                  setMergeOpen(false);
-                  setMergeFile(null);
-                  setMergeDoc(null);
-                }}
+                className="document-merge-cancel-btn"
+                onClick={() => setMergeLoading(false)}
+              >
+                Cancel
+              </button>
+
+            </div>
+          </div>
+        )
+      }
+
+
+
+      {
+        renameOpen && (
+          <div className="rename-dialog-backdrop">
+            <div className="rename-dialog">
+              <h3>Rename Document</h3>
+
+              {/* Filename input (without .pdf) */}
+              <div className="rename-input-wrapper">
+                <input
+                  type="text"
+                  value={newFilename}
+                  onChange={(e) =>
+                    setNewFilename(
+                      e.target.value.replace(/\.pdf$/i, "")
+                    )
+                  }
+                  placeholder="Enter document name"
+                  autoFocus
+                />
+                <span className="rename-suffix">.pdf</span>
+              </div>
+
+              <div className="rename-dialog-actions">
+                <button
+                  className="rename-btn-cancel"
+                  onClick={() => setRenameOpen(false)}
+                  disabled={renaming}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="rename-btn-primary"
+                  disabled={!newFilename.trim() || renaming}
+                  onClick={async () => {
+                    try {
+                      setRenaming(true);
+
+                      const finalFilename = `${newFilename.trim()}.pdf`;
+
+                      await fetch(
+                        `${API_BASE_URL}/documents/${document.id}/rename`,
+                        {
+                          method: "PUT",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                          },
+                          body: JSON.stringify({
+                            filename: finalFilename,
+                          }),
+                        }
+                      );
+
+                      // ✅ Update local state safely
+                      setDocument(prev => ({
+                        ...prev,
+                        filename: finalFilename
+                      }));
+
+
+                      setRenameOpen(false);
+                    } catch (err) {
+                      setSnackbar({
+                        open: true,
+                        message: "Rename failed. Please try again.",
+                        severity: "error",
+                      });
+                    }
+                    finally {
+                      setRenaming(false);
+                    }
+                  }}
+                >
+                  {renaming ? "Renaming…" : "Rename"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+
+      {
+        snackbar.open && (
+          <div className={`za-snackbar-wrapper za-snackbar-${snackbar.severity}`}>
+            <div className="za-snackbar-content">
+              <div className="za-snackbar-icon">
+                {snackbar.severity === 'success' && <FaCheckCircle />}
+                {snackbar.severity === 'error' && <FaExclamationCircle />}
+                {(snackbar.severity === 'info' || snackbar.severity === 'warning') && <FaInfoCircle />}
+              </div>
+              <span className="za-snackbar-message">{snackbar.message}</span>
+              <button
+                className="za-snackbar-close"
+                onClick={() => setSnackbar({ ...snackbar, open: false })}
               >
                 <FaTimes />
               </button>
             </div>
-
-            <div className="za-add-content">
-              {!mergeFile ? (
-                <label className="za-dropzone">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.png,.jpg"
-                    onChange={(e) => setMergeFile(e.target.files[0])}
-                    hidden
-                  />
-                  <div className="za-dropzone-inner">
-                    <div className="za-upload-hero">
-                      <FaFilePdf className="za-hero-icon" />
-                      <div className="za-hero-glow"></div>
-                    </div>
-                    <span className="za-upload-main">Click or drag document here</span>
-                    <p className="za-upload-sub">Supports PDF, Word, and Images (Max 20MB)</p>
-                    <button className="za-upload-btn">Browse Files</button>
-                  </div>
-                </label>
-              ) : (
-                <div className="za-file-selected">
-                  <div className="za-selected-info">
-                    <div className="za-file-icon-box">
-                      <FaFileAlt />
-                    </div>
-                    <div className="za-file-details">
-                      <span className="za-filename">{mergeFile.name}</span>
-                      <span className="za-filesize">{(mergeFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                    <button className="za-remove-selection" onClick={() => setMergeFile(null)}>
-                      <FaTrash />
-                    </button>
-                  </div>
-
-                  {mergeLoading && (
-                    <div className="za-upload-progress-box">
-                      <div className="za-progress-label">
-                        <span>{processingMsg || (mergeProgress < 70 ? "Uploading..." : "Processing...")}</span>
-                        <span>{mergeProgress}%</span>
-                      </div>
-                      <div className="za-progress-track">
-                        <div
-                          className="za-progress-fill"
-                          style={{ width: `${mergeProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="za-add-footer">
-              <button
-                className="za-btn-cancel"
-                onClick={() => {
-                  setMergeOpen(false);
-                  setMergeFile(null);
-                  setMergeDoc(null);
-                }}
-                disabled={mergeLoading}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="za-btn-primary"
-                disabled={!mergeFile || mergeLoading}
-                onClick={async () => {
-                  try {
-                    setMergeLoading(true);
-                    setMergeProgress(0);
-                    setProcessingMsg("Initializing...");
-
-                    const docId = documentId;
-                    const startPoll = () => {
-                      const interval = setInterval(async () => {
-                        try {
-                          const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
-                            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-                          }).then(r => r.json());
-
-                          if (statusRes.progress > 70) {
-                            setMergeProgress(statusRes.progress);
-                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
-                          }
-                          if (statusRes.progress >= 100) clearInterval(interval);
-                        } catch (e) { console.warn("Poll err", e); }
-                      }, 1000);
-                      return interval;
-                    };
-
-                    const pollId = startPoll();
-
-                    if (mergeDoc) {
-                      const form = new FormData();
-                      form.append("file", mergeFile);
-                      await fetch(
-                        `${API_BASE_URL}/documents/${documentId}/files/${mergeDoc.id}/replace`,
-                        {
-                          method: "PUT",
-                          headers: {
-                            Authorization: `Bearer ${localStorage.getItem("token")}`,
-                          },
-                          body: form,
-                        }
-                      );
-                    } else {
-                      await addFileToDocument(documentId, mergeFile, (p) => {
-                        setMergeProgress(Math.round(p));
-                        if (p >= 60) setProcessingMsg("Server Processing...");
-                      });
-                    }
-
-                    clearInterval(pollId);
-                    setMergeProgress(100);
-                    setProcessingMsg("Complete!");
-
-                    setSnackbar({
-                      open: true,
-                      message: mergeDoc ? "File replaced successfully" : "File added successfully",
-                      severity: "success",
-                    });
-
-                    await reloadFiles();
-                    setMergeOpen(false);
-                    setMergeFile(null);
-                    setMergeDoc(null);
-
-                  } catch (err) {
-                    setSnackbar({
-                      open: true,
-                      message: "Process failed. Please try again.",
-                      severity: "error",
-                    });
-                  } finally {
-                    setMergeLoading(false);
-                    setMergeProgress(0);
-                    setProcessingMsg("");
-                  }
-                }}
-              >
-                {mergeLoading ? (
-                  <span className="za-loader-wrap">
-                    <CircularProgress size={16} color="inherit" />
-                    Processing...
-                  </span>
-                ) : (
-                  <>{mergeDoc ? "Replace Document" : "Add Document"}</>
-                )}
-              </button>
-            </div>
+            <div className="za-snackbar-progress"></div>
           </div>
-        </div>
-      )}
-
-
-      {mergeLoading && !mergeOpen && (
-        <div className="document-merge-overlay">
-          <div className="document-merge-card">
-
-            {/* Animated status */}
-            <img
-              src="/images/uploading.gif"
-              alt="Merging documents"
-              className="document-merge-gif"
-            />
-
-            <h3 className="document-merge-title">
-              {processingMsg || "Merging documents"}
-            </h3>
-
-            <p className="document-merge-subtitle">
-              Please wait while we process your files.
-            </p>
-
-
-            {/* Progress */}
-            <div className="document-merge-progress-text">
-              {mergeProgress}%
-            </div>
-
-            <div className="document-merge-progress-bar">
-              <div
-                className="document-merge-progress-fill"
-                style={{ width: `${mergeProgress}%` }}
-              />
-            </div>
-
-            {/* Action */}
-            <button
-              className="document-merge-cancel-btn"
-              onClick={() => setMergeLoading(false)}
-            >
-              Cancel
-            </button>
-
-          </div>
-        </div>
-      )}
-
-
-
-      {renameOpen && (
-        <div className="rename-dialog-backdrop">
-          <div className="rename-dialog">
-            <h3>Rename Document</h3>
-
-            {/* Filename input (without .pdf) */}
-            <div className="rename-input-wrapper">
-              <input
-                type="text"
-                value={newFilename}
-                onChange={(e) =>
-                  setNewFilename(
-                    e.target.value.replace(/\.pdf$/i, "")
-                  )
-                }
-                placeholder="Enter document name"
-                autoFocus
-              />
-              <span className="rename-suffix">.pdf</span>
-            </div>
-
-            <div className="rename-dialog-actions">
-              <button
-                className="rename-btn-cancel"
-                onClick={() => setRenameOpen(false)}
-                disabled={renaming}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="rename-btn-primary"
-                disabled={!newFilename.trim() || renaming}
-                onClick={async () => {
-                  try {
-                    setRenaming(true);
-
-                    const finalFilename = `${newFilename.trim()}.pdf`;
-
-                    await fetch(
-                      `${API_BASE_URL}/documents/${document.id}/rename`,
-                      {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${localStorage.getItem("token")}`,
-                        },
-                        body: JSON.stringify({
-                          filename: finalFilename,
-                        }),
-                      }
-                    );
-
-                    // ✅ Update local state safely
-                    setDocument(prev => ({
-                      ...prev,
-                      filename: finalFilename
-                    }));
-
-
-                    setRenameOpen(false);
-                  } catch (err) {
-                    setSnackbar({
-                      open: true,
-                      message: "Rename failed. Please try again.",
-                      severity: "error",
-                    });
-                  }
-                  finally {
-                    setRenaming(false);
-                  }
-                }}
-              >
-                {renaming ? "Renaming…" : "Rename"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {snackbar.open && (
-        <div className={`za-snackbar-wrapper za-snackbar-${snackbar.severity}`}>
-          <div className="za-snackbar-content">
-            <div className="za-snackbar-icon">
-              {snackbar.severity === 'success' && <FaCheckCircle />}
-              {snackbar.severity === 'error' && <FaExclamationCircle />}
-              {(snackbar.severity === 'info' || snackbar.severity === 'warning') && <FaInfoCircle />}
-            </div>
-            <span className="za-snackbar-message">{snackbar.message}</span>
-            <button
-              className="za-snackbar-close"
-              onClick={() => setSnackbar({ ...snackbar, open: false })}
-            >
-              <FaTimes />
-            </button>
-          </div>
-          <div className="za-snackbar-progress"></div>
-        </div>
-      )}
+        )
+      }
 
 
 
@@ -3044,149 +3187,151 @@ export default function PrepareSendRecipients() {
       />
 
 
-      {mergeConfirmOpen && (
-        <div className="rename-dialog-backdrop">
-          <div className="rename-dialog zoho-merge-dialog">
-            <h3>Merge files</h3>
+      {
+        mergeConfirmOpen && (
+          <div className="rename-dialog-backdrop">
+            <div className="rename-dialog zoho-merge-dialog">
+              <h3>Merge files</h3>
 
-            <p className="merge-hint">
-              Drag files to change merge order
-            </p>
+              <p className="merge-hint">
+                Drag files to change merge order
+              </p>
 
-            {/* Drag reorder list */}
-            <DragDropContext
-              onDragEnd={(result) => {
-                if (!result.destination) return;
+              {/* Drag reorder list */}
+              <DragDropContext
+                onDragEnd={(result) => {
+                  if (!result.destination) return;
 
-                const items = Array.from(mergeOrder);
-                const [moved] = items.splice(result.source.index, 1);
-                items.splice(result.destination.index, 0, moved);
+                  const items = Array.from(mergeOrder);
+                  const [moved] = items.splice(result.source.index, 1);
+                  items.splice(result.destination.index, 0, moved);
 
-                setMergeOrder(items); // ✅ THIS CONTROLS MERGE ORDER
-              }}
-            >
-              <Droppable droppableId="merge-files">
-                {(provided) => (
-                  <div
-                    className="merge-file-list"
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                  >
-                    {mergeOrder.map((file, index) => (
-                      <Draggable
-                        key={file.id}
-                        draggableId={String(file.id)}
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`merge-file-row ${snapshot.isDragging ? "dragging" : ""
-                              }`}
-                          >
-                            <span
-                              className="merge-drag"
-                              {...provided.dragHandleProps}
-                            >
-                              <FaGripVertical />
-                            </span>
-
-                            <img
-                              className="merge-thumb"
-                              src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}`}
-                              alt=""
-                            />
-
-                            <span className="merge-name">
-                              {file.filename}
-                            </span>
-
-                            <span className="merge-pages">
-                              {file.page_count} pages
-                            </span>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-
-            {/* Filename */}
-            <div className="rename-input-wrapper">
-              <input
-                type="text"
-                value={mergedFilename}
-                onChange={(e) =>
-                  setMergedFilename(e.target.value.replace(/\.pdf$/i, ""))
-                }
-                placeholder="Merged file name"
-              />
-              <span className="rename-suffix">.pdf</span>
-            </div>
-
-            {/* Actions */}
-            <div className="rename-dialog-actions">
-              <button
-                className="rename-btn-cancel"
-                onClick={() => setMergeConfirmOpen(false)}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="rename-btn-primary"
-                disabled={mergeOrder.length < 2 || mergeLoading}
-                onClick={async () => {
-                  try {
-                    setMergeLoading(true);
-                    setMergeProgress(10);
-
-                    await fetch(
-                      `${API_BASE_URL}/documents/${document.id}/files/merge`,
-                      {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${localStorage.getItem("token")}`,
-                        },
-                        body: JSON.stringify({
-                          file_ids: mergeOrder.map(f => f.id),
-                          merged_filename: `${mergedFilename}.pdf`,
-                        }),
-                      }
-                    );
-
-                    setMergeProgress(100);
-                    await reloadFiles();
-
-                    setSelectedFiles([]);
-                    setMergeConfirmOpen(false);
-                  } catch {
-                    setSnackbar({
-                      open: true,
-                      message: "Merge failed",
-                      severity: "error",
-                    });
-                  } finally {
-                    setMergeLoading(false);
-                    setMergeProgress(0);
-                  }
+                  setMergeOrder(items); // ✅ THIS CONTROLS MERGE ORDER
                 }}
               >
-                {mergeLoading ? "Merging..." : "Merge"}
-              </button>
+                <Droppable droppableId="merge-files">
+                  {(provided) => (
+                    <div
+                      className="merge-file-list"
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                    >
+                      {mergeOrder.map((file, index) => (
+                        <Draggable
+                          key={file.id}
+                          draggableId={String(file.id)}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`merge-file-row ${snapshot.isDragging ? "dragging" : ""
+                                }`}
+                            >
+                              <span
+                                className="merge-drag"
+                                {...provided.dragHandleProps}
+                              >
+                                <FaGripVertical />
+                              </span>
 
+                              <img
+                                className="merge-thumb"
+                                src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}`}
+                                alt=""
+                              />
+
+                              <span className="merge-name">
+                                {file.filename}
+                              </span>
+
+                              <span className="merge-pages">
+                                {file.page_count} pages
+                              </span>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+
+              {/* Filename */}
+              <div className="rename-input-wrapper">
+                <input
+                  type="text"
+                  value={mergedFilename}
+                  onChange={(e) =>
+                    setMergedFilename(e.target.value.replace(/\.pdf$/i, ""))
+                  }
+                  placeholder="Merged file name"
+                />
+                <span className="rename-suffix">.pdf</span>
+              </div>
+
+              {/* Actions */}
+              <div className="rename-dialog-actions">
+                <button
+                  className="rename-btn-cancel"
+                  onClick={() => setMergeConfirmOpen(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="rename-btn-primary"
+                  disabled={mergeOrder.length < 2 || mergeLoading}
+                  onClick={async () => {
+                    try {
+                      setMergeLoading(true);
+                      setMergeProgress(10);
+
+                      await fetch(
+                        `${API_BASE_URL}/documents/${document.id}/files/merge`,
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                          },
+                          body: JSON.stringify({
+                            file_ids: mergeOrder.map(f => f.id),
+                            merged_filename: `${mergedFilename}.pdf`,
+                          }),
+                        }
+                      );
+
+                      setMergeProgress(100);
+                      await reloadFiles();
+
+                      setSelectedFiles([]);
+                      setMergeConfirmOpen(false);
+                    } catch {
+                      setSnackbar({
+                        open: true,
+                        message: "Merge failed",
+                        severity: "error",
+                      });
+                    } finally {
+                      setMergeLoading(false);
+                      setMergeProgress(0);
+                    }
+                  }}
+                >
+                  {mergeLoading ? "Merging..." : "Merge"}
+                </button>
+
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
-    </div>
+    </div >
   );
 }

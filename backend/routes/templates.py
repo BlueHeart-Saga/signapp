@@ -212,7 +212,7 @@ async def upload_pdf(
         "page_count": page_count,
         "fields": detected_fields,
         "uploadedAt": datetime.utcnow(),
-        "createdBy": ObjectId(current_user["_id"]),
+        "createdBy": ObjectId(current_user["id"]),
         "thumbnail": thumbnail
     }
 
@@ -234,7 +234,7 @@ def save_template(data: TemplateCreate, current_user: dict = Depends(get_current
             "description": data.description,
             "fields": [field.model_dump() for field in data.fields],
             "uploadedAt": data.uploadedAt,
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
             "page_count": max([field.page for field in data.fields]) + 1 if data.fields else 1
         }
 
@@ -254,7 +254,7 @@ def update_template(
     try:
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template:
@@ -285,7 +285,7 @@ def list_templates(current_user: dict = Depends(get_current_user)):
     """List all templates created by the logged-in user"""
     try:
         templates = list(templates_collection.find(
-            {"createdBy": ObjectId(current_user["_id"])}
+            {"createdBy": ObjectId(current_user["id"])}
         ).sort("uploadedAt", -1))
         
         return [serialize_template(t) for t in templates]
@@ -299,7 +299,7 @@ def get_template(template_id: str, current_user: dict = Depends(get_current_user
     try:
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template:
@@ -314,7 +314,7 @@ def get_template(template_id: str, current_user: dict = Depends(get_current_user
 def get_pdf_file(template_id: str, current_user: dict = Depends(get_current_user)):
     template = templates_collection.find_one({
         "_id": ObjectId(template_id),
-        "createdBy": ObjectId(current_user["_id"])
+        "createdBy": ObjectId(current_user["id"])
     })
 
     if not template:
@@ -338,7 +338,7 @@ def redetect_fields(template_id: str, current_user: dict = Depends(get_current_u
     try:
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template or "pdf_file_id" not in template:
@@ -373,7 +373,7 @@ def fill_template(
         # 1️⃣ Fetch template
         template = templates_collection.find_one({
             "_id": ObjectId(data.template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
 
         if not template:
@@ -471,7 +471,7 @@ def get_template_stats(template_id: str, current_user: dict = Depends(get_curren
     try:
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template:
@@ -500,7 +500,7 @@ def delete_template(template_id: str, current_user: dict = Depends(get_current_u
         # Get template first to find file path
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template:
@@ -516,7 +516,7 @@ def delete_template(template_id: str, current_user: dict = Depends(get_current_u
         # Delete from database
         result = templates_collection.delete_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         # Delete associated PDF file record
@@ -536,7 +536,7 @@ def export_template(template_id: str, current_user: dict = Depends(get_current_u
     try:
         template = templates_collection.find_one({
             "_id": ObjectId(template_id),
-            "createdBy": ObjectId(current_user["_id"]),
+            "createdBy": ObjectId(current_user["id"]),
         })
         
         if not template:

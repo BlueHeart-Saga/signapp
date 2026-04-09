@@ -20,7 +20,8 @@ const DocumentThumbnails = ({
     numPages,
     currentPage,
     onPageChange,
-    fields = []
+    fields = [],
+    canvasHeight = 1123
 }) => {
     const [thumbnails, setThumbnails] = useState({});
     const [loading, setLoading] = useState(false);
@@ -165,11 +166,11 @@ const DocumentThumbnails = ({
                                         zIndex: 2
                                     }}>
                                         {pageFields.map((f, idx) => {
-                                            // Mapping coordinates from 794x1123 to 140x190
+                                            // Mapping coordinates from 794x[dynamicHeight] to 140x190
                                             const left = (f.x / 794) * 100;
-                                            const top = (f.y / 1123) * 100;
+                                            const top = (f.y / canvasHeight) * 100;
                                             const width = (f.width / 794) * 100;
-                                            const height = (f.height / 1123) * 100;
+                                            const height = (f.height / canvasHeight) * 100;
 
                                             return (
                                                 <Box

@@ -1,0 +1,2187 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Sagadevan\SignApp\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Sagadevan\SignApp\backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, cov-7.1.0
+collecting ... collected 40 items
+
+testing/tests/test_audit.py::test_audit_lifecycle FAILED                 [  2%]
+testing/tests/test_audit.py::test_audit_actions_list PASSED              [  5%]
+testing/tests/test_auth.py::test_health_check PASSED                     [  7%]
+testing/tests/test_auth.py::test_register_invalid_data PASSED            [ 10%]
+testing/tests/test_auth.py::test_login_invalid_credentials PASSED        [ 12%]
+testing/tests/test_auth.py::test_full_registration_and_login_flow PASSED [ 15%]
+testing/tests/test_auth.py::test_get_profile PASSED                      [ 17%]
+testing/tests/test_auth.py::test_change_password PASSED                  [ 20%]
+testing/tests/test_auth.py::test_update_profile PASSED                   [ 22%]
+testing/tests/test_auth.py::test_health_extended PASSED                  [ 25%]
+testing/tests/test_auth.py::test_register_recipient PASSED               [ 27%]
+testing/tests/test_auth.py::test_check_recipient_status_new PASSED       [ 30%]
+testing/tests/test_auth.py::test_login_oauth_form PASSED                 [ 32%]
+testing/tests/test_auth.py::test_invalid_token_profile PASSED            [ 35%]
+testing/tests/test_banner.py::test_banner_lifecycle FAILED               [ 37%]
+testing/tests/test_banner.py::test_banner_unauthorized PASSED            [ 40%]
+testing/tests/test_base.py::test_home PASSED                             [ 42%]
+testing/tests/test_contacts.py::test_contacts_lifecycle FAILED           [ 45%]
+testing/tests/test_docs.py::test_list_documents_authenticated PASSED     [ 47%]
+testing/tests/test_docs.py::test_get_document_status_not_found PASSED    [ 50%]
+testing/tests/test_docs.py::test_list_documents_unauthenticated PASSED   [ 52%]
+testing/tests/test_docs.py::test_document_upload_and_delete PASSED       [ 55%]
+testing/tests/test_fields.py::test_fields_lifecycle FAILED               [ 57%]
+testing/tests/test_fields.py::test_field_validation_invalid_role FAILED  [ 60%]
+testing/tests/test_recipients.py::test_get_recipient_roles FAILED        [ 62%]
+testing/tests/test_recipients.py::test_recipient_lifecycle PASSED        [ 65%]
+testing/tests/test_recipients.py::test_bulk_template_recipients PASSED   [ 67%]
+testing/tests/test_signature.py::test_signature_lifecycle FAILED         [ 70%]
+testing/tests/test_signature.py::test_signature_update SKIPPED (Crea...) [ 72%]
+testing/tests/test_signing.py::test_full_signing_flow PASSED             [ 75%]
+testing/tests/test_signing.py::test_add_bulk_recipients PASSED           [ 77%]
+testing/tests/test_subscription.py::test_subscription_plans PASSED       [ 80%]
+testing/tests/test_subscription.py::test_subscription_status PASSED      [ 82%]
+testing/tests/test_subscription.py::test_free_trial_activation PASSED    [ 85%]
+testing/tests/test_subscription.py::test_subscription_history PASSED     [ 87%]
+testing/tests/test_subscription.py::test_get_current_subscription PASSED [ 90%]
+testing/tests/test_summary.py::test_summary_endpoints FAILED             [ 92%]
+testing/tests/test_summary.py::test_summary_not_authorized FAILED        [ 95%]
+testing/tests/test_templates.py::test_template_lifecycle FAILED          [ 97%]
+testing/tests/test_templates.py::test_template_update FAILED             [100%]
+
+================================== FAILURES ===================================
+____________________________ test_audit_lifecycle _____________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_audit_lifecycle(auth_client):
+        """Test getting and creating audit events"""
+        # 1. Create a document to have something to audit
+        import io
+        file_obj = io.BytesIO(b"Audit test content")
+        upload_res = auth_client.post("/documents/upload", files={"file": ("audit_test.txt", file_obj, "text/plain")})
+        doc_id = upload_res.json()["document"]["id"]
+    
+        # 2. Create a custom audit event
+        event_data = {
+            "document_id": doc_id,
+            "action": "TEST_ACTION",
+            "details": {"reason": "Testing the audit system"},
+            "ip_address": "127.0.0.1"
+        }
+        create_res = auth_client.post("/audit/log", json=event_data)
+        assert create_res.status_code == 200
+        assert "message" in create_res.json()
+    
+        # 3. Get audit for document
+        # Note: Audit logging might be async, so we might need a small wait if it was real DB
+        # but for tests we'll just check.
+        get_res = auth_client.get(f"/audit/document/{doc_id}")
+>       assert get_res.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+testing\tests\test_audit.py:27: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+\U0001f680 eSign App Backend Starting...
+---------------------------- Captured stderr setup ----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+----------------------------- Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: audit_test.txt (extension: txt, size: 18 bytes)
+[PDF-CONVERT] Converting text: txt
+[PDF-CONVERT] Text conversion successful: 1141 bytes
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c707b282-324f-11f1-aadd-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:45 GMT'
+    'ETag': '"0x8DE9473AB710C92"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193664-a01e-0056-1d5c-c6e1d2000000'
+    'x-ms-client-request-id': 'c707b282-324f-11f1-aadd-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1141'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c76ddb3b-324f-11f1-9547-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:45 GMT'
+    'ETag': '"0x8DE9473AB899A05"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401936eb-a01e-0056-145c-c6e1d2000000'
+    'x-ms-client-request-id': 'c76ddb3b-324f-11f1-9547-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17214'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c7da4014-324f-11f1-9917-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:46 GMT'
+    'ETag': '"0x8DE9473AC12AAC6"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193942-a01e-0056-395c-c6e1d2000000'
+    'x-ms-client-request-id': 'c7da4014-324f-11f1-9917-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:46 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17214'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c84e0686-324f-11f1-b92c-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:47 GMT'
+    'ETag': '"0x8DE9473AC9F1EA9"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193ce5-a01e-0056-185c-c6e1d2000000'
+    'x-ms-client-request-id': 'c84e0686-324f-11f1-b92c-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:47 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/audit/log "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/audit/document/69d4ac132c95015aa97d7f41 "HTTP/1.1 500 Internal Server Error"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c707b282-324f-11f1-aadd-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:45 GMT'
+    'ETag': '"0x8DE9473AB710C92"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193664-a01e-0056-1d5c-c6e1d2000000'
+    'x-ms-client-request-id': 'c707b282-324f-11f1-aadd-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1141'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c76ddb3b-324f-11f1-9547-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:45 GMT'
+    'ETag': '"0x8DE9473AB899A05"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401936eb-a01e-0056-145c-c6e1d2000000'
+    'x-ms-client-request-id': 'c76ddb3b-324f-11f1-9547-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17214'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c7da4014-324f-11f1-9917-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:46 GMT'
+    'ETag': '"0x8DE9473AC12AAC6"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193942-a01e-0056-395c-c6e1d2000000'
+    'x-ms-client-request-id': 'c7da4014-324f-11f1-9917-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:46 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17214'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'c84e0686-324f-11f1-b92c-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:02:47 GMT'
+    'ETag': '"0x8DE9473AC9F1EA9"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40193ce5-a01e-0056-185c-c6e1d2000000'
+    'x-ms-client-request-id': 'c84e0686-324f-11f1-b92c-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:02:47 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/audit/log "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/audit/document/69d4ac132c95015aa97d7f41 "HTTP/1.1 500 Internal Server Error"
+____________________________ test_banner_lifecycle ____________________________
+
+admin_client = <starlette.testclient.TestClient object at 0x00000203A6B8F5D0>
+
+    def test_banner_lifecycle(admin_client):
+        """Test full banner lifecycle (admin required for most)"""
+        # 1. Upload a banner
+        image_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        file_obj = io.BytesIO(image_content)
+    
+        upload_data = {
+            "title": "Test Banner",
+            "subtitle": "Test Subtitle",
+            "link": "https://example.com"
+        }
+    
+        res = admin_client.post(
+            "/banners/",
+            data=upload_data,
+            files={"file": ("banner.png", file_obj, "image/png")}
+        )
+    
+        if res.status_code == 503:
+            pytest.skip("Azure storage unavailable")
+    
+        assert res.status_code == 200
+>       banner_id = res.json()["id"]
+                    ^^^^^^^^^^^^^^^^
+E       KeyError: 'id'
+
+testing\tests\test_banner.py:26: KeyError
+---------------------------- Captured stderr setup ----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+----------------------------- Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '67'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'd6dd058b-324f-11f1-9c8c-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:11 GMT'
+    'ETag': '"0x8DE9473BAE99EEA"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40199153-a01e-0056-215c-c6e1d2000000'
+    'x-ms-client-request-id': 'd6dd058b-324f-11f1-9c8c-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:10 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/banners/ "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '67'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'd6dd058b-324f-11f1-9c8c-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:11 GMT'
+    'ETag': '"0x8DE9473BAE99EEA"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '40199153-a01e-0056-215c-c6e1d2000000'
+    'x-ms-client-request-id': 'd6dd058b-324f-11f1-9c8c-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:10 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/banners/ "HTTP/1.1 200 OK"
+___________________________ test_contacts_lifecycle ___________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_contacts_lifecycle(auth_client):
+        """Test full contacts lifecycle: create, get, favorite, update, delete"""
+        # 1. Create a contact
+        contact_data = {
+            "name": "Initial Contact",
+            "email": "initial@contact.com",
+            "favorite": False
+        }
+        create_res = auth_client.post("/contacts", json=contact_data)
+        assert create_res.status_code == 200
+        contact_id = create_res.json()["id"]
+        assert create_res.json()["name"] == "Initial Contact"
+    
+        # 2. Get contacts
+        get_res = auth_client.get("/contacts")
+        assert get_res.status_code == 200
+        contacts = get_res.json()
+        assert any(c["id"] == contact_id for c in contacts)
+    
+        # 3. Toggle favorite
+        fav_res = auth_client.patch(f"/contacts/{contact_id}/favorite")
+        assert fav_res.status_code == 200
+        assert fav_res.json()["favorite"] is True
+    
+        # 4. Search contacts
+        search_res = auth_client.get(f"/contacts/search?q=Initial")
+        assert search_res.status_code == 200
+        assert len(search_res.json()) > 0
+        assert search_res.json()[0]["id"] == contact_id
+    
+        # 5. Update contact
+        update_data = {
+            "name": "Updated Contact Name"
+        }
+        update_res = auth_client.put(f"/contacts/{contact_id}", json=update_data)
+>       assert update_res.status_code == 200
+E       assert 422 == 200
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+testing\tests\test_contacts.py:38: AssertionError
+---------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/contacts "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/contacts "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: PATCH http://testserver/contacts/69d4ac2f2c95015aa97d7f4d/favorite "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/contacts/search?q=Initial "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: PUT http://testserver/contacts/69d4ac2f2c95015aa97d7f4d "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/contacts "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/contacts "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: PATCH http://testserver/contacts/69d4ac2f2c95015aa97d7f4d/favorite "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/contacts/search?q=Initial "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/contacts/69d4ac2f2c95015aa97d7f4d "HTTP/1.1 422 Unprocessable Entity"
+____________________________ test_fields_lifecycle ____________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_fields_lifecycle(auth_client):
+        """Test full signature fields lifecycle: add, get, update, delete"""
+        import io
+    
+        # 1. Create a document first
+        filename = "test_fields.txt"
+        content = b"Document for fields test"
+        file_obj = io.BytesIO(content)
+    
+        upload_res = auth_client.post("/documents/upload", files={"file": (filename, file_obj, "text/plain")})
+        if upload_res.status_code != 200:
+            pytest.skip("Upload failed")
+    
+        doc_id = upload_res.json()["document"]["id"]
+    
+        # 2. Add a recipient first (required for fields)
+        recipients_data = {
+            "recipients": [
+                { "name": "Field Signer", "email": "field_signer@example.com", "role": "signer" }
+            ]
+        }
+        add_rec_res = auth_client.post(f"/recipients/{doc_id}/add", json=recipients_data)
+        rec_id = add_rec_res.json()["recipients"][0]["id"]
+    
+        # 3. Add fields
+        fields_data = [
+            {
+                "recipient_id": rec_id,
+                "type": "signature",
+                "page": 0,
+                "x": 100.0,
+                "y": 150.0,
+                "width": 150.0,
+                "height": 50.0,
+                "required": True
+            },
+            {
+                "recipient_id": rec_id,
+                "type": "textbox",
+                "page": 0,
+                "x": 300.0,
+                "y": 150.0,
+                "width": 200.0,
+                "height": 40.0,
+                "required": False,
+                "label": "Full Name",
+                "placeholder": "Enter your name"
+            }
+        ]
+    
+        add_fields_res = auth_client.post(f"/documents/{doc_id}/fields", json=fields_data)
+>       assert add_fields_res.status_code == 200
+E       assert 422 == 200
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+testing\tests\test_fields.py:55: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: test_fields.txt (extension: txt, size: 24 bytes)
+[PDF-CONVERT] Converting text: txt
+[PDF-CONVERT] Text conversion successful: 1139 bytes
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '24'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da539afb-324f-11f1-839e-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:16 GMT'
+    'ETag': '"0x8DE9473BE60345F"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a5f2-a01e-0056-2d5c-c6e1d2000000'
+    'x-ms-client-request-id': 'da539afb-324f-11f1-839e-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1139'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da5ba7e5-324f-11f1-99a9-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:16 GMT'
+    'ETag': '"0x8DE9473BE695ABA"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a622-a01e-0056-575c-c6e1d2000000'
+    'x-ms-client-request-id': 'da5ba7e5-324f-11f1-99a9-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18708'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da98c7e6-324f-11f1-9f6e-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:17 GMT'
+    'ETag': '"0x8DE9473BEB266E9"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a7b3-a01e-0056-3f5c-c6e1d2000000'
+    'x-ms-client-request-id': 'da98c7e6-324f-11f1-9f6e-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:17 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18708'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'daf8af93-324f-11f1-bc74-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:18 GMT'
+    'ETag': '"0x8DE9473BF1F539B"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019aa1d-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'daf8af93-324f-11f1-bc74-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:18 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/recipients/69d4ac342c95015aa97d7f55/add "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/documents/69d4ac342c95015aa97d7f55/fields "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '24'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da539afb-324f-11f1-839e-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:16 GMT'
+    'ETag': '"0x8DE9473BE60345F"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a5f2-a01e-0056-2d5c-c6e1d2000000'
+    'x-ms-client-request-id': 'da539afb-324f-11f1-839e-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1139'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da5ba7e5-324f-11f1-99a9-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:16 GMT'
+    'ETag': '"0x8DE9473BE695ABA"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a622-a01e-0056-575c-c6e1d2000000'
+    'x-ms-client-request-id': 'da5ba7e5-324f-11f1-99a9-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18708'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'da98c7e6-324f-11f1-9f6e-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:17 GMT'
+    'ETag': '"0x8DE9473BEB266E9"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019a7b3-a01e-0056-3f5c-c6e1d2000000'
+    'x-ms-client-request-id': 'da98c7e6-324f-11f1-9f6e-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:17 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18708'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'daf8af93-324f-11f1-bc74-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:18 GMT'
+    'ETag': '"0x8DE9473BF1F539B"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019aa1d-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'daf8af93-324f-11f1-bc74-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:18 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/recipients/69d4ac342c95015aa97d7f55/add "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/69d4ac342c95015aa97d7f55/fields "HTTP/1.1 422 Unprocessable Entity"
+_____________________ test_field_validation_invalid_role ______________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_field_validation_invalid_role(auth_client):
+        """Test field-recipient role validation"""
+        import io
+        filename = "validate_test.txt"
+        file_obj = io.BytesIO(b"Validation test content")
+        upload_res = auth_client.post("/documents/upload", files={"file": (filename, file_obj, "text/plain")})
+        doc_id = upload_res.json()["document"]["id"]
+    
+        # Add a viewer recipient (viewer cannot sign)
+        recipients_data = {
+            "recipients": [
+                { "name": "Viewer", "email": "viewer@example.com", "role": "viewer" }
+            ]
+        }
+        add_rec_res = auth_client.post(f"/recipients/{doc_id}/add", json=recipients_data)
+        rec_id = add_rec_res.json()["recipients"][0]["id"]
+    
+        # Try adding a signature field for a viewer
+        fields_data = [{
+            "recipient_id": rec_id,
+            "type": "signature",
+            "page": 0,
+            "x": 100, "y": 100, "width": 100, "height": 50
+        }]
+    
+        res = auth_client.post(f"/documents/{doc_id}/fields", json=fields_data)
+        # Should fail with 400 Bad Request because viewer cannot have signature field
+>       assert res.status_code == 400
+E       assert 422 == 400
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+testing\tests\test_fields.py:110: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: validate_test.txt (extension: txt, size: 23 bytes)
+[PDF-CONVERT] Converting text: txt
+[PDF-CONVERT] Text conversion successful: 1146 bytes
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '23'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dcee653a-324f-11f1-b465-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C0FAD55A"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b613-a01e-0056-7f5c-c6e1d2000000'
+    'x-ms-client-request-id': 'dcee653a-324f-11f1-b465-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1146'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dcf66889-324f-11f1-b567-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C1027568"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b649-a01e-0056-305c-c6e1d2000000'
+    'x-ms-client-request-id': 'dcf66889-324f-11f1-b567-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18451'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dd3bc8f6-324f-11f1-bcd3-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C14B818D"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b801-a01e-0056-495c-c6e1d2000000'
+    'x-ms-client-request-id': 'dd3bc8f6-324f-11f1-bcd3-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18451'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'ddafb9f9-324f-11f1-a9e9-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:22 GMT'
+    'ETag': '"0x8DE9473C1C8C318"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019bb80-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'ddafb9f9-324f-11f1-a9e9-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:22 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/recipients/69d4ac392c95015aa97d7f5d/add "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/documents/69d4ac392c95015aa97d7f5d/fields "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '23'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dcee653a-324f-11f1-b465-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C0FAD55A"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b613-a01e-0056-7f5c-c6e1d2000000'
+    'x-ms-client-request-id': 'dcee653a-324f-11f1-b465-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1146'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dcf66889-324f-11f1-b567-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C1027568"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b649-a01e-0056-305c-c6e1d2000000'
+    'x-ms-client-request-id': 'dcf66889-324f-11f1-b567-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18451'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'dd3bc8f6-324f-11f1-bcd3-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:21 GMT'
+    'ETag': '"0x8DE9473C14B818D"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019b801-a01e-0056-495c-c6e1d2000000'
+    'x-ms-client-request-id': 'dd3bc8f6-324f-11f1-bcd3-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18451'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'ddafb9f9-324f-11f1-a9e9-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:22 GMT'
+    'ETag': '"0x8DE9473C1C8C318"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '4019bb80-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'ddafb9f9-324f-11f1-a9e9-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:22 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/recipients/69d4ac392c95015aa97d7f5d/add "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/69d4ac392c95015aa97d7f5d/fields "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_get_recipient_roles ___________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_get_recipient_roles(auth_client):
+        """Test getting available recipient roles"""
+        response = auth_client.get("/recipients/roles/all")
+        assert response.status_code == 200
+        roles = response.json()
+>       assert "signer" in roles
+E       assert 'signer' in [{'description': 'Must sign the document. Can add initials, signature, or stamp.', 'label': 'Signer', 'value': 'signer'}, {'description': "Reads the document and clicks 'Approve'. Does not sign with a signature.", 'label': 'Approver', 'value': 'approver'}, {'description': 'Can view and download the document. No action required.', 'label': 'Viewer', 'value': 'viewer'}, {'description': 'Enter data into text fields, upload files, complete form. No signature required.', 'label': 'Form Filler', 'value': 'form_filler'}, {'description': 'Confirms signature of another party. Often signs after the primary signer.', 'label': 'Witness', 'value': 'witness'}, {'description': 'Signer signs physically at a device presented by the sender.', 'label': 'In-person Signer', 'value': 'in_person_signer'}]
+
+testing\tests\test_recipients.py:9: AssertionError
+---------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/recipients/roles/all "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/recipients/roles/all "HTTP/1.1 200 OK"
+__________________________ test_signature_lifecycle ___________________________
+
+client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_signature_lifecycle(client):
+        """Test full signature lifecycle: create, get, list, delete"""
+        # Note: prefix is /api/signatures but conftest might have different mounting
+        # Let's check the tag 'signatures' in the router definition
+    
+        # 1. Create a signature
+        # Since these routes don't seem to have @get_current_user in the outline,
+        # they might be using a mock user or are unprotected for now.
+    
+        # We'll use a dummy image
+        image_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        file_obj = io.BytesIO(image_content)
+    
+        create_data = {
+            "name": "My Signature",
+            "signature_type": "upload"
+        }
+    
+        response = client.post(
+            "/api/signatures/",
+            data=create_data,
+            files={"image_file": ("sig.png", file_obj, "image/png")}
+        )
+    
+        if response.status_code == 503:
+            pytest.skip("Azure storage unavailable")
+    
+>       assert response.status_code in [200, 201]
+E       assert 400 in [200, 201]
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+testing\tests\test_signature.py:33: AssertionError
+---------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/api/signatures/ "HTTP/1.1 400 Bad Request"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/signatures/ "HTTP/1.1 400 Bad Request"
+___________________________ test_summary_endpoints ____________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_summary_endpoints(auth_client):
+        """Test various summary and reporting endpoints"""
+        # 1. Create a document
+        file_obj = io.BytesIO(b"Summary test content")
+        upload_res = auth_client.post("/documents/upload", files={"file": ("summary_test.txt", file_obj, "text/plain")})
+        doc_id = upload_res.json()["document"]["id"]
+    
+        # 2. Get JSON summary
+>       res = auth_client.get(f"/documents/{doc_id}/summary/json")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+testing\tests\test_summary.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\starlette\testclient.py:473: in get
+    return super().get(
+.venv\Lib\site-packages\httpx\_client.py:1053: in get
+    return self.request(
+.venv\Lib\site-packages\starlette\testclient.py:445: in request
+    return super().request(
+.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:348: in handle_request
+    raise exc
+.venv\Lib\site-packages\starlette\testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+.venv\Lib\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+.venv\Lib\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv\Lib\site-packages\starlette\middleware\cors.py:87: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:736: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:290: in handle
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:130: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:116: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\routing.py:670: in app
+    raw_response = await run_endpoint_function(
+.venv\Lib\site-packages\fastapi\routing.py:324: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+routes\summary.py:352: in get_document_summary_json
+    return JSONResponse(
+.venv\Lib\site-packages\starlette\responses.py:189: in __init__
+    super().__init__(content, status_code, headers, media_type, background)
+.venv\Lib\site-packages\starlette\responses.py:46: in __init__
+    self.body = self.render(content)
+                ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\responses.py:192: in render
+    return json.dumps(
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.encoder.JSONEncoder object at 0x00000203A688B010>
+o = ObjectId('69d4ac602c95015aa97d7fa3')
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type ObjectId is not JSON serializable
+
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:180: TypeError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: summary_test.txt (extension: txt, size: 20 bytes)
+[PDF-CONVERT] Converting text: txt
+[PDF-CONVERT] Text conversion successful: 1144 bytes
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '20'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f2ed9b45-324f-11f1-a593-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D6FB018B"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3c5f-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'f2ed9b45-324f-11f1-a593-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1144'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f2f6376c-324f-11f1-a146-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D7056047"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3c95-a01e-0056-285c-c6e1d2000000'
+    'x-ms-client-request-id': 'f2f6376c-324f-11f1-a146-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18079'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f353619f-324f-11f1-b1c1-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D76720E7"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3ee7-a01e-0056-3c5c-c6e1d2000000'
+    'x-ms-client-request-id': 'f353619f-324f-11f1-b1c1-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18079'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f3babdc1-324f-11f1-b863-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:59 GMT'
+    'ETag': '"0x8DE9473D7CC9E90"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a4148-a01e-0056-685c-c6e1d2000000'
+    'x-ms-client-request-id': 'f3babdc1-324f-11f1-b863-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:59 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '20'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f2ed9b45-324f-11f1-a593-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D6FB018B"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3c5f-a01e-0056-795c-c6e1d2000000'
+    'x-ms-client-request-id': 'f2ed9b45-324f-11f1-a593-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1144'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f2f6376c-324f-11f1-a146-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D7056047"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3c95-a01e-0056-285c-c6e1d2000000'
+    'x-ms-client-request-id': 'f2f6376c-324f-11f1-a146-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18079'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f353619f-324f-11f1-b1c1-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:58 GMT'
+    'ETag': '"0x8DE9473D76720E7"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a3ee7-a01e-0056-3c5c-c6e1d2000000'
+    'x-ms-client-request-id': 'f353619f-324f-11f1-b1c1-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '18079'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f3babdc1-324f-11f1-b863-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:03:59 GMT'
+    'ETag': '"0x8DE9473D7CC9E90"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a4148-a01e-0056-685c-c6e1d2000000'
+    'x-ms-client-request-id': 'f3babdc1-324f-11f1-b863-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:03:59 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+_________________________ test_summary_not_authorized _________________________
+
+client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_summary_not_authorized(client, auth_client):
+        """Test that summary access is restricted"""
+        # Create with user A
+        file_obj = io.BytesIO(b"Secret summary")
+        upload_res = auth_client.post("/documents/upload", files={"file": ("secret.txt", file_obj, "text/plain")})
+        doc_id = upload_res.json()["document"]["id"]
+    
+        # Try access with unauthenticated client
+>       res = client.get(f"/documents/{doc_id}/summary/json")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+testing\tests\test_summary.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\starlette\testclient.py:473: in get
+    return super().get(
+.venv\Lib\site-packages\httpx\_client.py:1053: in get
+    return self.request(
+.venv\Lib\site-packages\starlette\testclient.py:445: in request
+    return super().request(
+.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:348: in handle_request
+    raise exc
+.venv\Lib\site-packages\starlette\testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+.venv\Lib\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+.venv\Lib\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv\Lib\site-packages\starlette\middleware\cors.py:87: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:736: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:290: in handle
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:130: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:116: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\routing.py:670: in app
+    raw_response = await run_endpoint_function(
+.venv\Lib\site-packages\fastapi\routing.py:324: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+routes\summary.py:352: in get_document_summary_json
+    return JSONResponse(
+.venv\Lib\site-packages\starlette\responses.py:189: in __init__
+    super().__init__(content, status_code, headers, media_type, background)
+.venv\Lib\site-packages\starlette\responses.py:46: in __init__
+    self.body = self.render(content)
+                ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\responses.py:192: in render
+    return json.dumps(
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.encoder.JSONEncoder object at 0x00000203A783B790>
+o = ObjectId('69d4ac682c95015aa97d7fa9')
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type ObjectId is not JSON serializable
+
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:180: TypeError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: secret.txt (extension: txt, size: 14 bytes)
+[PDF-CONVERT] Converting text: txt
+[PDF-CONVERT] Text conversion successful: 1142 bytes
+---------------------------- Captured stderr call -----------------------------
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '14'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f79679fe-324f-11f1-a536-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DBA4F659"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a59bc-a01e-0056-5a5c-c6e1d2000000'
+    'x-ms-client-request-id': 'f79679fe-324f-11f1-a536-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1142'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f7a00beb-324f-11f1-add4-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DBAE6ACB"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5a0c-a01e-0056-275c-c6e1d2000000'
+    'x-ms-client-request-id': 'f7a00beb-324f-11f1-add4-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17410'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f81e0fc5-324f-11f1-ac9b-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DC2D4C11"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5d0b-a01e-0056-735c-c6e1d2000000'
+    'x-ms-client-request-id': 'f81e0fc5-324f-11f1-ac9b-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:06 GMT'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17410'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f88468c6-324f-11f1-92c5-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO:azure.core.pipeline.policies.http_logging_policy:Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:07 GMT'
+    'ETag': '"0x8DE9473DC9B2647"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5fc6-a01e-0056-015c-c6e1d2000000'
+    'x-ms-client-request-id': 'f88468c6-324f-11f1-92c5-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:07 GMT'
+INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '14'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f79679fe-324f-11f1-a536-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DBA4F659"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a59bc-a01e-0056-5a5c-c6e1d2000000'
+    'x-ms-client-request-id': 'f79679fe-324f-11f1-a536-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '1142'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f7a00beb-324f-11f1-add4-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DBAE6ACB"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5a0c-a01e-0056-275c-c6e1d2000000'
+    'x-ms-client-request-id': 'f7a00beb-324f-11f1-add4-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17410'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f81e0fc5-324f-11f1-ac9b-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:06 GMT'
+    'ETag': '"0x8DE9473DC2D4C11"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5d0b-a01e-0056-735c-c6e1d2000000'
+    'x-ms-client-request-id': 'f81e0fc5-324f-11f1-ac9b-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:06 GMT'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '17410'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-blob-content-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.28.0 Python/3.11.9 (Windows-10-10.0.26200-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f88468c6-324f-11f1-92c5-c8348e436765'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:554 Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Tue, 07 Apr 2026 07:04:07 GMT'
+    'ETag': '"0x8DE9473DC9B2647"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '401a5fc6-a01e-0056-015c-c6e1d2000000'
+    'x-ms-client-request-id': 'f88468c6-324f-11f1-92c5-c8348e436765'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Tue, 07 Apr 2026 07:04:07 GMT'
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
+___________________________ test_template_lifecycle ___________________________
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_template_lifecycle(auth_client):
+        """Test full template lifecycle: upload, get, list, delete"""
+        import io
+    
+        # 1. Upload a template (simulated with a dummy PDF-like content)
+        # Note: The backend uses fitz (PyMuPDF) so we might need a real-ish PDF or it might fail
+        # Let's try with minimal text content first, if it fails we skip.
+        filename = "test_template.pdf"
+        content = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\nxref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000060 00000 n\n0000000115 00000 n\ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n190\n%%EOF"
+        file_obj = io.BytesIO(content)
+    
+        upload_data = {
+            "name": "My Test Template",
+            "description": "A template for testing",
+            "auto_detect": "false"
+        }
+    
+        upload_res = auth_client.post(
+            "/templates/upload",
+            files={"file": (filename, file_obj, "application/pdf")},
+            data=upload_data
+        )
+    
+        if upload_res.status_code != 200:
+            pytest.skip(f"Template upload failed (likely PDF parsing): {upload_res.text}")
+    
+        template_id = upload_res.json()["id"]
+        assert template_id is not None
+    
+        # 2. List templates
+        list_res = auth_client.get("/templates/")
+        assert list_res.status_code == 200
+        templates = list_res.json()
+        assert any(t["id"] == template_id for t in templates)
+    
+        # 3. Get single template
+        get_res = auth_client.get(f"/templates/{template_id}")
+        assert get_res.status_code == 200
+        assert get_res.json()["name"] == "My Test Template"
+    
+        # 4. Get template stats
+        stats_res = auth_client.get(f"/templates/{template_id}/stats")
+        assert stats_res.status_code == 200
+        assert "total_fields" in stats_res.json()
+    
+        # 5. Delete template
+        del_res = auth_client.delete(f"/templates/{template_id}")
+        assert del_res.status_code == 200
+    
+        # Verify deletion
+        get_after_del = auth_client.get(f"/templates/{template_id}")
+>       assert get_after_del.status_code == 404
+E       assert 500 == 404
+E        +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+testing\tests\test_templates.py:55: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: test_template.pdf (extension: pdf, size: 324 bytes)
+[PDF-CONVERT] File is already PDF
+---------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/templates/upload "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/templates/ "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf/stats "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: DELETE http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 500 Internal Server Error"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/templates/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/templates/ "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf/stats "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: DELETE http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/templates/69d4ac6d2c95015aa97d7faf "HTTP/1.1 500 Internal Server Error"
+____________________________ test_template_update _____________________________
+
+self = <[AttributeError("'Document' object has no attribute '_graft_id'") raised in repr()] Document object at 0x203a7891b80>
+filename = None, stream = b'%PDF-1.4\n%...', filetype = 'pdf', rect = None
+width = 0, height = 0, fontsize = 11
+
+    def __init__(self, filename=None, stream=None, filetype=None, rect=None, width=0, height=0, fontsize=11):
+        """Creates a document. Use 'open' as a synonym.
+    
+        Notes:
+            Basic usages:
+            open() - new PDF document
+            open(filename) - string or pathlib.Path, must have supported
+                    file extension.
+            open(type, buffer) - type: valid extension, buffer: bytes object.
+            open(stream=buffer, filetype=type) - keyword version of previous.
+            open(filename, fileype=type) - filename with unrecognized extension.
+            rect, width, height, fontsize: layout reflowable document
+            on open (e.g. EPUB). Ignored if n/a.
+        """
+        # We temporarily set JM_mupdf_show_errors=0 while we are constructing,
+        # then restore its original value in a `finally:` block.
+        #
+        global JM_mupdf_show_errors
+        JM_mupdf_show_errors_old = JM_mupdf_show_errors
+        JM_mupdf_show_errors = 0
+    
+        try:
+            self.is_closed    = False
+            self.is_encrypted = False
+            self.is_encrypted = False
+            self.metadata    = None
+            self.FontInfos   = []
+            self.Graftmaps   = {}
+            self.ShownPages  = {}
+            self.InsertedImages  = {}
+            self._page_refs  = weakref.WeakValueDictionary()
+            if isinstance(filename, mupdf.PdfDocument):
+                pdf_document = filename
+                self.this = pdf_document
+                self.this_is_pdf = True
+                return
+    
+            w = width
+            h = height
+            r = JM_rect_from_py(rect)
+            if not mupdf.fz_is_infinite_rect(r):
+                w = r.x1 - r.x0
+                h = r.y1 - r.y0
+    
+            self._name = filename
+            self.stream = stream
+    
+            if stream is not None:
+                if filename is not None and filetype is None:
+                    # 2025-05-06: Use <filename> as the filetype. This is
+                    # reversing precedence - we used to use <filename> if both
+                    # were set.
+                    filetype = filename
+                if isinstance(stream, (bytes, memoryview)):
+                    pass
+                elif isinstance(stream, bytearray):
+                    stream = bytes(stream)
+                elif isinstance(stream, io.BytesIO):
+                    stream = stream.getvalue()
+                else:
+                    raise TypeError(f"bad stream: {type(stream)=}.")
+                self.stream = stream
+    
+                assert isinstance(stream, (bytes, memoryview))
+                if len(stream) == 0:
+                    # MuPDF raise an exception for this but also generates
+                    # warnings, which is not very helpful for us. So instead we
+                    # raise a specific exception.
+                    raise EmptyFileError('Cannot open empty stream.')
+    
+                stream2 = mupdf.fz_open_memory(mupdf.python_buffer_data(stream), len(stream))
+                try:
+>                   doc = mupdf.fz_open_document_with_stream(filetype if filetype else '', stream2)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\pymupdf\__init__.py:2986: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+magic = 'pdf'
+stream = <pymupdf.mupdf.FzStream; proxy of <Swig Object of type 'mupdf::FzStream *' at 0x00000203A7D61170> >
+
+    def fz_open_document_with_stream(magic, stream):
+        r"""
+        Class-aware wrapper for `::fz_open_document_with_stream()`.
+        	Open a document using the specified stream object rather than
+        	opening a file on disk.
+    
+        	magic: a string used to detect document type; either a file name
+        	or mime-type.
+    
+        	stream: a stream representing the contents of the document file.
+    
+        	NOTE: The caller retains ownership of 'stream' - the document will take its
+        	own reference if required.
+        """
+>       return _mupdf.fz_open_document_with_stream(magic, stream)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pymupdf.mupdf.FzErrorFormat: code=7: no objects found
+
+.venv\Lib\site-packages\pymupdf\mupdf.py:50808: FzErrorFormat
+
+The above exception was the direct cause of the following exception:
+
+auth_client = <starlette.testclient.TestClient object at 0x00000203A6872110>
+
+    def test_template_update(auth_client):
+        """Test updating template details"""
+        # This requires an existing template, we'll try to create one first
+        import io
+        content = b"%PDF-1.4\n%..." # Minimal PDF
+        file_obj = io.BytesIO(content)
+    
+>       upload_res = auth_client.post(
+            "/templates/upload",
+            files={"file": ("update_test.pdf", file_obj, "application/pdf")},
+            data={"name": "Update Test", "auto_detect": "false"}
+        )
+
+testing\tests\test_templates.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\starlette\testclient.py:546: in post
+    return super().post(
+.venv\Lib\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+.venv\Lib\site-packages\starlette\testclient.py:445: in request
+    return super().request(
+.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:348: in handle_request
+    raise exc
+.venv\Lib\site-packages\starlette\testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+.venv\Lib\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+.venv\Lib\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv\Lib\site-packages\starlette\middleware\cors.py:87: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\sessions.py:85: in __call__
+    await self.app(scope, receive, send_wrapper)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:736: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:290: in handle
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:130: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:116: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\routing.py:670: in app
+    raw_response = await run_endpoint_function(
+.venv\Lib\site-packages\fastapi\routing.py:324: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+routes\templates.py:197: in upload_pdf
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <[AttributeError("'Document' object has no attribute '_graft_id'") raised in repr()] Document object at 0x203a7891b80>
+filename = None, stream = b'%PDF-1.4\n%...', filetype = 'pdf', rect = None
+width = 0, height = 0, fontsize = 11
+
+    def __init__(self, filename=None, stream=None, filetype=None, rect=None, width=0, height=0, fontsize=11):
+        """Creates a document. Use 'open' as a synonym.
+    
+        Notes:
+            Basic usages:
+            open() - new PDF document
+            open(filename) - string or pathlib.Path, must have supported
+                    file extension.
+            open(type, buffer) - type: valid extension, buffer: bytes object.
+            open(stream=buffer, filetype=type) - keyword version of previous.
+            open(filename, fileype=type) - filename with unrecognized extension.
+            rect, width, height, fontsize: layout reflowable document
+            on open (e.g. EPUB). Ignored if n/a.
+        """
+        # We temporarily set JM_mupdf_show_errors=0 while we are constructing,
+        # then restore its original value in a `finally:` block.
+        #
+        global JM_mupdf_show_errors
+        JM_mupdf_show_errors_old = JM_mupdf_show_errors
+        JM_mupdf_show_errors = 0
+    
+        try:
+            self.is_closed    = False
+            self.is_encrypted = False
+            self.is_encrypted = False
+            self.metadata    = None
+            self.FontInfos   = []
+            self.Graftmaps   = {}
+            self.ShownPages  = {}
+            self.InsertedImages  = {}
+            self._page_refs  = weakref.WeakValueDictionary()
+            if isinstance(filename, mupdf.PdfDocument):
+                pdf_document = filename
+                self.this = pdf_document
+                self.this_is_pdf = True
+                return
+    
+            w = width
+            h = height
+            r = JM_rect_from_py(rect)
+            if not mupdf.fz_is_infinite_rect(r):
+                w = r.x1 - r.x0
+                h = r.y1 - r.y0
+    
+            self._name = filename
+            self.stream = stream
+    
+            if stream is not None:
+                if filename is not None and filetype is None:
+                    # 2025-05-06: Use <filename> as the filetype. This is
+                    # reversing precedence - we used to use <filename> if both
+                    # were set.
+                    filetype = filename
+                if isinstance(stream, (bytes, memoryview)):
+                    pass
+                elif isinstance(stream, bytearray):
+                    stream = bytes(stream)
+                elif isinstance(stream, io.BytesIO):
+                    stream = stream.getvalue()
+                else:
+                    raise TypeError(f"bad stream: {type(stream)=}.")
+                self.stream = stream
+    
+                assert isinstance(stream, (bytes, memoryview))
+                if len(stream) == 0:
+                    # MuPDF raise an exception for this but also generates
+                    # warnings, which is not very helpful for us. So instead we
+                    # raise a specific exception.
+                    raise EmptyFileError('Cannot open empty stream.')
+    
+                stream2 = mupdf.fz_open_memory(mupdf.python_buffer_data(stream), len(stream))
+                try:
+                    doc = mupdf.fz_open_document_with_stream(filetype if filetype else '', stream2)
+                except Exception as e:
+                    if g_exceptions_verbose > 1:    exception_info()
+>                   raise FileDataError('Failed to open stream') from e
+E                   pymupdf.FileDataError: Failed to open stream
+
+.venv\Lib\site-packages\pymupdf\__init__.py:2989: FileDataError
+---------------------------- Captured stdout call -----------------------------
+[PDF-CONVERT] Converting: update_test.pdf (extension: pdf, size: 13 bytes)
+[PDF-CONVERT] File is already PDF
+-------------------------- Captured stdout teardown ---------------------------
+eSign App Backend Shutting Down...
+=========================== short test summary info ===========================
+SKIPPED [1] testing\tests\test_signature.py:74: Creation failed
+FAILED testing/tests/test_audit.py::test_audit_lifecycle - assert 500 == 200
+FAILED testing/tests/test_banner.py::test_banner_lifecycle - KeyError: 'id'
+FAILED testing/tests/test_contacts.py::test_contacts_lifecycle - assert 422 =...
+FAILED testing/tests/test_fields.py::test_fields_lifecycle - assert 422 == 200
+FAILED testing/tests/test_fields.py::test_field_validation_invalid_role - ass...
+FAILED testing/tests/test_recipients.py::test_get_recipient_roles - assert 's...
+FAILED testing/tests/test_signature.py::test_signature_lifecycle - assert 400...
+FAILED testing/tests/test_summary.py::test_summary_endpoints - TypeError: Obj...
+FAILED testing/tests/test_summary.py::test_summary_not_authorized - TypeError...
+FAILED testing/tests/test_templates.py::test_template_lifecycle - assert 500 ...
+FAILED testing/tests/test_templates.py::test_template_update - pymupdf.FileDa...
+============ 11 failed, 28 passed, 1 skipped in 110.72s (0:01:50) =============

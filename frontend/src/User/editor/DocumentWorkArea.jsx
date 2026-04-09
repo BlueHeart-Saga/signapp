@@ -67,7 +67,9 @@ const DocumentWorkArea = ({
   numPages = 1,
   getFieldValidationError,
   invalidFields = [],
-  unassignedFields = []
+  unassignedFields = [],
+  canvasHeight = 1123,
+  onPdfLoaded
 }) => {
   const stageRef = useRef();
   const containerRef = useRef();
@@ -82,11 +84,14 @@ const DocumentWorkArea = ({
   }, [documentId]);
 
   // Scaled dimensions
-  const scaledWidth = BASE_WIDTH * zoomLevel;
-  const scaledHeight = BASE_HEIGHT * zoomLevel;
+  const baseHeight = canvasHeight || BASE_HEIGHT;
+  const scaledWidth = (BASE_WIDTH) * zoomLevel;
+  const scaledHeight = (baseHeight) * zoomLevel;
   const scaledHeaderHeight = PAGE_HEADER_HEIGHT * zoomLevel;
-  // Total height including pages, headers, and gaps
-  const totalHeight = (scaledHeight + scaledHeaderHeight + PAGE_GAP) * numPages;
+
+  // Total height including pages, headers, and gaps between them
+  // (Header + Page) * numPages + Gap * (numPages - 1)
+  const totalHeight = (scaledHeight + scaledHeaderHeight) * numPages + (PAGE_GAP * (numPages - 1));
 
   // Handle zoom
   const handleZoomIn = () => {
@@ -172,36 +177,46 @@ const DocumentWorkArea = ({
     const stageElement = stage.container();
     const stageRect = stageElement.getBoundingClientRect();
 
-    // Calculate the position relative to the stage in BASE document pixels
-    // stageRect.top/left already account for container scroll in viewport space
-    const relativeX = (dropX - stageRect.left) / zoomLevel;
-    const relativeY = (dropY - stageRect.top) / zoomLevel;
+    const scrollTop = container.scrollTop;
 
-    // Each page block = Header (PAGE_HEADER_HEIGHT) + Page (BASE_HEIGHT) + GAP (PAGE_GAP)
-    const pageBlockHeight = BASE_HEIGHT + PAGE_HEADER_HEIGHT + PAGE_GAP;
-    const pageIndex = Math.floor(relativeY / pageBlockHeight);
+    // 1. Calculate base relative position from stage top
+    // Stage starts at (0, 0) which is at the top of the very first page header.
+    const relativeX = (dropX - stageRect.left) / zoomLevel;
+    const relativeY = (dropY - stageRect.top + scrollTop) / zoomLevel;
+
+    // identitfy current canvas dimensions
+    const baseHeight = canvasHeight || BASE_HEIGHT;
+    // 2. Identify which page we are on
+    // Total block height for one page = Header + Page + (Fixed Screen Gap / Zoom)
+    const basePageGap = PAGE_GAP / zoomLevel;
+    const basePageBlockHeight = baseHeight + PAGE_HEADER_HEIGHT + basePageGap;
+
+    const pageIndex = Math.floor(relativeY / basePageBlockHeight);
     const validPage = Math.max(0, Math.min(pageIndex, numPages - 1));
 
-    // Calculate position within the page (subtracting the header height)
-    const pageY = relativeY - (validPage * pageBlockHeight) - PAGE_HEADER_HEIGHT;
+    // 3. Normalize Y to the specific page content area
+    // Remove cumulative heights of previous pages and the current page's header
+    const pageY = relativeY - (validPage * basePageBlockHeight) - PAGE_HEADER_HEIGHT;
 
-    // Ensure coordinates are within page bounds (BASE document pixels)
-    // Subtracting half width (80) and height (19) to center the field on drop
-    const finalX = Math.max(5, Math.min(relativeX - 80, BASE_WIDTH - 165));
-    const finalY = Math.max(5, Math.min(pageY - 19, BASE_HEIGHT - 45));
+    // 4. Center the field on drop point (base dimensions: ~160x32)
+    // Using standard offsets to ensure placement matches cursor/drag preview top-left
+    const cleanX = Math.round(Math.max(0, Math.min(relativeX - 80, BASE_WIDTH - 160)));
+    const cleanY = Math.round(
+      Math.max(0, Math.min(pageY - 14, baseHeight - 32))
+    );
 
-    // Dispatch event
+    // Dispatch event with clean, page-relative coordinates
     window.dispatchEvent(
       new CustomEvent('canvasDrop', {
         detail: {
           fieldType,
-          x: finalX,
-          y: finalY,
+          x: cleanX,
+          y: cleanY,
           page: validPage
         }
       })
     );
-  }, [zoomLevel, numPages, BASE_HEIGHT, BASE_WIDTH, PAGE_GAP]);
+  }, [zoomLevel, numPages, canvasHeight, BASE_WIDTH, PAGE_GAP]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -262,15 +277,16 @@ const DocumentWorkArea = ({
     if (!containerRef.current) return;
 
     const scrollTop = containerRef.current.scrollTop;
-    const pageHeight = scaledHeight + PAGE_GAP;
-    const viewportMiddlePage = Math.floor((scrollTop + (containerRef.current.clientHeight / 2)) / pageHeight);
+    // Full block height on screen = Header + Page + Gap
+    const pageBlockHeight = scaledHeight + scaledHeaderHeight + PAGE_GAP;
+    const viewportMiddlePage = Math.floor((scrollTop + (containerRef.current.clientHeight / 2)) / pageBlockHeight);
 
     const newCurrentPage = Math.max(0, Math.min(viewportMiddlePage, numPages - 1));
 
     if (newCurrentPage !== currentPage) {
       onPageChange(newCurrentPage);
     }
-  }, [scaledHeight, numPages, currentPage, onPageChange]);
+  }, [scaledHeight, scaledHeaderHeight, numPages, currentPage, onPageChange]);
 
   // Add scroll listener
   useEffect(() => {
@@ -294,12 +310,13 @@ const DocumentWorkArea = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const scrollTop = currentPage * (scaledHeight + PAGE_GAP);
+    const pageBlockHeight = scaledHeight + scaledHeaderHeight + PAGE_GAP;
+    const scrollTop = currentPage * pageBlockHeight;
     containerRef.current.scrollTo({
       top: scrollTop,
       behavior: 'smooth'
     });
-  }, [currentPage, scaledHeight]);
+  }, [currentPage, scaledHeight, scaledHeaderHeight]);
 
   // Handle PDF load
   const handlePdfLoadSuccess = useCallback(() => {
@@ -421,7 +438,7 @@ const DocumentWorkArea = ({
                   elevation={0}
                   sx={{
                     width: `${scaledWidth}px`,
-                    height: `${scaledHeight}px`,
+                    minHeight: `${scaledHeight}px`,
                     position: 'relative',
                     borderRadius: 0,
                     overflow: 'hidden',
@@ -432,9 +449,13 @@ const DocumentWorkArea = ({
                 >
                   <Page
                     pageNumber={pdfPageNumber}
-                    scale={zoomLevel}
-                    width={BASE_WIDTH}
-                    height={BASE_HEIGHT}
+                    width={scaledWidth}
+                    onLoadSuccess={(page) => {
+                      if (pageIndex === 0) {
+                        const calculatedHeight = (BASE_WIDTH / page.originalWidth) * page.originalHeight;
+                        onPdfLoaded?.(calculatedHeight);
+                      }
+                    }}
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                   />
@@ -516,7 +537,9 @@ const DocumentWorkArea = ({
             const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
 
             // Calculate Y offset: Each page n is preceded by n * (page + header + gap) plus this page's own header
-            const pageOffsetY = field.page * (scaledHeight + PAGE_HEADER_HEIGHT * zoomLevel + PAGE_GAP) + (PAGE_HEADER_HEIGHT * zoomLevel);
+            const pageOffsetY =
+              field.page * (scaledHeight + scaledHeaderHeight + PAGE_GAP) +
+              scaledHeaderHeight;
 
             return (
               <CanvasField
@@ -532,6 +555,7 @@ const DocumentWorkArea = ({
                 showAllFields={true}
                 pageOffsetY={pageOffsetY}
                 recipients={recipients}
+                canvasHeight={baseHeight}
               />
             );
           })}

@@ -71,7 +71,7 @@ class PDFEngine:
 
     
     @staticmethod
-    def convert_stored_to_pdf_coordinates(field: Dict, page_width: float, page_height: float) -> Dict[str, float]:
+    def convert_stored_to_pdf_coordinates(field: Dict, page_width: float, page_height: float, page_rect=None) -> Dict[str, float]:
         """
         Bullet-proof coordinate conversion for all coordinate systems.
         Returns top-based coordinates for PyMuPDF.
@@ -81,54 +81,77 @@ class PDFEngine:
                 return float(value) if value is not None else float(default)
             except:
                 return float(default)
+
+        # Get absolute offsets if available (PyMuPDF pages can have non-zero origins)
+        x0 = page_rect.x0 if page_rect else 0
+        y0 = page_rect.y0 if page_rect else 0
         
-        # Priority 1: Use PDF coordinates if available
-        if "pdf_x" in field and "pdf_y" in field:
-            x = safe_float(field.get("pdf_x"))
-            y_pdf = safe_float(field.get("pdf_y"))  # PDF bottom-based
-            width = safe_float(field.get("pdf_width"), 100)
-            height = safe_float(field.get("pdf_height"), 40)
-            
-            # Convert bottom-based to top-based
-            y = page_height - y_pdf - height
-        
-        # Priority 2: Use canvas coordinates with conversion context
-        elif "canvas_x" in field and "canvas_y" in field and "canvas_width" in field and "canvas_height" in field:
+        path_taken = "none"
+        res_x = 0
+        res_y = 0
+        res_w = 100
+        res_h = 40
+
+        # Priority 1: Use canvas coordinates with conversion context (MOST RELIABLE)
+        # These are scale-independent relative to the UI canvas used to place them
+        if "canvas_x" in field and "canvas_y" in field and field.get("canvas_width") and field.get("canvas_height"):
+            path_taken = "Priority 1 (Canvas Ratio)"
             canvas_x = safe_float(field.get("canvas_x"))
             canvas_y = safe_float(field.get("canvas_y"))
-            canvas_width = safe_float(field.get("canvas_width"), 1000)
-            canvas_height = safe_float(field.get("canvas_height"), 1000)
-            width = safe_float(field.get("canvas_width", field.get("width")), 100)
-            height = safe_float(field.get("canvas_height", field.get("height")), 40)
+            canvas_width = safe_float(field.get("canvas_width"), 794.0)
+            canvas_height = safe_float(field.get("canvas_height"), 1123.0)
             
-            # Scale from canvas to PDF
-            x = (canvas_x / canvas_width) * page_width
-            canvas_y_pdf = (canvas_y / canvas_height) * page_height
+            field_width_px = safe_float(field.get("width"), 160.0)
+            field_height_px = safe_float(field.get("height"), 32.0)
             
-            # Convert to top-based
-            y = page_height - canvas_y_pdf - height
+            # Map normalized proportions to actual page size + offset
+            res_x = x0 + (canvas_x / canvas_width) * page_width
+            res_y = y0 + (canvas_y / canvas_height) * page_height
+            res_w = (field_width_px / canvas_width) * page_width
+            res_h = (field_height_px / canvas_height) * page_height
         
-        # Priority 3: Use legacy coordinates (assume PDF points)
+        # Priority 2: Use PDF coordinates if available (BACKEND-CALCULATED)
+        elif "pdf_x" in field and "pdf_y" in field:
+            path_taken = "Priority 2 (Stored PDF Points)"
+            x_stored = safe_float(field.get("pdf_x"))
+            y_stored = safe_float(field.get("pdf_y")) # Stored as bottom-based
+            res_w = safe_float(field.get("pdf_width"), 100)
+            res_h = safe_float(field.get("pdf_height"), 40)
+            
+            # Convert bottom-based to top-based + add offset
+            res_x = x0 + x_stored
+            res_y = y0 + (page_height - y_stored - res_h)
+        
+        # Priority 3: Fallback to standard x/y
         else:
-            x = safe_float(field.get("x"))
-            y_pdf = safe_float(field.get("y"))  # Assume bottom-based
-            width = safe_float(field.get("width"), 100)
-            height = safe_float(field.get("height"), 40)
+            path_taken = "Priority 3 (Fallback x/y)"
+            res_x = x0 + safe_float(field.get("x"))
+            y_val = safe_float(field.get("y"))
+            res_w = safe_float(field.get("width"), 100)
+            res_h = safe_float(field.get("height"), 40)
             
-            # Convert bottom-based to top-based
-            y = page_height - y_pdf - height
+            # If x/y looks like PDF points, assume bottom-based
+            if res_x < 2000 and y_val < 2000:
+                 res_y = y0 + (page_height - y_val - res_h)
+            else:
+                 res_y = y0 + y_val # Assume top-based px if very large (unlikely but safe)
         
-        # Clamp to page bounds
-        x = max(0, min(x, page_width - width))
-        y = max(0, min(y, page_height - height))
+        # LOG THE TRACE for pixel-perfect debugging
+        field_id = str(field.get('id') or field.get('_id', 'new'))
+        print(f"[PDF-COORD-TRACE] Field: {field.get('type', 'field')} ({field_id})")
+        print(f"  - Path Taken: {path_taken}")
+        print(f"  - Scaling context: Page={page_width}x{page_height}, Canvas={field.get('canvas_width')}x{field.get('canvas_height')}")
+        print(f"  - Final (Top-Down): x={res_x:.2f}, y={res_y:.2f}, w={res_w:.2f}, h={res_h:.2f}")
+
+        # Clamp to page bounds to prevent rendering off-screen
+        res_x = max(x0, min(res_x, x0 + page_width - res_w))
+        res_y = max(y0, min(res_y, y0 + page_height - res_h))
         
         return {
-            "x": x,
-            "y": y,
-            "width": width,
-            "height": height,
-            "page_width": page_width,
-            "page_height": page_height
+            "x": res_x,
+            "y": res_y,
+            "width": res_w,
+            "height": res_h
         }
     
     @staticmethod
@@ -190,7 +213,8 @@ class PDFEngine:
                     coords = PDFEngine.convert_stored_to_pdf_coordinates(
                         field,
                         page_rect.width,
-                        page_rect.height
+                        page_rect.height,
+                        page_rect=page_rect
                     )
                     
                     # Create rectangle
@@ -1412,13 +1436,15 @@ class PDFEngine:
                     coords = PDFEngine.convert_stored_to_pdf_coordinates(
                         field_data,
                         page_rect.width,
-                        page_rect.height
+                        page_rect.height,
+                        page_rect=page_rect
                     )
                 elif all(k in sig for k in ["x", "y", "width", "height"]):
                     coords = PDFEngine.convert_stored_to_pdf_coordinates(
                         sig,
                         page_rect.width,
-                        page_rect.height
+                        page_rect.height,
+                        page_rect=page_rect
                     )
                 else:
                     continue
@@ -1651,7 +1677,8 @@ class PDFEngine:
                     coords = PDFEngine.convert_stored_to_pdf_coordinates(
                         field,
                         page_rect.width,
-                        page_rect.height
+                        page_rect.height,
+                        page_rect=page_rect
                     )
                     
                     # Validate rectangle dimensions

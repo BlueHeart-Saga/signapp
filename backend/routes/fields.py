@@ -76,7 +76,7 @@ class FieldCreate(BaseModel):
     page_height: float = Field(..., gt=0, description="Page height in PDF points")
 
     type: FieldType
-    recipient_id: str = Field(..., description="Recipient ID")
+    recipient_id: Optional[str] = Field(None, description="Recipient ID")
     required: bool = True
     label: Optional[str] = None
     placeholder: Optional[str] = None
@@ -469,20 +469,20 @@ def convert_canvas_to_pdf_points(
     width = field_width_px * scale_x
     height = field_height_px * scale_y
 
-    # Adjust Y coordinate for page offset
-    # Each page adds its height to the Y offset in PDF coordinates
-    page_offset_y = page_number * page_height_pt
-    
-    # Flip Y axis (PDF is bottom-left origin) and add page offset
+    # Flip Y axis (PDF is bottom-left origin)
+    # y = page_height_pt - y_canvas_bottom gives page-relative bottom-based points
     y_canvas_bottom = (canvas_y + field_height_px) * scale_y
-    y = (page_height_pt * (page_number + 1)) - y_canvas_bottom
+    y = page_height_pt - y_canvas_bottom
+
+    print(f"[FIELDS-ROUTE-DEBUG] Convert Canvas -> PDF")
+    print(f"  - Canvas: page={page_number}, x={canvas_x}, y={canvas_y}, w={field_width_px}, h={field_height_px}")
+    print(f"  - PDF: x={x}, y={y}, w={width}, h={height}")
 
     return {
         "x": x,
         "y": y,
         "width": width,
-        "height": height,
-        "page_offset": page_offset_y
+        "height": height
     }
 
 
@@ -510,8 +510,12 @@ def get_document_or_404(document_id: str, user_id: str):
 
     return document
 
-def get_recipient_or_400(document_id: str, recipient_id: str):
+def get_recipient_or_400(document_id: str, recipient_id: Optional[str]):
     """Validate recipient belongs to document."""
+    if not recipient_id:
+        # Return a mock for unassigned fields (common in draft/builders)
+        return {"_id": None, "role": "signer", "name": "Unassigned"}
+
     try:
         rid = ObjectId(recipient_id)
     except:
@@ -695,7 +699,8 @@ async def add_or_replace_fields(
     # Validate all fields before any database operation
     for f in fields:
         recipient = get_recipient_or_400(document_id, f.recipient_id)
-        validate_field_role(recipient["role"], f.type)  
+        role = str(recipient.get("role", "signer"))
+        validate_field_role(role, f.type)  
         validate_field_coordinates(f.x, f.y, f.width, f.height)
         validate_field_type_specific_rules(f)
 
@@ -719,12 +724,13 @@ async def add_or_replace_fields(
                 page_width_pt=f.page_width,
                 page_height_pt=f.page_height,
                 field_width_px=f.width,
-                field_height_px=f.height
+                field_height_px=f.height,
+                page_number=f.page
             )
 
             field_doc = {
                 "document_id": ObjectId(document_id),
-                "recipient_id": recipient["_id"],
+                "recipient_id": ObjectId(f.recipient_id) if f.recipient_id else None,
                 "type": f.type,
                 "page": f.page,
                 

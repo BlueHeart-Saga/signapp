@@ -32,7 +32,8 @@ const CanvasField = ({
   currentPage = 0,
   showAllFields = false,
   pageOffsetY = 0,
-  recipients = []
+  recipients = [],
+  canvasHeight = 1123
 }) => {
   const shapeRef = useRef();
   const transformerRef = useRef();
@@ -66,14 +67,18 @@ const CanvasField = ({
   };
 
   const handleDragEnd = (e) => {
-    const newX = e.target.x() / scale;
-    const newY = (e.target.y() - pageOffsetY) / scale;
+    // Current position in the Stage (global coordinate including all stacked pages + headers + gaps)
+    const currentStageY = e.target.y();
 
-    // Constrain to canvas boundaries
-    const constrainedX = Math.max(0, Math.min(newX, 794 - field.width));
-    const constrainedY = Math.max(0, Math.min(newY, 1123 - field.height));
+    // Normalize to page-local base pixels: (GlobalY - PageOffsetY) / zoomLevel
+    const cleanX = e.target.x() / scale;
+    const cleanY = (currentStageY - pageOffsetY) / scale;
 
-    onDragEnd(field.id, Math.round(constrainedX), Math.round(constrainedY));
+    // Constrain within the single page content rectangle (0 to 794x1123)
+    const finalX = Math.round(Math.max(0, Math.min(cleanX, 794 - field.width)));
+    const finalY = Math.round(Math.max(0, Math.min(cleanY, canvasHeight - field.height)));
+
+    onDragEnd(field.id, finalX, finalY);
   };
 
   const handleTransformEnd = () => {
@@ -98,8 +103,7 @@ const CanvasField = ({
     node.x(0);
     node.y(0);
 
-    // Important: we must add the inner displacement to the parent's current position
-    // to get the new global position of the field
+    // Report back clean, page-local coordinates
     onTransform(field.id, {
       width: Math.round(newWidth / scale),
       height: Math.round(newHeight / scale),
@@ -120,7 +124,7 @@ const CanvasField = ({
     const fieldHeight = field.height * scale;
 
     const constrainedX = Math.max(0, Math.min(pos.x, 794 * scale - fieldWidth));
-    const constrainedY = Math.max(pageOffsetY, Math.min(pos.y, pageOffsetY + 1123 * scale - fieldHeight));
+    const constrainedY = Math.max(pageOffsetY, Math.min(pos.y, pageOffsetY + canvasHeight * scale - fieldHeight));
 
     return {
       x: constrainedX,
@@ -191,8 +195,8 @@ const CanvasField = ({
           height={field.height * scale}
           fill={bgColor}
           stroke={borderColor}
-          strokeWidth={isSelected ? 0 : 1.6}
-          cornerRadius={8}
+          strokeWidth={isSelected ? 0 : 1.6 * scale}
+          cornerRadius={8 * scale}
           onTransformEnd={isCurrentPage ? handleTransformEnd : undefined} // FIRE EVENT HERE
         />
 
@@ -478,14 +482,14 @@ const CanvasField = ({
       >
         {/* Page indicator for fields on other pages */}
         {showAllFields && !isCurrentPage && (
-          <Group x={field.width * scale - 30} y={-25 * scale}>
+          <Group x={field.width * scale - 30 * scale} y={-25 * scale}>
             <Circle
               x={0}
               y={0}
-              radius={8}
+              radius={8 * scale}
               fill="#666"
               stroke="#FFFFFF"
-              strokeWidth={1}
+              strokeWidth={1 * scale}
             />
             <Text
               x={0}
@@ -551,7 +555,7 @@ const CanvasField = ({
           borderStroke={recipientColor}
           anchorFill={recipientColor}
           anchorStroke="#ffffff"
-          anchorSize={8}
+          anchorSize={8 * scale}
         />
       )}
     </>

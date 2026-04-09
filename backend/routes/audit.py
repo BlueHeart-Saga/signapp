@@ -207,7 +207,7 @@ async def create_audit_event(
             "document_id": event.document_id,
             "action": event.action,
             "details": event.details,
-            "performed_by": current_user["_id"],
+            "performed_by": current_user["id"],
             "ip_address": event.ip_address,
             "user_agent": event.user_agent,
             "timestamp": datetime.utcnow()

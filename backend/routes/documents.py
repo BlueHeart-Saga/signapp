@@ -3020,11 +3020,15 @@ async def update_document_settings(
         
         expiry_days = payload.get("expiry_days", 0)
         reminder_period = payload.get("reminder_period", 0)
+        signing_order_enabled = payload.get("signing_order_enabled") # NEW
         
         update_data = {
             "expiry_days": int(expiry_days),
             "reminder_period": int(reminder_period)
         }
+        
+        if signing_order_enabled is not None:
+            update_data["signing_order_enabled"] = bool(signing_order_enabled)
         
         # If document is already sent, recalculate expires_at/next_reminder_at
         if doc.get("status") in ["sent", "in_progress"]:
@@ -3742,13 +3746,23 @@ async def owner_preview(
     Uses recipient-based colors for field placeholders.
     """
     user = await get_user_from_request(request)
+    
+    print(f"\n--- Owner Preview: {doc_id} ---")
+    print(f"👤 User: {user.get('email')}")
 
     doc = db.documents.find_one({
         "_id": ObjectId(doc_id),
         "owner_id": ObjectId(user["id"])
     })
+    
     if not doc:
+        print(f"❌ Document {doc_id} not found for user {user.get('id')}")
         raise HTTPException(404, "Document not found")
+
+    # Check signing order
+    signing_order_enabled = doc.get("signing_order_enabled", False)
+    print(f"📄 Document: {doc.get('filename')} (Status: {doc.get('status')})")
+    print(f"🔢 Signing Order Enabled: {signing_order_enabled}")
 
     # Get all fields for this document
     fields = list(db.signature_fields.find({

@@ -1,0 +1,42 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Sagadevan\SignApp\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Sagadevan\SignApp\backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, cov-7.1.0
+collecting ... collected 1 item
+
+testing/tests/test_contacts.py::test_contacts_lifecycle FAILED           [100%]
+
+================================== FAILURES ===================================
+___________________________ test_contacts_lifecycle ___________________________
+testing\tests\test_contacts.py:38: in test_contacts_lifecycle
+    assert update_res.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stdout setup ----------------------------
+\U0001f680 eSign App Backend Starting...
+---------------------------- Captured stderr setup ----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+----------------------------- Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
+---------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/contacts "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/contacts "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: PATCH http://testserver/contacts/69d4adfa530d27a35279ca44/favorite "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/contacts/search?q=Initial "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: PUT http://testserver/contacts/69d4adfa530d27a35279ca44 "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/contacts "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/contacts "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: PATCH http://testserver/contacts/69d4adfa530d27a35279ca44/favorite "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/contacts/search?q=Initial "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/contacts/69d4adfa530d27a35279ca44 "HTTP/1.1 422 Unprocessable Entity"
+-------------------------- Captured stdout teardown ---------------------------
+eSign App Backend Shutting Down...
+=========================== short test summary info ===========================
+FAILED testing/tests/test_contacts.py::test_contacts_lifecycle - assert 422 == 200
+ +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+============================== 1 failed in 7.13s ==============================

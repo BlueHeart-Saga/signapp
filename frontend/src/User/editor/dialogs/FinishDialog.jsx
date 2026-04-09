@@ -53,9 +53,9 @@ const FinishDialog = ({
   getRecipientColor,
   FIELD_ROLES
 }) => {
-  
+
   const getRoleIcon = (roleId) => {
-    switch(roleId) {
+    switch (roleId) {
       case 'signer': return <PersonIcon fontSize="small" />;
       case 'approver': return <VerifiedIcon fontSize="small" />;
       case 'form_filler': return <EditIcon fontSize="small" />;
@@ -66,21 +66,28 @@ const FinishDialog = ({
     }
   };
 
-  const hasIssues = invalidFields.length > 0 || unassignedFields.length > 0;
-  const severity = invalidFields.length > 0 ? 'error' : (unassignedFields.length > 0 ? 'warning' : 'success');
+  const ROLES_WITHOUT_FIELDS = ['viewer', 'approver'];
+  const recipientsMissingFields = recipients.filter(recipient => {
+    if (ROLES_WITHOUT_FIELDS.includes(recipient.role)) return false;
+    const assignedFields = fields.filter(f => f.recipient_id === recipient.id);
+    return assignedFields.length === 0;
+  });
+
+  const hasIssues = invalidFields.length > 0 || unassignedFields.length > 0 || recipientsMissingFields.length > 0;
+  const severity = (invalidFields.length > 0 || recipientsMissingFields.length > 0) ? 'error' : (unassignedFields.length > 0 ? 'warning' : 'success');
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: { borderRadius: 2 }
       }}
     >
-      <DialogTitle sx={{ 
-        bgcolor: hasIssues ? '#f44336' : '#0d9488', 
+      <DialogTitle sx={{
+        bgcolor: hasIssues ? '#f44336' : '#0d9488',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -96,25 +103,27 @@ const FinishDialog = ({
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent sx={{ pt: 3 }}>
         {/* Status Alert */}
-        <Alert 
+        <Alert
           severity={severity}
           icon={severity === 'error' ? <ErrorIcon /> : severity === 'warning' ? <WarningIcon /> : <CheckCircleIcon />}
-          sx={{ 
+          sx={{
             mb: 3,
-            '& .MuiAlert-icon': { 
-              color: severity === 'success' ? '#0d9488' : undefined 
+            '& .MuiAlert-icon': {
+              color: severity === 'success' ? '#0d9488' : undefined
             }
           }}
         >
           <Typography variant="subtitle2">
-            {invalidFields.length > 0 
+            {invalidFields.length > 0
               ? `${invalidFields.length} incompatible field assignment${invalidFields.length > 1 ? 's' : ''} found`
-              : unassignedFields.length > 0
-              ? `${unassignedFields.length} unassigned field${unassignedFields.length > 1 ? 's' : ''}`
-              : 'All fields are properly assigned!'
+              : recipientsMissingFields.length > 0
+                ? `${recipientsMissingFields.length} recipient${recipientsMissingFields.length > 1 ? 's' : ''} missing required fields`
+                : unassignedFields.length > 0
+                  ? `${unassignedFields.length} unassigned field${unassignedFields.length > 1 ? 's' : ''}`
+                  : 'All fields are properly assigned!'
             }
           </Typography>
         </Alert>
@@ -163,7 +172,7 @@ const FinishDialog = ({
           <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#0d9488' }}>
             Recipients Summary ({recipients.length})
           </Typography>
-          
+
           {recipients.length === 0 ? (
             <Alert severity="info" sx={{ '& .MuiAlert-icon': { color: '#0d9488' } }}>
               No recipients added yet. Add recipients before sending.
@@ -175,12 +184,12 @@ const FinishDialog = ({
                   const assignedFields = fields.filter(f => f.recipient_id === recipient.id);
                   const invalid = assignedFields.filter(f => getFieldValidationError(f)).length;
                   const recipientColor = getRecipientColor(recipient);
-                  
+
                   return (
                     <ListItem key={recipient.id} divider>
                       <ListItemIcon>
-                        <Avatar sx={{ 
-                          width: 32, 
+                        <Avatar sx={{
+                          width: 32,
                           height: 32,
                           bgcolor: recipientColor,
                           fontSize: '0.875rem'
@@ -197,7 +206,7 @@ const FinishDialog = ({
                             <Chip
                               label={FIELD_ROLES[recipient.role]?.name}
                               size="small"
-                              sx={{ 
+                              sx={{
                                 height: 20,
                                 fontSize: '0.6rem',
                                 bgcolor: `${recipientColor}20`,
@@ -214,6 +223,15 @@ const FinishDialog = ({
                             <Typography variant="caption" color="text.secondary">
                               {assignedFields.length} field{assignedFields.length !== 1 ? 's' : ''}
                             </Typography>
+                            {assignedFields.length === 0 && !ROLES_WITHOUT_FIELDS.includes(recipient.role) && (
+                              <Chip
+                                label="Fields Required"
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: '0.6rem' }}
+                              />
+                            )}
                             {invalid > 0 && (
                               <Chip
                                 label={`${invalid} invalid`}
@@ -283,7 +301,7 @@ const FinishDialog = ({
               <IconButton
                 size="small"
                 onClick={onRenameClick}
-                sx={{ 
+                sx={{
                   color: '#0d9488',
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -294,7 +312,7 @@ const FinishDialog = ({
               </IconButton>
             </Tooltip>
           </Box>
-          
+
           <Typography variant="body2">
             <strong>Name:</strong> {document?.filename || 'Untitled Document'}
           </Typography>
@@ -306,11 +324,11 @@ const FinishDialog = ({
           </Typography>
         </Box>
       </DialogContent>
-      
+
       <DialogActions sx={{ p: 3, borderTop: 1, borderColor: 'divider' }}>
-        <Button 
+        <Button
           onClick={onClose}
-          sx={{ 
+          sx={{
             color: '#0d9488',
             '&:hover': {
               backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -319,11 +337,11 @@ const FinishDialog = ({
         >
           Cancel
         </Button>
-        <Button 
-          onClick={onConfirm} 
-          variant="contained" 
-          disabled={saving || invalidFields.length > 0}
-          color={invalidFields.length > 0 ? "error" : "primary"}
+        <Button
+          onClick={onConfirm}
+          variant="contained"
+          disabled={saving || invalidFields.length > 0 || recipientsMissingFields.length > 0}
+          color={(invalidFields.length > 0 || recipientsMissingFields.length > 0) ? "error" : "primary"}
           startIcon={saving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <SendIcon />}
           sx={invalidFields.length === 0 ? {
             bgcolor: '#0d9488',
@@ -335,7 +353,7 @@ const FinishDialog = ({
             }
           } : {}}
         >
-          {saving ? 'Sending...' : invalidFields.length > 0 ? 'Fix Errors First' : 'Send Invites'}
+          {saving ? 'Sending...' : (invalidFields.length > 0 || recipientsMissingFields.length > 0) ? 'Fix Errors First' : 'Send Invites'}
         </Button>
       </DialogActions>
     </Dialog>
