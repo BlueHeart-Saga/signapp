@@ -16,7 +16,8 @@ import {
   Category as CategoryIcon, Description as TemplateIcon,
   FileUpload as UploadIcon, CheckCircle as ActiveIcon,
   Cancel as InactiveIcon, GridView as GridIcon, List as ListIcon,
-  Close as CloseIcon, FilePresent as FileIcon, Info as InfoIcon
+  Close as CloseIcon, FilePresent as FileIcon, Info as InfoIcon,
+  LocalOffer as TagIcon, Settings as SettingsIcon, CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
@@ -61,6 +62,7 @@ const TemplateManagement = () => {
   });
 
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -97,7 +99,7 @@ const TemplateManagement = () => {
       const params = new URLSearchParams({ page: targetPage + 1, limit: rowsPerPage });
       if (search) params.append('search', search);
       if (selectedCategory) params.append('category_id', selectedCategory);
-      const res = await fetch(`${API_BASE_URL}/admin/templates?${params}`, { headers: getHeaders() });
+      const res = await fetch(`${API_BASE_URL}/admin/templates/?${params}`, { headers: getHeaders() });
       if (!res.ok) throw new Error('Failed to fetch templates');
       const data = await res.json();
       setTemplates(data.templates || []);
@@ -139,6 +141,7 @@ const TemplateManagement = () => {
 
   const saveTemplate = async () => {
     try {
+      setUploading(true);
       const fd = new FormData();
       fd.append('title', templateForm.title);
       fd.append('description', templateForm.description || '');
@@ -146,15 +149,38 @@ const TemplateManagement = () => {
       fd.append('tags', templateForm.tags.join(','));
       fd.append('is_free', templateForm.is_free.toString());
       if (uploadFile) fd.append('file', uploadFile);
-      else if (!isEditing) { setError('Please select a file'); return; }
+      else if (!isEditing) { setError('Please select a file'); setUploading(false); return; }
+
       const url = isEditing
         ? `${API_BASE_URL}/admin/templates/${editingId}`
         : `${API_BASE_URL}/admin/templates/upload`;
-      const res = await fetch(url, { method: isEditing ? 'PUT' : 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+      });
+
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.detail || 'Failed to save template');
+      }
+
       setSuccess(`Template ${isEditing ? 'updated' : 'uploaded'} successfully`);
-      fetchTemplates(); setUploadDialog(false); resetTemplateForm();
-    } catch (e) { setError(e.message); }
+
+      // Immediate Refresh
+      await Promise.all([
+        fetchTemplates(),
+        fetchStats()
+      ]);
+
+      setUploadDialog(false);
+      resetTemplateForm();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const resetTemplateForm = () => {
@@ -600,60 +626,188 @@ const TemplateManagement = () => {
       {/* Upload / Edit Template */}
       <Dialog open={uploadDialog} onClose={() => setUploadDialog(false)} fullWidth maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 2, m: 2 } }}>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: 16, pb: 1, borderBottom: '1px solid #f3f4f6' }}>
-          {isEditing ? 'Edit Template' : 'Upload New Template'}
+        <DialogTitle sx={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', pb: 2, px: 3, pt: 2.5,
+          borderBottom: '1px solid #f1f5f9'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: TEAL_LIGHT, color: TEAL, width: 40, height: 40 }}>
+              {isEditing ? <EditIcon size="small" /> : <UploadIcon size="small" />}
+            </Avatar>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem' }}>
+              {isEditing ? 'Edit Existing Template' : 'Upload New Template'}
+            </Typography>
+          </Box>
+          <IconButton onClick={() => setUploadDialog(false)} size="small" sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Stack spacing={2.5}>
-            <TextField fullWidth label="Title" value={templateForm.title}
-              onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })} required
-              InputProps={{ sx: { borderRadius: 1.5, fontSize: 13.5 } }} size="small" />
-            <TextField fullWidth label="Description" multiline rows={3} value={templateForm.description}
-              onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
-              InputProps={{ sx: { borderRadius: 1.5, fontSize: 13.5 } }} size="small" />
-            <FormControl fullWidth required size="small">
-              <InputLabel>Category</InputLabel>
-              <Select value={templateForm.category_id} label="Category"
-                onChange={(e) => setTemplateForm({ ...templateForm, category_id: e.target.value })}
-                sx={{ borderRadius: 1.5, fontSize: 13.5 }}>
-                {categories.map(c => <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13.5 }}>{c.name}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <Autocomplete multiple options={availableTags} value={templateForm.tags}
-              onChange={(e, v) => setTemplateForm({ ...templateForm, tags: v })} freeSolo
-              renderInput={(params) => <TextField {...params} label="Tags" placeholder="Add tags..." size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: 13.5 } }} />} />
-            <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 1.5, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <DialogContent sx={{ p: 0 }} className="no-scrollbar">
+          <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
+            {/* <Typography variant="caption" sx={{ color: TEAL, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>
+              General Information
+            </Typography> */}
+            <Stack spacing={2.5}>
               <Box>
-                <Typography sx={{ fontWeight: 600, fontSize: 13.5 }}>Free Access</Typography>
-                <Typography variant="caption" sx={{ color: '#9ca3af' }}>Available to all users without subscription</Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.8, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Template Title <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
+                </Typography>
+                <TextField
+                  fullWidth
+                  value={templateForm.title}
+                  onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })}
+                  error={templateForm.title.length > 0 && templateForm.title.length < 3}
+                  helperText={
+                    templateForm.title.length > 0 && templateForm.title.length < 3
+                      ? "Title must be at least 3 characters"
+                      : `${templateForm.title.length}/200 characters`
+                  }
+                  InputProps={{ sx: { borderRadius: 1.5, fontSize: 13.5, bgcolor: '#fcfcfc' } }}
+                  size="small"
+                  placeholder="e.g. Standard Employment Contract"
+                />
               </Box>
-              <Switch checked={templateForm.is_free} onChange={(e) => setTemplateForm({ ...templateForm, is_free: e.target.checked })}
-                sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: TEAL }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TEAL } }} />
-            </Box>
-            <Box sx={{
-              border: `2px dashed ${TEAL}50`, p: 3, borderRadius: 2, textAlign: 'center', bgcolor: TEAL_LIGHT,
-              cursor: 'pointer', transition: 'all 0.15s', '&:hover': { bgcolor: TEAL_MID }
-            }}>
-              <input type="file" id="template-file" style={{ display: 'none' }} onChange={handleFileSelect} />
-              <label htmlFor="template-file" style={{ cursor: 'pointer' }}>
-                <UploadIcon sx={{ fontSize: 32, color: TEAL, mb: 1 }} />
-                <Typography sx={{ fontWeight: 700, color: TEAL, fontSize: 13.5 }}>
-                  {uploadFile ? uploadFile.name : 'Click to select file'}
+
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.8, color: '#334155' }}>
+                  Description (Optional)
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                  {isEditing ? 'Optionally replace the existing file' : 'PDF, Word, or TXT · max 20 MB'}
-                </Typography>
-              </label>
-            </Box>
-          </Stack>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={templateForm.description}
+                  onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
+                  helperText={`${(templateForm.description || '').length}/500 characters`}
+                  InputProps={{ sx: { borderRadius: 1.5, fontSize: 13.5, bgcolor: '#fcfcfc' } }}
+                  size="small"
+                  placeholder="Briefly describe the purpose of this template..."
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.8, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    Category <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <Select
+                      value={templateForm.category_id}
+                      onChange={(e) => setTemplateForm({ ...templateForm, category_id: e.target.value })}
+                      sx={{ borderRadius: 1.5, fontSize: 13.5, bgcolor: '#fcfcfc' }}
+                      displayEmpty
+                      renderValue={(selected) => {
+                        if (!selected) return <Box sx={{ color: '#94a3b8' }}>Select a category</Box>;
+                        const cat = categories.find(c => c.id === selected);
+                        return cat ? cat.name : selected;
+                      }}
+                    >
+                      {categories.map(c => <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13.5 }}>{c.name}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 0.8, color: '#334155' }}>
+                    Tags
+                  </Typography>
+                  <Autocomplete
+                    multiple
+                    options={availableTags}
+                    value={templateForm.tags}
+                    onChange={(e, v) => setTemplateForm({ ...templateForm, tags: v })}
+                    freeSolo
+                    fullWidth
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        placeholder="Add keywords (e.g. Legal, HR)..."
+                        size="small"
+                        InputProps={{
+                          ...params.InputProps,
+                          sx: { borderRadius: 1.5, fontSize: 13.5, bgcolor: '#fcfcfc' }
+                        }}
+                      />
+                    )}
+                  />
+                </Box>
+              </Box>
+            </Stack>
+          </Box>
+
+          <Divider sx={{ my: 1.5, borderStyle: 'dashed' }} />
+
+          <Box sx={{ px: 3, pb: 3 }}>
+            <Typography variant="caption" sx={{ color: TEAL, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, mb: 1, display: 'block' }}>
+              Access & File
+            </Typography>
+            <Stack spacing={2}>
+              <Box sx={{
+                p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Avatar sx={{ bgcolor: TEAL_MID, color: TEAL, width: 32, height: 32 }}><SettingsIcon sx={{ fontSize: 16 }} /></Avatar>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: '#1e293b' }}>Free Access</Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>Allow users without a subscription to use this</Typography>
+                  </Box>
+                </Box>
+                <Switch checked={templateForm.is_free} onChange={(e) => setTemplateForm({ ...templateForm, is_free: e.target.checked })}
+                  sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: TEAL }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TEAL } }} />
+              </Box>
+
+              <Box sx={{
+                border: `2px dashed ${TEAL}40`, p: 3, borderRadius: 2, textAlign: 'center',
+                bgcolor: uploadFile ? TEAL_LIGHT : '#f9fafb',
+                cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': { bgcolor: TEAL_LIGHT, borderColor: TEAL, transform: 'translateY(-2px)' }
+              }}>
+                <input type="file" id="template-file" style={{ display: 'none' }} onChange={handleFileSelect} />
+                <label htmlFor="template-file" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {uploadFile ? (
+                      <CheckCircleIcon sx={{ fontSize: 40, color: '#10b981', mb: 1 }} />
+                    ) : (
+                      <UploadIcon sx={{ fontSize: 40, color: TEAL, mb: 1, opacity: 0.7 }} />
+                    )}
+                    <Typography sx={{ fontWeight: 700, color: '#334155', fontSize: 14 }}>
+                      {uploadFile ? uploadFile.name : 'Choose template file'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b', mt: 0.5 }}>
+                      {isEditing && !uploadFile
+                        ? 'Keep current file or select a new one'
+                        : 'PDF, DOCX, or TXT · Max 20MB'
+                      }
+                    </Typography>
+                    {uploadFile && (
+                      <Chip
+                        label={`${(uploadFile.size / 1024 / 1024).toFixed(2)} MB`}
+                        size="small"
+                        sx={{ mt: 1.5, height: 20, fontSize: 10, fontWeight: 700, bgcolor: TEAL_MID, color: TEAL }}
+                      />
+                    )}
+                  </Box>
+                </label>
+              </Box>
+            </Stack>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid #f3f4f6' }}>
-          <Button onClick={() => setUploadDialog(false)} sx={{ textTransform: 'none', color: '#374151' }}>Cancel</Button>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1.5, bgcolor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
+          <Button onClick={() => setUploadDialog(false)}
+            sx={{ textTransform: 'none', color: '#64748b', fontWeight: 600 }}
+            disabled={uploading}>
+            Cancel
+          </Button>
           <Button variant="contained" onClick={saveTemplate}
-            disabled={!templateForm.title || !templateForm.category_id}
-            sx={{ bgcolor: TEAL, '&:hover': { bgcolor: TEAL_DARK }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600, px: 3, boxShadow: 'none' }}>
-            {isEditing ? 'Save Changes' : 'Upload Template'}
+            disabled={!templateForm.title || templateForm.title.length < 3 || !templateForm.category_id || uploading}
+            sx={{
+              bgcolor: TEAL, '&:hover': { bgcolor: TEAL_DARK },
+              borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 4,
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+            }}>
+            {uploading ? <CircularProgress size={22} color="inherit" /> : (isEditing ? 'Save Changes' : 'Upload Template')}
           </Button>
         </DialogActions>
       </Dialog>

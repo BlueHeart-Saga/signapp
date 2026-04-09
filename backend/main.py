@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from routes import email_service, recipient_documents, recipient_history, recipient_otp, subscription
-from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, template_generator, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, aidoc, summary
+from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, template_generator, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, aidoc, summary, ai_workflow_builder
 from fastapi.staticfiles import StaticFiles
 
 @asynccontextmanager
@@ -83,8 +83,7 @@ app.include_router(aidoc.router)
 
 
 app.include_router(template_generator.router)
-app.include_router(ai_template_builder.router)
-# app.include_router(AIDocumentBuilder.router)
+app.include_router(ai_workflow_builder.router)
 app.include_router(recipients.router)
 app.include_router(email_service.router)
 app.include_router(audit.router)

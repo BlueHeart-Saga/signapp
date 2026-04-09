@@ -196,6 +196,21 @@ class TemplateAPIService {
     return await response.json();
   }
 
+  static async generateAIWorkflow(data) {
+    const response = await fetch(`${API_BASE_URL}/api/ai/workflow/generate`, {
+      method: 'POST',
+      headers: await this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Workflow generation failed');
+    }
+
+    return await response.json();
+  }
+
   static async analyzeDocument(file) {
     const formData = new FormData();
     formData.append('file', file);
@@ -1777,7 +1792,7 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '90vh' }}>
         <AppBar position="static" color="default" elevation={1}>
           <Toolbar>
             <IconButton edge="start" sx={{ mr: 2 }} onClick={onBack}>
@@ -2075,6 +2090,78 @@ const TemplateBuilder = ({ template, onSave, onBack }) => {
 };
 
 // ============================================
+// Constants and Suggestions
+// ============================================
+
+const PROMPT_SUGGESTIONS = [
+  {
+    category: "Employment & HR", prompts: [
+      "Full-time Employment Contract with salary, benefits, and termination clauses.",
+      "Mutual Non-Disclosure Agreement (NDA) for business partnership exploration.",
+      "Independent Contractor Agreement for a freelance developer with IP clauses.",
+      "Job Offer Letter including base salary, stock options, and start date.",
+      "Employee Resignation Letter with notice period and hand-over details.",
+      "Work for Hire Agreement for creative assets ownership.",
+      "Employee Handbook with conduct, leave, and safety policies.",
+      "Formal Warning Letter for performance or conduct issues.",
+      "Internship Agreement including learning goals and stipend details.",
+      "Mutual Separation Agreement with severance package terms."
+    ]
+  },
+  {
+    category: "Real Estate & Lease", prompts: [
+      "Residential Lease Agreement with security deposit and pet policies.",
+      "Commercial Lease Agreement for retail space in a shopping mall.",
+      "Property Management Agreement between homeowner and agency.",
+      "Sublet Agreement for a residential apartment unit.",
+      "Notice to Quit or Eviction Notice for late rent payments.",
+      "Quitclaim Deed for property transfer as a family gift.",
+      "Residential Rental Application with credit check authorization.",
+      "Real Estate Purchase Agreement for a single-family home.",
+      "Storage Unit Rental Agreement with liability limitations.",
+      "Parking Space Lease Agreement for a dedicated spot."
+    ]
+  },
+  {
+    category: "Business & Sales", prompts: [
+      "Service Level Agreement (SLA) with uptime and support guarantees.",
+      "Sales Agreement for commercial equipment with warranty and delivery.",
+      "Loan Agreement between individuals with fixed interest rates.",
+      "Consulting Agreement for strategy services and liability terms.",
+      "Partnership Agreement describing capital and profit sharing.",
+      "Software Licensing Agreement for internal corporate use.",
+      "Website Development Agreement with milestones and payments.",
+      "Privacy Policy for e-commerce compliant with GDPR and CCPA.",
+      "Generic Release of Liability waiver for recreational activities.",
+      "Marketing Agency Agreement for social media management.",
+      "Board of Directors Resolution for bank account opening.",
+      "Power of Attorney for legal and financial matters.",
+      "Promissory Note for personal loans with repayment dates.",
+      "Equipment Rental Agreement for heavy machinery including insurance.",
+      "Joint Venture Agreement for a real estate development project.",
+      "Bill of Sale for a motor vehicle including VIN and title.",
+      "Cease and Desist letter for copyright infringement.",
+      "Vendor Service Agreement for event catering services.",
+      "Affidatvid of Residency for legal address verification.",
+      "Legal Retainer Agreement for professional accounting services.",
+      "Terms of Service agreement for a SaaS product.",
+      "Gift Deed for non-consideration property transfer.",
+      "Professional Quotation or Proposal for architectural design.",
+      "Purchase Order (PO) with itemized lists and delivery terms.",
+      "Content License Agreement for professional photography.",
+      "Letter of Intent (LOI) for a business acquisition.",
+      "Incident Report form for workplace safety emergencies.",
+      "Scholarship Application with academic history and essays.",
+      "Stock Option Grant Agreement for startup employees.",
+      "Logistics and Transport agreement for regular shipping.",
+      "Sponsorship Agreement for community events.",
+      "Demand Letter for unpaid professional service invoices.",
+      "Board Meeting Minutes template with motions and actions."
+    ]
+  }
+];
+
+// ============================================
 // AI Template Generator Component (Simplified)
 // ============================================
 
@@ -2082,22 +2169,31 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [promptsDialogOpen, setPromptsDialogOpen] = useState(false);
+
+  const navigate = useNavigate();
 
   const generateTemplate = async () => {
     if (!description.trim()) return;
 
     setLoading(true);
+    setError(null);
     try {
       const requestData = {
-        description,
-        template_type: 'contract',
-        document_style: 'modern',
-        language: 'en',
-        tone: 'professional'
+        prompt: description,
+        document_type: 'Contract', // Could be dynamic
+        language: 'English',
+        country: 'India'
       };
 
-      const response = await TemplateAPIService.generateAITemplate(requestData);
-      onTemplateGenerated(response);
+      const response = await TemplateAPIService.generateAIWorkflow(requestData);
+      
+      if (response.success && response.document_id) {
+        // Professional flow: Redirect directly to the document builder
+        navigate(`/builder/${response.document_id}`);
+      } else {
+        throw new Error(response.message || 'Workflow generation failed');
+      }
     } catch (error) {
       console.error('Generation failed:', error);
       setError(error.message || 'Generation failed. Please try again.');
@@ -2107,46 +2203,292 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
   };
 
   return (
-    <Box sx={{ maxWidth: 800, margin: '0 auto', p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-        <IconButton onClick={onBack} sx={{ mr: 2 }}>
-          <BackIcon />
-        </IconButton>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <AIIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-          <Typography variant="h5">AI Template Generator</Typography>
-        </Box>
-      </Box>
+    <Box sx={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      px: 3,
+      background: 'radial-gradient(circle at 50% 50%, #f8faff 0%, #ffffff 100%)',
+      position: 'relative'
+    }}>
+      {/* Back button positioned floating top-left */}
+      <IconButton
+        onClick={onBack}
+        sx={{
+          position: 'absolute',
+          top: 24,
+          left: 24,
+          bgcolor: 'white',
+          boxShadow: 1,
+          '&:hover': { bgcolor: '#f5f5f5' }
+        }}
+      >
+        <BackIcon />
+      </IconButton>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            <AlertTitle>Generation Failed</AlertTitle>
+      {/* Hero Section */}
+      <Fade in={true} timeout={800}>
+        <Box sx={{ mb: 6, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{
+            width: 64,
+            height: 64,
+            borderRadius: '18px',
+            bgcolor: alpha('#0d9488', 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3
+          }}>
+            <AutoAwesomeIcon sx={{ fontSize: 32, color: '#0d9488' }} />
+          </Box>
+          <Typography variant="h3" fontWeight="800" sx={{
+            color: '#1a1a1a',
+            mb: 2,
+            letterSpacing: '-0.5px',
+            background: 'linear-gradient(45deg, #1a1a1a 30%, #4a4a4a 90%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            AI Template Assistant
+          </Typography>
+          <Typography variant="body1" sx={{ color: '#666', maxWidth: 540, lineHeight: 1.6, fontSize: '1.1rem' }}>
+            Transform your document ideas into professional templates instantly.
+            Just describe what you need, and I'll handle the rest.
+          </Typography>
+        </Box>
+      </Fade>
+
+      {/* Gemini Style Input Box */}
+      <Grow in={true} timeout={1000}>
+        <Box sx={{ width: '100%', maxWidth: 760, position: 'relative' }}>
+          <Paper elevation={0} sx={{
+            p: '8px',
+            borderRadius: '28px',
+            border: '1px solid #e0e0e0',
+            bgcolor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+            '&:focus-within': {
+              borderColor: '#0d9488',
+              boxShadow: '0 8px 32px rgba(13, 148, 136, 0.12)',
+              transform: 'translateY(-2px)'
+            }
+          }}>
+            <TextField
+              fullWidth
+              multiline
+              rows={Math.max(2, description.split('\n').length)}
+              placeholder="How can I help you create a document today?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              variant="standard"
+              disabled={loading}
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  px: 3.5,
+                  py: 2.5,
+                  fontSize: '1.15rem',
+                  color: '#1a1a1a',
+                  '& textarea': {
+                    scrollbarWidth: 'none',
+                    '&::-webkit-scrollbar': { display: 'none' }
+                  }
+                }
+              }}
+            />
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              px: 2,
+              pb: 1.5,
+              pt: 0.5
+            }}>
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                {/* <Tooltip title="Coming Soon: Templates Library">
+                  <IconButton size="small" sx={{ color: '#666' }}>
+                    <DescriptionIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip> */}
+                <Tooltip title="Example Prompts">
+                  <IconButton
+                    size="small"
+                    sx={{ color: '#666' }}
+                    onClick={() => setPromptsDialogOpen(true)}
+                  >
+                    <EmojiObjectsIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {loading && (
+                  <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 500 }}>
+                    Processing Request...
+                  </Typography>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={generateTemplate}
+                  disabled={loading || !description.trim()}
+                  sx={{
+                    borderRadius: '22px',
+                    px: 4,
+                    py: 1.2,
+                    bgcolor: '#0d9488',
+                    textTransform: 'none',
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)',
+                    '&:hover': {
+                      bgcolor: '#0f766e',
+                      boxShadow: '0 6px 16px rgba(13, 148, 136, 0.3)'
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: '#f5f5f5',
+                      color: '#999'
+                    }
+                  }}
+                  startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <AutoAwesomeIcon size="small" />}
+                >
+                  {loading ? 'Thinking...' : 'Generate'}
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Prompt Suggestions */}
+          {!description && !loading && (
+            <Fade in={true} timeout={1200}>
+              <Box sx={{ mt: 4, display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {[
+                  'Employment Contract',
+                  'Non-Disclosure Agreement',
+                  'Service Level Agreement',
+                  'Rental Agreement'
+                ].map((prompt) => (
+                  <Chip
+                    key={prompt}
+                    label={prompt}
+                    onClick={() => setDescription(`Create a professional ${prompt.toLowerCase()} template with standard clauses and signature fields.`)}
+                    sx={{
+                      bgcolor: 'white',
+                      border: '1px solid #e0e0e0',
+                      '&:hover': { bgcolor: '#f5faff', borderColor: '#0d9488', color: '#0d9488' },
+                      transition: 'all 0.2s',
+                      fontWeight: 500,
+                      cursor: 'pointer'
+                    }}
+                  />
+                ))}
+              </Box>
+            </Fade>
+          )}
+        </Box>
+      </Grow>
+
+      {/* Error Alert Overlay */}
+      {error && (
+        <Zoom in={true}>
+          <Alert
+            severity="error"
+            sx={{
+              position: 'fixed',
+              bottom: 40,
+              borderRadius: 3,
+              boxShadow: 3,
+              minWidth: 300
+            }}
+            onClose={() => setError(null)}
+          >
+            <AlertTitle>Error</AlertTitle>
             {error}
           </Alert>
-        )}
-        <Typography variant="h6" gutterBottom>Describe Your Template</Typography>
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          placeholder="Describe the document template you want to create..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          sx={{ mb: 3 }}
-        />
+        </Zoom>
+      )}
 
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={loading ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
-          onClick={generateTemplate}
-          disabled={loading || !description.trim()}
-          fullWidth
-        >
-          {loading ? 'Generating...' : 'Generate Template'}
-        </Button>
-      </Paper>
+      {/* Example Prompts Dialog */}
+      <Dialog
+        open={promptsDialogOpen}
+        onClose={() => setPromptsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4, maxHeight: '80vh' }
+        }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid #f0f0f0',
+          pb: 2
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <AutoAwesomeIcon sx={{ color: '#0d9488' }} />
+            <Typography variant="h6" fontWeight="700">Explore AI Prompts</Typography>
+          </Box>
+          <IconButton onClick={() => setPromptsDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, bgcolor: '#fafafa' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            Choose a professional prompt below to help our AI generate the perfect template for your needs.
+          </Typography>
+
+          <Grid container spacing={3}>
+            {PROMPT_SUGGESTIONS.map((category) => (
+              <Grid item xs={12} key={category.category}>
+                <Typography variant="overline" sx={{ color: '#0d9488', fontWeight: 800, letterSpacing: 1.2 }}>
+                  {category.category}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                  {category.prompts.map((prompt) => (
+                    <Chip
+                      key={prompt}
+                      label={prompt}
+                      onClick={() => {
+                        setDescription(`Create a professional ${prompt.toLowerCase()} including all necessary legal clauses, placeholders, and signature fields.`);
+                        setPromptsDialogOpen(false);
+                      }}
+                      sx={{
+                        bgcolor: 'white',
+                        border: '1px solid #e0e0e0',
+                        py: 2.5,
+                        '&:hover': {
+                          bgcolor: alpha('#0d9488', 0.04),
+                          borderColor: '#0d9488',
+                          color: '#0d9488',
+                          transform: 'translateY(-2px)'
+                        },
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: '1px solid #f0f0f0' }}>
+          <Button
+            onClick={() => setPromptsDialogOpen(false)}
+            sx={{ color: '#666', fontWeight: 600 }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
