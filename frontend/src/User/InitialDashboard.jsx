@@ -325,6 +325,21 @@ body {
 const InitialDashboard = () => {
   const navigate = useNavigate();
 
+  // Helper to get last date of current month
+  const getLastDateOfCurrentMonth = () => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      day: lastDay.getDate(),
+      monthName: lastDay.toLocaleString('default', { month: 'long' }),
+      monthNum: String(lastDay.getMonth() + 1).padStart(2, '0'),
+      year: lastDay.getFullYear(),
+      shortYear: String(lastDay.getFullYear()).slice(-2)
+    };
+  };
+
+  const promoExpiry = getLastDateOfCurrentMonth();
+
   const [banners, setBanners] = useState([]);
   const [activeBanner, setActiveBanner] = useState(0);
   const [pauseBanner, setPauseBanner] = useState(false);
@@ -520,9 +535,9 @@ const InitialDashboard = () => {
                 <Gift size={36} strokeWidth={2} />
               </div>
               <div className="ss-init-promo-text">
-                <h3>Ends 31 December! Buy now and Save 20%</h3>
+                <h3>Ends {promoExpiry.day} {promoExpiry.monthName}! Buy now and Save 20%</h3>
                 <div className="ss-init-promo-details">
-                  <span>Offer expires: 31/12/21</span>
+                  <span>Offer expires: {promoExpiry.day}/{promoExpiry.monthNum}/{promoExpiry.shortYear}</span>
                   <span>|</span>
                   <span>Promo Code: <span className="ss-init-promo-code">WFH20</span></span>
                 </div>
