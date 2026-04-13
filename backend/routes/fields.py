@@ -42,17 +42,10 @@ UNIVERSAL_FIELDS = {
 
 ROLE_FIELD_RULES = {
     "signer": "ALL",
-    "in_person_signer": {
-        FieldType.signature.value,
-        FieldType.initials.value,
-        *UNIVERSAL_FIELDS,
-    },
+    "in_person_signer": "ALL", # Match frontend flexibility
     "witness": "ALL",
-    "approver": {
-        FieldType.approval.value,
-        *UNIVERSAL_FIELDS,
-    },
-    "form_filler": UNIVERSAL_FIELDS,
+    "approver": "ALL",
+    "form_filler": "ALL", # 🔥 FIX: Match frontend 'ALL'
     "viewer": set(),
 }
 
@@ -389,13 +382,14 @@ def normalize_field_value(field: Dict[str, Any]) -> Any:
     elif field_type == "textbox":
         # Text field
         if isinstance(value, dict):
-            return value.get("text", "")
+            return value.get("value") or value.get("text", "")
         return str(value)
     
     elif field_type == "checkbox":
         # Checkbox (checked/unchecked)
         if isinstance(value, dict):
-            return value.get("checked", False)
+            # Check for 'checked' (old) or 'value' (new)
+            return value.get("value") if "value" in value else value.get("checked", False)
         elif isinstance(value, bool):
             return value
         elif isinstance(value, str):
@@ -405,25 +399,28 @@ def normalize_field_value(field: Dict[str, Any]) -> Any:
     elif field_type == "radio":
         # Radio button (selected option)
         if isinstance(value, dict):
-            return value.get("selected", "")
+            # Check for 'value' (new) or 'selected' (old)
+            return value.get("value") or value.get("selected") or ""
         return str(value)
     
     elif field_type == "dropdown":
         # Dropdown (selected option)
         if isinstance(value, dict):
-            return value.get("selected", "")
+            # Check for 'value' (new) or 'selected' (old)
+            return value.get("value") or value.get("selected") or ""
         return str(value)
     
     elif field_type == "attachment":
         # Attachment field (filename)
         if isinstance(value, dict):
-            return value.get("filename", "")
+            return value.get("value") or value.get("filename", "")
         return str(value)
     
     elif field_type == "approval":
         # Approval field (checkbox style)
         if isinstance(value, dict):
-            return value.get("value", value.get("approved", False))
+            # Check for 'value', 'approved', or 'checked'
+            return value.get("value") or value.get("approved") or value.get("checked", False)
         elif isinstance(value, bool):
             return value
         elif isinstance(value, str):
@@ -432,16 +429,19 @@ def normalize_field_value(field: Dict[str, Any]) -> Any:
     
     elif field_type == "witness_signature":
         # Witness signature (image)
-        if isinstance(value, dict) and value.get("image"):
-            return {"type": "image", "data": value["image"]}
+        if isinstance(value, dict) and (value.get("image") or value.get("value")):
+            return {"type": "image", "data": value.get("image") or value.get("value")}
         elif isinstance(value, str) and value.startswith("data:image"):
             return {"type": "image", "data": value}
         return ""
     
     elif field_type == "stamp":
         # Stamp (image)
-        if isinstance(value, dict) and value.get("image"):
-            return {"type": "image", "data": value["image"]}
+        if isinstance(value, dict) and (value.get("image") or value.get("value")):
+            img_data = value.get("image") or value.get("value")
+            if isinstance(img_data, str) and img_data.startswith("data:image"):
+                return {"type": "image", "data": img_data}
+            return value # Return full dict for specialized stamp rendering if needed
         elif isinstance(value, str) and value.startswith("data:image"):
             return {"type": "image", "data": value}
         return ""
@@ -561,7 +561,7 @@ def validate_field_role(recipient_role: str, field_type: str):
     
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"{recipient_role} cannot have {field_type} field"
+        detail=f"Authorization Error: Role '{recipient_role}' is not allowed to use field type '{field_type}'"
     )
 
 def validate_field_coordinates(x: float, y: float, width: float, height: float):
@@ -682,6 +682,7 @@ async def add_or_replace_fields(
     document = get_document_or_404(document_id, current_user["id"])
     
     # Debug logging
+    print(f"📄 Document {document_id} status: {document.get('status')}")
     print(f"📄 Document has {document.get('page_count', 1)} pages total")
     
     for i, f in enumerate(fields):
@@ -750,7 +751,7 @@ async def add_or_replace_fields(
                 "pdf_height": pdf_coords["height"],
                 
                 # Type-specific fields
-                "dropdown_options": f.dropdown_options if f.type == FieldType.dropdown else None,
+                "dropdown_options": f.dropdown_options if f.type in [FieldType.dropdown, FieldType.radio] else None,
                 "email_validation": f.email_validation if f.type == FieldType.mail else None,
                 "checked": f.checked if f.type in [FieldType.checkbox, FieldType.radio] else None,
                 "group_name": f.group_name if f.type == FieldType.radio else None,

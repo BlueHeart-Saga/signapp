@@ -182,7 +182,7 @@ const DocumentWorkArea = ({
     // 1. Calculate base relative position from stage top
     // Stage starts at (0, 0) which is at the top of the very first page header.
     const relativeX = (dropX - stageRect.left) / zoomLevel;
-    const relativeY = (dropY - stageRect.top + scrollTop) / zoomLevel;
+    const relativeY = (dropY - stageRect.top) / zoomLevel;
 
     // identitfy current canvas dimensions
     const baseHeight = canvasHeight || BASE_HEIGHT;

@@ -34,7 +34,9 @@ import {
   FiEye,
   FiEdit,
   FiMail,
-  FiMoreHorizontal
+  FiMoreHorizontal,
+  FiXCircle,
+  FiCalendar
 } from "react-icons/fi";
 import { HiOutlineDocumentCheck } from "react-icons/hi2";
 import DocumentViewerModal from "../components/DocumentViewerModal";
@@ -55,6 +57,7 @@ import {
 import SummaryHeaderActions from "../components/SummaryHeaderActions";
 import RecipientStatusBar from "../components/RecipientStatusBar";
 import DocumentStatusDashboard from '../components/DocumentStatusDashboard';
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const statusConfig = {
   draft: {
@@ -158,6 +161,50 @@ const DocumentSummary = () => {
   const [timelineDrawerOpen, setTimelineDrawerOpen] = useState(false);
   const [showOwnerDownloads, setShowOwnerDownloads] = useState(false);
 
+  // Professional Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+    onConfirm: () => { },
+    danger: false,
+    showCancel: true,
+    loading: false
+  });
+
+  const showConfirm = (options) => {
+    setConfirmDialog({
+      open: true,
+      title: options.title || "Confirm Action",
+      message: options.message || "Are you sure you want to proceed?",
+      confirmText: options.confirmText || "Confirm",
+      cancelText: options.cancelText || "Cancel",
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, loading: true }));
+        await options.onConfirm();
+        setConfirmDialog(prev => ({ ...prev, open: false, loading: false }));
+      },
+      danger: options.danger || false,
+      showCancel: options.showCancel !== undefined ? options.showCancel : true,
+      loading: false
+    });
+  };
+
+  const showAlert = (title, message, severity = 'info') => {
+    setConfirmDialog({
+      open: true,
+      title: title,
+      message: message,
+      confirmText: "OK",
+      onConfirm: () => setConfirmDialog(prev => ({ ...prev, open: false })),
+      showCancel: false,
+      danger: severity === 'error',
+      loading: false
+    });
+  };
+
   useEffect(() => {
     fetchDocumentSummary();
   }, [documentId]);
@@ -231,7 +278,7 @@ const DocumentSummary = () => {
       document.body.removeChild(downloadLink);
     } catch (err) {
       console.error(`Download error for ${format}:`, err);
-      alert(`Failed to download ${format.toUpperCase()} report`);
+      showAlert("Download Error", `Failed to download ${format.toUpperCase()} report`, "error");
     } finally {
       setDownloadInProgress('');
     }
@@ -310,15 +357,77 @@ const DocumentSummary = () => {
 
           <button
             className="doc-header-action"
-            onClick={() =>
-              navigate(`/user/prepare-send/${documentId}`, {
-                state: { document: docData }
-              })
-            }
-            disabled={!docData || docData?.status !== "draft"}
+            onClick={() => {
+              showConfirm({
+                title: "Send Reminders",
+                message: "Send email reminders to all recipients who haven't completed the document yet?",
+                confirmText: "Send Reminders",
+                onConfirm: async () => {
+                  try {
+                    await api.post(`/documents/${documentId}/remind-all`);
+                    showAlert("Success", "Reminders have been queued for all pending recipients.");
+                    fetchDocumentSummary();
+                  } catch (err) {
+                    showAlert("Error", "Failed to send reminders: " + (err.response?.data?.detail || err.message), "error");
+                  }
+                }
+              });
+            }}
+            disabled={!docData || !["sent", "in_progress"].includes(docData.status)}
           >
-            <FiEdit size={16} />
-            <span>Edit</span>
+            <FiMail size={16} />
+            <span>Remind all</span>
+          </button>
+
+          <button
+            className="doc-header-action"
+            onClick={() => {
+              showConfirm({
+                title: "Expire Document",
+                message: "Are you sure you want to immediately expire this document? This will prevent any further signing.",
+                confirmText: "Expire Now",
+                danger: true,
+                onConfirm: async () => {
+                  try {
+                    await api.post(`/documents/${documentId}/expire-now`);
+                    showAlert("Expired", "Document has been successfully expired.");
+                    fetchDocumentSummary();
+                  } catch (err) {
+                    showAlert("Error", "Failed to expire document: " + (err.response?.data?.detail || err.message), "error");
+                  }
+                }
+              });
+            }}
+            disabled={!docData || !["sent", "in_progress"].includes(docData.status)}
+          >
+            <FiXCircle size={16} />
+            <span>Expire</span>
+          </button>
+
+          <button
+            className="doc-header-action"
+            onClick={() => {
+              // For extend expiry, let's use a standard 7 day extension for simplicity in this dialog
+              // or we could add a specialized dialog later.
+              showConfirm({
+                title: "Extend Expiry",
+                message: "Extend the document expiry by 7 days?",
+                confirmText: "Extend",
+                onConfirm: async () => {
+                  try {
+                    await api.post(`/documents/${documentId}/extend-expiry`, { days: 7 });
+                    showAlert("Success", "Document expiry extended by 7 days.");
+                    fetchDocumentSummary();
+                  } catch (err) {
+                    showAlert("Error", "Failed to extend expiry: " + (err.response?.data?.detail || err.message), "error");
+                  }
+                }
+              });
+            }}
+            disabled={!docData || !["sent", "in_progress", "expired"].includes(docData.status)}
+          >
+            <FiCalendar size={16} />
+            <span>Extend expiry</span>
           </button>
         </div>
 
@@ -650,6 +759,20 @@ const DocumentSummary = () => {
           documentName={docData?.filename}
         />
       )}
+
+      {/* Professional Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        danger={confirmDialog.danger}
+        loading={confirmDialog.loading}
+        showCancel={confirmDialog.showCancel}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

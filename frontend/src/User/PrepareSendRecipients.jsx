@@ -591,6 +591,34 @@ export default function PrepareSendRecipients() {
     loadContacts();
   }, []);
 
+  // Set default expiry/reminder from user settings if document doesn't have them
+  useEffect(() => {
+    if (currentUser && document) {
+      // Use document value if it exists (even if it's 0), otherwise use user default
+      const finalExpiry = (document.expiry_days !== null && document.expiry_days !== undefined)
+        ? document.expiry_days
+        : (currentUser.expiry_days || 0);
+
+      const finalReminder = (document.reminder_period !== null && document.reminder_period !== undefined)
+        ? document.reminder_period
+        : (currentUser.reminder_days || 0);
+
+      setExpiryDays(finalExpiry);
+      setReminderPeriod(finalReminder);
+
+      // Check if they are custom (not in dropdown lists)
+      const standardExpiry = [0, 2, 5, 7, 10, 30, 365];
+      const standardReminder = [0, 1, 2, 5, 7, 10, 14, 30];
+
+      if (finalExpiry > 0 && !standardExpiry.includes(finalExpiry)) {
+        setIsCustomExpiry(true);
+      }
+      if (finalReminder > 0 && !standardReminder.includes(finalReminder)) {
+        setIsCustomReminder(true);
+      }
+    }
+  }, [currentUser, document]);
+
   useEffect(() => {
     const close = () => setActiveContactIndex(null);
     window.addEventListener("click", close);
@@ -1498,17 +1526,7 @@ export default function PrepareSendRecipients() {
       await saveDocumentSettings();
 
       await loadRecipients();
-      // Save signing order setting to document
-      await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({
-          signing_order_enabled: signingOrderEnabled
-        })
-      });
+
 
       navigate(`/user/documentbuilder/${document.id}`);
 

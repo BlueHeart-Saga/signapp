@@ -43,5 +43,10 @@ class FileSystemStorage(StorageProvider):
         return False
     
     def get_url(self, file_identifier: str) -> str:
-        # For local development, you might serve files via a static route
-        return f"/static/uploads/{file_identifier}"
+        # Prepend BACKEND_URL for absolute links in PDFs
+        safe_id = file_identifier.replace('\\', '/')
+        try:
+            from config import BACKEND_URL
+            return f"{BACKEND_URL}/static/uploads/{safe_id}"
+        except ImportError:
+            return f"/static/uploads/{safe_id}"

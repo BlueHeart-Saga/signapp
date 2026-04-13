@@ -10,6 +10,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
   loading = false,
+  showCancel = true,
 }) {
   if (!open) return null;
 
@@ -76,21 +77,23 @@ export default function ConfirmDialog({
             gap: "10px",
           }}
         >
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            style={{
-              padding: "8px 14px",
-              borderRadius: "8px",
-              border: `1px solid ${colors.border}`,
-              background: "#fff",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {cancelText}
-          </button>
+          {showCancel && (
+            <button
+              onClick={onCancel}
+              disabled={loading}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "8px",
+                border: `1px solid ${colors.border}`,
+                background: "#fff",
+                cursor: loading ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              {cancelText}
+            </button>
+          )}
 
           <button
             onClick={onConfirm}

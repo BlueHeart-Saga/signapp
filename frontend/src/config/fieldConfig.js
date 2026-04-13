@@ -189,9 +189,9 @@ export const FIELD_ROLES = {
 // Role field rules matching backend
 export const ROLE_FIELD_RULES = {
   signer: 'ALL',
-  in_person_signer: ['signature', 'initials', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
+  in_person_signer: 'ALL',
   witness: 'ALL',
-  approver: ['approval', 'date', 'textbox', 'checkbox', 'radio', 'dropdown', 'attachment', 'mail'],
+  approver: 'ALL',
   form_filler: 'ALL',
   viewer: []
 };

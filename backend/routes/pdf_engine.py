@@ -243,7 +243,7 @@ class PDFEngine:
     @staticmethod
     def _apply_signature_field(page, rect, value, field):
         """Apply signature image - no border for completed fields."""
-        is_completed = field.get("_render_completed", False)
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
         # 🚫 CRITICAL: If field is completed, just insert the image without any borders/background
         if is_completed and value:
@@ -584,8 +584,26 @@ class PDFEngine:
         if not display_text:
             return
         
-        # Calculate font size
-        font_size = field.get("font_size", 12)
+        # Calculate font size - check value first, then field
+        custom_font_size = None
+        custom_font_family = "Helvetica"
+        custom_text_color = (0, 0, 0)
+
+        if isinstance(value, dict):
+            custom_font_size = value.get("font_size")
+            custom_font_family = value.get("font_family", "Helvetica")
+            color_hex = value.get("font_color")
+            if color_hex and color_hex.startswith("#"):
+                try:
+                    c = color_hex.lstrip("#")
+                    r = int(c[0:2], 16) / 255
+                    g = int(c[2:4], 16) / 255
+                    b = int(c[4:6], 16) / 255
+                    custom_text_color = (r, g, b)
+                except:
+                    pass
+
+        font_size = custom_font_size or field.get("font_size", 12)
         max_font = min(font_size, rect.height * 0.8)
         
         # Truncate if too long
@@ -593,14 +611,14 @@ class PDFEngine:
         if len(display_text) > max_chars:
             display_text = display_text[:max_chars-3] + "..."
         
-        print(f"[PDFEngine] Inserting text: '{display_text}' with color {text_color}")  # Debug log
+        print(f"[PDFEngine] Inserting text: '{display_text}' with color {custom_text_color if show_as_value else text_color}")  # Debug log
         
         page.insert_textbox(
             rect,
             display_text,
             fontsize=max_font,
-            fontname="Helvetica",
-            color=text_color,
+            fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
+            color=custom_text_color if show_as_value else text_color,
             align=0,  # Left align
             overlay=True
         )
@@ -653,14 +671,17 @@ class PDFEngine:
         if isinstance(value, bool):
             checked = value
         elif isinstance(value, dict):
-            checked = value.get("checked", False)
+            # Support both 'value' and 'checked' keys
+            checked = value.get("value") if "value" in value else value.get("checked", False)
+            if isinstance(checked, str):
+                checked = checked.lower() in ["true", "yes", "checked", "1", "✓", "✔", "on"]
         elif isinstance(value, str):
             checked = value.lower() in ["true", "yes", "checked", "1", "✓", "✔", "on"]
         elif value is not None:
             # Any non-None value means checked
             checked = True
         
-        is_completed = field.get("_render_completed", False)
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
         # COMPLETED FIELD
         if is_completed:
@@ -758,23 +779,45 @@ class PDFEngine:
     
     @staticmethod
     def _apply_radio_field(page, rect, value, field):
-        selected = False
+        selected_val = ""
+        is_selected_bool = False
 
         if isinstance(value, dict):
-            selected = (
-                value.get("selected") is True or
-                value.get("value") is True or
-                bool(value.get("selected", "")) or
-                bool(value.get("value", ""))
-            )
+            val = value.get("value")
+            if isinstance(val, bool):
+                is_selected_bool = val
+            elif isinstance(val, str):
+                selected_val = val
+                is_selected_bool = bool(val)
         elif isinstance(value, bool):
-            selected = value
+            is_selected_bool = value
         elif isinstance(value, str):
-            selected = value.lower() in ["true", "yes", "1", "checked"]
+            selected_val = value
+            is_selected_bool = value.lower() in ["true", "yes", "1", "checked"]
 
         is_completed = field.get("_render_completed", False)
+        options = field.get("dropdown_options", [])
 
-        # Draw outer circle ONLY if not completed
+        # If it has options OR it's a descriptive string, render as text
+        if options or (selected_val and selected_val.lower() not in ["true", "yes", "1", "checked", "false", "no", "0", "unchecked"]):
+            # Render like a dropdown but without arrow
+            display_text = selected_val
+            if not display_text and not is_completed:
+                display_text = field.get("placeholder") or (options[0] if options else "Select")
+            
+            if display_text:
+                page.insert_textbox(
+                    rect,
+                    display_text,
+                    fontsize=min(12, rect.height * 0.7),
+                    fontname="Helvetica",
+                    color=(0, 0, 0) if selected_val else (0.5, 0.5, 0.5),
+                    align=0,
+                    overlay=True
+                )
+            return
+
+        # Default: Draw circle (boolean style)
         if not is_completed:
             radius = min(rect.width, rect.height) / 2
             cx = rect.x0 + rect.width / 2
@@ -789,7 +832,7 @@ class PDFEngine:
             )
 
         # Draw filled dot if selected
-        if selected:
+        if is_selected_bool:
             radius = min(rect.width, rect.height) / 2
             cx = rect.x0 + rect.width / 2
             cy = rect.y0 + rect.height / 2
@@ -808,7 +851,7 @@ class PDFEngine:
     def _apply_dropdown_field(page, rect, value, field):
         """Apply dropdown field with proper completed / placeholder logic."""
         
-        is_completed = field.get("_render_completed", False)
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
 
         selected_text = ""
 
@@ -824,22 +867,22 @@ class PDFEngine:
         options = field.get("dropdown_options", [])
 
         # ---------------------------------
-        # ✅ COMPLETED FIELD
+        # ✅ COMPLETED FIELD - DESIGN: NO box, NO arrow
         # ---------------------------------
-        if is_completed:
-            if not selected_text:
-                return  # Completed but empty → render nothing
-
-            page.insert_textbox(
-                rect,
+        if is_completed and selected_text:
+            font_size = min(11, rect.height * 0.75)
+            # Center vertically
+            text_y = rect.y0 + (rect.height + font_size) / 2 - 2
+            
+            page.insert_text(
+                fitz.Point(rect.x0 + 2, text_y),
                 selected_text,
-                fontsize=min(12, rect.height * 0.7),
+                fontsize=font_size,
                 fontname="Helvetica",
                 color=(0, 0, 0),
-                align=0,
                 overlay=True
             )
-            return  # 🚫 NO border, NO arrow
+            return  # 🚫 NO border, NO arrow for completed fields
 
         # ---------------------------------
         # 🟡 INCOMPLETE / PREVIEW FIELD
@@ -899,67 +942,84 @@ class PDFEngine:
     
     @staticmethod
     def _apply_attachment_field(page, rect, value, field):
-        """Apply attachment field indicator."""
+        """
+        Apply attachment field as a simple clickable text link.
+        NO border, NO box - just the filename.
+        """
         filename = ""
+        url = ""
         
         if isinstance(value, dict):
-            filename = value.get("filename", "")
+            filename = value.get("filename") or value.get("value", "")
+            url = value.get("url", "")
         elif isinstance(value, str):
             filename = value
         
-        # Draw attachment icon (paperclip)
-        page.draw_rect(
-            rect,
-            color=(0, 0, 0.8),
-            width=1,
-            fill=(0.9, 0.9, 1),
-            overlay=True
+        # If no filename, but it's completed, show a default
+        if not filename:
+            filename = "Attached File"
+
+        # Show filename as a clickable link
+        # Truncate filename if too long for the field box
+        display_name = filename
+        if len(display_name) > 35:
+            display_name = display_name[:32] + "..."
+            
+        # Font size based on field height
+        font_size = min(10, rect.height * 0.7)
+        
+        # Link Blue color
+        link_color = (0, 0, 1) 
+        
+        # Insert text (with a small clip icon prefix)
+        text_to_insert = f"{display_name}"
+        
+        # Calculate text position (aligned to bottom of vertical center)
+        text_point = fitz.Point(
+            rect.x0 + 2,
+            rect.y0 + (rect.height + font_size) / 2 - 1
         )
         
-        # Draw paperclip-like shape
-        clip_height = rect.height * 0.6
-        clip_width = rect.width * 0.4
-        
-        # Paperclip curves (simplified)
-        points = [
-            fitz.Point(rect.x0 + rect.width * 0.3, rect.y0 + rect.height * 0.3),
-            fitz.Point(rect.x0 + rect.width * 0.7, rect.y0 + rect.height * 0.3),
-            fitz.Point(rect.x0 + rect.width * 0.7, rect.y0 + rect.height * 0.7),
-            fitz.Point(rect.x0 + rect.width * 0.3, rect.y0 + rect.height * 0.7),
-            fitz.Point(rect.x0 + rect.width * 0.3, rect.y0 + rect.height * 0.3),
-        ]
-        
-        for i in range(len(points) - 1):
+        page.insert_text(
+            text_point,
+            text_to_insert,
+            fontsize=font_size,
+            fontname="Helvetica",
+            color=link_color,
+            overlay=True
+        )
+
+        # Draw real underline to look like a link
+        try:
+            text_len = fitz.get_text_length(text_to_insert, fontname="Helvetica", fontsize=font_size)
             page.draw_line(
-                points[i],
-                points[i + 1],
-                color=(0, 0, 0.8),
-                width=1.5,
+                fitz.Point(text_point.x, text_point.y + 1.5),
+                fitz.Point(text_point.x + text_len, text_point.y + 1.5),
+                color=link_color,
+                width=0.8,
                 overlay=True
             )
-        
-        # Show filename if available
-        if filename:
-            text_rect = fitz.Rect(
-                rect.x0 + 5,
-                rect.y1 + 2,
-                rect.x1 - 5,
-                rect.y1 + 15
-            )
+        except:
+            pass
+
+        # ✅ INSERT CLICKABLE LINK over the entire field area
+        if url:
+            # Ensure URL is absolute for local PDF viewers
+            if url.startswith("/") and not url.startswith("//"):
+                try:
+                    from config import BACKEND_URL
+                    url = f"{BACKEND_URL.rstrip('/')}{url}"
+                except:
+                    pass
+
+            print(f"🔗 PDF Engine: Inserting hyperlink for {filename}: {url}")
             
-            # Truncate filename
-            display_name = filename
-            if len(display_name) > 20:
-                display_name = display_name[:17] + "..."
-            
-            page.insert_text(
-                text_rect.tl,  # Top-left point
-                f"📎 {display_name}",
-                fontsize=8,
-                fontname="Helvetica",
-                color=(0, 0, 0.8),
-                overlay=True
-            )
+            # Use kind=fitz.LINK_URI (2)
+            page.insert_link({
+                "from": rect,
+                "uri": url,
+                "kind": 2  # fitz.LINK_URI is 2
+            })
     
     @staticmethod
     def _apply_approval_field(page, rect, value, field):
@@ -969,7 +1029,10 @@ class PDFEngine:
         if isinstance(value, bool):
             approved = value
         elif isinstance(value, dict):
-            approved = value.get("approved", False)
+            # Support both 'value' and 'approved' keys
+            approved = value.get("value") if "value" in value else value.get("approved", False)
+            if isinstance(approved, str):
+                approved = approved.lower() in ["true", "yes", "approved", "1", "✓", "✔"]
         elif isinstance(value, str):
             approved = value.lower() in ["true", "yes", "approved", "1", "✓", "✔"]
         
@@ -985,7 +1048,8 @@ class PDFEngine:
         )
         
         # For completed fields, just show the checkmark if approved
-        if field.get("_render_completed", False):
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
+        if is_completed:
             if approved:
                 # Draw checkmark
                 check_size = checkbox_size * 0.7

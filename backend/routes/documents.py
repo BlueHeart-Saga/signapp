@@ -432,7 +432,13 @@ def serialize_document(doc):
             "viewer": viewer_count
         },
         "progress": doc.get("progress", 100),
-        "processing_status": doc.get("processing_status")
+        "processing_status": doc.get("processing_status"),
+        
+        # Document Settings (Persistence)
+        "expiry_days": doc.get("expiry_days"),
+        "reminder_period": doc.get("reminder_period"),
+        "signing_order_enabled": doc.get("signing_order_enabled"),
+        "expires_at": doc.get("expires_at").isoformat() if doc.get("expires_at") else None
     }
 
 @router.get("/{document_id}/status")
@@ -2647,7 +2653,11 @@ async def create_document_from_template(
         user_id=current_user["id"]
     )
 
-    # 6️⃣ Create document
+    # 6️⃣ Default settings from user profile
+    reminder_days = current_user.get("reminder_days", 3)
+    expiry_days = current_user.get("expiry_days", 30)
+
+    # 7️⃣ Create document
     document = {
         "filename": f"{payload.title}.pdf",
         "uploaded_at": datetime.utcnow(),
@@ -2667,7 +2677,10 @@ async def create_document_from_template(
         "signed_count": 0,
         "page_count": template.get("page_count", 1),
         "is_converted": False,
-        "common_message": "Please review and sign this document."
+        "common_message": "Please review and sign this document.",
+        "expiry_days": expiry_days,
+        "reminder_period": reminder_days,
+        "expires_at": datetime.utcnow() + timedelta(days=expiry_days)
     }
 
     result = db.documents.insert_one(document)
@@ -3018,32 +3031,39 @@ async def update_document_settings(
         # Only allow updating in draft (or maybe sent too? The user said "more settings with dropdown its open to set expire time and automatic reminder")
         # Let's allow it in draft and sent for now.
         
-        expiry_days = payload.get("expiry_days", 0)
-        reminder_period = payload.get("reminder_period", 0)
-        signing_order_enabled = payload.get("signing_order_enabled") # NEW
+        update_data = {}
         
-        update_data = {
-            "expiry_days": int(expiry_days),
-            "reminder_period": int(reminder_period)
-        }
+        # Handle expiry_days if present
+        if "expiry_days" in payload:
+            expiry_days = int(payload.get("expiry_days", 0))
+            update_data["expiry_days"] = expiry_days
+            
+            # Recalculate expires_at if document is already sent
+            if doc.get("status") in ["sent", "in_progress"]:
+                sent_at = doc.get("sent_at") or doc.get("uploaded_at")
+                if expiry_days > 0 and sent_at:
+                    update_data["expires_at"] = sent_at + timedelta(days=expiry_days)
+                else:
+                    update_data["expires_at"] = None
         
-        if signing_order_enabled is not None:
-            update_data["signing_order_enabled"] = bool(signing_order_enabled)
+        # Handle reminder_period if present
+        if "reminder_period" in payload:
+            reminder_period = int(payload.get("reminder_period", 0))
+            update_data["reminder_period"] = reminder_period
+            
+            # Recalculate next_reminder_at if document is already sent
+            if doc.get("status") in ["sent", "in_progress"]:
+                if reminder_period > 0:
+                    update_data["next_reminder_at"] = datetime.utcnow() + timedelta(days=reminder_period)
+                else:
+                    update_data["next_reminder_at"] = None
+
+        # Handle signing_order_enabled if present
+        if "signing_order_enabled" in payload:
+            update_data["signing_order_enabled"] = bool(payload["signing_order_enabled"])
         
-        # If document is already sent, recalculate expires_at/next_reminder_at
-        if doc.get("status") in ["sent", "in_progress"]:
-            sent_at = doc.get("sent_at") or doc.get("uploaded_at")
-            if expiry_days > 0:
-                update_data["expires_at"] = sent_at + timedelta(days=expiry_days)
-            else:
-                update_data["expires_at"] = None
-                
-            if reminder_period > 0:
-                # Set next reminder relative to now or last reminder? 
-                # Let's set it relative to now for immediate effect
-                update_data["next_reminder_at"] = datetime.utcnow() + timedelta(days=reminder_period)
-            else:
-                update_data["next_reminder_at"] = None
+        if not update_data:
+            return {"message": "No changes provided"}
 
         db.documents.update_one(
             {"_id": doc_oid},
@@ -3133,6 +3153,169 @@ async def get_document(document_id: str, current_user: dict = Depends(get_curren
         raise HTTPException(status_code=404, detail="Document not found")
 
     return serialize_document(doc)
+
+
+@router.post("/{document_id}/remind-all")
+async def remind_all_recipients(
+    request: Request,
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send reminders to all incomplete recipients of a document"""
+    try:
+        doc_oid = ObjectId(document_id)
+        document = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        if document.get("status") not in ["sent", "in_progress"]:
+            raise HTTPException(status_code=400, detail="Reminders can only be sent for active documents")
+
+        # Find all incomplete recipients
+        # Incomplete if status not in ['signed', 'approved', 'completed', 'witnessed']
+        recipients = list(db.recipients.find({
+            "document_id": doc_oid,
+            "status": {"$nin": ["signed", "approved", "completed", "witnessed", "voided", "declined"]}
+        }))
+        
+        if not recipients:
+            return {"message": "No pending recipients found to remind"}
+
+        # Import send_reminder_email here to avoid circular imports
+        from .recipients import send_reminder_email
+
+        for recipient in recipients:
+            background_tasks.add_task(
+                send_reminder_email,
+                recipient,
+                document,
+                current_user["email"]
+            )
+            
+        _log_event(
+            document_id,
+            current_user,
+            "remind_all_recipients",
+            {"recipient_count": len(recipients)},
+            request
+        )
+        
+        return {"message": f"Reminders are being sent to {len(recipients)} recipients"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in remind-all: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{document_id}/expire-now")
+async def expire_document_now(
+    request: Request,
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Immediately expire a document"""
+    try:
+        doc_oid = ObjectId(document_id)
+        document = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        if document.get("status") in ["draft", "completed", "voided", "expired"]:
+            raise HTTPException(status_code=400, detail=f"Cannot expire document in {document.get('status')} status")
+
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {
+                "status": "expired",
+                "expires_at": datetime.utcnow()
+            }}
+        )
+        
+        _log_event(
+            document_id,
+            current_user,
+            "document_expired_manually",
+            {},
+            request
+        )
+        
+        return {"message": "Document has been expired immediately"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{document_id}/extend-expiry")
+async def extend_document_expiry(
+    request: Request,
+    document_id: str,
+    payload: dict = Body(...), # {"days": 7}
+    current_user: dict = Depends(get_current_user)
+):
+    """Extend document expiry by N days from current time or original upload?"""
+    try:
+        days = int(payload.get("days", 0))
+        if days <= 0:
+            raise HTTPException(status_code=400, detail="Extension days must be greater than 0")
+
+        doc_oid = ObjectId(document_id)
+        document = db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Update expiry_days and recalculate expires_at
+        # The user said "update expired days count"
+        new_expiry_days = document.get("expiry_days", 0) + days
+        
+        # Calculate new expires_at relative to sent_at or now? 
+        # Usually from sent_at if it exists, otherwise now.
+        base_date = document.get("sent_at") or document.get("uploaded_at") or datetime.utcnow()
+        new_expires_at = base_date + timedelta(days=new_expiry_days)
+
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {
+                "expiry_days": new_expiry_days,
+                "expires_at": new_expires_at,
+                "status": "sent" if document.get("status") == "expired" else document.get("status")
+            }}
+        )
+        
+        _log_event(
+            document_id,
+            current_user,
+            "document_expiry_extended",
+            {"added_days": days, "new_total_days": new_expiry_days},
+            request
+        )
+        
+        return {
+            "message": f"Document expiry extended by {days} days",
+            "new_expires_at": new_expires_at,
+            "new_expiry_days": new_expiry_days
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # -----------------------------

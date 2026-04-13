@@ -35,7 +35,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   PersonAdd as PersonAddIcon,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  RadioButtonChecked as RadioIcon,
 } from '@mui/icons-material';
 import { FIELD_TYPES, FIELD_ROLES, getRecipientColor, validateFieldAssignment, ROLE_FIELD_RULES } from '../../config/fieldConfig';
 
@@ -256,7 +257,7 @@ const FieldPropertiesPanel = ({
               </Box>
             )}
 
-            {field.type === 'dropdown' && (
+            {(field.type === 'radio' || field.type === 'dropdown') && (
               <Box sx={{ mb: 2 }}>
                 <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                   <TextField

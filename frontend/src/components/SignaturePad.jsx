@@ -31,7 +31,8 @@ import {
   InputLabel,
   FormHelperText,
   Chip,
-  Switch
+  Switch,
+  Slider
 } from '@mui/material';
 import {
   Undo as UndoIcon,
@@ -57,7 +58,8 @@ import {
   Mail as MailIcon,
   LocalOffer as StampIcon,
   Image as ImageIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers';
@@ -74,9 +76,13 @@ const EnhancedSignaturePad = ({
   fieldType = 'signature',
   fieldLabel = '',
   fieldOptions = [],
+  fieldWidth = 100,
+  fieldHeight = 40,
   height = 300,
   width = 700
 }) => {
+  const [fWidth, setFWidth] = useState(fieldWidth || 150);
+  const [fHeight, setFHeight] = useState(fieldHeight || 40);
   const canvasRef = useRef(null);
   const textCanvasRef = useRef(null);
   const stampCanvasRef = useRef(null);
@@ -99,6 +105,7 @@ const EnhancedSignaturePad = ({
   const [radioValue, setRadioValue] = useState('');
   const [dropdownValue, setDropdownValue] = useState('');
   const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentData, setAttachmentData] = useState(null);
   const [approvalValue, setApprovalValue] = useState(false);
   const [initialsInput, setInitialsInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
@@ -361,6 +368,12 @@ const EnhancedSignaturePad = ({
             case 'textbox':
             case 'initials':
               setTextInput(value.value);
+              // Load custom styling if present
+              if (value.font_size) setFontSize(value.font_size);
+              if (value.font_family) setFontFamily(value.font_family);
+              if (value.font_color) setFontColor(value.font_color);
+              if (value.width) setFWidth(value.width);
+              if (value.height) setFHeight(value.height);
               break;
             case 'mail':
               setEmailInput(value.value);
@@ -709,6 +722,13 @@ const EnhancedSignaturePad = ({
 
     setAttachmentFile(file);
     setUploadError('');
+
+    // Read file as data URL for saving
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAttachmentData(e.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const generateTextSignature = () => {
@@ -902,6 +922,8 @@ const EnhancedSignaturePad = ({
         return {
           filename: attachmentFile?.name,
           size: attachmentFile?.size,
+          data: attachmentData,
+          type: attachmentFile?.type
         };
 
       default:
@@ -977,6 +999,16 @@ const EnhancedSignaturePad = ({
       case 'radio':
       case 'dropdown':
       case 'textbox':
+        // Value-based fields with styling and dimension adjustments
+        payload = {
+          value: value.value || '',
+          font_size: fontSize,
+          font_family: fontFamily,
+          font_color: fontColor,
+          width: fWidth,
+          height: fHeight
+        };
+        break;
       case 'mail':
       case 'date':
         // Value-based fields
@@ -991,7 +1023,9 @@ const EnhancedSignaturePad = ({
         }
         payload = {
           filename: value.filename,
-          size: value.size
+          size: value.size,
+          data: value.data,
+          type: value.type
         };
         break;
 
@@ -1352,6 +1386,8 @@ const EnhancedSignaturePad = ({
               </Box>
             </FormControl>
           </Grid>
+
+          {/* Adjust Box Size - REMOVED sliders as per request to avoid expandable size */}
         </Grid>
       </Box>
 
@@ -1382,14 +1418,21 @@ const EnhancedSignaturePad = ({
               textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
               letterSpacing: fieldType === 'initials' ? '8px' : 'normal',
               padding: fieldType === 'initials' ? '10px 20px' : '0',
-              border: fieldType === 'initials' ? '2px solid #4caf50' : 'none',
+              border: (fieldType === 'initials' || fieldType === 'textbox') ? '2px solid #ccc' : 'none',
               borderRadius: fieldType === 'initials' ? '8px' : '0',
               backgroundColor: fieldType === 'initials' ? '#f1f8e9' : 'transparent',
               minWidth: fieldType === 'initials' ? '120px' : 'auto',
+              width: fieldType === 'textbox' ? `${fWidth}px` : 'auto',
+              height: fieldType === 'textbox' ? `${fHeight}px` : 'auto',
               boxShadow: fieldType === 'initials' ? '0 2px 4px rgba(76, 175, 80, 0.2)' : 'none',
               maxWidth: '100%',
+              maxHeight: '400px',
+              overflow: 'hidden',
               wordBreak: 'break-word',
-              lineHeight: 1.2
+              lineHeight: 1.2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             {fieldType === 'initials' ? textInput.toUpperCase() : textInput}
@@ -1438,38 +1481,76 @@ const EnhancedSignaturePad = ({
         />
 
         {isLoading ? (
-          <CircularProgress />
+          <CircularProgress size={40} sx={{ color: 'rgb(13, 148, 136)' }} />
         ) : fieldType === 'attachment' ? (
           attachmentFile ? (
-            <Box>
-              <AttachIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-              <Typography variant="body1" gutterBottom>
+            <Box sx={{ py: 2 }}>
+              <Box sx={{
+                display: 'inline-flex',
+                p: 2,
+                bgcolor: '#f0fdf4',
+                borderRadius: '50%',
+                mb: 2,
+                border: '1px solid #bbf7d0'
+              }}>
+                <AttachIcon sx={{ fontSize: 40, color: '#166534' }} />
+              </Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e293b' }}>
                 {attachmentFile.name}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {(attachmentFile.size / 1024).toFixed(2)} KB
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {(attachmentFile.size / 1024).toFixed(2)} KB • Ready to attach
               </Typography>
-              <Button
-                color="error"
-                size="small"
-                startIcon={<DeleteIcon />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setAttachmentFile(null);
-                }}
-                sx={{ mt: 1 }}
-              >
-                Remove File
-              </Button>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    document.getElementById('file-upload').click();
+                  }}
+                  startIcon={<RefreshIcon />}
+                  sx={{ borderRadius: '6px', textTransform: 'none' }}
+                >
+                  Change File
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<DeleteIcon />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAttachmentFile(null);
+                    setAttachmentData(null);
+                  }}
+                  sx={{ borderRadius: '6px', textTransform: 'none' }}
+                >
+                  Remove
+                </Button>
+              </Box>
             </Box>
           ) : (
             <>
-              <UploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="body1" gutterBottom>
-                Click to upload file
+              <Box sx={{
+                display: 'inline-flex',
+                p: 2,
+                bgcolor: '#f1f5f9',
+                borderRadius: '50%',
+                mb: 2,
+                color: '#64748b'
+              }}>
+                <UploadIcon sx={{ fontSize: 40 }} />
+              </Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Click or drag file to upload
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Max file size: 10MB
+              <Typography variant="body2" color="text.secondary">
+                Support for all common document and image types
+              </Typography>
+              <Typography variant="caption" sx={{ mt: 2, display: 'block', color: '#94a3b8' }}>
+                Maximum file size: 10MB
               </Typography>
             </>
           )
@@ -2058,7 +2139,9 @@ export const EnhancedSignaturePadModal = ({
   recipientData = {},
   fieldType = 'signature',
   fieldLabel = '',
-  fieldOptions = []
+  fieldOptions = [],
+  fieldWidth = 100,
+  fieldHeight = 40
 }) => {
   const handleModalSave = (value, mode) => {
     if (!value) {
@@ -2123,6 +2206,8 @@ export const EnhancedSignaturePadModal = ({
           fieldType={fieldType}
           fieldLabel={fieldLabel}
           fieldOptions={fieldOptions}
+          fieldWidth={fieldWidth}
+          fieldHeight={fieldHeight}
         />
       </DialogContent>
 

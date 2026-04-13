@@ -1406,6 +1406,12 @@ async def get_fields_for_recipient(recipient_id: str):
                 "canvas_width": f.get("canvas_width", 0),
                 "canvas_height": f.get("canvas_height", 0),
                 
+                # Type-specific settings
+                "dropdown_options": f.get("dropdown_options", []),
+                "group_name": f.get("group_name"),
+                "checked": f.get("checked", False),
+                "email_validation": f.get("email_validation"),
+                
                 # Value and completion status
                 "value": f.get("value"),
                 "completed_at": f.get("completed_at"),
@@ -2133,16 +2139,15 @@ async def complete_field_as_recipient(
     # Extract the value from payload
     field_value = payload.get("value", {})
     
-    # If payload is a dict with 'value' key, extract it
-    if isinstance(field_value, dict) and "value" in field_value:
-        # Handle nested values like {'value': {'value': 'text'}}
-        inner_value = field_value.get("value")
-        if isinstance(inner_value, dict) and "value" in inner_value:
-            # Double nested: {'value': {'value': {'value': 'text'}}}
-            actual_value = inner_value.get("value")
-        else:
-            # Single nested: {'value': 'text'}
-            actual_value = inner_value
+    # If payload is a dict, preserve it while handling nested values if necessary
+    if isinstance(field_value, dict):
+        actual_value = field_value.copy()
+        
+        # Handle cases where value is doubly nested: {'value': {'value': 'text'}}
+        inner_val = field_value.get("value")
+        if isinstance(inner_val, dict) and "value" in inner_val:
+            # Flatten one level but keep other keys from field_value
+            actual_value["value"] = inner_val.get("value")
     elif isinstance(field_value, str):
         # Direct string value
         actual_value = field_value
@@ -2270,8 +2275,64 @@ async def complete_field_as_recipient(
                 }
             }
         )
+    # ✅ New: If dimensions were adjusted (adjustable text box length feature)
+    if isinstance(normalized_value, dict) and ("width" in normalized_value or "height" in normalized_value):
+        if "width" in normalized_value:
+            new_width = normalized_value["width"]
+            update_data["pdf_width"] = new_width
+            # Sync canvas width if possible
+            if field.get("pdf_width") and field.get("canvas_width"):
+                ratio = field["canvas_width"] / field["pdf_width"]
+                update_data["canvas_width"] = new_width * ratio
+        
+        if "height" in normalized_value:
+            new_height = normalized_value["height"]
+            update_data["pdf_height"] = new_height
+            # Sync canvas height if possible
+            if field.get("pdf_height") and field.get("canvas_height"):
+                ratio = field["canvas_height"] / field["pdf_height"]
+                update_data["canvas_height"] = new_height * ratio
     
     # Update the field
+    if field_type == "attachment":
+        data_str = normalized_value.get("data")
+        if data_str and "base64," in data_str:
+            try:
+                import base64
+                import uuid
+                
+                # 1. Decode base64
+                file_content = base64.b64decode(data_str.split("base64,")[1])
+                orig_filename = normalized_value.get("filename", "attachment.bin")
+                
+                # 2. Upload to blob storage
+                # Use subfolders for organization
+                folder = f"documents/{document['_id']}/attachments/{rid}"
+                filename = f"{uuid.uuid4()}_{orig_filename}"
+                
+                storage_path = storage.upload(file_content, filename, folder=folder)
+                
+                # 3. Get public URL
+                file_url = storage.get_url(storage_path)
+                
+                # 4. Update value with URL and metadata
+                normalized_value["url"] = file_url
+                normalized_value["storage_path"] = storage_path
+                
+                # Remove raw data to keep DB small and clean
+                if "data" in normalized_value:
+                    del normalized_value["data"]
+                
+                # Ensure filename is also in top level for easier rendering
+                normalized_value["value"] = orig_filename
+                
+                update_data["value"] = normalized_value
+                print(f"✅ Attachment uploaded: {file_url}")
+                
+            except Exception as e:
+                print(f"❌ Error uploading attachment: {str(e)}")
+                # Continue without URL if upload fails, keeping only metadata
+
     db.signature_fields.update_one(
         {"_id": fid},
         {"$set": update_data}
@@ -2335,40 +2396,19 @@ def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
     
     pdf_bytes = storage.download(pdf_path)
     
-    # Get all completed signature fields for the document
+    # Get all completed fields (signatures and attachments for link preview)
     fields = list(db.signature_fields.find({
         "document_id": document_id,
-        "type": {"$in": ["signature", "initials", "witness_signature"]},
+        "type": {"$in": ["signature", "initials", "witness_signature", "attachment"]},
         "completed_at": {"$exists": True}
     }))
     
     if not fields:
         return
     
-    # Prepare signatures
-    signatures = []
-    for f in fields:
-        val = f.get("value")
-
-        # Only process image-based signatures
-        if isinstance(val, dict) and val.get("image"):
-            signatures.append({
-                "field_id": str(f["_id"]),
-                "image": val["image"],
-                "page": f.get("page", 0),
-                "x": f.get("x"),
-                "y": f.get("y"),
-                "width": f.get("width"),
-                "height": f.get("height")
-            })
-
-    
-    # Apply signatures
-    updated_pdf = PDFEngine.apply_signatures_with_field_positions(
-        pdf_bytes=pdf_bytes,
-        signatures=signatures,
-        fields_data=fields
-    )
+    # Apply ALL fields (including attachments and signatures)
+    # Using apply_all_fields ensures proper coordinate conversion and handling
+    updated_pdf = PDFEngine.apply_all_fields(pdf_bytes, fields)
     
     # Save intermediate PDF to Azure
     new_intermediate_path = storage.upload(
