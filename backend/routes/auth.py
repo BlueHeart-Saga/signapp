@@ -1383,58 +1383,93 @@ async def update_profile(
     job_title: str = Form(None),
     date_format: str = Form(None),
     time_zone: str = Form(None),
-    reminder_days: int = Form(None),
-    expiry_days: int = Form(None),
+    reminder_days: Optional[int] = Form(None),
+    expiry_days: Optional[int] = Form(None),
     profile_picture: UploadFile = File(None),
     stamp_image: UploadFile = File(None),
     current_user: dict = Depends(get_current_user)
 ):
-    update_data = {
-        "full_name": full_name,
-        "first_name": first_name,
-        "last_name": last_name,
-        "company": company,
-        "job_title": job_title,
-        "date_format": date_format,
-        "time_zone": time_zone,
-        "reminder_days": reminder_days,
-        "expiry_days": expiry_days,
-        "updated_at": datetime.utcnow()
-    }
-
-    # Remove None values
-    update_data = {k: v for k, v in update_data.items() if v is not None}
-
-    if profile_picture:
-        image_bytes = await profile_picture.read()
-        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-        update_data["profile_picture"] = {
-            "data": image_base64,
-            "content_type": profile_picture.content_type
+    try:
+        print(f"Updating profile for user: {current_user.get('email')}")
+        
+        update_data = {
+            "full_name": full_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "job_title": job_title,
+            "date_format": date_format,
+            "time_zone": time_zone,
+            "reminder_days": reminder_days,
+            "expiry_days": expiry_days,
+            "updated_at": datetime.utcnow()
         }
 
-    if stamp_image:
-        stamp_bytes = await stamp_image.read()
-        stamp_base64 = base64.b64encode(stamp_bytes).decode("utf-8")
-        update_data["stamp_image"] = {
-            "data": stamp_base64,
-            "content_type": stamp_image.content_type
+        # Remove None values to avoid overwriting existing data with nulls
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+
+        # Process profile picture if uploaded
+        if profile_picture and profile_picture.filename:
+            try:
+                image_bytes = await profile_picture.read()
+                if len(image_bytes) > 0:
+                    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+                    update_data["profile_picture"] = {
+                        "data": image_base64,
+                        "content_type": profile_picture.content_type or "image/jpeg"
+                    }
+                    print("Profile picture updated")
+            except Exception as e:
+                print(f"Error processing profile picture: {e}")
+
+        # Process stamp image if uploaded
+        if stamp_image and stamp_image.filename:
+            try:
+                stamp_bytes = await stamp_image.read()
+                if len(stamp_bytes) > 0:
+                    stamp_base64 = base64.b64encode(stamp_bytes).decode("utf-8")
+                    update_data["stamp_image"] = {
+                        "data": stamp_base64,
+                        "content_type": stamp_image.content_type or "image/png"
+                    }
+                    print("Stamp image updated")
+            except Exception as e:
+                print(f"Error processing stamp image: {e}")
+
+        # Use email from current_user to perform update
+        user_email = current_user.get("email")
+        if not user_email:
+            raise HTTPException(status_code=400, detail="User email not found in token")
+
+        # Update user in database
+        result = await db_update_one(
+            db.users,
+            {"email": user_email},
+            {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
+            print(f"No user found with email: {user_email}")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get updated user data
+        updated_user = await db_find_one(db.users, {"email": user_email})
+
+        return {
+            "status": "success",
+            "message": "Profile updated successfully",
+            "user": serialize_doc(updated_user)
         }
 
-    # Update user in database
-    await db_update_one(
-        db.users,
-        {"email": current_user["email"]},
-        {"$set": update_data}
-    )
-
-    # Get updated user data
-    updated_user = await db_find_one(db.users, {"email": current_user["email"]})
-
-    return {
-        "message": "Profile updated successfully",
-        "user": serialize_doc(updated_user)
-    }
+    except Exception as e:
+        print(f"Profile update error: {e}")
+        traceback.print_exc()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update profile: {str(e)}"
+        )
 
 @router.get("/health")
 async def health_check():

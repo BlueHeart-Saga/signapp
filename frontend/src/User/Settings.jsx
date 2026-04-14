@@ -48,6 +48,17 @@ const Settings = () => {
   const [stampFile, setStampFile] = useState(null);
   const [stampPreviewUrl, setStampPreviewUrl] = useState(null);
 
+  // Forgot Password Modal State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: Send OTP, 2: Verify OTP, 3: Reset Password
+  const [forgotForm, setForgotForm] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [forgotLoading, setForgotLoading] = useState(false);
+
   useEffect(() => {
     fetchUserData();
   }, []);
@@ -80,6 +91,9 @@ const Settings = () => {
       if (data.stamp_image) {
         setStampPreviewUrl(`data:${data.stamp_image.content_type};base64,${data.stamp_image.data}`);
       }
+
+      // Pre-fill forgot email with current user email
+      setForgotForm(prev => ({ ...prev, email: data.email || "" }));
     } catch (error) {
       console.error("Error fetching user data:", error);
       toast.error("Failed to load user settings");
@@ -172,6 +186,88 @@ const Settings = () => {
       toast.error("An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestForgotOTP = async (e) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotForm.email }),
+      });
+      if (response.ok) {
+        toast.success("OTP sent to your email");
+        setForgotStep(2);
+      } else {
+        const data = await response.json();
+        toast.error(data.detail || "Failed to send OTP");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyForgotOTP = async (e) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: forgotForm.email,
+          otp: forgotForm.otp
+        }),
+      });
+      if (response.ok) {
+        toast.success("OTP verified successfully");
+        setForgotStep(3);
+      } else {
+        const data = await response.json();
+        toast.error(data.detail || "Invalid or expired OTP");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: forgotForm.email,
+          otp: forgotForm.otp,
+          new_password: forgotForm.newPassword
+        }),
+      });
+      if (response.ok) {
+        toast.success("Password reset successfully");
+        setShowForgotModal(false);
+        setForgotStep(1);
+        setForgotForm({ ...forgotForm, otp: "", newPassword: "", confirmPassword: "" });
+      } else {
+        const data = await response.json();
+        toast.error(data.detail || "Failed to reset password");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -410,9 +506,16 @@ const Settings = () => {
                   />
                 </div>
               </div>
-              <div className="form-actions-footer">
+              <div className="form-actions-footer password-actions">
                 <button type="submit" className="update-btn" disabled={loading}>
                   {loading ? "Changing..." : "Change Password"}
+                </button>
+                <button
+                  type="button"
+                  className="forgot-link-btn"
+                  onClick={() => setShowForgotModal(true)}
+                >
+                  Forgot Password?
                 </button>
               </div>
             </form>
@@ -496,6 +599,109 @@ const Settings = () => {
           {renderTabContent()}
         </main>
       </div>
+
+      {showForgotModal && (
+        <div className="modal-overlay">
+          <div className="forgot-modal">
+            <div className="modal-header">
+              <h3>Reset Your Password</h3>
+              <button
+                className="close-modal-btn"
+                onClick={() => {
+                  setShowForgotModal(false);
+                  setForgotStep(1);
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="step-indicator">
+                <div className={`step-dot ${forgotStep >= 1 ? 'active' : ''}`}>1</div>
+                <div className={`step-line ${forgotStep >= 2 ? 'active' : ''}`}></div>
+                <div className={`step-dot ${forgotStep >= 2 ? 'active' : ''}`}>2</div>
+                <div className={`step-line ${forgotStep >= 3 ? 'active' : ''}`}></div>
+                <div className={`step-dot ${forgotStep >= 3 ? 'active' : ''}`}>3</div>
+              </div>
+
+              {forgotStep === 1 && (
+                <form onSubmit={handleRequestForgotOTP} className="forgot-step-form">
+                  <p className="step-desc">Enter your email address and we'll send you an OTP to reset your password.</p>
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    value={forgotForm.email}
+                    onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
+                    className="styled-input full-width"
+                    placeholder="example@email.com"
+                    required
+                  />
+                  <button type="submit" className="modal-submit-btn" disabled={forgotLoading}>
+                    {forgotLoading ? "Sending..." : "Send OTP"}
+                  </button>
+                </form>
+              )}
+
+              {forgotStep === 2 && (
+                <form onSubmit={handleVerifyForgotOTP} className="forgot-step-form">
+                  <p className="step-desc">We've sent a 6-digit code to {forgotForm.email}. Please enter it below.</p>
+                  <label>Verification Code</label>
+                  <input
+                    type="text"
+                    value={forgotForm.otp}
+                    onChange={(e) => setForgotForm({ ...forgotForm, otp: e.target.value })}
+                    className="styled-input full-width center-text"
+                    placeholder="0 0 0 0 0 0"
+                    maxLength={6}
+                    required
+                  />
+                  <div className="modal-row-actions">
+                    <button
+                      type="button"
+                      className="modal-back-btn"
+                      onClick={() => setForgotStep(1)}
+                    >
+                      Back
+                    </button>
+                    <button type="submit" className="modal-submit-btn" disabled={forgotLoading}>
+                      {forgotLoading ? "Verifying..." : "Verify OTP"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {forgotStep === 3 && (
+                <form onSubmit={handleResetPassword} className="forgot-step-form">
+                  <p className="step-desc">Create a new secure password for your account.</p>
+                  <label>New Password</label>
+                  <input
+                    type="password"
+                    value={forgotForm.newPassword}
+                    onChange={(e) => setForgotForm({ ...forgotForm, newPassword: e.target.value })}
+                    className="styled-input full-width"
+                    placeholder="Minimum 6 characters"
+                    required
+                    minLength={6}
+                  />
+                  <label>Confirm Password</label>
+                  <input
+                    type="password"
+                    value={forgotForm.confirmPassword}
+                    onChange={(e) => setForgotForm({ ...forgotForm, confirmPassword: e.target.value })}
+                    className="styled-input full-width"
+                    placeholder="Re-enter your password"
+                    required
+                  />
+                  <button type="submit" className="modal-submit-btn" disabled={forgotLoading}>
+                    {forgotLoading ? "Resetting..." : "Set New Password"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .settings-layout {
@@ -837,6 +1043,27 @@ const Settings = () => {
           border-top: 1px solid #f0f0f0;
         }
 
+        .password-actions {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .forgot-link-btn {
+          background: none;
+          border: none;
+          color: #0d9488;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: none;
+        }
+
+        .forgot-link-btn:hover {
+          text-decoration: underline;
+        }
+
         .update-btn {
           padding: 10px 40px;
           background: #0d9488;
@@ -865,6 +1092,176 @@ const Settings = () => {
 
         .narrow-form {
           max-width: 600px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          backdrop-filter: blur(4px);
+        }
+
+        .forgot-modal {
+          background: white;
+          width: 100%;
+          max-width: 450px;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          overflow: hidden;
+          animation: modalFadeIn 0.3s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+          padding: 20px 25px;
+          border-bottom: 1px solid #f0f0f0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a1a;
+        }
+
+        .close-modal-btn {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #999;
+          cursor: pointer;
+          padding: 5px;
+        }
+
+        .modal-body {
+          padding: 25px;
+        }
+
+        .step-indicator {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 30px;
+        }
+
+        .step-dot {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          background: #f0f0f0;
+          color: #999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 0.3s;
+        }
+
+        .step-dot.active {
+          background: #0d9488;
+          color: white;
+        }
+
+        .step-line {
+          flex: 0 0 50px;
+          height: 2px;
+          background: #f0f0f0;
+          margin: 0 10px;
+          transition: all 0.3s;
+        }
+
+        .step-line.active {
+          background: #0d9488;
+        }
+
+        .forgot-step-form {
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .forgot-step-form label {
+          font-size: 14px;
+          font-weight: 500;
+          color: #444;
+        }
+
+        .step-desc {
+          font-size: 14px;
+          color: #666;
+          line-height: 1.5;
+          margin-bottom: 10px;
+        }
+
+        .full-width {
+          max-width: none !important;
+        }
+
+        .center-text {
+          text-align: center;
+          letter-spacing: 4px;
+          font-weight: 700;
+          font-size: 18px !important;
+        }
+
+        .modal-submit-btn {
+          background: #0d9488;
+          color: white;
+          border: none;
+          padding: 12px;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 10px;
+          transition: all 0.2s;
+        }
+
+        .modal-submit-btn:hover {
+          background: #0b7a70;
+        }
+
+        .modal-submit-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+        }
+
+        .modal-row-actions {
+          display: flex;
+          gap: 12px;
+        }
+
+        .modal-row-actions .modal-submit-btn {
+          flex: 1;
+        }
+
+        .modal-back-btn {
+          flex: 0 0 80px;
+          background: #f1f2f6;
+          color: #444;
+          border: none;
+          padding: 12px;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 10px;
         }
 
         /* Scrollbar styles */

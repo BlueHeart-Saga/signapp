@@ -28,7 +28,7 @@ export default function ProfileSetupModal({ onComplete }) {
   const handleSubmit = async () => {
     // Trim and validate
     const trimmedName = fullName.trim();
-    
+
     if (!trimmedName) {
       setError("Please enter your full name");
       return;
@@ -47,7 +47,7 @@ export default function ProfileSetupModal({ onComplete }) {
 
       const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error("No authentication token found");
+        throw new Error("No authentication token found. Please log in again.");
       }
 
       const response = await fetch(`${API_BASE_URL}/auth/update-profile`, {
@@ -58,28 +58,35 @@ export default function ProfileSetupModal({ onComplete }) {
         body: formData,
       });
 
+      const result = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to update profile");
+        // Handle various error formats from backend
+        const errorMessage = result.detail || result.message || (Array.isArray(result.detail) ? result.detail[0]?.msg : null) || "Failed to update profile";
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
-      
       // Update user in localStorage with the new data
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      // result.user contains the full updated user object from backend
       const updatedUser = {
         ...currentUser,
-        full_name: trimmedName,
-        ...(result.user || {})
+        ...result.user
       };
-      
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      
+
+      // Update role explicitly if it changed
+      if (updatedUser.role) {
+        localStorage.setItem("role", updatedUser.role);
+      }
+
       // Call onComplete with updated user
       onComplete(updatedUser);
     } catch (error) {
-      console.error("Profile update failed", error);
-      setError(error.message || "Failed to update profile. Please try again.");
+      console.error("Profile update failed:", error);
+      setError(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,10 +95,10 @@ export default function ProfileSetupModal({ onComplete }) {
   const handleSkip = async () => {
     try {
       setLoading(true);
-      
+
       // Set default name as "SafeSign User"
       const defaultName = "SafeSign User";
-      
+
       const formData = new FormData();
       formData.append("full_name", defaultName);
 
@@ -119,12 +126,12 @@ export default function ProfileSetupModal({ onComplete }) {
         ...currentUser,
         full_name: defaultName
       };
-      
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      
+
       // Call onComplete with updated user
       onComplete(updatedUser);
-      
+
     } catch (error) {
       console.error("Skip profile update failed", error);
       // Even if API fails, still complete the flow with default name in localStorage

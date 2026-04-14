@@ -14,6 +14,7 @@ import {
     CheckCircle as CheckCircleIcon,
     Help as HelpIcon
 } from '@mui/icons-material';
+import { FIELD_TYPES, getRecipientColor } from '../../config/fieldConfig';
 
 const DocumentThumbnails = ({
     documentId,
@@ -21,6 +22,7 @@ const DocumentThumbnails = ({
     currentPage,
     onPageChange,
     fields = [],
+    recipients = [],
     canvasHeight = 1123
 }) => {
     const [thumbnails, setThumbnails] = useState({});
@@ -167,10 +169,18 @@ const DocumentThumbnails = ({
                                     }}>
                                         {pageFields.map((f, idx) => {
                                             // Mapping coordinates from 794x[dynamicHeight] to 140x190
+                                            // Mapping coordinates from 794x[dynamicHeight] to 140x190
                                             const left = (f.x / 794) * 100;
                                             const top = (f.y / canvasHeight) * 100;
                                             const width = (f.width / 794) * 100;
                                             const height = (f.height / canvasHeight) * 100;
+
+                                            // Get recipient color - EXACT logic from CanvasField.jsx
+                                            const assignedRecipient = f.assignedRecipient ||
+                                                (f.recipient_id ? recipients.find(r => r.id === f.recipient_id) : null);
+
+                                            const fieldType = FIELD_TYPES[f.type] || FIELD_TYPES.textbox;
+                                            const color = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldType.color;
 
                                             return (
                                                 <Box
@@ -181,10 +191,12 @@ const DocumentThumbnails = ({
                                                         top: `${top}%`,
                                                         width: `${Math.max(4, width)}%`,
                                                         height: `${Math.max(4, height)}%`,
-                                                        backgroundColor: 'rgba(13, 148, 136, 0.6)',
-                                                        border: '1px solid rgba(13, 148, 136, 0.8)',
+                                                        backgroundColor: color,
+                                                        opacity: assignedRecipient ? 0.6 : 0.4,
+                                                        border: `1px solid ${color}`,
                                                         borderRadius: '1px',
-                                                        animation: 'fadeIn 0.5s ease forwards'
+                                                        animation: 'fadeIn 0.5s ease forwards',
+                                                        boxShadow: '0 0.5px 1px rgba(0,0,0,0.1)'
                                                     }}
                                                 />
                                             );

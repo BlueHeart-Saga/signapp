@@ -176,7 +176,7 @@ const ForgotPassword = () => {
         new_password: newPassword
       });
       
-      setSuccessMsg("✅ Password reset successfully! Redirecting to login...");
+      setSuccessMsg(" Password reset successfully! Redirecting to login...");
       
       // Auto login after successful password reset
       setTimeout(async () => {

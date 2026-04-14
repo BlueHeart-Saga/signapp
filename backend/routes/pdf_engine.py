@@ -230,7 +230,7 @@ class PDFEngine:
                     if handler:
                         handler(page, rect, field.get("value"), field)
                     else:
-                        PDFEngine._apply_text_field(page, rect, field.get("value"), field)
+                        PDFEngine._apply_textbox_field(page, rect, field.get("value"), field)
                         
                 except Exception as e:
                     print(f"Error applying field: {e}")
@@ -291,12 +291,23 @@ class PDFEngine:
                     )
             elif value and not image_data:
                 # Value exists but couldn't decode as image - show text value
+                # Extract color if available
+                text_color = (0, 0.5, 0) # Default green for signature fallback
+                font_color = value.get("font_color") if isinstance(value, dict) else None
+                if font_color and isinstance(font_color, str):
+                    try:
+                        c = font_color.lstrip("#")
+                        if len(c) == 6:
+                            text_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
+                    except:
+                        pass
+
                 page.insert_textbox(
                     rect,
                     str(value)[:20],
                     fontsize=min(12, rect.height * 0.6),
                     fontname="Helvetica",
-                    color=(0, 0.5, 0),
+                    color=text_color,
                     align=1,
                     overlay=True
                 )
@@ -451,13 +462,24 @@ class PDFEngine:
             else:
                 initials = "XX"  # Default placeholder
             
+            # Extract color if available
+            text_color = (0, 0, 0)
+            font_color = value.get("font_color") if isinstance(value, dict) else None
+            if font_color and isinstance(font_color, str):
+                try:
+                    c = font_color.lstrip("#")
+                    if len(c) == 6:
+                        text_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
+                except:
+                    pass
+
             font_size = min(16, rect.height * 0.7)
             page.insert_textbox(
                 rect,
                 initials,
                 fontsize=font_size,
                 fontname="Helvetica-Bold",
-                color=(0, 0, 0),
+                color=text_color,
                 align=1,  # Center
                 overlay=True
             )
@@ -497,103 +519,48 @@ class PDFEngine:
             )
     
     @staticmethod
-    def _apply_text_field(page, rect, value, field):
-        """Apply text field (textbox, mail, etc.)."""
-        # Handle different value formats
+    def _apply_textbox_field(page, rect, value, field):
+        """
+        Apply text field (textbox, mail, etc.) with robust value extraction.
+        """
+        # Handle different value formats (same as mail field)
         actual_text = ""
-        
-        print(f"[PDFEngine] Text field value: {value}")  # Debug log
-        print(f"[PDFEngine] Field data: {field}")  # Debug log - check is_completed status
-        
         if isinstance(value, dict):
-            # Handle nested dict structures
-            # Try multiple possible keys
-            if "value" in value:
-                val = value.get("value")
-                if isinstance(val, dict) and "value" in val:
-                    # Double nested: {'value': {'value': 'text'}}
-                    actual_text = val.get("value", "")
-                else:
-                    # Single nested: {'value': 'text'}
-                    actual_text = str(val) if val is not None else ""
-            elif "text" in value:
-                actual_text = str(value.get("text", ""))
-            else:
-                # Try to extract any string value
-                for key, val in value.items():
-                    if isinstance(val, str):
-                        actual_text = val
-                        break
-                    elif val is not None:
-                        actual_text = str(val)
-                        break
-        
-        elif isinstance(value, str):
-            actual_text = value
-        elif value is not None:
-            actual_text = str(value)
-        
-        print(f"[PDFEngine] Extracted text: '{actual_text}'")  # Debug log
-        
-        # Check if field is completed - look for multiple completion indicators
-        is_completed = field.get("_render_completed", False)
-        if not is_completed:
-            # Also check other completion indicators
-            is_completed = field.get("is_completed", False)
-        if not is_completed:
-            # Check if value exists (for live document view)
-            is_completed = bool(actual_text and actual_text.strip() and actual_text != "Enter text here")
-        
-        print(f"[PDFEngine] Is completed: {is_completed}")  # Debug log
-        
-        # If we have actual text, show it regardless of completion status
-        # (for live document view of completed fields)
-        if actual_text and actual_text.strip() and actual_text != "Enter text here":
-            # This is a real value, show it
-            show_as_value = True
+            actual_text = value.get("value", value.get("text", ""))
         else:
-            # No real value, check completion status
-            if is_completed:
-                # Field is marked as completed but has no value
-                return  # Don't show anything
-            else:
-                # Field is not completed and has no value, show placeholder
-                show_as_value = False
-        
-        if show_as_value:
-            # Show the actual value
-            display_text = actual_text
-            text_color = (0, 0, 0)  # Black for actual values
-        else:
-            # Show placeholder
-            placeholder = field.get("placeholder", "")
-            if not placeholder:
-                # Generate placeholder based on field type
-                field_type = field.get("type", "textbox")
-                if field_type == "textbox":
-                    placeholder = "Enter text here"
-                elif field_type == "mail":
-                    placeholder = "Enter email address"
-                else:
-                    placeholder = "Text field"
+            actual_text = str(value) if value is not None else ""
             
-            display_text = placeholder
-            text_color = (0.5, 0.5, 0.5)  # Gray for placeholders
+        # Determine if we show as value or placeholder
+        # Check against multiple common placeholder strings
+        placeholders = ["Enter text here", "Text field", "Enter value", ""]
+        is_placeholder = not actual_text or actual_text.strip() in placeholders or actual_text == field.get("placeholder")
         
+        if not is_placeholder:
+            # Show the actual value in Black
+            display_text = actual_text
+            text_color = (0, 0, 0)
+        else:
+            # Show placeholder in Gray
+            display_text = field.get("placeholder") or "Enter text here"
+            text_color = (0.5, 0.5, 0.5)
+            # If the document is marked as completed, don't show placeholders at all
+            if field.get("_render_completed", False) or field.get("is_completed", False):
+                return
+
         # Only proceed if we have text to display
         if not display_text:
             return
-        
-        # Calculate font size - check value first, then field
+            
+        # Calculate font and styling (re-use the existing logic below)
         custom_font_size = None
         custom_font_family = "Helvetica"
-        custom_text_color = (0, 0, 0)
+        custom_text_color = text_color # Default to our determined color
 
         if isinstance(value, dict):
             custom_font_size = value.get("font_size")
             custom_font_family = value.get("font_family", "Helvetica")
             color_hex = value.get("font_color")
-            if color_hex and color_hex.startswith("#"):
+            if color_hex and color_hex.startswith("#") and not is_placeholder:
                 try:
                     c = color_hex.lstrip("#")
                     r = int(c[0:2], 16) / 255
@@ -606,20 +573,36 @@ class PDFEngine:
         font_size = custom_font_size or field.get("font_size", 12)
         max_font = min(font_size, rect.height * 0.8)
         
-        # Truncate if too long
-        max_chars = int(rect.width / (max_font * 0.6))
-        if len(display_text) > max_chars:
-            display_text = display_text[:max_chars-3] + "..."
+        # Auto-shrink font to ensure they fit without truncation
+        # This addresses the user's request to "show full", "avoid that ...", and "make our text feild same our mail like"
+        # Safety loop to find a font size that fits the width
+        # We allow it to go as low as 6pt before it starts wrapping/clipping
+        while max_font > 6:
+            try:
+                # Estimate width (PyMuPDF's get_text_length is quite accurate)
+                current_font = custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica"
+                text_width = fitz.get_text_length(display_text, fontname=current_font, fontsize=max_font)
+                if text_width <= (rect.width - 6): # 6px padding total
+                    break
+                max_font -= 0.5
+            except:
+                break
         
-        print(f"[PDFEngine] Inserting text: '{display_text}' with color {custom_text_color if show_as_value else text_color}")  # Debug log
+        # Calculate vertical offset to center text within the rectangle
+        # This prevents text from appearing too high ("upside mismatching")
+        # Note: For single line text, this centers it perfectly. For multi-line, it centers the top line.
+        v_offset = (rect.height - max_font) / 2
+        text_rect = fitz.Rect(rect.x0 + 2, rect.y0 + v_offset, rect.x1 - 2, rect.y1)
+        
+        show_as_value = not is_placeholder
         
         page.insert_textbox(
-            rect,
+            text_rect,
             display_text,
             fontsize=max_font,
             fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
             color=custom_text_color if show_as_value else text_color,
-            align=0,  # Left align
+            align=0,  # Left align within the adjusted rect
             overlay=True
         )
     
@@ -652,8 +635,12 @@ class PDFEngine:
             pass
         
         font_size = min(field.get("font_size", 12), rect.height * 0.7)
+        # Center vertically
+        v_offset = (rect.height - font_size) / 2
+        text_rect = fitz.Rect(rect.x0, rect.y0 + v_offset, rect.x1, rect.y1)
+
         page.insert_textbox(
-            rect,
+            text_rect,
             date_text,
             fontsize=font_size,
             fontname="Helvetica",
@@ -871,15 +858,25 @@ class PDFEngine:
         # ---------------------------------
         if is_completed and selected_text:
             font_size = min(11, rect.height * 0.75)
-            # Center vertically
-            text_y = rect.y0 + (rect.height + font_size) / 2 - 2
             
-            page.insert_text(
-                fitz.Point(rect.x0 + 2, text_y),
+            # Auto-shrink for dropdown completed values
+            while font_size > 6:
+                text_width = fitz.get_text_length(selected_text, fontname="Helvetica", fontsize=font_size)
+                if text_width <= (rect.width - 6):
+                    break
+                font_size -= 0.5
+
+            # Center vertically and horizontally for completed state
+            v_offset = (rect.height - font_size) / 2
+            text_rect = fitz.Rect(rect.x0, rect.y0 + v_offset, rect.x1, rect.y1)
+            
+            page.insert_textbox(
+                text_rect,
                 selected_text,
                 fontsize=font_size,
                 fontname="Helvetica",
                 color=(0, 0, 0),
+                align=1,  # Center align
                 overlay=True
             )
             return  # 🚫 NO border, NO arrow for completed fields
@@ -909,13 +906,26 @@ class PDFEngine:
             rect.y1
         )
 
+        # Center vertically as well
+        font_size_incomplete = min(12, rect.height * 0.7)
+        
+        # Auto-shrink for dropdown placeholders
+        while font_size_incomplete > 6:
+            text_width = fitz.get_text_length(selected_text, fontname="Helvetica", fontsize=font_size_incomplete)
+            if text_width <= (text_rect.width - 4):
+                break
+            font_size_incomplete -= 0.5
+
+        v_offset_incomplete = (rect.height - font_size_incomplete) / 2
+        centered_text_rect = fitz.Rect(text_rect.x0, text_rect.y0 + v_offset_incomplete, text_rect.x1, text_rect.y1)
+
         page.insert_textbox(
-            text_rect,
+            centered_text_rect,
             selected_text,
-            fontsize=min(12, rect.height * 0.7),
+            fontsize=font_size_incomplete,
             fontname="Helvetica",
             color=(0.5, 0.5, 0.5),
-            align=0,
+            align=1,  # Center align
             overlay=True
         )
 
@@ -1415,41 +1425,9 @@ class PDFEngine:
 
     @staticmethod
     def _apply_mail_field(page, rect, value, field):
-        """
-        Apply mail field as plain text (NO border, NO wrapper).
-        Looks like normal document text.
-        """
-        email = ""
+        """Apply mail field - uses the robust textbox handler."""
+        PDFEngine._apply_textbox_field(page, rect, value, field)
 
-        if isinstance(value, dict):
-            email = value.get("value", value.get("email", ""))
-        elif isinstance(value, str):
-            email = value
-
-        if not email:
-            return  # ⛔ nothing to render
-
-        # Font size based on field height
-        font_size = min(field.get("font_size", 11), rect.height * 0.7)
-
-        # Small left padding so it doesn't touch edges
-        text_point = fitz.Point(
-            rect.x0 + 2,
-            rect.y0 + font_size
-        )
-
-        # ✅ Plain text insertion (NO box, NO border)
-        page.insert_text(
-            text_point,
-            email,
-            fontsize=font_size,
-            fontname="Helvetica",
-            color=(0, 0, 0),
-            overlay=True
-        )
-
-
-    
     @staticmethod
     def apply_signatures_with_field_positions(
         pdf_bytes: bytes, 
@@ -1853,11 +1831,6 @@ class PDFEngine:
                 
                 # Only show text if field is tall enough
                 if rect.height > 20:
-                    # Truncate if too long
-                    max_chars = int(rect.width / 6)
-                    if len(text_to_show) > max_chars:
-                        text_to_show = text_to_show[:max_chars-3] + "..."
-                    
                     page.insert_text(
                         fitz.Point(rect.x0 + 5, text_y),
                         text_to_show,

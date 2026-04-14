@@ -343,6 +343,13 @@ const EnhancedSignaturePad = ({
           break;
       }
     }
+
+    // Set standard defaults for text/mail fields to avoid handwriting fonts
+    if (['textbox', 'mail'].includes(fieldType)) {
+      setFontFamily('Arial');
+      setFontSize(14);
+      setFontColor('#000000');
+    }
   }, [fieldType, existingSignature, recipientData]);
 
   // Update font style based on selection
@@ -1246,7 +1253,7 @@ const EnhancedSignaturePad = ({
       {fieldType === 'initials' && textInput && (
         <Box sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            ✅ {textInput.length === 1 ? 'Single initial' :
+            {textInput.length === 1 ? 'Single initial' :
               textInput.length === 2 ? 'Two initials (recommended)' :
                 'Three initials'} - Ready to save
           </Typography>
@@ -1261,135 +1268,135 @@ const EnhancedSignaturePad = ({
         </Box>
       )}
 
-      {/* Font Size & Style Controls - Visible for all text-based fields */}
-      <Box sx={{ mb: 2 }}>
-        {/* Font Style Selection Dropdown */}
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={12}>
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Style</FormLabel>
-              <Select
-                value={selectedFontStyle}
-                onChange={(e) => {
-                  setSelectedFontStyle(e.target.value);
-                  // Set the first font of the selected style
-                  const style = fontStyles.find(s => s.name === e.target.value);
-                  if (style && style.fonts.length > 0) {
-                    setFontFamily(style.fonts[0]);
-                    setFontColor(style.color);
-                  }
-                }}
-                size="small"
-              >
-                {fontStyles.map(style => (
-                  <MenuItem
-                    key={style.name}
-                    value={style.name}
-                    sx={{
-                      fontFamily: style.fonts[0],
-                      color: style.color,
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {style.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Family</FormLabel>
-              <Select
-                value={fontFamily}
-                onChange={(e) => setFontFamily(e.target.value)}
-                size="small"
-                sx={{
-                  fontFamily: `"${fontFamily}", cursive`,
-                  '& .MuiSelect-select': {
-                    fontFamily: `"${fontFamily}", cursive !important`,
-                  }
-                }}
-              >
-                {fontStyles.find(s => s.name === selectedFontStyle)?.fonts.map(font => (
-                  <MenuItem
-                    key={font}
-                    value={font}
-                    sx={{ fontFamily: `"${font}", cursive` }}
-                  >
-                    {font}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={3}>
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Size</FormLabel>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton size="small" onClick={() => setFontSize(Math.max(48, fontSize - 8))}>
-                  <ZoomOutIcon />
-                </IconButton>
-                <TextField
-                  type="number"
-                  value={fontSize}
+      {/* Font Size & Style Controls - Hidden for standard text fields per user request */}
+      {!['textbox', 'mail'].includes(fieldType) && (
+        <Box sx={{ mb: 2 }}>
+          {/* Font Style Selection Dropdown */}
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12}>
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Style</FormLabel>
+                <Select
+                  value={selectedFontStyle}
                   onChange={(e) => {
-                    const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                    if (val === '') {
-                      setFontSize(''); // Allow clearing
-                    } else if (!isNaN(val)) {
-                      setFontSize(val);
+                    setSelectedFontStyle(e.target.value);
+                    // Set the first font of the selected style
+                    const style = fontStyles.find(s => s.name === e.target.value);
+                    if (style && style.fonts.length > 0) {
+                      setFontFamily(style.fonts[0]);
+                      setFontColor(style.color);
                     }
                   }}
-                  onBlur={() => {
-                    // Enforce limits on blur
-                    const val = parseInt(fontSize);
-                    if (isNaN(val) || val < 12) setFontSize(12);
-                    if (val > 400) setFontSize(400);
-                  }}
                   size="small"
-                  sx={{ width: 80 }}
-                  inputProps={{ min: 12, max: 400 }}
-                />
-                <IconButton size="small" onClick={() => setFontSize(Math.min(400, (parseInt(fontSize) || 0) + 8))}>
-                  <ZoomInIcon />
-                </IconButton>
-              </Box>
-            </FormControl>
-          </Grid>
+                >
+                  {fontStyles.map(style => (
+                    <MenuItem
+                      key={style.name}
+                      value={style.name}
+                      sx={{
+                        fontFamily: style.fonts[0],
+                        color: style.color,
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {style.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-          <Grid item xs={12} sm={3}>
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Color</FormLabel>
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                {colors.map(color => (
-                  <IconButton
-                    key={color}
-                    size="small"
-                    onClick={() => setFontColor(color)}
-                    sx={{
-                      width: 28,
-                      height: 28,
-                      backgroundColor: color,
-                      border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
-                      boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
-                      '&:hover': {
-                        opacity: 0.9,
-                      },
-                    }}
-                  >
-                    {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Family</FormLabel>
+                <Select
+                  value={fontFamily}
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  size="small"
+                  sx={{
+                    fontFamily: `"${fontFamily}", cursive`,
+                    '& .MuiSelect-select': {
+                      fontFamily: `"${fontFamily}", cursive !important`,
+                    }
+                  }}
+                >
+                  {fontStyles.find(s => s.name === selectedFontStyle)?.fonts.map(font => (
+                    <MenuItem
+                      key={font}
+                      value={font}
+                      sx={{ fontFamily: `"${font}", cursive` }}
+                    >
+                      {font}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Size</FormLabel>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconButton size="small" onClick={() => setFontSize(Math.max(48, fontSize - 8))}>
+                    <ZoomOutIcon />
                   </IconButton>
-                ))}
-              </Box>
-            </FormControl>
-          </Grid>
+                  <TextField
+                    type="number"
+                    value={fontSize}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                      if (val === '') {
+                        setFontSize(''); // Allow clearing
+                      } else if (!isNaN(val)) {
+                        setFontSize(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Enforce limits on blur
+                      const val = parseInt(fontSize);
+                      if (isNaN(val) || val < 12) setFontSize(12);
+                      if (val > 400) setFontSize(400);
+                    }}
+                    size="small"
+                    sx={{ width: 80 }}
+                    inputProps={{ min: 12, max: 400 }}
+                  />
+                  <IconButton size="small" onClick={() => setFontSize(Math.min(400, (parseInt(fontSize) || 0) + 8))}>
+                    <ZoomInIcon />
+                  </IconButton>
+                </Box>
+              </FormControl>
+            </Grid>
 
-          {/* Adjust Box Size - REMOVED sliders as per request to avoid expandable size */}
-        </Grid>
-      </Box>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Color</FormLabel>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {colors.map(color => (
+                    <IconButton
+                      key={color}
+                      size="small"
+                      onClick={() => setFontColor(color)}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        backgroundColor: color,
+                        border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
+                        boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
+                        '&:hover': {
+                          opacity: 0.9,
+                        },
+                      }}
+                    >
+                      {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
+                    </IconButton>
+                  ))}
+                </Box>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
 
       <Box
         sx={{
@@ -1403,36 +1410,34 @@ const EnhancedSignaturePad = ({
           justifyContent: 'center',
           mb: 2,
           width: '100%',
-          overflow: 'hidden'
+          maxHeight: '300px',
+          overflowY: 'auto'
         }}
       >
         {textInput ? (
           <Box
             sx={{
-              fontFamily: fieldType === 'initials' ? 'Arial, sans-serif' : `"${fontFamily}", cursive`,
-              fontSize: `${fontSize || 24}px`,
-              color: fieldType === 'initials' ? '#000' : fontColor,
-              textAlign: 'center',
+              fontFamily: (fieldType === 'initials' || fieldType === 'signature' || fieldType === 'witness_signature')
+                ? `"${fontFamily}", cursive`
+                : 'inherit',
+              fontSize: fieldType === 'initials' ? `${(fontSize || 120) * 0.4}px` : `${(fontSize || 24) * 0.8}px`,
+              color: fontColor || '#000000',
+              textAlign: fieldType === 'textbox' ? 'left' : 'center',
               whiteSpace: 'pre-line',
               fontWeight: fieldType === 'initials' ? 'bold' : 'normal',
               textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
-              letterSpacing: fieldType === 'initials' ? '8px' : 'normal',
-              padding: fieldType === 'initials' ? '10px 20px' : '0',
-              border: (fieldType === 'initials' || fieldType === 'textbox') ? '2px solid #ccc' : 'none',
-              borderRadius: fieldType === 'initials' ? '8px' : '0',
-              backgroundColor: fieldType === 'initials' ? '#f1f8e9' : 'transparent',
-              minWidth: fieldType === 'initials' ? '120px' : 'auto',
+              letterSpacing: fieldType === 'initials' ? (selectedFontStyle === 'handwriting' ? 'normal' : '8px') : 'normal',
+              padding: '10px 20px',
               width: fieldType === 'textbox' ? `${fWidth}px` : 'auto',
-              height: fieldType === 'textbox' ? `${fHeight}px` : 'auto',
-              boxShadow: fieldType === 'initials' ? '0 2px 4px rgba(76, 175, 80, 0.2)' : 'none',
+              minHeight: fieldType === 'textbox' ? `${fHeight}px` : 'auto',
               maxWidth: '100%',
-              maxHeight: '400px',
-              overflow: 'hidden',
+              overflow: 'visible',
               wordBreak: 'break-word',
               lineHeight: 1.2,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              transition: 'all 0.2s ease-in-out'
             }}
           >
             {fieldType === 'initials' ? textInput.toUpperCase() : textInput}

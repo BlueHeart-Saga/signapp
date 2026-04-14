@@ -357,6 +357,16 @@ const DocumentSummary = () => {
 
           <button
             className="doc-header-action"
+            onClick={() => navigate(`/user/prepare-send/${documentId}`)}
+            disabled={!docData || docData.status !== "draft"}
+            title="Edit Draft"
+          >
+            <FiEdit size={16} />
+            <span>Edit</span>
+          </button>
+
+          <button
+            className="doc-header-action"
             onClick={() => {
               showConfirm({
                 title: "Send Reminders",

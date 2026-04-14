@@ -140,7 +140,7 @@ const Completion = () => {
 
       setSnackbar({
         open: true,
-        msg: `✅ ${filename} downloaded successfully`,
+        msg: ` ${filename} downloaded successfully`,
         severity: 'success'
       });
     } catch (error) {
@@ -328,36 +328,37 @@ const Completion = () => {
         minHeight: '100vh',
         bgcolor: '#f5f5f5',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: { xs: 'flex-start', sm: 'center' },
         justifyContent: 'center',
-        p: 3
+        p: { xs: 1.5, sm: 3 },
+        pt: { xs: 8, sm: 3 }
       }}
     >
       <Box
         sx={{
           position: "fixed",
-          top: 20,
-          left: 20,
+          top: { xs: 10, sm: 20 },
+          left: { xs: 12, sm: 20 },
           zIndex: 2000,
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
+          gap: 1,
           cursor: "pointer",
         }}
         onClick={() => window.location.href = "/"}
       >
         <img
-          src={`${API_BASE_URL}/branding/logo/file`}    // ← replace with your actual logo path
+          src={`${API_BASE_URL}/branding/logo/file`}
           alt="Logo"
           style={{
-            height: 45,
+            height: 'clamp(28px, 5vw, 45px)',
             objectFit: "contain",
           }}
         />
         <Typography
           variant="subtitle1"
           sx={{
-            fontSize: 30,
+            fontSize: { xs: 18, sm: 24, md: 30 },
             fontWeight: 700,
             color: "#0d9488",
             letterSpacing: 0.3,
@@ -367,12 +368,12 @@ const Completion = () => {
         </Typography>
       </Box>
 
-      <Box sx={{ maxWidth: 800, width: '100%' }}>
+      <Box sx={{ maxWidth: 800, width: '100%', mt: { xs: 1, sm: 0 } }}>
         {/* Document Status Banner */}
         <Paper
           elevation={3}
           sx={{
-            p: 3,
+            p: { xs: 2, sm: 3 },
             mb: 3,
             borderRadius: 2,
             borderLeft: `4px solid ${documentInfo?.status === 'completed' ? '#4CAF50' :
@@ -381,14 +382,14 @@ const Completion = () => {
               }`
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <DocumentIcon color="primary" sx={{ fontSize: 40 }} />
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+              <DocumentIcon color="primary" sx={{ fontSize: { xs: 28, sm: 40 } }} />
               <Box>
-                <Typography variant="h5" fontWeight={600}>
+                <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }, wordBreak: 'break-word' }}>
                   {documentInfo?.filename || 'Document'}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                   <Chip
                     label={getDocumentStatusText(documentInfo?.status)}
                     color={getDocumentStatusColor(documentInfo?.status)}
@@ -399,6 +400,7 @@ const Completion = () => {
                       label={`Envelope: ${documentInfo.envelope_id}`}
                       variant="outlined"
                       size="small"
+                      sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
                     />
                   )}
                 </Box>
@@ -408,7 +410,7 @@ const Completion = () => {
             {isDocumentCompleted && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CheckIcon color="success" />
-                <Typography variant="body2" color="success.main">
+                <Typography variant="body2" color="success.main" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                   All signatures completed
                 </Typography>
               </Box>
@@ -529,7 +531,7 @@ const Completion = () => {
         </Paper>
 
         {/* Action Buttons Section */}
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+        <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           {/* <Typography 
             variant="subtitle1" 
             fontWeight={600} 
@@ -539,12 +541,19 @@ const Completion = () => {
             Document Actions
           </Typography> */}
 
-          <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap" gap={1}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            justifyContent="center"
+            flexWrap="wrap"
+            gap={1}
+          >
             <Button
+              fullWidth={false}
               variant="outlined"
               startIcon={<EmailIcon />}
               onClick={handleEmail}
-              sx={{ minWidth: 140 }}
+              sx={{ minWidth: { xs: '100%', sm: 140 } }}
             >
               Email to me
             </Button>
@@ -553,7 +562,7 @@ const Completion = () => {
               variant="outlined"
               startIcon={<PrintIcon />}
               onClick={handlePrint}
-              sx={{ minWidth: 110 }}
+              sx={{ minWidth: { xs: '100%', sm: 110 } }}
             >
               Print
             </Button>
@@ -564,7 +573,7 @@ const Completion = () => {
               endIcon={<ArrowDownIcon />}
               onClick={(e) => setAnchorEl(e.currentTarget)}
               sx={{
-                minWidth: 140,
+                minWidth: { xs: '100%', sm: 140 },
                 bgcolor: '#0d9488',
                 '&:hover': {
                   bgcolor: '#0f766e'

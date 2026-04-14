@@ -1034,7 +1034,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
 
 
-      setSuccessMsg("✅ Login successful! Redirecting...");
+      setSuccessMsg(" Login successful! Redirecting...");
 
 
       setTimeout(() => {

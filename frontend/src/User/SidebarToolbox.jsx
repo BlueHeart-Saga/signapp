@@ -95,7 +95,7 @@ const DocumentBuilder = () => {
         uploadedAt: new Date(),
       };
       await saveTemplate(data);
-      alert("✅ Template saved successfully!");
+      alert(" Template saved successfully!");
     } catch (err) {
       console.error("❌ Save Template Error:", err);
       alert("Error saving template.");

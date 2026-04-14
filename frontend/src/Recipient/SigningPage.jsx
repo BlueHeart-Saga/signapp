@@ -90,7 +90,9 @@ import {
     HelpOutline as HelpOutlineIcon,
     Timer as PostponeIcon,
     ContentCopy as ContentCopyIcon,
-    ExpandMore as ExpandMoreIcon
+    ExpandMore as ExpandMoreIcon,
+    CheckCircle as CheckCircleIcon,
+    CloudDownload as CloudDownloadIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -803,7 +805,7 @@ const DocumentPageThumbnail = React.memo(({
                     )}
                 </Box>
 
-                {/* Mini-Map: Fields position tracking */}
+                {/* Mini-Map: Fields position tracking (Editor-style) */}
                 <Box
                     sx={{
                         position: 'absolute',
@@ -819,10 +821,29 @@ const DocumentPageThumbnail = React.memo(({
                     {fields
                         .filter((f) => f.page === pageNumber - 1)
                         .map((f, idx) => {
-                            const left = (f.x / 794) * 100;
-                            const top = (f.y / 1123) * 100;
-                            const width = (f.width / 794) * 100;
-                            const height = (f.height / 1123) * 100;
+                            // Standard PDF Dimensions (SafeSign uses 612x792 points as standard)
+                            const PDF_W = 612;
+                            const PDF_H = 792;
+
+                            // Extract values, prioritizing pdf_ properties which are absolute
+                            const x = f.pdf_x ?? f.x ?? 0;
+                            const y = f.pdf_y ?? f.y ?? 0;
+                            const w = f.pdf_width ?? f.width ?? 100;
+                            const h = f.pdf_height ?? f.height ?? 30;
+
+                            // Calculate percentages relative to PDF units
+                            const left = (x / PDF_W) * 100;
+                            let top = (y / PDF_H) * 100;
+
+                            // Invert Y if it's a PDF coordinate (bottom-up origin)
+                            if (f.pdf_y !== undefined) {
+                                top = 100 - ((y + h) / PDF_H * 100);
+                            }
+
+                            const width = (w / PDF_W) * 100;
+                            const height = (h / PDF_H) * 100;
+
+                            const isDone = f.completed_at || f.is_completed;
                             const color = recipientColors[f.recipient_id] || '#0d9488';
 
                             return (
@@ -830,14 +851,13 @@ const DocumentPageThumbnail = React.memo(({
                                     key={f.id || idx}
                                     sx={{
                                         position: 'absolute',
-                                        left: `${left}%`,
-                                        top: `${top}%`,
-                                        width: `${Math.max(12, width)}%`, // Increased minimum width for better visibility
-                                        height: '5px', // Professional horizontal marker style
-                                        backgroundColor: f.completed_at || f.is_completed ? '#d1d5db' : color,
-                                        border: '1px solid rgba(255,255,255,0.5)', // Subtle contrast border
-                                        borderRadius: '1.5px',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)', // Micro-shadow for depth
+                                        left: `${Math.max(0, Math.min(100, left))}%`,
+                                        top: `${Math.max(0, Math.min(100, top))}%`,
+                                        width: `${Math.max(4, width)}%`,
+                                        height: `${Math.max(4, height)}%`,
+                                        backgroundColor: isDone ? 'rgba(156, 163, 175, 0.4)' : `${color}33`,
+                                        border: `0.5px solid ${isDone ? '#9ca3af' : color}`,
+                                        borderRadius: '0.5px',
                                         zIndex: 2,
                                         transition: 'all 0.3s ease'
                                     }}
@@ -869,7 +889,8 @@ const DocumentPageThumbnail = React.memo(({
                             borderRadius: '4px',
                             fontSize: '10px',
                             fontWeight: 700,
-                            backdropFilter: 'blur(4px)'
+                            backdropFilter: 'blur(4px)',
+                            border: isActive ? '1px solid rgba(255,255,255,0.3)' : 'none'
                         }}
                     >
                         {pageNumber}
@@ -878,8 +899,9 @@ const DocumentPageThumbnail = React.memo(({
                     {hasFields && (
                         <Box
                             sx={{
-                                bgcolor: completedFields === totalFields ? '#4caf50' : '#ff9800',
-                                color: '#fff',
+                                bgcolor: completedFields === totalFields ? '#0d9488' : '#fff',
+                                color: completedFields === totalFields ? '#fff' : '#0d9488',
+                                border: `1px solid ${completedFields === totalFields ? '#0d9488' : '#e5e7eb'}`,
                                 px: 0.8,
                                 py: 0.2,
                                 borderRadius: '4px',
@@ -888,10 +910,11 @@ const DocumentPageThumbnail = React.memo(({
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 0.2,
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                transition: 'all 0.3s ease'
                             }}
                         >
-                            {completedFields}/{totalFields} {completedFields === totalFields ? '✓' : 'rem'}
+                            {completedFields === totalFields ? <CheckIcon sx={{ fontSize: 10 }} /> : `${completedFields}/${totalFields}`}
                         </Box>
                     )}
                 </Box>
@@ -1053,18 +1076,27 @@ const SigningPage = () => {
     // Add this function to show the confirmation dialog
     const showFinishConfirmation = () => {
         const role = recipientInfo?.role;
+        const totalCount = fields.length;
 
         if (role === 'viewer') {
-            setFinishDialogTitle('Confirm Document View');
-            setFinishDialogMessage('I confirm that I have reviewed this document in its entirety. Are you sure you want to mark this document as viewed?');
+            setFinishDialogTitle('Confirm Document Review');
+            setFinishDialogMessage('I confirm that I have reviewed this document in its entirety. Marking as viewed will notify the sender.');
             setFinishDialogAction('viewed');
         } else if (role === 'approver') {
             setFinishDialogTitle('Confirm Approval');
-            setFinishDialogMessage('I confirm that I approve this document. Are you sure you want to approve this document?');
+            setFinishDialogMessage('By clicking confirm, you acknowledge that you have reviewed and approve the document content.');
             setFinishDialogAction('approved');
-        } else if (role === 'signer') {
-            setFinishDialogTitle('Confirm Signing Completion');
-            setFinishDialogMessage('You have completed all fields. Are you sure you want to finish signing?');
+        } else if (role === 'witness') {
+            setFinishDialogTitle('Finalize Witnessing');
+            setFinishDialogMessage('You have completed the witnessing process. Proceed to finalize your witness signatures?');
+            setFinishDialogAction('signed');
+        } else if (role === 'form_filler') {
+            setFinishDialogTitle('Submit Form Information');
+            setFinishDialogMessage(`You have filled all ${totalCount} form fields. Are you ready to submit your information?`);
+            setFinishDialogAction('signed');
+        } else {
+            setFinishDialogTitle('Finalize Signing');
+            setFinishDialogMessage('You have completed all required fields. Ready to finalize your legally binding signatures?');
             setFinishDialogAction('signed');
         }
 
@@ -1968,8 +2000,8 @@ const SigningPage = () => {
             <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
                 {/* Header - Simplified */}
                 <AppBar position="sticky" elevation={1} color="default" sx={{ bgcolor: 'white' }}>
-                    <Toolbar>
-                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 1, sm: 2 } }}>
+                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, overflow: 'hidden' }}>
                             {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Avatar sx={{ bgcolor: '#1976d2', width: 32, height: 32 }}>
                   <PersonIcon />
@@ -1992,16 +2024,16 @@ const SigningPage = () => {
                                             bgcolor:
                                                 recipientInfo.role === 'viewer' ? 'rgb(13, 148, 136)' :
                                                     recipientInfo.role === 'approver' ? '#4caf50' : 'rgb(13, 148, 136)',
-                                            width: 32,
-                                            height: 32
+                                            width: { xs: 28, sm: 32 },
+                                            height: { xs: 28, sm: 32 }
                                         }}
                                     >
                                         {recipientInfo.role === 'viewer' ? <PreviewIcon /> :
                                             recipientInfo.role === 'approver' ? <CheckIcon /> :
                                                 <PersonIcon />}
                                     </Avatar>
-                                    <Box>
-                                        <Typography variant="subtitle1" fontWeight="600">
+                                    <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                        <Typography variant="subtitle1" fontWeight="600" sx={{ fontSize: { sm: '0.875rem', md: '1rem' } }}>
                                             {recipientInfo.name}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
@@ -2012,7 +2044,7 @@ const SigningPage = () => {
                                     </Box>
                                 </Box>
 
-                                <Divider orientation="vertical" flexItem />
+                                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'flex' } }} />
 
                                 {recipientInfo.role === 'viewer' && (
                                     <Chip
@@ -2021,6 +2053,7 @@ const SigningPage = () => {
                                         color="info"
                                         variant="outlined"
                                         icon={<PreviewIcon />}
+                                        sx={{ display: { xs: 'none', md: 'flex' } }}
                                     />
                                 )}
 
@@ -2031,6 +2064,7 @@ const SigningPage = () => {
                                         color="success"
                                         variant="outlined"
                                         icon={<CheckIcon />}
+                                        sx={{ display: { xs: 'none', md: 'flex' } }}
                                     />
                                 )}
                                 {recipientInfo?.status === 'completed' && (
@@ -2046,17 +2080,23 @@ const SigningPage = () => {
                                 )}
                             </Box>
 
-                            <Divider orientation="vertical" flexItem />
+                            <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'flex' } }} />
 
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                noWrap
+                                sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: { sm: 120, md: 240 } }}
+                            >
                                 {documentInfo?.filename}
                             </Typography>
 
                             <Chip
-                                label={`${progress.completedFields}/${progress.totalFields} fields`}
+                                label={`${progress.completedFields}/${progress.totalFields}`}
                                 color={progress.allRequiredCompleted ? "success" : "default"}
                                 size="small"
                                 variant="outlined"
+                                title={`${progress.completedFields}/${progress.totalFields} fields`}
                             />
                         </Box>
 
@@ -2109,6 +2149,7 @@ const SigningPage = () => {
                                     <Button
                                         variant="outlined"
                                         size="small"
+                                        sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
                                         onClick={async () => {
                                             try {
                                                 await apiService.triggerCompletedEmails(recipientId);
@@ -2130,7 +2171,7 @@ const SigningPage = () => {
                                         //   recipientInfo.role === 'viewer' ? 'rgb(13, 148, 136)' :
                                         //   recipientInfo.role === 'approver' ? 'success' : 'primary'
                                         // }
-                                        sx={{ minWidth: 120, backgroundColor: 'rgb(13, 148, 136)' }}
+                                        sx={{ minWidth: { xs: 80, sm: 120 }, backgroundColor: 'rgb(13, 148, 136)', display: { xs: 'none', sm: 'inline-flex' } }}
                                         onClick={() => {
                                             // If already completed, navigate to completion page
                                             if (recipientInfo?.status === 'completed') {
@@ -2168,19 +2209,20 @@ const SigningPage = () => {
                                 color="inherit"
                                 size="small"
                                 onClick={handleActionsMenuOpen}
-                                endIcon={<ExpandMoreIcon sx={{ fontSize: 18 }} />}
+                                endIcon={<ExpandMoreIcon sx={{ fontSize: 18, display: { xs: 'none', sm: 'block' } }} />}
                                 sx={{
                                     textTransform: 'none',
                                     borderColor: '#e0e0e0',
                                     color: '#555',
                                     fontSize: '0.8rem',
                                     fontWeight: 500,
-                                    px: 1.5,
+                                    px: { xs: 1, sm: 1.5 },
                                     minWidth: 'auto',
                                     '&:hover': { bgcolor: '#f9f9f9', borderColor: '#d0d0d0' }
                                 }}
                             >
-                                More actions
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>More actions</Box>
+                                <MoreVertIcon sx={{ fontSize: 20, display: { xs: 'block', sm: 'none' } }} />
                             </Button>
 
                             {/* Standalone Quick Sign Button for accessibility */}
@@ -2198,6 +2240,7 @@ const SigningPage = () => {
                                         fontSize: '0.8rem',
                                         px: 1.2,
                                         minWidth: 'auto',
+                                        display: { xs: 'none', md: 'inline-flex' },
                                         '&:hover': { borderColor: 'rgb(11, 130, 120)', bgcolor: 'rgba(13, 148, 136, 0.05)' }
                                     }}
                                 >
@@ -2260,8 +2303,46 @@ const SigningPage = () => {
                     </Toolbar>
                 </AppBar>
 
+                {/* Mobile floating Finish button (visible only on xs/sm) */}
+                {documentInfo?.status !== 'completed' &&
+                    (progress.showFinishButton || recipientInfo?.role === 'viewer' || recipientInfo?.role === 'approver') && (
+                        <Box sx={{
+                            display: { xs: 'flex', sm: 'none' },
+                            position: 'fixed',
+                            bottom: 16,
+                            right: 16,
+                            zIndex: 1200
+                        }}>
+                            <Button
+                                variant="contained"
+                                size="medium"
+                                onClick={() => {
+                                    if (recipientInfo?.status === 'completed') {
+                                        navigate(`/complete/${recipientId}`);
+                                    } else {
+                                        showFinishConfirmation();
+                                    }
+                                }}
+                                disabled={completing}
+                                sx={{
+                                    bgcolor: 'rgb(13, 148, 136)',
+                                    borderRadius: '24px',
+                                    px: 3,
+                                    py: 1,
+                                    fontWeight: 700,
+                                    boxShadow: '0 4px 16px rgba(13,148,136,0.4)',
+                                    '&:hover': { bgcolor: 'rgb(11, 120, 110)' }
+                                }}
+                            >
+                                {completing ? <CircularProgress size={18} color="inherit" /> :
+                                    recipientInfo.role === 'viewer' ? 'Mark Viewed' :
+                                        recipientInfo.role === 'approver' ? 'Approve' : 'Finish'}
+                            </Button>
+                        </Box>
+                    )}
+
                 {/* Main content - Zoho-style layout */}
-                <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+                <Box sx={{ display: 'flex', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' } }}>
                     {/* Left sidebar - Document pages preview (Zoho-style) */}
 
                     <Paper
@@ -2687,86 +2768,122 @@ const SigningPage = () => {
                     </Alert>
                 </Snackbar>
 
-                {/* Finish Confirmation Dialog */}
+                {/* Finish Confirmation Dialog - Enterprise Grade UI */}
                 <Dialog
                     open={finishDialogOpen}
                     onClose={() => setFinishDialogOpen(false)}
                     maxWidth="sm"
                     fullWidth
+                    PaperProps={{
+                        sx: { borderRadius: 2, boxShadow: '0 12px 32px rgba(0,0,0,0.15)' }
+                    }}
                 >
-                    <DialogTitle sx={{ bgcolor: 'rgb(13, 148, 136)', color: 'white' }}>
-                        {finishDialogTitle}
+                    <DialogTitle sx={{
+                        bgcolor: 'rgb(13, 148, 136)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        py: 2.5
+                    }}>
+                        {recipientInfo?.role === 'viewer' ? <PreviewIcon /> :
+                            recipientInfo?.role === 'approver' ? <CheckCircleIcon /> :
+                                recipientInfo?.role === 'witness' ? <HistoryIcon /> :
+                                    <SignatureIcon />}
+                        <Typography variant="h6" fontWeight="bold">
+                            {finishDialogTitle}
+                        </Typography>
                     </DialogTitle>
-                    <DialogContent sx={{ pt: 3 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            {recipientInfo?.role === 'viewer' && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                    <PreviewIcon color="rgb(13, 148, 136)" />
-                                    <Typography variant="body1" fontWeight="medium">
-                                        Viewer Confirmation
-                                    </Typography>
+
+                    <DialogContent sx={{ pt: 4, pb: 2 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {/* Hero Message */}
+                            <Box sx={{ textAlign: 'center' }}>
+                                <Typography variant="h6" color="text.primary" gutterBottom>
+                                    Great job! You're almost done.
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {finishDialogMessage}
+                                </Typography>
+                            </Box>
+
+                            {/* Details Summary Card */}
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9fafb', borderStyle: 'dashed' }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 1 }}>
+                                    Document Details
+                                </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                    <Typography variant="body2" fontWeight="medium">Filename:</Typography>
+                                    <Typography variant="body2">{documentInfo?.filename}</Typography>
                                 </Box>
-                            )}
-
-                            {recipientInfo?.role === 'approver' && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                    <CheckIcon color="success" />
-                                    <Typography variant="body1" fontWeight="medium">
-                                        Approval Confirmation
-                                    </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body2" fontWeight="medium">Your Role:</Typography>
+                                    <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{recipientInfo?.role}</Typography>
                                 </Box>
-                            )}
+                            </Paper>
 
-                            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
-                                {finishDialogMessage}
-                            </Typography>
+                            {/* What Happens Next Section */}
+                            <Box>
+                                <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                                    What happens next?
+                                </Typography>
+                                <List dense sx={{ pl: 0 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
+                                        <Box sx={{ mt: 0.5, p: 0.5, borderRadius: '50%', bgcolor: 'rgba(13, 148, 136, 0.1)', color: 'rgb(13, 148, 136)', display: 'flex' }}>
+                                            <CheckIcon sx={{ fontSize: 14 }} />
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                            The sender and other recipients will be notified of your completion.
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                                        <Box sx={{ mt: 0.5, p: 0.5, borderRadius: '50%', bgcolor: 'rgba(13, 148, 136, 0.1)', color: 'rgb(13, 148, 136)', display: 'flex' }}>
+                                            <CloudDownloadIcon sx={{ fontSize: 14 }} />
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                            You will receive a copy of the fully executed document via email once everyone has signed.
+                                        </Typography>
+                                    </Box>
+                                </List>
+                            </Box>
 
-                            {/* Additional info for viewers */}
-                            {recipientInfo?.role === 'viewer' && (
-                                <Alert severity="info" sx={{ width: '100%' }}>
-                                    <Typography variant="caption">
-                                        <strong>Note:</strong> As a viewer, you acknowledge that you have reviewed the document.
-                                        This action will mark your viewing as complete.
-                                    </Typography>
-                                </Alert>
-                            )}
-
-                            {/* Additional info for approvers */}
-                            {recipientInfo?.role === 'approver' && (
-                                <Alert severity="warning" sx={{ width: '100%' }}>
-                                    <Typography variant="caption">
-                                        <strong>Important:</strong> By approving, you confirm that you have reviewed and agree with the document contents.
-                                    </Typography>
-                                </Alert>
+                            {/* Legal Footnote for signing roles */}
+                            {['signer', 'witness', 'form_filler'].includes(recipientInfo?.role) && (
+                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', display: 'block', mt: 1 }}>
+                                    By clicking 'Confirm', you agree that your electronic signature is as legally binding as a handwritten signature.
+                                </Typography>
                             )}
                         </Box>
                     </DialogContent>
-                    <DialogActions sx={{ p: 2 }}>
+
+                    <DialogActions sx={{ p: 3, gap: 1 }}>
                         <Button
                             onClick={() => setFinishDialogOpen(false)}
-                            variant="outlined"
+                            variant="text"
+                            sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 600 }}
                             disabled={completing}
-
                         >
-                            Cancel
+                            Review Again
                         </Button>
                         <Button
                             onClick={handleFinishConfirm}
                             variant="contained"
-                            // color={
-                            //   recipientInfo?.role === 'viewer' ? 'rgb(13, 148, 136)' :
-                            //   recipientInfo?.role === 'approver' ? 'success' : 'primary'
-                            // }
+                            disabled={completing}
                             sx={{
+                                px: 4,
+                                py: 1,
+                                borderRadius: 1.5,
+                                textTransform: 'none',
+                                fontWeight: 'bold',
                                 backgroundColor: 'rgb(13, 148, 136)',
                                 '&:hover': {
-                                    backgroundColor: 'rgb(11, 130, 120)'
+                                    backgroundColor: 'rgb(11, 130, 120)',
+                                    boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)'
                                 }
                             }}
-                            disabled={completing}
-                            startIcon={completing ? <CircularProgress size={16} /> : null}
+                            startIcon={completing ? <CircularProgress size={18} color="inherit" /> : null}
                         >
-                            {completing ? 'Processing...' : 'Confirm'}
+                            {completing ? 'Processing...' : 'Confirm & Finish'}
                         </Button>
                     </DialogActions>
                 </Dialog>

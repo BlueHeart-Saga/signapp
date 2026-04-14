@@ -26,6 +26,8 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   Close as CloseIcon,
   VerifiedUser as VerifiedIcon,
@@ -72,6 +74,8 @@ const TermsDialog = ({
   signingInfo,
   required = true
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [hasScrolled, setHasScrolled] = useState(false);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
   const [acceptedSections, setAcceptedSections] = useState({
@@ -260,11 +264,12 @@ const TermsDialog = ({
       open={open}
       maxWidth="md"
       fullWidth
+      fullScreen={isMobile}
       PaperProps={{
         sx: {
-          minHeight: '85vh',
-          maxHeight: '95vh',
-          borderRadius: 1,
+          minHeight: isMobile ? '100vh' : '85vh',
+          maxHeight: isMobile ? '100vh' : '95vh',
+          borderRadius: isMobile ? 0 : 1,
           overflow: 'hidden',
         }
       }}
@@ -278,19 +283,19 @@ const TermsDialog = ({
         py: 1.5,
         borderBottom: '1px solid #0d9488'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <VerifiedIcon fontSize="small" />
             <Box>
-              <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                Terms & Conditions Agreement
+              <Typography variant="body1" sx={{ fontWeight: 600, fontSize: { xs: '0.78rem', sm: '0.9rem' } }}>
+                Terms &amp; Conditions Agreement
               </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.65rem' }}>
+              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.58rem', sm: '0.65rem' } }}>
                 Complete legal acceptance required for electronic signing
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5 }}>
             <Chip
               label="ISO 27001"
               size="small"
@@ -327,13 +332,13 @@ const TermsDialog = ({
       >
         {/* Document Info Header */}
         <Paper elevation={0} sx={{
-          p: 1.5,
+          p: { xs: 1, sm: 1.5 },
           mb: 2,
           bgcolor: '#e3f2fd',
           borderRadius: 0.5,
           border: '1px solid #bbdefb'
         }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1 }}>
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', fontWeight: 500 }}>
                 DOCUMENT FOR SIGNATURE
@@ -767,11 +772,18 @@ const TermsDialog = ({
       </DialogContent>
 
       <DialogActions sx={{
-        p: 1.5,
+        p: { xs: 1, sm: 1.5 },
         borderTop: '1px solid #e0e0e0',
         bgcolor: '#f8f9fa'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          width: '100%',
+          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 0 }
+        }}>
           {/* Left side actions */}
           <Box sx={{ display: 'flex', gap: 0.5 }}>
             <Tooltip title="Print Terms">

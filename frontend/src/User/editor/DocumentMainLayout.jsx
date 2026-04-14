@@ -1272,6 +1272,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               currentPage={currentPage}
               onPageChange={setCurrentPage}
               fields={fields}
+              recipients={recipients}
               canvasHeight={canvasHeight}
             />
           </Box>

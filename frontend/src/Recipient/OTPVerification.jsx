@@ -222,7 +222,7 @@ const OTPVerificationPage = () => {
           // If OTP already verified and terms accepted
           if (!termsRequired || (termsRequired && termsAcceptedNow)) {
             // Show success message first
-            setSuccessMessage('✅ Your identity is verified and terms are accepted! Redirecting to signing page...');
+            setSuccessMessage(' Your identity is verified and terms are accepted! Redirecting to signing page...');
             setSuccessDialogOpen(true);
 
             // Then navigate after showing success message
@@ -336,7 +336,7 @@ const OTPVerificationPage = () => {
           setTermsDialogOpen(true);
         } else {
           // Show success message before redirecting
-          setSuccessMessage('✅ Identity verified successfully! Redirecting to signing page...');
+          setSuccessMessage(' Identity verified successfully! Redirecting to signing page...');
           setSuccessDialogOpen(true);
 
           // Proceed to signing page after showing success
@@ -427,8 +427,8 @@ const OTPVerificationPage = () => {
 
         // Show success message before redirecting
         const message = isReacceptance
-          ? '✅ Terms re-accepted successfully! Redirecting to signing page...'
-          : '✅ Terms accepted successfully! Redirecting to signing page...';
+          ? ' Terms re-accepted successfully! Redirecting to signing page...'
+          : ' Terms accepted successfully! Redirecting to signing page...';
 
         setSuccessMessage(message);
         setSuccessDialogOpen(true);
@@ -701,18 +701,26 @@ const OTPVerificationPage = () => {
       <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
         <Stepper activeStep={0} sx={{ mb: 4 }}>
           <Step>
-            <StepLabel>Verify Identity</StepLabel>
+            <StepLabel sx={{ '& .MuiStepLabel-label': { display: { xs: 'none', sm: 'block' } } }}>
+              Verify Identity
+            </StepLabel>
           </Step>
           {requiresTerms && (
             <Step>
-              <StepLabel>Accept Terms</StepLabel>
+              <StepLabel sx={{ '& .MuiStepLabel-label': { display: { xs: 'none', sm: 'block' } } }}>
+                Accept Terms
+              </StepLabel>
             </Step>
           )}
           <Step>
-            <StepLabel>Review & Sign</StepLabel>
+            <StepLabel sx={{ '& .MuiStepLabel-label': { display: { xs: 'none', sm: 'block' } } }}>
+              Review &amp; Sign
+            </StepLabel>
           </Step>
           <Step>
-            <StepLabel>Complete</StepLabel>
+            <StepLabel sx={{ '& .MuiStepLabel-label': { display: { xs: 'none', sm: 'block' } } }}>
+              Complete
+            </StepLabel>
           </Step>
         </Stepper>
 
@@ -929,7 +937,7 @@ const OTPVerificationPage = () => {
                 top: 0,
                 left: 0,
                 width: '100%',
-                height: 0,          // ✅ KEY FIX
+                height: 0,          //  KEY FIX
                 opacity: 0,
                 pointerEvents: 'none' // prevents layout & clicks
               }}
