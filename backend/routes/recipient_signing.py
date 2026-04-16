@@ -2252,29 +2252,36 @@ async def complete_field_as_recipient(
     # =====================================
     # 🔒 DOCUSIGN-LIKE RADIO GROUP LOGIC
     # =====================================
-    if field_type == "radio" and normalized_value.get("value") is True:
-
-        group_name = field.get("group_name")
-        if not group_name:
-            raise HTTPException(400, "Radio field missing group_name")
-
-        # Uncheck all other radios in the same group
-        db.signature_fields.update_many(
-            {
-                "document_id": field["document_id"],
-                "recipient_id": rid,
-                "group_name": group_name,
-                "_id": {"$ne": fid}
-            },
-            {
-                "$set": {
-                    "value": {"value": False},
-                    "is_completed": False,
-                    "completed_at": None,
-                    "edited_at": datetime.utcnow()
-                }
-            }
-        )
+    if field_type == "radio":
+        val = normalized_value.get("value")
+        # If it's a non-false/non-empty value, it counts as "selected"
+        is_selected = False
+        if isinstance(val, bool): 
+            is_selected = val
+        elif isinstance(val, str): 
+            # Any non-empty string that isn't a "false" variant counts as selected
+            is_selected = val.strip().lower() not in ["", "false", "0", "unchecked", "none"]
+        
+        if is_selected:
+            group_name = field.get("group_name")
+            if group_name:
+                # Uncheck all other radios in the same group
+                db.signature_fields.update_many(
+                    {
+                        "document_id": field["document_id"],
+                        "recipient_id": rid,
+                        "group_name": group_name,
+                        "_id": {"$ne": fid}
+                    },
+                    {
+                        "$set": {
+                            "value": {"value": ""}, # Set to empty string instead of False for consistency
+                            "is_completed": False,
+                            "completed_at": None,
+                            "edited_at": datetime.utcnow()
+                        }
+                    }
+                )
     # ✅ New: If dimensions were adjusted (adjustable text box length feature)
     if isinstance(normalized_value, dict) and ("width" in normalized_value or "height" in normalized_value):
         if "width" in normalized_value:
@@ -3395,25 +3402,6 @@ async def download_signed_document_with_passkey(
                     completed_raw_fields
                 )
         
-        # Encrypt with the provided passkey
-        try:
-            pdf_bytes = PDFEngine.encrypt_pdf(
-                pdf_bytes,
-                user_password=passkey,
-                owner_password=passkey,  # Same as user password
-                permissions={
-                    "print": True,
-                    "modify": False,
-                    "copy": True,
-                    "annotate": False,
-                    "form_fill": False,
-                    "extract": False
-                }
-            )
-        except Exception as e:
-            print(f"Error encrypting PDF: {str(e)}")
-            raise HTTPException(500, f"Failed to encrypt PDF: {str(e)}")
-        
         # Apply "PASSWORD PROTECTED" watermark
         try:
             pdf_bytes = PDFEngine.apply_watermark(
@@ -3438,6 +3426,25 @@ async def download_signed_document_with_passkey(
                 )
             except Exception as e:
                 print(f"Warning: Could not apply envelope header: {str(e)}")
+
+        # Encrypt with the provided passkey (FINAL STEP)
+        try:
+            pdf_bytes = PDFEngine.encrypt_pdf(
+                pdf_bytes,
+                user_password=passkey,
+                owner_password=passkey,  # Same as user password
+                permissions={
+                    "print": True,
+                    "modify": False,
+                    "copy": True,
+                    "annotate": False,
+                    "form_fill": False,
+                    "extract": False
+                }
+            )
+        except Exception as e:
+            print(f"Error encrypting PDF: {str(e)}")
+            raise HTTPException(500, f"Failed to encrypt PDF: {str(e)}")
         
         # Create filename
         original_filename = document.get("filename", "document.pdf")

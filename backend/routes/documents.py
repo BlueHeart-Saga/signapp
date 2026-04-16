@@ -93,12 +93,13 @@ TEXT_FIELDS = {
     "date",
     "mail",
     "dropdown",
-    "radio"
+    "radio",
+    "attachment"
 }
 
 BOOLEAN_FIELDS = {
     "checkbox",
-    "approval"  # approval can be boolean
+    "approval"
 }
 
 # Add attachment field type if needed
@@ -1404,94 +1405,148 @@ def process_fields_for_rendering(fields: list) -> tuple:
     return signatures, form_fields, all_fields_data
 
 # Add this function to your documents.py if it's not already there
-def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, doc: dict = None) -> bytes:
+def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: dict = None) -> bytes:
     """
-    Apply ALL completed fields (including signatures) to PDF.
-    Unified function used by all endpoints.
-    
-    Args:
-        pdf_bytes: Original PDF bytes
-        document_id: Document ID
-        doc: Document object (optional, for coordinate conversion)
+    Apply ALL completed fields (signatures AND form fields) to PDF.
     """
-    if not doc:
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    from database import db
+    from bson import ObjectId
     
-    # Get all completed fields
-    completed_fields = list(db.signature_fields.find({
+    if not document:
+        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        if not document:
+            return pdf_bytes
+    
+    # Get ALL completed fields for this document
+    completed_fields_query = {
         "document_id": ObjectId(document_id),
         "completed_at": {"$exists": True}
-    }))
+    }
+    completed_fields = list(db.signature_fields.find(completed_fields_query))
     
     if not completed_fields:
         return pdf_bytes
     
-    # Enrich fields with consistent normalization
-    enriched_fields = []
-    for field in completed_fields:
-        enriched = serialize_field_with_recipient(field)
-        enriched["is_completed"] = True
-        enriched["display_value"] = normalize_field_value(field)
-        enriched["value"] = field.get("value")
-        enriched["_render_completed"] = True
-        enriched_fields.append(enriched)
+    print(f"Applying {len(completed_fields)} completed fields to PDF")
     
-    # Process all field types
+    # Separate signatures and form fields
     signatures = []
     form_fields = []
     
-    for field in enriched_fields:
-        field_type = field.get("type", "")
-        field_value = field.get("display_value") or field.get("value")
+    IMAGE_FIELDS = {"signature", "initials", "witness_signature", "stamp"}
+    TEXT_FIELDS = {"textbox", "date", "mail", "dropdown", "radio", "attachment"}
+    BOOLEAN_FIELDS = {"checkbox", "approval"}
+    
+    for field in completed_fields:
+        field_type = field.get("type")
+        field_value = field.get("value")
+        
+        # 🔥 CRITICAL: Add completion flags for PDFEngine
+        field["_render_completed"] = True
+        field["is_completed"] = True
         
         if field_type in IMAGE_FIELDS:
-            # Handle image-based fields
-            image_data = extract_image_data(field_value)
+            # Use normalize_field_value to extract image data consistently
+            norm_val = normalize_field_value(field)
+            image_data = None
+            if isinstance(norm_val, dict):
+                image_data = norm_val.get("data") or norm_val.get("image")
+            
+            if not image_data:
+                # Fallback to direct extraction
+                if isinstance(field_value, dict):
+                    image_data = field_value.get("image") or field_value.get("data")
+                elif isinstance(field_value, str) and field_value.startswith("data:image"):
+                    image_data = field_value
+            
             if image_data:
                 signatures.append({
-                    "field_id": field["id"],
+                    "field_id": str(field["_id"]),
                     "image": image_data,
                     "page": field.get("page", 0),
-                    "x": field.get("pdf_x") or field.get("x", 0),
-                    "y": field.get("pdf_y") or field.get("y", 0),
-                    "width": field.get("pdf_width") or field.get("width", 100),
-                    "height": field.get("pdf_height") or field.get("height", 30),
-                    "opacity": 1.0,
+                    "x": field.get("pdf_x", field.get("x", 0)),
+                    "y": field.get("pdf_y", field.get("y", 0)),
+                    "width": field.get("pdf_width", field.get("width", 100)),
+                    "height": field.get("pdf_height", field.get("height", 30)),
                     "is_completed": True,
                     "_render_completed": True
                 })
-        else:
-            # Handle form fields
-            printable_value = extract_printable_value(field_value)
-            if printable_value not in [None, ""]:
-                form_fields.append({
-                    "field_id": field["id"],
-                    "type": field_type,
-                    "value": printable_value,
-                    "page": field.get("page", 0),
-                    "x": field.get("pdf_x") or field.get("x", 0),
-                    "y": field.get("pdf_y") or field.get("y", 0),
-                    "width": field.get("pdf_width") or field.get("width", 100),
-                    "height": field.get("pdf_height") or field.get("height", 30),
-                    "font_size": field.get("font_size", 12),
-                    "color": "#000000",
-                    "opacity": 1.0,
-                    "is_completed": True,
-                    "_render_completed": True
-                })
+                print(f"  - Added signature field: {field_type}")
+            else:
+                print(f"  - WARNING: No image data for {field_type} field {field.get('_id')}")
+                
+        elif field_type in TEXT_FIELDS:
+            # 🔥 USE CENTRALIZED NORMALIZATION
+            actual_value = normalize_field_value(field)
+            
+            # If normalized value is a dict (e.g. for initials as text), extract text
+            if isinstance(actual_value, dict):
+                actual_value = (actual_value.get("text") or 
+                               actual_value.get("value") or 
+                               actual_value.get("filename") or
+                               str(actual_value))
+            
+            # 🔥 CRITICAL: For date fields, ensure we have the date string if normalizer failed
+            if field_type == "date" and not actual_value:
+                if field.get("completed_at"):
+                    actual_value = field["completed_at"].strftime("%Y-%m-%d")
+            
+            # Even if value is empty, we must add it as a completed field so PDFEngine 
+            # renders it (potentially as blank or with its placeholder if needed)
+            form_fields.append({
+                "field_id": str(field["_id"]),
+                "type": field_type,
+                "value": actual_value or "",
+                "page": field.get("page", 0),
+                "x": field.get("pdf_x", field.get("x", 0)),
+                "y": field.get("pdf_y", field.get("y", 0)),
+                "width": field.get("pdf_width", field.get("width", 100)),
+                "height": field.get("pdf_height", field.get("height", 30)),
+                "font_size": field.get("font_size", 12),
+                "is_completed": True,
+                "_render_completed": True
+            })
+            print(f"  - Added text/attachment field: {field_type} = '{actual_value}'")
+                
+        elif field_type in BOOLEAN_FIELDS:
+            # Handle boolean fields
+            boolean_value = False
+            if isinstance(field_value, dict):
+                boolean_value = (field_value.get("value") or 
+                                field_value.get("checked") or 
+                                field_value.get("approved") or 
+                                False)
+            elif isinstance(field_value, bool):
+                boolean_value = field_value
+            elif isinstance(field_value, str):
+                boolean_value = field_value.lower() in ["true", "yes", "1", "checked", "approved"]
+            
+            form_fields.append({
+                "field_id": str(field["_id"]),
+                "type": field_type,
+                "value": boolean_value,
+                "page": field.get("page", 0),
+                "x": field.get("pdf_x", field.get("x", 0)),
+                "y": field.get("pdf_y", field.get("y", 0)),
+                "width": field.get("pdf_width", field.get("width", 100)),
+                "height": field.get("pdf_height", field.get("height", 30)),
+                "is_completed": True,
+                "_render_completed": True
+            })
+            print(f"  - Added boolean field: {field_type} = {boolean_value}")
     
-    print(f"Applying {len(signatures)} signatures and {len(form_fields)} form fields to PDF")
+    print(f"Applying {len(form_fields)} form fields and {len(signatures)} signatures")
     
-    # Apply form fields first
+    # Apply form fields first (text appears under signatures)
     if form_fields:
-        pdf_bytes = PDFEngine.apply_all_fields(pdf_bytes, form_fields)
+        pdf_bytes = PDFEngine.apply_form_fields_with_values(pdf_bytes, form_fields)
     
-    # Apply signatures
+    # Apply signatures on top
     if signatures:
         pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
             pdf_bytes,
             signatures,
-            enriched_fields  # Pass field data for coordinate context
+            completed_fields
         )
     
     return pdf_bytes
@@ -1535,11 +1590,153 @@ PLAN_CONFIG = {
 # -----------------------------
 # UPLOAD DOCUMENT
 # -----------------------------
+
+async def process_document_upload_task(
+    document_id: str,
+    content: bytes,
+    filename: str,
+    user_id: str,
+    email: str,
+    ext: str,
+    auto_generate_envelope: bool,
+    envelope_id_value: str,
+    request: Request = None
+):
+    """
+    Background task to process document upload: 
+    Conversion, storage, thumbnails, and final status update.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+        
+        # 1. Start processing (already at 20% from initial read)
+        
+        # 2. Convert to PDF (Progress: 40%)
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 30, "processing_status": "Converting to PDF..."}}
+        )
+        
+        converted_pdf_bytes = convert_to_pdf(content, filename)
+
+        if not converted_pdf_bytes:
+            db.documents.update_one(
+                {"_id": doc_oid},
+                {"$set": {"status": "error", "processing_status": "PDF conversion failed", "progress": 0}}
+            )
+            return
+
+        page_count = get_pdf_page_count(converted_pdf_bytes)
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"page_count": page_count, "progress": 45, "processing_status": "Saving to storage..."}}
+        )
+
+        # 3. Upload Files (Progress: 60%)
+        # Upload original file
+        original_file_path = storage.upload(
+            content, 
+            filename,
+            folder=f"users/{user_id}/originals"
+        )
+
+        # Upload converted PDF
+        pdf_filename = filename.rsplit(".", 1)[0] + ".pdf"
+        pdf_file_path = storage.upload(
+            converted_pdf_bytes,
+            pdf_filename,
+            folder=f"users/{user_id}/pdfs"
+        )
+
+        # Generate PREVIEW thumbnail (first page as preview)
+        preview_thumb_bytes = generate_file_thumbnail(converted_pdf_bytes, 0)
+
+        # Upload preview thumbnail
+        preview_thumb_path = storage.upload(
+            preview_thumb_bytes,
+            f"{filename}_preview.png",
+            folder=f"users/{user_id}/thumbnails/previews"
+        )
+        
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 70, "processing_status": "Generating page thumbnails..."}}
+        )
+
+        # Generate page thumbnails for navigation
+        page_thumbnail_refs = []
+        all_page_thumbnails = generate_all_page_thumbnails(converted_pdf_bytes)
+            
+        for page_num, thumb_bytes in all_page_thumbnails.items():
+            page_thumb_path = storage.upload(
+                thumb_bytes,
+                f"{filename}_page_{page_num}_thumb.png",
+                folder=f"users/{user_id}/thumbnails/pages"
+            )
+            page_thumbnail_refs.append({
+                "page": page_num,
+                "thumbnail_path": page_thumb_path,
+                "is_preview": False
+            })
+            
+            # Incremental progress for many pages
+            if page_count > 0:
+                current_progress = 70 + int((page_num + 1) / page_count * 25)
+                db.documents.update_one(
+                    {"_id": doc_oid},
+                    {"$set": {"progress": min(current_progress, 95)}}
+                )
+
+        # FINAL UPDATE (Progress: 100%)
+        final_updates = {
+            "pdf_file_path": pdf_file_path,
+            "original_file_path": original_file_path,
+            "preview_thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumbnail_refs,
+            "status": "draft",
+            "progress": 100,
+            "processing_status": "Complete"
+        }
+        
+        db.documents.update_one({"_id": doc_oid}, {"$set": final_updates})
+        
+        # Also insert entry into document_files for consistency
+        db.document_files.insert_one({
+            "document_id": doc_oid,
+            "file_path": pdf_file_path,
+            "thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumbnail_refs,
+            "filename": filename,
+            "page_count": page_count,
+            "order": 1,
+            "uploaded_at": datetime.utcnow(),
+            "source": "original"
+        })
+
+        # Log event
+        log_metadata = {
+            "filename": filename,
+            "envelope_auto_generated": auto_generate_envelope,
+            "envelope_id": envelope_id_value
+        }
+        
+        # Create a mock actor dict for _log_event
+        actor = {"id": user_id, "email": email, "role": "owner"}
+        _log_event(document_id, actor, "upload_document", log_metadata, request)
+        
+    except Exception as e:
+        print(f"CRITICAL ERROR in document processing task: {e}")
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$set": {"status": "error", "processing_status": f"System error: {str(e)}", "progress": 0}}
+        )
+
 @router.post("/upload")
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    payload: UploadDocumentPayload = None,  # For JSON body
-    envelope_id: Optional[str] = Form(None),  # For form data
+    payload: UploadDocumentPayload = None,
+    envelope_id: Optional[str] = Form(None),
     auto_generate_envelope: bool = Form(True),
     envelope_prefix: str = Form("ENV"),
     current_user: dict = Depends(get_current_user),
@@ -1591,11 +1788,11 @@ async def upload_document(
         "owner_id": ObjectId(current_user["id"]),
         "owner_email": current_user.get("email"),
         "mime_type": file.content_type,
-        "size": 0, # Update later
-        "page_count": 0, # Update later
+        "size": 0, 
+        "page_count": 0,
         "status": "processing",
         "progress": 10,
-        "processing_status": "Starting upload...",
+        "processing_status": "Upload received, starting processing...",
         "common_message": "Please review and sign this document at your earliest convenience.",
         "expires_at": datetime.utcnow() + timedelta(days=expiry_days),
         "expiry_days": expiry_days,
@@ -1607,146 +1804,148 @@ async def upload_document(
     result = db.documents.insert_one(doc_data)
     document_id = str(result.inserted_id)
 
-    # 2. Read content (Progress: 20%)
+    # 2. Read content synchronously (Progress: 20%)
     content = await file.read()
     db.documents.update_one(
         {"_id": result.inserted_id},
-        {"$set": {"size": len(content), "progress": 20, "processing_status": "Converting to PDF..."}}
+        {"$set": {"size": len(content), "progress": 20}}
     )
 
-    # 3. Convert to PDF (Progress: 40%)
-    converted_pdf_bytes = convert_to_pdf(content, file.filename)
-
-
-    if not converted_pdf_bytes:
-        db.documents.update_one(
-            {"_id": result.inserted_id},
-            {"$set": {"status": "error", "processing_status": "PDF conversion failed"}}
-        )
-        raise HTTPException(
-            status_code=400,
-            detail="File cannot be converted to PDF. The format may not be supported."
-        )
-
-    page_count = get_pdf_page_count(converted_pdf_bytes)
-    db.documents.update_one(
-        {"_id": result.inserted_id},
-        {"$set": {"page_count": page_count, "progress": 45, "processing_status": "Saving to storage..."}}
+    # 3. Schedule background processing
+    background_tasks.add_task(
+        process_document_upload_task,
+        document_id=document_id,
+        content=content,
+        filename=file.filename,
+        user_id=str(current_user["id"]),
+        email=current_user.get("email"),
+        ext=ext,
+        auto_generate_envelope=auto_generate_envelope,
+        envelope_id_value=envelope_id_value,
+        request=request
     )
 
-    
-    # ============================================
-    # NEW: Upload to Azure Blob Storage
-    # ============================================
-    
-    # 4. Upload Files (Progress: 60%)
-    # Upload original file
-    original_file_path = storage.upload(
-        content, 
-        file.filename,
-        folder=f"users/{current_user['id']}/originals"
-    )
-
-    # Upload converted PDF
-    pdf_filename = file.filename.rsplit(".", 1)[0] + ".pdf"
-    pdf_file_path = storage.upload(
-        converted_pdf_bytes,
-        pdf_filename,
-        folder=f"users/{current_user['id']}/pdfs"
-    )
-
-    is_converted = (ext != "pdf")
-    
-    # Generate PREVIEW thumbnail (first page as preview)
-    preview_thumb_bytes = generate_file_thumbnail(converted_pdf_bytes, 0)
-
-    # Upload preview thumbnail
-    preview_thumb_path = storage.upload(
-        preview_thumb_bytes,
-        f"{file.filename}_preview.png",
-        folder=f"users/{current_user['id']}/thumbnails/previews"
-    )
-    
-    db.documents.update_one(
-        {"_id": result.inserted_id},
-        {"$set": {"progress": 70, "processing_status": "Generating page thumbnails..."}}
-    )
-
-
-    # Generate page thumbnails for navigation
-    page_thumbnail_refs = []
-    all_page_thumbnails = generate_all_page_thumbnails(converted_pdf_bytes)
-        
-    for page_num, thumb_bytes in all_page_thumbnails.items():
-        page_thumb_path = storage.upload(
-            thumb_bytes,
-            f"{file.filename}_page_{page_num}_thumb.png",
-            folder=f"users/{current_user['id']}/thumbnails/pages"
-        )
-        page_thumbnail_refs.append({
-            "page": page_num,
-            "thumbnail_path": page_thumb_path,
-            "is_preview": False
-        })
-        
-        # Incremental progress for many pages
-        if page_count > 0:
-            current_progress = 70 + int((page_num + 1) / page_count * 25)
-            db.documents.update_one(
-                {"_id": result.inserted_id},
-                {"$set": {"progress": min(current_progress, 95)}}
-            )
-
-    # FINAL UPDATE (Progress: 100%)
-    final_updates = {
-        "pdf_file_path": pdf_file_path,
-        "original_file_path": original_file_path,
-        "preview_thumbnail_path": preview_thumb_path,
-        "page_thumbnails": page_thumbnail_refs,
-        "status": "draft",
-        "progress": 100,
-        "processing_status": "Complete"
-    }
-    
-    db.documents.update_one({"_id": result.inserted_id}, {"$set": final_updates})
-    
-    # Also insert entry into document_files for consistency
-    db.document_files.insert_one({
-        "document_id": result.inserted_id,
-        "file_path": pdf_file_path,  # Changed from file_id
-        "thumbnail_path": preview_thumb_path,  # Changed from thumbnail_file_id
-        "page_thumbnails": page_thumbnail_refs,
-        "filename": file.filename,
-        "page_count": page_count,
-        "order": 1,
-        "uploaded_at": datetime.utcnow(),
-        "source": "original"
-    })
-
-    # Log event
-    log_metadata = {
-        "filename": file.filename,
-        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id
-    }
-    if envelope_id_value:
-        log_metadata["envelope_id"] = envelope_id_value
-        
-    _log_event(str(doc_data["_id"]), current_user, "upload_document", log_metadata, request)
-    
-    # Fetch final document for accurate serialization (size, status, etc.)
-    final_doc = db.documents.find_one({"_id": result.inserted_id})
-    
+    # Return immediately with document metadata
     return {
-        "message": "Document uploaded successfully", 
-        "document": serialize_document(final_doc),
-        "envelope_id": envelope_id_value,
-        "envelope_auto_generated": auto_generate_envelope and not (payload and payload.envelope_id) and not envelope_id
+        "message": "Document upload initiated", 
+        "document": serialize_document(doc_data), # note: doc_data has _id but not as string yet? serialize_document handles it
+        "document_id": document_id,
+        "status": "processing",
+        "progress": 20
     }
 
+
+async def process_add_file_task(
+    document_id: str,
+    content: bytes,
+    filename: str,
+    user_id: str,
+    email: str,
+    request: Request = None
+):
+    """
+    Background task to process adding/merging a file into a document.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+        
+        # 1. Convert to PDF (Progress: 50%)
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 40, "processing_status": "Converting to PDF..."}}
+        )
+        
+        pdf_bytes = convert_to_pdf(content, filename)
+
+        if not pdf_bytes:
+            db.documents.update_one(
+                {"_id": doc_oid},
+                {"$set": {"progress": 0, "status": "error", "processing_status": "Conversion failed"}}
+            )
+            return
+
+        page_count = get_pdf_page_count(pdf_bytes)
+        
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 60, "processing_status": "Uploading to storage..."}}
+        )
+
+        # 2. Upload to storage
+        pdf_file_path = storage.upload(
+            pdf_bytes,
+            filename,
+            folder=f"users/{user_id}/documents/{document_id}/files"
+        )
+
+        # 3. Handle document_files entry
+        last = db.document_files.find_one(
+            {"document_id": doc_oid},
+            sort=[("order", -1)]
+        )
+        next_order = (last["order"] + 1) if last else 1
+        
+        # Generate thumbnails
+        preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
+        preview_thumb_path = storage.upload(
+            preview_thumb_bytes,
+            f"{filename}_preview.png",
+            folder=f"users/{user_id}/thumbnails/{document_id}"
+        )
+
+        page_thumbnails = generate_and_store_page_thumbnails(
+            pdf_bytes, str(document_id), filename, user_id
+        )
+
+        db.document_files.insert_one({
+            "document_id": doc_oid,
+            "file_path": pdf_file_path,
+            "thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumbnails,
+            "filename": filename,
+            "page_count": page_count,
+            "order": next_order,
+            "uploaded_at": datetime.utcnow(),
+            "source": "added",
+            "has_preview": True
+        })
+
+        # 4. Final Updates
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 90, "processing_status": "Updating document metadata..."}}
+        )
+        
+        update_document_summary_metadata(document_id)
+
+        db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"progress": 100, "processing_status": "Complete"}}
+        )
+
+        _log_event(
+            document_id,
+            {"id": user_id, "email": email, "role": "owner"},
+            "file_added",
+            {
+                "filename": filename,
+                "pages": page_count,
+                "file_path": pdf_file_path
+            },
+            request
+        )
+
+    except Exception as e:
+        print(f"ERROR in add_file task: {e}")
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$set": {"status": "error", "processing_status": f"System error: {str(e)}", "progress": 0}}
+        )
 
 @router.post("/{document_id}/add-file")
 async def add_file_to_document(
     document_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     request: Request = None
@@ -1762,101 +1961,30 @@ async def add_file_to_document(
     if doc["status"] != "draft":
         raise HTTPException(400, "Cannot add files after sending")
 
-    # Initial progress update (Progress: 30%)
+    # Start progress
     db.documents.update_one(
         {"_id": ObjectId(document_id)},
-        {"$set": {"progress": 30, "processing_status": "Reading new file..."}}
+        {"$set": {"status": "processing", "progress": 10, "processing_status": "Receiving file..."}}
     )
 
     content = await file.read()
     
     db.documents.update_one(
         {"_id": ObjectId(document_id)},
-        {"$set": {"progress": 50, "processing_status": "Converting to PDF..."}}
+        {"$set": {"progress": 25, "processing_status": "Processing initiated..."}}
     )
     
-    pdf_bytes = convert_to_pdf(content, file.filename)
-
-    if not pdf_bytes:
-        db.documents.update_one(
-            {"_id": ObjectId(document_id)},
-            {"$set": {"progress": 100, "processing_status": "Conversion failed"}}
-        )
-        raise HTTPException(400, "File cannot be converted")
-
-    page_count = get_pdf_page_count(pdf_bytes)
-    
-    db.documents.update_one(
-        {"_id": ObjectId(document_id)},
-        {"$set": {"progress": 70, "processing_status": "Uploading to storage..."}}
+    background_tasks.add_task(
+        process_add_file_task,
+        document_id=document_id,
+        content=content,
+        filename=file.filename,
+        user_id=str(current_user["id"]),
+        email=current_user.get("email"),
+        request=request
     )
 
-
-    # ============================================
-    # Upload to Azure Blob Storage
-    # ============================================
-    pdf_file_path = storage.upload(
-        pdf_bytes,
-        file.filename,
-        folder=f"users/{current_user['id']}/documents/{document_id}/files"
-    )
-
-    # Calculate correct order
-    last = db.document_files.find_one(
-        {"document_id": ObjectId(document_id)},
-        sort=[("order", -1)]
-    )
-    next_order = (last["order"] + 1) if last else 1
-    
-    # Generate preview thumbnail (first page)
-    preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
-
-    preview_thumb_path = storage.upload(
-        preview_thumb_bytes,
-        f"{file.filename}_preview.png",
-        folder=f"users/{current_user['id']}/thumbnails/{document_id}"
-    )
-
-    # Generate page-level thumbnails
-    page_thumbnails = generate_and_store_page_thumbnails(
-        pdf_bytes, str(document_id), file.filename, current_user["id"]
-    )
-
-    db.document_files.insert_one({
-        "document_id": ObjectId(document_id),
-        "file_path": pdf_file_path,
-        "thumbnail_path": preview_thumb_path,
-        "page_thumbnails": page_thumbnails,
-        "filename": file.filename,
-        "page_count": page_count,
-        "order": next_order,
-        "uploaded_at": datetime.utcnow(),
-        "source": "added",
-        "has_preview": True
-    })
-
-    # Update summary metadata (total page count, combined thumbnails)
-    update_document_summary_metadata(document_id)
-
-    db.documents.update_one(
-        {"_id": ObjectId(document_id)},
-        {"$set": {"progress": 100, "processing_status": "Complete"}}
-    )
-
-    
-    _log_event(
-        document_id,
-        current_user,
-        "file_added",
-        {
-            "filename": file.filename,
-            "pages": page_count,
-            "file_path": pdf_file_path
-        },
-        request
-    )
-
-    return {"message": "File added successfully"}
+    return {"message": "File addition initiated", "status": "processing", "progress": 25}
 
 
 @router.get("/{document_id}/files")
@@ -6214,318 +6342,322 @@ async def get_complete_analytics(
     request: Request = None
 ):
     """
-    Get complete analytics data for dashboard
-    Returns all metrics in one call for efficiency
+    Get complete high-level analytics data for dashboard using high-performance aggregation.
+    Consolidates data from documents, recipients, fields, and timeline.
     """
     try:
         owner_id = ObjectId(current_user["id"])
+        now = datetime.utcnow()
+        thirty_days_ago = now - timedelta(days=30)
         
-        # ============================================
-        # 1. DOCUMENT ANALYTICS
-        # ============================================
-        doc_stats = {}
-        for status in DOCUMENT_STATUSES:
-            doc_stats[status] = db.documents.count_documents({
-                "owner_id": owner_id,
-                "status": status
-            })
-        doc_stats["total"] = sum(doc_stats.values())
+        # 1. Consolidated Document & Recipient Aggregation
+        # Using $facet to run multiple independent aggregations in ONE database call
+        agg_results = list(db.documents.aggregate([
+            {"$match": {"owner_id": owner_id, "status": {"$ne": "deleted"}}},
+            {"$facet": {
+                "document_stats": [
+                    {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+                    {"$project": {"status": "$_id", "count": 1, "_id": 0}}
+                ],
+                "recipient_stats": [
+                    {"$lookup": {
+                        "from": "recipients",
+                        "localField": "_id",
+                        "foreignField": "document_id",
+                        "as": "recips"
+                    }},
+                    {"$unwind": "$recips"},
+                    {"$group": {
+                        "_id": "$recips.status",
+                        "count": {"$sum": 1},
+                        "total_time": {
+                            "$sum": {
+                                "$cond": [
+                                    {"$and": [
+                                        {"$eq": ["$recips.status", "completed"]},
+                                        {"$gt": ["$recips.sent_at", None]},
+                                        {"$or": [{"$gt": ["$recips.signed_at", None]}, {"$gt": ["$recips.completed_at", None]}]}
+                                    ]},
+                                    {"$divide": [
+                                        {"$subtract": [
+                                            {"$ifNull": ["$recips.signed_at", "$recips.completed_at"]},
+                                            "$recips.sent_at"
+                                        ]},
+                                        3600000 # convert ms to hours
+                                    ]},
+                                    0
+                                ]
+                            }
+                        },
+                        "comp_count": {
+                            "$sum": {"$cond": [{"$eq": ["$recips.status", "completed"]}, 1, 0]}
+                        }
+                    }}
+                ],
+                "role_distribution": [
+                    {"$lookup": {
+                        "from": "recipients",
+                        "localField": "_id",
+                        "foreignField": "document_id",
+                        "as": "recips"
+                    }},
+                    {"$unwind": "$recips"},
+                    {"$group": {"_id": "$recips.role", "count": {"$sum": 1}}}
+                ],
+                "monthly_trends": [
+                    {"$match": {"uploaded_at": {"$gte": now - timedelta(days=180)}}},
+                    {"$group": {
+                        "_id": {
+                            "year": {"$year": "$uploaded_at"},
+                            "month": {"$month": "$uploaded_at"}
+                        },
+                        "total": {"$sum": 1},
+                        "completed": {"$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}}
+                    }},
+                    {"$sort": {"_id.year": 1, "_id.month": 1}}
+                ]
+            }}
+        ]))[0]
+
+        # Process Aggregation Results
+        doc_stats = {s: 0 for s in DOCUMENT_STATUSES}
+        total_docs = 0
+        for item in agg_results.get("document_stats", []):
+            st = item["status"]
+            if st in doc_stats:
+                doc_stats[st] = item["count"]
+                total_docs += item["count"]
+        doc_stats["total"] = total_docs
+
+        recip_stats = {"total": 0, "avg_signing_time": 0, "completion_rate": 0, "by_role": {}}
+        total_recips = 0
+        total_comp = 0
+        sum_hours = 0.0
         
-        # Get documents for detailed stats
-        documents = list(db.documents.find(
-            {"owner_id": owner_id, "status": {"$ne": "deleted"}}
-        ).sort("uploaded_at", -1).limit(100))
+        for item in agg_results.get("recipient_stats", []):
+            status = item["_id"] or "created"
+            count = item["count"]
+            recip_stats[status] = count
+            total_recips += count
+            if status == "completed":
+                total_comp = count
+                sum_hours = item["total_time"]
         
-        # ============================================
-        # 2. RECIPIENT ANALYTICS
-        # ============================================
-        doc_ids = [d["_id"] for d in documents]
-        
-        recipient_stats = {
-            "total": 0,
-            "invited": 0,
-            "viewed": 0,
-            "in_progress": 0,
-            "completed": 0,
-            "declined": 0,
-            "expired": 0,
-            "avg_signing_time": 0,
-            "completion_rate": 0,
-            "by_role": {
-                "signer": 0,
-                "approver": 0,
-                "viewer": 0,
-                "form_filler": 0,
-                "witness": 0,
-                "in_person_signer": 0
-            }
-        }
-        
-        total_signing_time = 0
-        completed_count = 0
-        
-        if doc_ids:
-            # Get all recipients for these documents
-            recipients = list(db.recipients.find({
-                "document_id": {"$in": doc_ids}
-            }))
-            
-            recipient_stats["total"] = len(recipients)
-            
-            for r in recipients:
-                # Count by status
-                status = r.get("status", "created")
-                if status in recipient_stats:
-                    recipient_stats[status] = recipient_stats.get(status, 0) + 1
-                
-                # Count by role
-                role = r.get("role", "signer")
-                if role in recipient_stats["by_role"]:
-                    recipient_stats["by_role"][role] += 1
-                
-                # Calculate average signing time
-                if status == "completed" and r.get("sent_at") and r.get("completed_at"):
-                    sent = r["sent_at"]
-                    completed = r["completed_at"]
-                    if isinstance(sent, datetime) and isinstance(completed, datetime):
-                        hours = (completed - sent).total_seconds() / 3600
-                        total_signing_time += hours
-                        completed_count += 1
-            
-            if completed_count > 0:
-                recipient_stats["avg_signing_time"] = round(total_signing_time / completed_count, 1)
-            
-            if recipient_stats["total"] > 0:
-                recipient_stats["completion_rate"] = round(
-                    (recipient_stats["completed"] / recipient_stats["total"]) * 100, 1
-                )
-        
-        # ============================================
-        # 3. FIELD ANALYTICS
-        # ============================================
+        recip_stats["total"] = total_recips
+        recip_stats["avg_signing_time"] = round(sum_hours / max(total_comp, 1), 1)
+        recip_stats["completion_rate"] = round((total_comp / max(total_recips, 1)) * 100, 1)
+
+        for item in agg_results.get("role_distribution", []):
+            role = item["_id"] or "signer"
+            recip_stats["by_role"][role] = item["count"]
+
+        # 2. Field Analysis Pipeline
+        field_agg = list(db.signature_fields.aggregate([
+            {"$lookup": {
+                "from": "documents",
+                "localField": "document_id",
+                "foreignField": "_id",
+                "as": "doc"
+            }},
+            {"$match": {"doc.owner_id": owner_id, "doc.status": {"$ne": "deleted"}}},
+            {"$facet": {
+                "counters": [
+                    {"$group": {
+                        "_id": None,
+                        "total": {"$sum": 1},
+                        "completed": {"$sum": {"$cond": [{"$ne": ["$completed_at", None]}, 1, 0]}}
+                    }}
+                ],
+                "by_type": [
+                    {"$group": {
+                        "_id": "$type",
+                        "total": {"$sum": 1},
+                        "completed": {"$sum": {"$cond": [{"$ne": ["$completed_at", None]}, 1, 0]}}
+                    }}
+                ]
+            }}
+        ]))[0]
+
         field_stats = {
-            "total_fields": 0,
-            "completed_fields": 0,
-            "completion_percentage": 0,
-            "signatures": {"total": 0, "completed": 0, "percentage": 0},
-            "initials": {"total": 0, "completed": 0, "percentage": 0},
-            "form_fields": {"total": 0, "completed": 0, "percentage": 0},
-            "checkboxes": {"total": 0, "completed": 0, "percentage": 0},
-            "by_type": {}
+            "total_fields": 0, "completed_fields": 0, "completion_percentage": 0,
+            "by_type": {}, "signatures": {"total": 0, "completed": 0},
+            "initials": {"total": 0, "completed": 0}, "form_fields": {"total": 0, "completed": 0},
+            "checkboxes": {"total": 0, "completed": 0}
         }
-        
-        if doc_ids:
-            fields = list(db.signature_fields.find({
-                "document_id": {"$in": doc_ids}
-            }))
+
+        if field_agg.get("counters"):
+            c = field_agg["counters"][0]
+            field_stats["total_fields"] = c["total"]
+            field_stats["completed_fields"] = c["completed"]
+            field_stats["completion_percentage"] = round((c["completed"] / max(c["total"], 1)) * 100, 1)
+
+        for item in field_agg.get("by_type", []):
+            ftype = item["_id"]
+            if not ftype: continue
             
-            for f in fields:
-                field_type = f.get("type", "unknown")
-                is_completed = f.get("completed_at") is not None
-                
-                field_stats["total_fields"] += 1
-                if is_completed:
-                    field_stats["completed_fields"] += 1
-                
-                # Count by type
-                if field_type not in field_stats["by_type"]:
-                    field_stats["by_type"][field_type] = {"total": 0, "completed": 0}
-                field_stats["by_type"][field_type]["total"] += 1
-                if is_completed:
-                    field_stats["by_type"][field_type]["completed"] += 1
-                
-                # Signature counts
-                if field_type in ["signature", "witness_signature"]:
-                    field_stats["signatures"]["total"] += 1
-                    if is_completed:
-                        field_stats["signatures"]["completed"] += 1
-                
-                # Initials counts
-                elif field_type == "initials":
-                    field_stats["initials"]["total"] += 1
-                    if is_completed:
-                        field_stats["initials"]["completed"] += 1
-                
-                # Form fields (text, date, mail, dropdown)
-                elif field_type in ["textbox", "date", "mail", "dropdown"]:
-                    field_stats["form_fields"]["total"] += 1
-                    if is_completed:
-                        field_stats["form_fields"]["completed"] += 1
-                
-                # Checkboxes and radio
-                elif field_type in ["checkbox", "radio"]:
-                    field_stats["checkboxes"]["total"] += 1
-                    if is_completed:
-                        field_stats["checkboxes"]["completed"] += 1
+            total = int(item.get("total", 0))
+            completed = int(item.get("completed", 0))
+            percentage = round((completed / max(total, 1)) * 100, 1)
             
-            # Calculate percentages
-            if field_stats["total_fields"] > 0:
-                field_stats["completion_percentage"] = round(
-                    (field_stats["completed_fields"] / field_stats["total_fields"]) * 100, 1
-                )
-            
-            for key in ["signatures", "initials", "form_fields", "checkboxes"]:
-                if field_stats[key]["total"] > 0:
-                    field_stats[key]["percentage"] = round(
-                        (field_stats[key]["completed"] / field_stats[key]["total"]) * 100, 1
-                    )
-        
-        # ============================================
-        # 4. ACTIVITY ANALYTICS
-        # ============================================
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        
-        activity_stats = {
-            "total_activities": 0,
-            "last_30_days": 0,
-            "by_type": {},
-            "daily_timeline": [],
-            "counts": {
-                "viewed": 0,
-                "downloaded": 0,
-                "signed": 0,
-                "completed": 0,
-                "declined": 0,
-                "voided": 0,
-                "uploaded": 0,
-                "sent": 0
+            field_stats["by_type"][ftype] = {
+                "total": total, 
+                "completed": completed, 
+                "percentage": percentage
             }
+            
+            if ftype in ["signature", "witness_signature", "stamp"]:
+                field_stats["signatures"]["total"] += total
+                field_stats["signatures"]["completed"] += completed
+            elif ftype == "initials":
+                field_stats["initials"]["total"] += total
+                field_stats["initials"]["completed"] += completed
+            elif ftype in ["textbox", "date", "mail", "dropdown"]:
+                field_stats["form_fields"]["total"] += total
+                field_stats["form_fields"]["completed"] += completed
+            elif ftype in ["checkbox", "radio"]:
+                field_stats["checkboxes"]["total"] += total
+                field_stats["checkboxes"]["completed"] += completed
+
+        # Calculate category percentages
+        for cat in ["signatures", "initials", "form_fields", "checkboxes"]:
+            field_stats[cat]["percentage"] = round((field_stats[cat]["completed"] / max(field_stats[cat]["total"], 1)) * 100, 1)
+
+        # 3. Timeline & Activity Intelligence
+        # Get list of user's document IDs for timeline queries
+        doc_ids_list = [d["_id"] for d in db.documents.find({"owner_id": owner_id, "status": {"$ne": "deleted"}}, {"_id": 1})]
+        
+        timeline_agg = list(db.document_timeline.aggregate([
+            {"$match": {"document_id": {"$in": doc_ids_list}}},
+            {"$facet": {
+                "events": [{"$sort": {"timestamp": -1}}, {"$limit": 500}],
+                "type_counts": [
+                    {"$group": {"_id": "$type", "count": {"$sum": 1}}}
+                ],
+                "time_distribution": [
+                    {"$project": {
+                        "date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}},
+                        "hour": {"$hour": "$timestamp"}
+                    }},
+                    {"$group": {"_id": {"date": "$date", "hour": "$hour"}, "count": {"$sum": 1}}}
+                ]
+            }}
+        ]))[0]
+
+        # Activity Intelligence
+        act_stats: Dict[str, Any] = {
+            "total": sum(int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])),
+            "counts": {str(i.get("_id", "unknown")): int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])},
+            "timeline": [], 
+            "hourly": [0]*24, 
+            "platforms": {}
         }
         
-        # Get timeline events
-        timeline_events = list(db.document_timeline.find({
-            "document_id": {"$in": doc_ids}
-        }).sort("timestamp", -1).limit(500))
-        
-        activity_stats["total_activities"] = len(timeline_events)
-        
-        # Create daily timeline for last 30 days
-        daily_counts = {}
-        for i in range(30):
-            date = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
-            daily_counts[date] = 0
-        
-        for event in timeline_events:
-            event_type = event.get("type") or event.get("action", "unknown")
-            timestamp = event.get("timestamp")
+        # Process hourly and daily trends
+        day_counts: Dict[str, int] = {}
+        time_dist = timeline_agg.get("time_distribution", [])
+        if isinstance(time_dist, list):
+            for item in time_dist:
+                if isinstance(item, dict):
+                    id_data = item.get("_id", {})
+                    if isinstance(id_data, dict):
+                        d = str(id_data.get("date", ""))
+                        h_val = id_data.get("hour")
+                        h = int(h_val) if h_val is not None else -1
+                        c = int(item.get("count") or 0)
+                        if d:
+                            day_counts[d] = day_counts.get(d, 0) + c
+                        if 0 <= h < 24:
+                            act_stats["hourly"][h] += c
             
-            if event_type in activity_stats["counts"]:
-                activity_stats["counts"][event_type] += 1
-            else:
-                activity_stats["counts"]["other"] = activity_stats["counts"].get("other", 0) + 1
-            
-            # Count by type
-            activity_stats["by_type"][event_type] = activity_stats["by_type"].get(event_type, 0) + 1
-            
-            # Daily timeline
-            if timestamp and isinstance(timestamp, datetime):
-                date_str = timestamp.strftime("%Y-%m-%d")
-                if date_str in daily_counts:
-                    daily_counts[date_str] += 1
-                    if timestamp > thirty_days_ago:
-                        activity_stats["last_30_days"] += 1
-        
-        # Format timeline for chart
-        activity_stats["daily_timeline"] = [
-            {"date": date, "count": count}
-            for date, count in sorted(daily_counts.items())
-        ]
-        
-        # ============================================
-        # 5. SUBSCRIPTION ANALYTICS (if applicable)
-        # ============================================
-        subscription = await get_active_subscription(current_user["email"])
-        subscription_stats = {
-            "has_active": False,
-            "status": "inactive",
-            "plan_type": None,
-            "plan_name": "No Active Plan",
-            "days_remaining": 0,
-            "total_revenue": 0,
-            "total_payments": 0,
-            "payment_success_rate": 0,
-            "is_trial": False
+        # Get sorted timeline entries
+        timeline_items = sorted(day_counts.items())
+        act_stats["timeline"] = [{"date": d, "count": c} for d, c in timeline_items[-30:]]
+
+        # Platform detection from latest events
+        events_list = timeline_agg.get("events", [])
+        if isinstance(events_list, list):
+            for ev in events_list:
+                if isinstance(ev, dict):
+                    metadata = ev.get("metadata", {})
+                    if isinstance(metadata, dict):
+                        ua = str(metadata.get("user_agent", ""))
+                        if ua:
+                            pf = "Mobile" if "Mobi" in ua else "Tablet" if "Tablet" in ua else "Desktop"
+                            act_stats["platforms"][pf] = act_stats.get("platforms", {}).get(pf, 0) + 1
+
+        # 4. Funnel Analytics - Multi-stage conversion tracking
+        funnel_data = {
+            "uploaded": int(doc_stats.get("total", 0)),
+            "sent": sum(int(doc_stats.get(s, 0)) for s in ["sent", "in_progress", "completed"]),
+            "viewed": int(act_stats.get("counts", {}).get("document_viewed", 0) or 
+                         act_stats.get("counts", {}).get("recipient_viewed", 0) or 
+                         act_stats.get("counts", {}).get("viewed", 0)),
+            "started": int(field_stats.get("completed_fields", 0)),
+            "completed": int(doc_stats.get("completed", 0))
         }
-        
-        if subscription:
-            expiry = subscription.get("expiry_date")
-            days_remaining = 0
-            if expiry and isinstance(expiry, datetime):
-                days_remaining = max(0, (expiry - datetime.utcnow()).days)
-            
-            subscription_stats.update({
-                "has_active": True,
-                "status": subscription.get("status", "active"),
-                "plan_type": subscription.get("plan_type"),
-                "plan_name": PLAN_CONFIG.get(subscription.get("plan_type"), {}).get("name", "Active Plan"),
-                "days_remaining": days_remaining,
-                "is_trial": subscription.get("plan_type") == "free_trial"
+
+        # 5. Monthly Trends Data
+        trend_list = []
+        monthly_trends_list = agg_results.get("monthly_trends", [])
+        if isinstance(monthly_trends_list, list):
+            for item in monthly_trends_list:
+                if isinstance(item, dict):
+                    id_info = item.get("_id", {})
+                    if isinstance(id_info, dict):
+                        y = int(id_info.get("year", now.year))
+                        m = int(id_info.get("month", now.month))
+                        try:
+                            dt = datetime(y, m, 1)
+                            trend_list.append({
+                                "month": dt.strftime("%b %Y"),
+                                "total": int(item.get("total", 0)),
+                                "completed": int(item.get("completed", 0))
+                            })
+                        except (ValueError, TypeError):
+                            continue
+
+        # Subscription & Active Count
+        sub_record = await get_active_subscription(current_user["email"])
+        sub_info = {"has_active": False, "status": "inactive", "plan": "Free", "days_left": 0}
+        if sub_record:
+            exp_date = sub_record.get("expiry_date")
+            sub_info.update({
+                "has_active": True, "status": str(sub_record.get("status", "active")),
+                "plan": str(PLAN_CONFIG.get(str(sub_record.get("plan_type")), {}).get("name", "Active Plan")),
+                "days_left": max(0, (exp_date - now).days) if isinstance(exp_date, datetime) else 0
             })
+
+        # Efficiency metrics calculation
+        hourly_series = act_stats.get("hourly", [0]*24)
+        peak_hr = 0
+        if any(hourly_series):
+            peak_hr = hourly_series.index(max(hourly_series))
         
-        # ============================================
-        # 6. CONTACT ANALYTICS
-        # ============================================
-        contacts = list(db.contacts.find({"owner_id": owner_id}))
-        
-        # Calculate frequent recipients
-        email_frequency = {}
-        if doc_ids:
-            all_recipients = list(db.recipients.find({
-                "document_id": {"$in": doc_ids}
-            }))
-            for r in all_recipients:
-                email = r.get("email")
-                if email:
-                    email_frequency[email] = email_frequency.get(email, 0) + 1
-        
-        frequent_recipients = len([f for f in email_frequency.values() if f >= 3])
-        
-        contact_stats = {
-            "total_contacts": len(contacts),
-            "frequent_recipients": frequent_recipients,
-            "unique_contacts": len(contacts),
-            "recent_contacts": len([c for c in contacts if c.get("created_at", datetime.utcnow()) > thirty_days_ago])
-        }
-        
-        # ============================================
-        # 7. MONTHLY TRENDS
-        # ============================================
-        monthly_trends = []
-        for i in range(6):
-            month_start = datetime.utcnow().replace(day=1) - timedelta(days=30*i)
-            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-            
-            month_docs = db.documents.count_documents({
-                "owner_id": owner_id,
-                "uploaded_at": {"$gte": month_start, "$lte": month_end}
-            })
-            
-            month_completed = db.documents.count_documents({
-                "owner_id": owner_id,
-                "status": "completed",
-                "completed_at": {"$gte": month_start, "$lte": month_end}
-            })
-            
-            monthly_trends.append({
-                "month": month_start.strftime("%b %Y"),
-                "documents": month_docs,
-                "completed": month_completed
-            })
-        
-        monthly_trends.reverse()
+        platforms_dist = act_stats.get("platforms", {})
+        top_pf = "Desktop"
+        if isinstance(platforms_dist, dict) and platforms_dist:
+            top_pf = max(platforms_dist, key=lambda k: platforms_dist[k])
         
         return {
             "documents": doc_stats,
-            "recipients": recipient_stats,
+            "recipients": recip_stats,
             "fields": field_stats,
-            "activities": activity_stats,
-            "subscription": subscription_stats,
-            "contacts": contact_stats,
-            "trends": monthly_trends
+            "activities": act_stats,
+            "funnel": funnel_data,
+            "trends": trend_list,
+            "efficiency": {
+                "velocity": round((int(doc_stats.get("completed", 0)) / max(int(doc_stats.get("total", 0)), 1)) * 100, 1),
+                "completion_rate": recip_stats.get("completion_rate", 0),
+                "peak_hour": peak_hr,
+                "top_platform": top_pf,
+                "avg_signing_time": recip_stats.get("avg_signing_time", 0)
+            },
+            "subscription": sub_info,
+            "contacts": {"total_contacts": db.contacts.count_documents({"owner_id": owner_id})}
         }
         
-    except Exception as e:
-        print(f"Error in analytics: {str(e)}")
+    except Exception as exc:
+        print(f"CRITICAL ANALYTICS ERROR: {exc}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to aggregate complete analytics")

@@ -244,6 +244,49 @@ const FieldPropertiesPanel = ({
                   helperText="Radio buttons with same group are mutually exclusive"
                   sx={{ mb: 1.5 }}
                 />
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    Radio Button Selection Options
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+                    <Button
+                      fullWidth
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        handleSettingChange('dropdownOptions', ['Yes', 'No', 'Maybe', 'Not Applicable']);
+                      }}
+                      sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                    >
+                      Set Professional Defaults (Yes/No/Maybe/NA)
+                    </Button>
+                  </Box>
+
+                  {/* Reuse dropdown option management for radio buttons */}
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Add choice..."
+                      value={fieldSettings.newOption}
+                      onChange={(e) => setFieldSettings({ ...fieldSettings, newOption: e.target.value })}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddDropdownOption()}
+                    />
+                    <IconButton size="small" onClick={handleAddDropdownOption} color="primary">
+                      <AddIcon />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {fieldSettings.dropdownOptions.map((option, index) => (
+                      <Chip
+                        key={index}
+                        label={option}
+                        size="small"
+                        onDelete={() => handleRemoveDropdownOption(index)}
+                      />
+                    ))}
+                  </Box>
+                </Box>
                 <FormControlLabel
                   control={
                     <Checkbox

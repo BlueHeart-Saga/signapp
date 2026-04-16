@@ -77,7 +77,7 @@ import DocumentViewerModal from "../components/DocumentViewerModal";
 import SignedPreviewModal from "../components/SignedPreviewModal";
 import TimelineDrawer from "../components/TimelineDrawer";
 import StatusChip from "../components/StatusChip";
-import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged } from "../services/DocumentAPI";
+import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged, getDocumentStatus } from "../services/DocumentAPI";
 import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
@@ -325,40 +325,71 @@ export default function MyDocuments() {
 
     setLoading(true);
     setUploadProgress(0);
-    setProcessingMsg("Uploading document...");
-
-    let pollInterval = null;
+    setProcessingMsg("Uploading document to server...");
 
     try {
-      // 1. Send the file. The backend now creates the DB record early.
-      // We don't get the ID until this returns, UNLESS we change the backend to return ID early.
-      // Wait, if it's a single request, we only get the response at the end.
-
-      // OPTIMIZATION: We wrap the polling in a way that it starts checking the latest doc if ID not yet known.
-      // But actually, uploadDocument is scaled to 70%.
+      // 1. Initial Upload (scaled to 0-50% in DocumentAPI)
       const res = await uploadDocument(uploadFile, (percent) => {
         setUploadProgress(percent);
-        if (percent >= 70) {
-          setProcessingMsg("Converting to PDF & Processing...");
+        if (percent >= 50) {
+          setProcessingMsg("Transferred! Converting and processing...");
         }
       });
 
-      console.log("UPLOAD RESPONSE:", res);
-      const newDoc = res?.document || res;
+      console.log("UPLOAD RESPONSE (INITIAL):", res);
+      const docId = res?.document_id || res?.document?.id;
+      if (!docId) throw new Error("Upload API did not return document id");
 
-      if (!newDoc?.id) throw new Error("Upload API did not return document id");
+      // 2. Poll for Background Processing Status (handles 50-100%)
+      let isDone = false;
+      let pollCount = 0;
+      const MAX_POLLS = 120; // 2 minutes max polling
 
-      // Final jump to 100%
+      while (!isDone && pollCount < MAX_POLLS) {
+        pollCount++;
+        // Wait 1 second between polls
+        await new Promise(r => setTimeout(r, 1000));
+
+        try {
+          const statusRes = await getDocumentStatus(docId);
+          const backendProgress = statusRes.progress || 0;
+          const backendMsg = statusRes.processing_status || "Processing...";
+
+          // Map backend progress (20-100) to frontend progress (50-100)
+          // Since backend starts at 20% after upload is confirmed
+          let mappedProgress = 50;
+          if (backendProgress > 20) {
+            mappedProgress = 50 + Math.round((backendProgress - 20) * (50 / 80));
+          }
+
+          setUploadProgress(Math.min(mappedProgress, 99));
+          setProcessingMsg(backendMsg);
+
+          if (statusRes.status !== "processing" || backendProgress >= 100) {
+            isDone = true;
+          }
+        } catch (pollErr) {
+          console.error("Status check failed:", pollErr);
+          // If status check fails, we might just stop polling and assume it's working
+          // or wait for the next iteration
+        }
+      }
+
+      // 3. Finalization
       setUploadProgress(100);
       setProcessingMsg("Complete");
 
-      setUploadedDocument(newDoc);
+      // Fetch the final document data
+      const finalDocRes = await getDocumentsPaged(1, 10, filters.status);
+      const newDoc = finalDocRes.documents.find(d => d.id === docId);
+
+      setUploadedDocument(newDoc || { id: docId });
       setShowSuccessDialog(true);
       setSnackbar({ open: true, message: "Document uploaded successfully", severity: "success" });
       loadDocs();
 
     } catch (err) {
-      console.error(err);
+      console.error("Upload error:", err);
       setSnackbar({ open: true, message: err.message || "Upload failed", severity: "error" });
     } finally {
       setLoading(false);
@@ -1504,7 +1535,7 @@ export default function MyDocuments() {
 
 
 
-        {listLoading ? (
+        {listLoading && !showSuccessDialog ? (
           <div className="ss-content-wrapper-list">
             <div className="ss-loading-overlay">
               <div className="ss-spinner-container">
@@ -2040,41 +2071,52 @@ export default function MyDocuments() {
                 className="zoho-btn-primary"
                 disabled={!file || mergeLoading}
                 onClick={async () => {
+                  if (!file) return;
                   try {
                     setMergeLoading(true);
                     setMergeProgress(0);
-                    setProcessingMsg("Uploading file...");
+                    setProcessingMsg("Uploading file to server...");
 
-                    // Polling function for real-time processing updates
-                    const startPoll = (docId) => {
-                      const interval = setInterval(async () => {
-                        try {
-                          const statusRes = await import("../services/DocumentAPI").then(m => m.getDocumentStatus(docId));
-                          if (statusRes.progress > 70) {
-                            setMergeProgress(statusRes.progress);
-                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
-                          }
-                          if (statusRes.progress >= 100) clearInterval(interval);
-                        } catch (e) {
-                          console.warn("Poll failed", e);
-                        }
-                      }, 1000);
-                      return interval;
-                    };
-
-                    const pollId = startPoll(mergeDoc.id);
-
-                    await addFileToDocument(
+                    // 1. Initial Upload (scaled to 0-50%)
+                    const res = await addFileToDocument(
                       mergeDoc.id,
                       file,
                       (p) => {
                         setMergeProgress(p);
-                        if (p >= 60) setProcessingMsg("Processing on server...");
+                        if (p >= 50) setProcessingMsg("Transfer complete! Processing merge...");
                       }
                     );
 
-                    clearInterval(pollId);
+                    // 2. Poll for Status (50-100%)
+                    let isDone = false;
+                    let pollCount = 0;
+                    while (!isDone && pollCount < 60) {
+                      pollCount++;
+                      await new Promise(r => setTimeout(r, 1000));
+                      try {
+                        const statusRes = await getDocumentStatus(mergeDoc.id);
+                        const backendProgress = statusRes.progress || 0;
+                        const backendMsg = statusRes.processing_status || "Merging...";
+
+                        // Map backend 25-100 to 50-100
+                        let mappedProgress = 50;
+                        if (backendProgress > 25) {
+                          mappedProgress = 50 + Math.round((backendProgress - 25) * (50 / 75));
+                        }
+
+                        setMergeProgress(Math.min(mappedProgress, 99));
+                        setProcessingMsg(backendMsg);
+
+                        if (statusRes.status !== "processing" || backendProgress >= 100) {
+                          isDone = true;
+                        }
+                      } catch (e) {
+                        console.warn("Merge status poll failed", e);
+                      }
+                    }
+
                     setMergeProgress(100);
+                    setProcessingMsg("Complete");
 
                     setSnackbar({
                       open: true,
@@ -2088,8 +2130,7 @@ export default function MyDocuments() {
                   } catch (err) {
                     setSnackbar({
                       open: true,
-                      message:
-                        err.response?.data?.detail || "Merge failed",
+                      message: err.response?.data?.detail || "Merge failed",
                       severity: "error",
                     });
                   } finally {
@@ -2110,47 +2151,33 @@ export default function MyDocuments() {
 
       {/* Success Dialog after Upload - JSX */}
       {showSuccessDialog && (
-        <div className="success-backdrop">
-          <div className="success-modal">
+        <div className="ss-usd-backdrop">
+          <div className="ss-usd-modal">
 
-            <div className="success-head">
-              {/* <div className="success-icon-circle">
-          <svg width="34" height="34" fill="#fff" viewBox="0 0 24 24">
-            <path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z" />
-          </svg>
-        </div> */}
-
-
+            <div className="ss-usd-head">
               <img
-                src="/images/tick.gif"   // 👈 your tick GIF path
+                src="/images/tick.gif"
                 alt="Success"
-                className="success-tick-gif"
+                className="ss-usd-tick"
               />
-
-
-
-              <div className="success-title">
-                Upload Successful
-              </div>
-
-              <div className="success-sub">
-                Your document is uploaded and ready to proceed.
-              </div>
+              <div className="ss-usd-title">Upload Successful</div>
+              <div className="ss-usd-subtitle">Your document is now ready for the next steps.</div>
             </div>
 
-            <div className="success-body">
-              <div className="info-box">
-
-                <div className="info-item">
-                  <span className="info-key">Document Name</span>
-                  <span className="info-value">
+            <div className="ss-usd-body">
+              <div className="ss-usd-info-card">
+                <div className="ss-usd-row">
+                  <span className="ss-usd-label">Document Name</span>
+                  <span className="ss-usd-separator">:</span>
+                  <span className="ss-usd-value" title={uploadedDocument?.filename}>
                     {uploadedDocument?.filename || 'Untitled'}
                   </span>
                 </div>
 
-                <div className="info-item">
-                  <span className="info-key">File Type</span>
-                  <span className="info-value">
+                <div className="ss-usd-row">
+                  <span className="ss-usd-label">File Type</span>
+                  <span className="ss-usd-separator">:</span>
+                  <span className="ss-usd-value">
                     {uploadedDocument?.mime_type
                       ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() ||
                         uploadedDocument.filename?.split('.').pop()?.toUpperCase() ||
@@ -2159,23 +2186,23 @@ export default function MyDocuments() {
                   </span>
                 </div>
 
-                <div className="info-item">
-                  <span className="info-key">Size</span>
-                  <span className="info-value">
+                <div className="ss-usd-row">
+                  <span className="ss-usd-label">File Size</span>
+                  <span className="ss-usd-separator">:</span>
+                  <span className="ss-usd-value">
                     {uploadedDocument?.size
                       ? uploadedDocument.size > 1024 * 1024
-                        ? `${(uploadedDocument.size / 1024 / 1024).toFixed(1)} MB`
+                        ? `${(uploadedDocument.size / 1024 / 1024).toFixed(2)} MB`
                         : `${Math.round(uploadedDocument.size / 1024)} KB`
                       : "—"}
                   </span>
                 </div>
-
               </div>
             </div>
 
-            <div className="success-foot">
+            <div className="ss-usd-footer">
               <button
-                className="btn-modern btn-ghost"
+                className="ss-usd-btn ss-usd-btn-secondary"
                 onClick={() => {
                   setShowSuccessDialog(false);
                   setUploadedDocument(null);
@@ -2185,19 +2212,7 @@ export default function MyDocuments() {
               </button>
 
               <button
-                style={{
-                  backgroundColor: "#0d9488",
-                  color: "white",
-                  border: "none",
-                  padding: "10px 18px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => (e.target.style.backgroundColor = "#16a34a")}
-                onMouseLeave={(e) => (e.target.style.backgroundColor = "#0d9488")}
+                className="ss-usd-btn ss-usd-btn-primary"
                 onClick={() => {
                   navigate(`/user/prepare-send/${uploadedDocument.id}`, {
                     state: {
@@ -2205,7 +2220,6 @@ export default function MyDocuments() {
                       fromUpload: true,
                     },
                   });
-
                   setShowSuccessDialog(false);
                   setUploadedDocument(null);
                 }}

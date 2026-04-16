@@ -340,6 +340,9 @@ const EnhancedSignaturePad = ({
             `APPROVED\n${recipientData.name.toUpperCase()}` : 'APPROVED');
           break;
         default:
+          if (fieldType === 'radio' && radioOptions.includes('Yes')) {
+            setRadioValue('Yes');
+          }
           break;
       }
     }
@@ -1005,8 +1008,17 @@ const EnhancedSignaturePad = ({
 
       case 'radio':
       case 'dropdown':
+        // Locked dimensions for professional look
+        payload = {
+          value: value.value || '',
+          font_size: fontSize,
+          font_family: fontFamily,
+          font_color: fontColor
+        };
+        break;
+
       case 'textbox':
-        // Value-based fields with styling and dimension adjustments
+        // Value-based fields with adjustable length (as per previous model)
         payload = {
           value: value.value || '',
           font_size: fontSize,
@@ -1881,7 +1893,16 @@ const EnhancedSignaturePad = ({
               <FormControlLabel
                 value={option}
                 control={<Radio />}
-                label={<Typography variant="body1">{option}</Typography>}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body1">{option}</Typography>
+                    {option === 'Yes' && <Typography variant="caption" color="text.secondary">(filled circle ●)</Typography>}
+                    {option === 'No' && <Typography variant="caption" color="text.secondary">(empty circle ○)</Typography>}
+                    {option.toLowerCase().includes('maybe') && <Typography variant="caption" color="text.secondary">(dash -)</Typography>}
+                    {(option.toLowerCase().includes('not applicable') || option.toLowerCase() === 'n/a' || option.toLowerCase() === 'na') &&
+                      <Typography variant="caption" color="text.secondary">(cross X)</Typography>}
+                  </Box>
+                }
                 sx={{ m: 0, width: '100%' }}
               />
             </Paper>

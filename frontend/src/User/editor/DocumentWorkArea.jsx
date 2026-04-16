@@ -693,6 +693,7 @@ const DocumentWorkArea = ({
       {/* PDF Container */}
       <Paper
         ref={containerRef}
+        id="joyride-work-area"
         sx={{
           flex: 1,
           position: 'relative',

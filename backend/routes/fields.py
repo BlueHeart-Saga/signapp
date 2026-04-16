@@ -336,12 +336,14 @@ def normalize_field_value(field: Dict[str, Any]) -> Any:
         field_type = field.get("type", "")
         if field_type == "signature":
             return {"type": "completed", "text": "✓ Signed"}
-        elif field_type == "checkbox":
-            return True
-        elif field_type == "approval":
+        elif field_type in ["checkbox", "approval"]:
             return True
         elif field_type == "date":
-            return field.get("completed_at", {}).get("date", "Completed")
+            comp_at = field.get("completed_at")
+            if isinstance(comp_at, datetime):
+                return comp_at.strftime("%Y-%m-%d")
+            return "Completed"
+        return "Completed"
     
     if value is None:
         return ""

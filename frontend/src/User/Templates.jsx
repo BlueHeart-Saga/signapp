@@ -1032,10 +1032,6 @@ export default function DocumentsAndTemplates() {
     );
   }
 
-  if (!user?.has_active_subscription) {
-    return <SubscriptionExpiredBlock />;
-  }
-
   // ============ RENDER ============
   return (
     <div className="documents-templates-container">

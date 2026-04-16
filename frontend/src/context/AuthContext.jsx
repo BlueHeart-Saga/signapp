@@ -13,7 +13,9 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const setUser = (userData) => {
     setUserState(userData);
@@ -35,41 +37,70 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  const fetchSubscription = async () => {
+    if (!token) return;
+    try {
+      setSubscriptionLoading(true);
+      const res = await API.get("/subscription/current");
+      setSubscription(res.data);
+    } catch (err) {
+      console.error("Failed to fetch subscription", err);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
   // Only load user if we have token but no user data
   useEffect(() => {
     // If no token, clear user and stop loading
     if (!token) {
       setUser(null);
+      setSubscription(null);
       setLoading(false);
       return;
     }
 
-    // If we already have user data from login/register, don't fetch again
-    if (user) {
-      setLoading(false);
-      return;
-    }
-
-    // Only fetch if we have token but no user data (e.g., page refresh)
-    const loadUser = async () => {
+    // Refresh user and subscription on mount or token change
+    const initializeAuth = async () => {
       try {
-        const res = await API.get("/auth/me");
-        setUser(res.data);
+        setLoading(true);
+        // Run both fetches in parallel
+        const [userRes, subRes] = await Promise.all([
+          API.get("/auth/me"),
+          API.get("/subscription/current").catch(() => ({ data: null }))
+        ]);
+
+        const userData = userRes.data;
+        const subData = subRes.data;
+
+        // Synchronize user flag with actual subscription status if sub data is available
+        if (userData) {
+          userData.has_active_subscription = subData ? subData.is_active : false;
+        }
+
+        setUser(userData);
+        setSubscription(subData);
       } catch (err) {
         console.error("Session expired or invalid", err);
         setToken(null);
         setUser(null);
+        setSubscription(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUser();
-  }, [token, user]); // Add user to dependencies
+    initializeAuth();
+  }, [token]);
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    setSubscription(null);
+  };
+
+  const refreshSubscription = async () => {
+    await fetchSubscription();
   };
 
   return (
@@ -80,6 +111,9 @@ export const AuthProvider = ({ children }) => {
         token,
         setToken,
         loading,
+        subscription,
+        subscriptionLoading,
+        refreshSubscription,
         isAuthenticated: !!user,
         logout,
       }}

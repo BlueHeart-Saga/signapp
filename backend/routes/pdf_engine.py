@@ -523,38 +523,63 @@ class PDFEngine:
         """
         Apply text field (textbox, mail, etc.) with robust value extraction.
         """
-        # Handle different value formats (same as mail field)
+        # 🔥 CRITICAL: Extract actual text value correctly
         actual_text = ""
-        if isinstance(value, dict):
-            actual_text = value.get("value", value.get("text", ""))
-        else:
-            actual_text = str(value) if value is not None else ""
-            
-        # Determine if we show as value or placeholder
-        # Check against multiple common placeholder strings
-        placeholders = ["Enter text here", "Text field", "Enter value", ""]
-        is_placeholder = not actual_text or actual_text.strip() in placeholders or actual_text == field.get("placeholder")
         
-        if not is_placeholder:
-            # Show the actual value in Black
-            display_text = actual_text
-            text_color = (0, 0, 0)
+        if isinstance(value, dict):
+            # Try all possible keys where the text could be stored
+            actual_text = (value.get("value") or 
+                        value.get("text") or 
+                        value.get("email") or
+                        "")
+        elif isinstance(value, str):
+            actual_text = value
+        elif value is not None:
+            actual_text = str(value)
+        
+        # For mail fields, ensure we have the email
+        if field.get("type") == "mail" and not actual_text:
+            # Try to get from field value if available
+            actual_text = field.get("value", "")
+            if isinstance(actual_text, dict):
+                actual_text = actual_text.get("value", "")
+        
+        # Determine if we show as value or placeholder
+        # 🔥 FIX: For completed fields, always show the value (even if empty)
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
+        
+        if is_completed:
+            # For completed fields, we MUST show something
+            if not actual_text or actual_text.strip() == "":
+                # Show a default for empty completed fields
+                if field.get("type") == "mail":
+                    display_text = "Email provided"
+                elif field.get("type") == "date":
+                    display_text = "Date selected"
+                else:
+                    display_text = "Completed"
+                text_color = (0.5, 0.5, 0.5)  # Gray
+            else:
+                display_text = actual_text
+                text_color = (0, 0, 0)  # Black
         else:
-            # Show placeholder in Gray
-            display_text = field.get("placeholder") or "Enter text here"
-            text_color = (0.5, 0.5, 0.5)
-            # If the document is marked as completed, don't show placeholders at all
-            if field.get("_render_completed", False) or field.get("is_completed", False):
-                return
-
-        # Only proceed if we have text to display
+            # Incomplete field - show placeholder
+            is_placeholder = not actual_text or actual_text.strip() == ""
+            
+            if is_placeholder:
+                display_text = field.get("placeholder") or "Enter text here"
+                text_color = (0.5, 0.5, 0.5)  # Gray
+            else:
+                display_text = actual_text
+                text_color = (0, 0, 0)  # Black
+        
         if not display_text:
             return
             
-        # Calculate font and styling (re-use the existing logic below)
+        # Calculate font and styling
         custom_font_size = None
         custom_font_family = "Helvetica"
-        custom_text_color = text_color # Default to our determined color
+        custom_text_color = text_color
 
         if isinstance(value, dict):
             custom_font_size = value.get("font_size")
@@ -573,38 +598,40 @@ class PDFEngine:
         font_size = custom_font_size or field.get("font_size", 12)
         max_font = min(font_size, rect.height * 0.8)
         
-        # Auto-shrink font to ensure they fit without truncation
-        # This addresses the user's request to "show full", "avoid that ...", and "make our text feild same our mail like"
-        # Safety loop to find a font size that fits the width
-        # We allow it to go as low as 6pt before it starts wrapping/clipping
+        # Auto-shrink font to fit
         while max_font > 6:
             try:
-                # Estimate width (PyMuPDF's get_text_length is quite accurate)
                 current_font = custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica"
                 text_width = fitz.get_text_length(display_text, fontname=current_font, fontsize=max_font)
-                if text_width <= (rect.width - 6): # 6px padding total
+                if text_width <= (rect.width - 6):
                     break
                 max_font -= 0.5
             except:
                 break
         
-        # Calculate vertical offset to center text within the rectangle
-        # This prevents text from appearing too high ("upside mismatching")
-        # Note: For single line text, this centers it perfectly. For multi-line, it centers the top line.
-        v_offset = (rect.height - max_font) / 2
-        text_rect = fitz.Rect(rect.x0 + 2, rect.y0 + v_offset, rect.x1 - 2, rect.y1)
+        # Center vertically
+        text_y = rect.y0 + (rect.height + max_font) / 2 - 2
         
-        show_as_value = not is_placeholder
-        
-        page.insert_textbox(
-            text_rect,
-            display_text,
-            fontsize=max_font,
-            fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
-            color=custom_text_color if show_as_value else text_color,
-            align=0,  # Left align within the adjusted rect
-            overlay=True
-        )
+        # Use insert_text for robust single-line rendering, fallback to textbox for multi-line
+        if rect.height < 35:
+            page.insert_text(
+                fitz.Point(rect.x0 + 2, text_y),
+                display_text,
+                fontsize=max_font,
+                fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
+                color=custom_text_color,
+                overlay=True
+            )
+        else:
+            page.insert_textbox(
+                rect,
+                display_text,
+                fontsize=max_font,
+                fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
+                color=custom_text_color,
+                align=0,
+                overlay=True
+            )
     
     
     @staticmethod
@@ -636,16 +663,14 @@ class PDFEngine:
         
         font_size = min(field.get("font_size", 12), rect.height * 0.7)
         # Center vertically
-        v_offset = (rect.height - font_size) / 2
-        text_rect = fitz.Rect(rect.x0, rect.y0 + v_offset, rect.x1, rect.y1)
+        text_y = rect.y0 + (rect.height + font_size) / 2 - 2
 
-        page.insert_textbox(
-            text_rect,
+        page.insert_text(
+            fitz.Point(rect.x0 + 2, text_y),
             date_text,
             fontsize=font_size,
             fontname="Helvetica",
             color=(0, 0, 0),
-            align=0,
             overlay=True
         )
     
@@ -766,69 +791,96 @@ class PDFEngine:
     
     @staticmethod
     def _apply_radio_field(page, rect, value, field):
+        # Professional Radio Button Rendering
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
+        
+        # Extract values
         selected_val = ""
-        is_selected_bool = False
-
+        has_value = False
         if isinstance(value, dict):
             val = value.get("value")
-            if isinstance(val, bool):
-                is_selected_bool = val
-            elif isinstance(val, str):
-                selected_val = val
-                is_selected_bool = bool(val)
-        elif isinstance(value, bool):
-            is_selected_bool = value
-        elif isinstance(value, str):
-            selected_val = value
-            is_selected_bool = value.lower() in ["true", "yes", "1", "checked"]
-
-        is_completed = field.get("_render_completed", False)
-        options = field.get("dropdown_options", [])
-
-        # If it has options OR it's a descriptive string, render as text
-        if options or (selected_val and selected_val.lower() not in ["true", "yes", "1", "checked", "false", "no", "0", "unchecked"]):
-            # Render like a dropdown but without arrow
-            display_text = selected_val
-            if not display_text and not is_completed:
-                display_text = field.get("placeholder") or (options[0] if options else "Select")
-            
-            if display_text:
-                page.insert_textbox(
-                    rect,
-                    display_text,
-                    fontsize=min(12, rect.height * 0.7),
-                    fontname="Helvetica",
-                    color=(0, 0, 0) if selected_val else (0.5, 0.5, 0.5),
-                    align=0,
-                    overlay=True
-                )
+            if isinstance(val, bool): 
+                has_value = True
+                selected_val = "Yes" if val else "No"
+            elif isinstance(val, str): 
+                selected_val = val.strip()
+                has_value = bool(selected_val)
+        elif isinstance(value, bool): 
+            has_value = True
+            selected_val = "Yes" if value else "No"
+        elif isinstance(value, str): 
+            selected_val = value.strip()
+            has_value = bool(selected_val)
+        
+        # Calculate center and radius (smaller and more refined)
+        cx = rect.x0 + rect.width / 2
+        cy = rect.y0 + rect.height / 2
+        radius = min(rect.width, rect.height) * 0.35
+        
+        # 1. Draw the base circle (professional thin border)
+        page.draw_circle(
+            fitz.Point(cx, cy),
+            radius,
+            color=(0.2, 0.2, 0.2),
+            width=0.8,
+            overlay=True
+        )
+        
+        # 2. If no value, we're done
+        if not has_value:
             return
-
-        # Default: Draw circle (boolean style)
-        if not is_completed:
-            radius = min(rect.width, rect.height) / 2
-            cx = rect.x0 + rect.width / 2
-            cy = rect.y0 + rect.height / 2
-
+            
+        # 3. Handle selection marks based on value
+        val_lower = selected_val.lower().strip()
+        
+        if val_lower in ["yes", "true", "1", "checked", "selected"]:
+            # Fill with professional dot
             page.draw_circle(
                 fitz.Point(cx, cy),
-                radius,
-                color=(0, 0, 0),
-                width=1,
-                overlay=True
-            )
-
-        # Draw filled dot if selected
-        if is_selected_bool:
-            radius = min(rect.width, rect.height) / 2
-            cx = rect.x0 + rect.width / 2
-            cy = rect.y0 + rect.height / 2
-
-            page.draw_circle(
-                fitz.Point(cx, cy),
-                radius * 0.55,
+                radius * 0.6,
                 color=(0, 0, 0),
                 fill=(0, 0, 0),
+                width=0,
+                overlay=True
+            )
+        elif val_lower in ["no", "false", "0", "unchecked"]:
+            # Leave as empty circle (as requested: "No color not fill")
+            pass
+        elif val_lower in ["maybe", "not sure"]:
+            # Draw professional dash (-)
+            dash_w = radius * 0.8
+            page.draw_line(
+                fitz.Point(cx - dash_w, cy),
+                fitz.Point(cx + dash_w, cy),
+                color=(0, 0, 0),
+                width=1.5,
+                overlay=True
+            )
+        elif val_lower in ["not applicable", "n/a", "na", "cross", "x"]:
+            # Draw professional cross (X)
+            cross_s = radius * 0.6
+            page.draw_line(
+                fitz.Point(cx - cross_s, cy - cross_s),
+                fitz.Point(cx + cross_s, cy + cross_s),
+                color=(0, 0, 0),
+                width=1.2,
+                overlay=True
+            )
+            page.draw_line(
+                fitz.Point(cx + cross_s, cy - cross_s),
+                fitz.Point(cx - cross_s, cy + cross_s),
+                color=(0, 0, 0),
+                width=1.2,
+                overlay=True
+            )
+        else:
+            # Fallback for other values: standard dot
+            page.draw_circle(
+                fitz.Point(cx, cy),
+                radius * 0.6,
+                color=(0, 0, 0),
+                fill=(0, 0, 0),
+                width=0,
                 overlay=True
             )
 
@@ -867,16 +919,14 @@ class PDFEngine:
                 font_size -= 0.5
 
             # Center vertically and horizontally for completed state
-            v_offset = (rect.height - font_size) / 2
-            text_rect = fitz.Rect(rect.x0, rect.y0 + v_offset, rect.x1, rect.y1)
+            text_y = rect.y0 + (rect.height + font_size) / 2 - 1
             
-            page.insert_textbox(
-                text_rect,
+            page.insert_text(
+                fitz.Point(rect.x0 + 3, text_y),
                 selected_text,
                 fontsize=font_size,
                 fontname="Helvetica",
                 color=(0, 0, 0),
-                align=1,  # Center align
                 overlay=True
             )
             return  # 🚫 NO border, NO arrow for completed fields
@@ -2734,6 +2784,22 @@ class PDFEngine:
                     "annotate": False
                 }
             
+            # Convert permissions dict to integer flag if necessary
+            # Standard PDF permissions bitmask
+            # Bit 3: Print (4), Bit 4: Modify (8), Bit 5: Copy (16), Bit 6: Annotate (32)
+            if isinstance(permissions, dict):
+                perm_flag = -1024 # Standard base for 'allow everything else'
+                # pypdf default permissions bitmask logic
+                # For simplicity, we can just start with 0 and add bits
+                perm_flag = 0
+                if permissions.get("print", True): perm_flag |= 4
+                if permissions.get("modify", False): perm_flag |= 8
+                if permissions.get("copy", True): perm_flag |= 16
+                if permissions.get("annotate", False): perm_flag |= 32
+                if permissions.get("form_fill", True): perm_flag |= 256
+                if permissions.get("extract", True): perm_flag |= 512
+                permissions = perm_flag
+
             # Encrypt the PDF
             writer.encrypt(
                 user_password=user_password,

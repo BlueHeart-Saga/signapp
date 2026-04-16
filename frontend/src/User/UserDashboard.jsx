@@ -650,72 +650,9 @@ const UserDashboard = () => {
   const fetchAnalyticsData = async () => {
     setAnalyticsLoading(true);
     try {
-      // Document Analytics
-      const docStats = await getDocumentStats();
       const { getCompleteAnalytics } = await import('../services/DocumentAPI');
-      // You'll need to implement these API functions in your DocumentAPI service
-      // For now, using placeholder data
-      setAnalyticsData({
-        documents: {
-          total: docStats.total || 0,
-          draft: docStats.draft || 0,
-          sent: docStats.sent || 0,
-          in_progress: docStats.in_progress || 0,
-          completed: docStats.completed || 0,
-          declined: docStats.declined || 0,
-          expired: docStats.expired || 0,
-          voided: docStats.voided || 0,
-          deleted: docStats.deleted || 0
-        },
-        recipients: {
-          total: 0,
-          invited: 0,
-          viewed: 0,
-          in_progress: 0,
-          completed: 0,
-          declined: 0,
-          avg_signing_time: 0,
-          completion_rate: 0
-        },
-        fields: {
-          total_fields: 0,
-          completed_fields: 0,
-          completion_percentage: 0,
-          signatures: { total: 0, completed: 0, percentage: 0 },
-          initials: { total: 0, completed: 0, percentage: 0 },
-          form_fields: { total: 0, completed: 0, percentage: 0 },
-          checkboxes: { total: 0, completed: 0, percentage: 0 }
-        },
-        activities: {
-          total_activities: activities.length,
-          counts: {
-            viewed: 0,
-            downloaded: 0,
-            signed: 0,
-            completed: 0,
-            declined: 0,
-            voided: 0,
-            other: 0
-          },
-          timeline: []
-        },
-        subscription: {
-          has_active: false,
-          status: 'inactive',
-          plan_name: 'No Active Plan',
-          days_remaining: 0,
-          total_revenue: 0,
-          total_payments: 0,
-          payment_success_rate: 0,
-          is_trial: false
-        },
-        contacts: {
-          total_contacts: 0,
-          frequent_recipients: 0,
-          unique_contacts: 0,
-          recent_contacts: 0
-        }
-      });
+      const completeData = await getCompleteAnalytics();
+      setAnalyticsData(completeData);
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -805,15 +742,10 @@ const UserDashboard = () => {
           </div>
         </div> */}
 
-        {/* Quick Actions */}
         <div className="signapp-quick-actions">
 
           {/* Upload */}
-          <button className="signapp-action-btn signapp-video-bg" onClick={handleUploadDocument}>
-            <video className="signapp-bg-video" autoPlay muted loop playsInline>
-              <source src="/videos/upload.mp4" type="video/mp4" />
-            </video>
-
+          <button className="signapp-action-btn signapp-action-upload" onClick={handleUploadDocument}>
             <div className="signapp-action-icon-wrapper">
               <Upload className="signapp-action-icon" />
             </div>
@@ -825,11 +757,7 @@ const UserDashboard = () => {
           </button>
 
           {/* Request Signature */}
-          <button className="signapp-action-btn signapp-video-bg" onClick={handleRequestSignature}>
-            <video className="signapp-bg-video" autoPlay muted loop playsInline>
-              <source src="/videos/send.mp4" type="video/mp4" />
-            </video>
-
+          <button className="signapp-action-btn signapp-action-request" onClick={handleRequestSignature}>
             <div className="signapp-action-icon-wrapper">
               <Send className="signapp-action-icon" />
             </div>
@@ -841,11 +769,7 @@ const UserDashboard = () => {
           </button>
 
           {/* Templates */}
-          <button className="signapp-action-btn signapp-video-bg" onClick={handleViewTemplates}>
-            <video className="signapp-bg-video" autoPlay muted loop playsInline>
-              <source src="/videos/templates.mp4" type="video/mp4" />
-            </video>
-
+          <button className="signapp-action-btn signapp-action-templates" onClick={handleViewTemplates}>
             <div className="signapp-action-icon-wrapper">
               <FileCheck className="signapp-action-icon" />
             </div>
@@ -890,20 +814,9 @@ const UserDashboard = () => {
                 {stats.map((stat, index) => (
                   <div
                     key={index}
-                    className="signapp-stat-card signapp-video-bg"
+                    className="signapp-stat-card"
                     onClick={stat.onClick}
                   >
-                    <video
-                      className="signapp-bg-video"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                    >
-                      <source src="/videos/Target_Arrow.mp4" type="video/mp4" />
-                    </video>
-
-
                     <div className="signapp-stat-header">
                       <div className={`signapp-stat-icon-container ${stat.lightBg}`}>
                         <div className={stat.textColor}>
@@ -986,7 +899,7 @@ const UserDashboard = () => {
                     <h4>Activity Timeline</h4>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart
-                        data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : [
+                        data={analyticsData.activities?.daily_timeline?.length ? analyticsData.activities.daily_timeline : [
                           { date: 'Day 1', count: 0 },
                           { date: 'Day 2', count: 0 },
                           { date: 'Day 3', count: 0 },
@@ -1056,13 +969,8 @@ const UserDashboard = () => {
                     <h4>Document Volume</h4>
                     <ResponsiveContainer width="100%" height={250}>
                       <AreaChart
-                        data={[
-                          { month: 'Jan', count: Math.floor(Math.random() * 10) + 1 },
-                          { month: 'Feb', count: Math.floor(Math.random() * 10) + 1 },
-                          { month: 'Mar', count: Math.floor(Math.random() * 10) + 1 },
-                          { month: 'Apr', count: Math.floor(Math.random() * 10) + 1 },
-                          { month: 'May', count: Math.floor(Math.random() * 10) + 1 },
-                          { month: 'Jun', count: Math.floor(Math.random() * 10) + 1 }
+                        data={analyticsData.trends?.length ? analyticsData.trends : [
+                          { month: 'No Data', documents: 0, completed: 0 }
                         ]}
                         margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                       >
@@ -1077,11 +985,23 @@ const UserDashboard = () => {
                             <stop offset="0%" stopColor="#0d9488" stopOpacity={0.4} />
                             <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
                           </linearGradient>
+                          <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                          </linearGradient>
                         </defs>
                         <Area
-                          dataKey="count"
+                          name="Total Documents"
+                          dataKey="documents"
                           stroke="#0d9488"
                           fill="url(#areaGradient)"
+                          strokeWidth={3}
+                        />
+                        <Area
+                          name="Completed"
+                          dataKey="completed"
+                          stroke="#22c55e"
+                          fill="url(#completedGradient)"
                           strokeWidth={3}
                         />
                       </AreaChart>

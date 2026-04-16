@@ -93,6 +93,7 @@ import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Contacts from "./User/Contacts";
 import DocumentMainLayout from "./User/editor/DocumentMainLayout";
+import PlanGuard from "./components/PlanGuard";
 
 
 function AnimatedRoutes() {
@@ -124,6 +125,10 @@ function AnimatedRoutes() {
   //       })
   //       .catch(() => {});
   //   };
+  //         setMaintenanceMessage(data.message);
+  //       })
+  //       .catch(() => {});
+  //   };
 
   //   checkStatus(); // initial check
   //   const interval = setInterval(checkStatus, 5000); // check every 5 sec
@@ -144,28 +149,28 @@ function AnimatedRoutes() {
   // }
 
 
-  
+
 
 
   return (
 
 
-    
 
-    
 
-      <AnimatePresence mode="wait">
-       
-      
-<Toaster
+
+
+    <AnimatePresence mode="wait">
+
+
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
         }}
       />
-        
-       
-    
+
+
+
 
 
 
@@ -181,7 +186,7 @@ function AnimatedRoutes() {
             //   exit={{ opacity: 0, x: -80 }}
             //   transition={{ duration: 0.45, ease: "easeInOut" }}
             // >
-              <Login />
+            <Login />
             // </motion.div>
           }
         />
@@ -195,55 +200,55 @@ function AnimatedRoutes() {
             //   exit={{ opacity: 0, x: 80 }}
             //   transition={{ duration: 0.45, ease: "easeInOut" }}
             // >
-              <Register />
+            <Register />
             // </motion.div>
           }
         />
 
 
-          {/* <Route path="/forgot-password" element={<ChangePassword />} /> */}
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* <Route path="/forgot-password" element={<ChangePassword />} /> */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
-{/* 
+        {/* 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} /> */}
 
-       
+
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/auth/success" element={<GoogleCallback />} />
 
-         <Route element={<MainLayout />}>
-        {/* ---------------- Public Routes ---------------- */}
-        <Route path="/" element={<Home />} />
-        <Route path="/contactus" element={<ContactUs />} />
-        <Route path="/aboutus" element={<About />} />
-        <Route path="/e-signature" element={<ESignatureHome />} />
-        <Route path="/pricing" element={<PricingSection />} />
-        <Route path="/blog" element={<Blog />} />
-        <Route path="/helpcenter" element={<HelpCenter />} />
-        <Route path="/case-studies" element={< CaseStudies/>} />  
-        <Route path="/docs" element={<Documentations />} />
-        <Route path="/community" element={<Community />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/security" element={<SecurityHome />} />
+        <Route element={<MainLayout />}>
+          {/* ---------------- Public Routes ---------------- */}
+          <Route path="/" element={<Home />} />
+          <Route path="/contactus" element={<ContactUs />} />
+          <Route path="/aboutus" element={<About />} />
+          <Route path="/e-signature" element={<ESignatureHome />} />
+          <Route path="/pricing" element={<PricingSection />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/helpcenter" element={<HelpCenter />} />
+          <Route path="/case-studies" element={< CaseStudies />} />
+          <Route path="/docs" element={<Documentations />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/security" element={<SecurityHome />} />
 
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/abusepolicy" element={<AbusePolicy />} />
-        <Route path="/complaints" element={<ComplaintsStandards />} />
-        <Route path="/trademarkpolicy" element={<TrademarkPolicy />} />
-        <Route path="/faq" element={<SafeSignFAQ />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="/cookies" element={<Cookies />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/abusepolicy" element={<AbusePolicy />} />
+          <Route path="/complaints" element={<ComplaintsStandards />} />
+          <Route path="/trademarkpolicy" element={<TrademarkPolicy />} />
+          <Route path="/faq" element={<SafeSignFAQ />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/cookies" element={<Cookies />} />
 
-        
 
-        <Route path="/e-sign/complaints" element={<ComplaintPage />} />
-        
 
-        <Route path="/document-management" element={<DocumentManagementHome />} />
-        <Route path="/workflow-automation" element={<WorkflowAutomationHome />} />
-        <Route path="/templates" element={<TemplatesHome />} />
+          <Route path="/e-sign/complaints" element={<ComplaintPage />} />
+
+
+          <Route path="/document-management" element={<DocumentManagementHome />} />
+          <Route path="/workflow-automation" element={<WorkflowAutomationHome />} />
+          <Route path="/templates" element={<TemplatesHome />} />
         </Route>
 
 
@@ -255,7 +260,7 @@ function AnimatedRoutes() {
 
 
         <Route path="/verify/:recipientId" element={<OTPVerificationPage />} />
-        
+
         {/* <Route path="/sign/:recipientId" element={<RecipientSigningPage />} /> */}
         <Route path="/sign/:recipientId" element={<SigningPage />} />
 
@@ -263,9 +268,9 @@ function AnimatedRoutes() {
 
         <Route path="/sign/:recipientId/voided" element={<VoidedDocumentView />} />
         <Route path="/sign/:recipientId/declined" element={<DeclinedDocumentView />} />
-        
 
-        
+
+
 
         {/* ---------------- Admin Routes ---------------- */}
         <Route
@@ -295,31 +300,28 @@ function AnimatedRoutes() {
                 <Routes>
                   <Route path="" element={<InitialDashboard />} />
                   <Route path="dashboard" element={<UserDashboard />} />
-                  <Route path="/documents/manage" element={<DocumentManagement />} />
-                  <Route path="/documents/trash" element={<DeletedDocuments />} />
+                  <Route path="documents/manage" element={<DocumentManagement />} />
+                  <Route path="documents/trash" element={<DeletedDocuments />} />
 
                   <Route path="subscription" element={<Subscription />} />
 
                   <Route path="documents" element={<MyDocuments />} />
-                  {/* <Route path="prepare-send" element={<PrepareSendRecipients />} /> */}
-                  {/* <Route path="documentbuilder/:documentId" element={<DocumentBuilder />} />
-                  <Route path="documentbuilder/:documentId/preview" element={<OwnerPreview />} /> */}
                   <Route path="document-builder" element={<DocumentBuilderPage />} />
                   <Route path="ai-templates" element={<AITemplateGenerator />} />
-                  <Route path="ai-template" element={<TemplateBuilder />} />
+                  <Route path="ai-template" element={<PlanGuard><TemplateBuilder /></PlanGuard>} />
                   <Route path="ai-template2" element={<AIDocumentGenerator />} />
-                  <Route path="templates" element={<Templates />} />
+                  <Route path="templates" element={<PlanGuard><Templates /></PlanGuard>} />
                   <Route path="templateslist" element={<UserTemplatesList />} />
-                  <Route path="/contacts" element={<Contacts />} />
+                  <Route path="contacts" element={<PlanGuard><Contacts /></PlanGuard>} />
                   <Route path="d-sign" element={<ESignature />} />
 
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="settings" element={<Settings />} />
 
                   <Route path="document-summary/:documentId" element={<DocumentSummary />}
-/>
+                  />
 
 
-                  <Route path="/ai-document" element={<AIDocumentEditor />} />
+                  <Route path="ai-document" element={<AIDocumentEditor />} />
 
 
 
@@ -328,11 +330,11 @@ function AnimatedRoutes() {
 
 
                   {/* AI Template Builder routes */}
-                {/* <Route path="/ai/templates" element={<AITemplateBuilder />} /> */}
-                {/* <Route path="/ai/templates/:id/edit" element={<AITemplateEditor />} /> */}
-                
-                {/* Redirect from documents to AI templates */}
-                {/* <Route path="/documents/ai-templates" element={<Navigate to="/ai/templates" />} /> */}
+                  {/* <Route path="/ai/templates" element={<AITemplateBuilder />} /> */}
+                  {/* <Route path="/ai/templates/:id/edit" element={<AITemplateEditor />} /> */}
+
+                  {/* Redirect from documents to AI templates */}
+                  {/* <Route path="/documents/ai-templates" element={<Navigate to="/ai/templates" />} /> */}
 
 
                 </Routes>
@@ -342,51 +344,51 @@ function AnimatedRoutes() {
         />
 
         {/* ---------------- User FULLSCREEN Routes (NO Layout) ---------------- */}
-<Route
-  path="/user/documentbuilder/:documentId"
-  element={
-    <ProtectedRoute allowedRoles={["user", "admin"]}>
-      {/* <DocumentBuilder /> */}
-      <DocumentMainLayout />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/user/documentbuilder/:documentId"
+          element={
+            <ProtectedRoute allowedRoles={["user", "admin"]}>
+              {/* <DocumentBuilder /> */}
+              <DocumentMainLayout />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="/user/documentbuilder/:documentId/preview"
-  element={
-    <ProtectedRoute allowedRoles={["user", "admin"]}>
-      <OwnerPreview />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/user/documentbuilder/:documentId/preview"
+          element={
+            <ProtectedRoute allowedRoles={["user", "admin"]}>
+              <OwnerPreview />
+            </ProtectedRoute>
+          }
+        />
 
 
         {/* ---------------- Recipient Routes ---------------- */}
         <Route
           path="/recipient/*"
           element={
-            
-              <Layout>
-                <Routes>
-                  <Route path="home" element={<Dashboard />} />
-                  <Route path="view" element={<ViewDocument />} />
-                  <Route path="documents" element={<RecipientDocuments />} />
-<Route path="history/:documentId" element={<RecipientHistory />} />
 
-                  <Route path="*" element={<Navigate to="access" replace />} />
-                  
-                </Routes>
-              </Layout>
-            
+            <Layout>
+              <Routes>
+                <Route path="home" element={<Dashboard />} />
+                <Route path="view" element={<ViewDocument />} />
+                <Route path="documents" element={<RecipientDocuments />} />
+                <Route path="history/:documentId" element={<RecipientHistory />} />
+
+                <Route path="*" element={<Navigate to="access" replace />} />
+
+              </Routes>
+            </Layout>
+
           }
         />
 
 
         <Route path="/recipient/access" element={<Access />} />
-                  <Route path="/recipient/dashboard" element={<RecipientDashboard />} />
-                  <Route path="/recipient/documents/:documentId" element={<DocumentDetails />} />
-                   <Route path="/recipient/history"  element={<History />} />
+        <Route path="/recipient/dashboard" element={<RecipientDashboard />} />
+        <Route path="/recipient/documents/:documentId" element={<DocumentDetails />} />
+        <Route path="/recipient/history" element={<History />} />
 
 
 
@@ -395,8 +397,8 @@ function AnimatedRoutes() {
 
 
       </Routes>
-      </AnimatePresence>
-    
+    </AnimatePresence>
+
   );
 }
 function App() {

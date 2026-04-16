@@ -79,6 +79,7 @@ class PlanType(str, Enum):
     MONTHLY = "monthly"
     YEARLY = "yearly"
     ENTERPRISE = "enterprise"
+    LIFETIME = "lifetime"
 
 class SubscriptionStatus(str, Enum):
     ACTIVE = "active"
@@ -148,6 +149,21 @@ PLAN_CONFIG = {
             "Dedicated support",
             "SLA guarantee",
             "Custom features"
+        ],
+        "is_popular": False
+    },
+    PlanType.LIFETIME: {
+        "name": "Lifetime Plan",
+        "description": "One-time payment for permanent access",
+        "price": 499.00,
+        "duration_days": 36500,  # 100 years
+        "stripe_price_id": os.getenv("STRIPE_LIFETIME_PRICE_ID", "price_lifetime"),
+        "features": [
+            "All Enterprise features",
+            "One-time payment",
+            "Permanent access",
+            "Lifetime updates",
+            "Priority support"
         ],
         "is_popular": False
     }
@@ -290,6 +306,8 @@ class SubscriptionHelper:
         
         if plan_type == PlanType.ENTERPRISE and custom_days:
             duration_days = custom_days
+        elif plan_type == PlanType.LIFETIME:
+            duration_days = 36500  # 100 years
         else:
             plan_config = PLAN_CONFIG.get(plan_type)
             if not plan_config:

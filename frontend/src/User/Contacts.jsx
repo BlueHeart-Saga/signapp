@@ -112,10 +112,6 @@ const Contacts = () => {
     );
   }
 
-  if (!user?.has_active_subscription) {
-    return <SubscriptionExpiredBlock />;
-  }
-
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
       {/* Header */}

@@ -212,16 +212,18 @@ const DocumentLeftBar = ({
       </Box>
 
       {/* Recipients Content */}
-      <Box sx={{
-        height: '40%',
-        minHeight: 220,
-        maxHeight: 260,
-        overflowY: 'auto',
-        borderBottom: '1px solid #f1f5f9',
-        '&::-webkit-scrollbar': { width: '5px' },
-        '&::-webkit-scrollbar-thumb': { background: 'transparent', borderRadius: '10px' },
-        '&:hover::-webkit-scrollbar-thumb': { background: '#cbd5e1' }
-      }}>
+      <Box
+        id="joyride-recipient-list"
+        sx={{
+          height: '40%',
+          minHeight: 220,
+          maxHeight: 260,
+          overflowY: 'auto',
+          borderBottom: '1px solid #f1f5f9',
+          '&::-webkit-scrollbar': { width: '5px' },
+          '&::-webkit-scrollbar-thumb': { background: 'transparent', borderRadius: '10px' },
+          '&:hover::-webkit-scrollbar-thumb': { background: '#cbd5e1' }
+        }}>
         {[...recipients].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0)).map((recipient) => {
           const isSelected = selectedRecipientId === recipient.id;
           const recipientColor = getRecipientColor(recipient);
@@ -350,11 +352,13 @@ const DocumentLeftBar = ({
           </Box>
         )}
 
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 1
-        }}>
+        <Box
+          id="joyride-field-palette"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 1
+          }}>
           {availableFieldsList.map((field) => {
             const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : '#cbd5e1';
             const canDrag = !!selectedRecipient;

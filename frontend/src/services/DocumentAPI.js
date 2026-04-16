@@ -15,7 +15,7 @@ export const uploadDocument = async (file, onProgress) => {
     onUploadProgress: (progressEvent) => {
       if (!progressEvent.total) return;
       const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-      if (onProgress) onProgress(Math.round(percent * 0.7)); // 70% for upload, 30% for processing
+      if (onProgress) onProgress(Math.round(percent * 0.5)); // 50% for upload, 50% for backend processing
     }
   });
 

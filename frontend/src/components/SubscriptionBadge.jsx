@@ -55,6 +55,8 @@ export default function SubscriptionBadge({ subscription }) {
         return "primary";
       case "yearly":
         return "success";
+      case "lifetime":
+        return "secondary";
       default:
         return "default";
     }
@@ -67,6 +69,7 @@ export default function SubscriptionBadge({ subscription }) {
     if (plan_type === "trial") return "Trial";
     if (plan_type === "monthly") return `${plan_name}`;
     if (plan_type === "yearly") return `${plan_name}`;
+    if (plan_type === "lifetime") return "Lifetime";
     return plan_name;
   };
 
@@ -87,13 +90,15 @@ export default function SubscriptionBadge({ subscription }) {
       </Typography>
 
       <Typography variant="body2">
-        Expires: {new Date(expiry_date).toLocaleDateString()}
+        Expires: {plan_type === 'lifetime' ? 'Never' : new Date(expiry_date).toLocaleDateString()}
       </Typography>
 
       <Typography variant="body2">
         {status === "expired"
           ? "Subscription expired"
-          : `${days_remaining} days remaining`}
+          : plan_type === 'lifetime'
+            ? "Permanent access"
+            : `${days_remaining} days remaining`}
       </Typography>
     </Box>
   );

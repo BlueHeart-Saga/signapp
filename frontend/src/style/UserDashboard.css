@@ -115,34 +115,13 @@
 }
 
 
-.signapp-video-bg {
+/* Removed signapp-video-bg video styles as per request for professional plain design */
+.signapp-video-bg-disabled {
   position: relative;
   overflow: hidden;
 }
 
-/* actual video */
-.signapp-bg-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.8;
-  /* keeps text readable */
-  z-index: 0;
-}
-
-/* white glass overlay */
-.signapp-video-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  /* backdrop-filter: blur(2px); */
-  z-index: 1;
-}
-
-/* bring content above video */
+/* bring content above */
 .signapp-video-bg>*:not(video) {
   position: relative;
   z-index: 2;
@@ -432,51 +411,45 @@
 }
 
 .signapp-action-btn {
-  /* background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); */
-  color: var(--signapp-bg-white);
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  box-shadow: var(--signapp-shadow-lg);
-  border: none;
+  background-color: var(--signapp-bg-white);
+  color: var(--signapp-text-primary);
+  padding: 1.75rem;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--signapp-border-gray);
   cursor: pointer;
-  transition: var(--signapp-transition-slow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
   text-align: left;
+  width: 100%;
 }
 
 .signapp-action-btn:hover {
-  box-shadow: var(--signapp-shadow-lg);
-  transform: translateY(-0.25rem);
-}
-
-.signapp-action-primary {
-  --gradient-start: var(--signapp-blue-500);
-  --gradient-end: var(--signapp-blue-600);
-}
-
-.signapp-action-secondary {
-  --gradient-start: var(--signapp-purple-500);
-  --gradient-end: var(--signapp-purple-600);
-}
-
-.signapp-action-success {
-  --gradient-start: var(--signapp-green-500);
-  --gradient-end: var(--signapp-green-600);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+  border-color: var(--signapp-blue-400);
 }
 
 .signapp-action-icon-wrapper {
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  backdrop-filter: blur(8px);
+  background-color: var(--signapp-blue-50);
+  padding: 0.875rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease;
+}
+
+.signapp-action-btn:hover .signapp-action-icon-wrapper {
+  background-color: var(--signapp-blue-100);
 }
 
 .signapp-action-icon {
   width: 1.5rem;
   height: 1.5rem;
-  color: black;
+  color: var(--signapp-blue-600);
 }
 
 .signapp-action-content {
@@ -487,25 +460,37 @@
   font-size: 1.125rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: #047857;
+  color: var(--signapp-text-primary);
 }
 
 .signapp-action-description {
   font-size: 0.875rem;
-  opacity: 0.9;
-  color: black;
+  color: var(--signapp-text-secondary);
 }
 
-.signapp-action-primary .signapp-action-description {
-  color: var(--signapp-blue-100);
+/* Specific variants for actions */
+.signapp-action-upload .signapp-action-icon-wrapper {
+  background-color: var(--signapp-blue-50);
 }
 
-.signapp-action-secondary .signapp-action-description {
-  color: var(--signapp-purple-100);
+.signapp-action-upload .signapp-action-icon {
+  color: var(--signapp-blue-600);
 }
 
-.signapp-action-success .signapp-action-description {
-  color: var(--signapp-green-100);
+.signapp-action-request .signapp-action-icon-wrapper {
+  background-color: var(--signapp-purple-50);
+}
+
+.signapp-action-request .signapp-action-icon {
+  color: var(--signapp-purple-600);
+}
+
+.signapp-action-templates .signapp-action-icon-wrapper {
+  background-color: var(--signapp-green-50);
+}
+
+.signapp-action-templates .signapp-action-icon {
+  color: var(--signapp-green-600);
 }
 
 /* Stats Grid */
@@ -529,16 +514,19 @@
 }
 
 .signapp-stat-card {
-  /* background-color: var(--signapp-bg-white); */
-  border-radius: 0.75rem;
-  box-shadow: var(--signapp-shadow-sm);
+  background-color: var(--signapp-bg-white);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   padding: 1.5rem;
   border: 1px solid var(--signapp-border-gray);
-  transition: var(--signapp-transition);
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .signapp-stat-card:hover {
-  box-shadow: var(--signapp-shadow-md);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: var(--signapp-blue-200);
 }
 
 .signapp-stat-header {
@@ -790,41 +778,24 @@
 .signapp-ai-spotlight {
   position: relative;
   width: 100%;
-  min-height: 180px;
-
+  min-height: 140px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-
-  border-radius: 20px;
+  border-radius: 1rem;
   overflow: hidden;
   cursor: pointer;
-
-  /* Background image across full box */
-  background-image: url("/public/images/ai-template-bg.png");
-
-  background-size: cover;
-  background-position: center;
-
-  /* Soft white glass overlay */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+  background-color: var(--signapp-bg-white);
+  border: 1px solid var(--signapp-border-gray);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   margin-bottom: 22px;
-}
-
-.signapp-ai-spotlight::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-
-  /* white transparent glow overlay */
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
 }
 
 .signapp-ai-spotlight-content {
   position: relative;
   z-index: 2;
-  padding: 26px 28px;
+  padding: 24px 28px;
 }
 
 

@@ -2634,10 +2634,6 @@ const TemplateBuilderApp = () => {
     );
   }
 
-  if (!user?.has_active_subscription) {
-    return <SubscriptionExpiredBlock />;
-  }
-
   return (
     <Box sx={{ height: '100vh', width: '100vw', bgcolor: '#f8fafc', overflow: 'hidden' }}>
       {currentView === 'ai-generator' ? (

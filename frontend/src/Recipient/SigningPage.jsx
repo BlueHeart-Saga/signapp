@@ -304,7 +304,6 @@ const IMAGE_BASED_FIELDS = new Set([
     'signature',
     'initials',
     'stamp',
-    'attachment',
     'witness_signature'
 ]);
 
@@ -433,12 +432,18 @@ const FieldOverlay = React.memo(({
     const fieldConfig = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
 
     // Check if field is completed
-    const completed = field.completed_at || field.is_completed || false;
+    const completed = isCompleted || !!fieldValues[field.id] || field.completed_at || field.is_completed || false;
     const isImageField = IMAGE_BASED_FIELDS.has(field.type);
 
 
     // Get display value for completed fields
     const getDisplayValue = () => {
+        // For completed non-image fields, we want the overlay to be totally empty 
+        // to avoid overlapping with the text already drawn on the PDF
+        if (completed && !isImageField) {
+            return "";
+        }
+
         // ===== NOT COMPLETED PLACEHOLDERS =====
         if (!completed) {
             switch (field.type) {
@@ -461,16 +466,16 @@ const FieldOverlay = React.memo(({
                     return "☐";
 
                 case "radio":
-                    return "O";
+                    return "○";
 
                 case "dropdown":
-                    return "SELECT";
+                    return "CHOOSE ONE";
 
                 case "textbox":
                     return "ENTER TEXT";
 
                 case "mail":
-                    return "EMAIL";
+                    return "ENTER EMAIL";
 
                 case "attachment":
                     return "UPLOAD FILE";
@@ -490,6 +495,15 @@ const FieldOverlay = React.memo(({
 
         // Extract value from different formats
         let displayValue = '';
+
+        if (field.type === 'radio') {
+            const val = (typeof value === 'object' ? (value.value || value.selected || '') : value).toString().toLowerCase().trim();
+            if (val === 'yes' || val === 'true' || val === '1' || val === 'selected') return '●';
+            if (val === 'no' || val === 'false' || val === '0') return '○';
+            if (val === 'maybe') return '-';
+            if (val === 'not applicable' || val === 'n/a' || val === 'na') return 'X';
+            return '●';
+        }
 
         if (typeof value === 'object') {
             // Priority 1: Direct 'filename' property
@@ -583,30 +597,32 @@ const FieldOverlay = React.memo(({
 
 
                 {/* Field content */}
-                <Box
-                    sx={{
-                        display: completed ? 'none' : 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '100%',
-                        height: '100%',
-                        fontSize: field.type === 'textbox' ? '11px' : '9px',
-                        fontWeight: completed ? 500 : 500,
-                        color: (completed && field.type === 'attachment') ? '#2563eb' : (completed ? '#000' : 'rgb(13, 148, 136)'),
-                        textDecoration: (completed && field.type === 'attachment') ? 'underline' : 'none',
-                        backgroundColor: completed ? 'transparent' : 'rgba(255,255,255,0.85)',
-                        borderRadius: '2px',
-                        pointerEvents: 'none',
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        padding: '2px',
-                        lineHeight: 1.1
-                    }}
-                >
-                    {displayValue}
-                </Box>
+                {!completed && (
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '100%',
+                            height: '100%',
+                            fontSize: field.type === 'textbox' ? '11px' : '9px',
+                            fontWeight: 500,
+                            color: (completed && field.type === 'attachment') ? '#2563eb' : (completed ? '#000' : 'rgb(13, 148, 136)'),
+                            textDecoration: (completed && field.type === 'attachment') ? 'underline' : 'none',
+                            backgroundColor: 'transparent',
+                            borderRadius: '2px',
+                            pointerEvents: 'none',
+                            textAlign: 'center',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            padding: '2px',
+                            lineHeight: 1.1
+                        }}
+                    >
+                        {displayValue}
+                    </Box>
+                )}
 
 
                 {/* Required indicator for incomplete fields */}
@@ -668,7 +684,7 @@ const PdfPageWithOverlays = React.memo(({
                         key={field.id}
                         field={field}
                         screenPosition={screenPosition}
-                        isCompleted={field.completed_at || field.is_completed}
+                        isCompleted={field.completed_at || field.is_completed || !!fieldValues[field.id]}
                         onClick={onFieldClick}
                         recipientColor={recipientColors[field.recipient_id] || 'rgb(13, 148, 136)'}
                         fieldValues={fieldValues}

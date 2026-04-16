@@ -22,6 +22,7 @@ import {
 
 import SubscriptionBadge from "./SubscriptionBadge";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "../style/Navbar.css";
 
 // ============================================
@@ -397,10 +398,9 @@ const IconButton = ({ icon: Icon, badge, onClick, title, className = "" }) => (
 
 const Navbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, subscription } = useAuth();
 
   // State
-  const [subscription, setSubscription] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -415,7 +415,7 @@ const Navbar = ({ toggleSidebar }) => {
   const { recentSearches, saveRecentSearch } = useRecentSearches();
 
   // Derived state
-  const userRole = useMemo(getUserRole, []);
+  const userRole = user?.role || "user";
   const showSubscriptionWarning = subscription && (
     subscription.status === "expired" || subscription.days_remaining <= 3
   );
@@ -423,39 +423,6 @@ const Navbar = ({ toggleSidebar }) => {
   // ============================================
   // EFFECTS
   // ============================================
-
-  // Fetch subscription data
-  useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        const { data } = await api.get("/subscription/current");
-        setSubscription(data);
-      } catch (error) {
-        console.error("Failed to fetch subscription:", error);
-      }
-    };
-    fetchSubscription();
-  }, []);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        const res = await api.get("/auth/me", {
-          headers: {
-            Authorization: "Bearer " + token
-          }
-        });
-
-        setUser(res.data);
-      } catch (err) {
-        console.error("Failed to load user");
-      }
-    };
-
-    loadUser();
-  }, []);
 
   // Search documents
   // In your Navbar component, update the search effect:

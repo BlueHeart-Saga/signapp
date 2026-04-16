@@ -24,6 +24,7 @@ import {
   Fab,
   Badge
 } from '@mui/material';
+import { Joyride, STATUS } from 'react-joyride';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
@@ -39,7 +40,8 @@ import {
   Redo as RedoIcon,
   ChevronRight as ChevronRightIcon,
   ChevronLeft as ChevronLeftIcon,
-  Collections as CollectionsIcon
+  Collections as CollectionsIcon,
+  HelpOutline as HelpIcon
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -140,6 +142,59 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
     updateUndoRedoInfo();
     setAutoSaveStatus(prev => ({ ...prev, hasUnsavedChanges: true }));
   }, [historyService, updateUndoRedoInfo]);
+
+  // ==================== TOUR MANAGEMENT ====================
+  const [runTour, setRunTour] = useState(false);
+  const [tourSteps] = useState([
+    {
+      target: '#joyride-recipient-list',
+      title: 'Select a Recipient',
+      content: 'Start by selecting a recipient. This highlights the required fields assigned specifically to their role.',
+      disableBeacon: true,
+    },
+    {
+      target: '#joyride-field-palette',
+      title: 'Choose Fields',
+      content: 'Once a recipient is selected, click or drag their specific fields (Signature, Date, etc.) onto the document.',
+      disableBeacon: true,
+    },
+    {
+      target: '#joyride-work-area',
+      title: 'Design Your Document',
+      content: 'Position, move, and snap your fields exactly where you want them on the page.',
+      disableBeacon: true,
+    },
+    {
+      target: '#joyride-preview-btn',
+      title: 'Preview',
+      content: 'Take a final look at how signers will see the document before sending.',
+      disableBeacon: true,
+    },
+    {
+      target: '#joyride-finish-btn',
+      title: 'Finish & Send',
+      content: 'All set? Click here to securely send the document for signing.',
+      disableBeacon: true,
+    },
+  ]);
+
+  useEffect(() => {
+    // Show tour on first visit
+    const tourStatus = localStorage.getItem('ss_editor_tour_completed');
+    if (!tourStatus) {
+      // Small delay to ensure everything is rendered
+      const timer = setTimeout(() => setRunTour(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleJoyrideCallback = (data) => {
+    const { status } = data;
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      localStorage.setItem('ss_editor_tour_completed', 'true');
+      setRunTour(false);
+    }
+  };
 
   // ==================== DATA FETCHING ====================
   useEffect(() => {
@@ -1009,6 +1064,49 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Joyride
+        steps={tourSteps}
+        run={runTour}
+        continuous
+        showProgress
+        showSkipButton
+        disableBeacon
+        disableOverlayClose
+        hideCloseButton
+        spotlightPadding={10}
+        callback={handleJoyrideCallback}
+        styles={{
+          options: {
+            primaryColor: '#0d9488',
+            zIndex: 10000,
+            overlayColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: '#ffffff',
+            textColor: '#334155',
+          },
+          tooltipContainer: {
+            textAlign: 'left',
+            borderRadius: '12px'
+          },
+          buttonNext: {
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: '600',
+            padding: '8px 16px'
+          },
+          buttonBack: {
+            marginRight: '10px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#64748b'
+          },
+          buttonSkip: {
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#64748b'
+          }
+        }}
+      />
+
       {/* Header */}
       <AppBar position="static" color="inherit" elevation={0} sx={{ bgcolor: 'white', borderBottom: '1px solid #e0e0e0' }}>
         <Toolbar>
@@ -1083,6 +1181,22 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               onForceSave={handleForceSave}
             />
 
+            <Tooltip title="Help Guide">
+              <IconButton
+                size="small"
+                onClick={() => setRunTour(true)}
+                sx={{
+                  color: '#0d9488',
+                  ml: 0.5,
+                  '&:hover': {
+                    backgroundColor: 'rgba(13, 148, 136, 0.08)'
+                  }
+                }}
+              >
+                <HelpIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip title="Undo (Ctrl+Z)">
               <IconButton
                 size="small"
@@ -1138,6 +1252,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             )}
 
             <Button
+              id="joyride-preview-btn"
               variant="outlined"
               size="small"
               startIcon={<VisibilityIcon />}
@@ -1180,6 +1295,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             </Tooltip>
 
             <Button
+              id="joyride-finish-btn"
               variant="contained"
               size="small"
               startIcon={<SendIcon />}
