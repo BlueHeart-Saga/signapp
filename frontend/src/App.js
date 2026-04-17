@@ -87,6 +87,7 @@ import TrademarkPolicy from "./Home/TrademarkPolicy";
 import DeletedDocuments from "./components/DeletedDocuments";
 import ComplaintPage from "./Home/ComplaintPage";
 import AdminComplaints from "./Admin/AdminComplaints";
+import AdminEnvelopeManagement from "./Admin/AdminEnvelopeManagement";
 import VoidedDocumentView from "./Recipient/VoidedDocumentView";
 import DeclinedDocumentView from "./Recipient/DeclinedDocumentView";
 import ChangePassword from "./pages/auth/ChangePassword";
@@ -109,7 +110,7 @@ function AnimatedRoutes() {
   useEffect(() => {
     setPageTitle(
       "AI-powered e-signature Platform",
-      "Secure digital signatures, document management, and workflow automation with SafeSign."
+      "Secure digital signatures, document management, and workflow automation with Safesign."
     );
   }, []);
 
@@ -285,6 +286,7 @@ function AnimatedRoutes() {
                   <Route path="logo" element={<DynamicLogo />} />
                   <Route path="banner" element={<AdminBanner />} />
                   <Route path="complaints" element={<AdminComplaints />} />
+                  <Route path="envelopes" element={<AdminEnvelopeManagement />} />
                 </Routes>
               </Layout>
             </ProtectedRoute>

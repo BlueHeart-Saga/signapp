@@ -31,6 +31,18 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       setAuthToken(token);
       localStorage.setItem("token", token);
+
+      // Proactive check for expiration
+      try {
+        const decoded = JSON.parse(atob(token.split('.')[1]));
+        if (decoded.exp * 1000 < Date.now()) {
+          console.warn("Token already expired on load");
+          logout();
+        }
+      } catch (e) {
+        console.error("Invalid token format");
+        logout();
+      }
     } else {
       setAuthToken(null);
       localStorage.removeItem("token");
@@ -99,6 +111,20 @@ export const AuthProvider = ({ children }) => {
     setSubscription(null);
   };
 
+  const updateOnboardingStatus = async (onboardingData) => {
+    if (!token) return;
+    try {
+      await API.post("/auth/update-onboarding", onboardingData);
+      // Update local user state as well
+      if (user) {
+        const updatedUser = { ...user, ...onboardingData };
+        setUser(updatedUser);
+      }
+    } catch (err) {
+      console.error("Failed to update onboarding status", err);
+    }
+  };
+
   const refreshSubscription = async () => {
     await fetchSubscription();
   };
@@ -114,6 +140,7 @@ export const AuthProvider = ({ children }) => {
         subscription,
         subscriptionLoading,
         refreshSubscription,
+        updateOnboardingStatus,
         isAuthenticated: !!user,
         logout,
       }}

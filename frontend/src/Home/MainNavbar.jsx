@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import { 
-  FaHome, 
-  FaChevronDown, 
-  FaEnvelope, 
+import {
+  FaHome,
+  FaChevronDown,
+  FaEnvelope,
   FaTag,
   FaTimes,
   FaBars,
@@ -34,7 +34,7 @@ const MainNavbar = () => {
   const featuresRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Safesign");
   const [logoUrl, setLogoUrl] = useState(null);
 
   useEffect(() => {
@@ -52,37 +52,37 @@ const MainNavbar = () => {
   }, []);
 
   const features = [
-    { 
-      label: 'E-Signature', 
-      href: '/e-signature', 
+    {
+      label: 'E-Signature',
+      href: '/e-signature',
       icon: <FaSignature />,
       color: '#0d9488',
       desc: 'Secure digital signing solutions'
     },
-    { 
-      label: 'Documents', 
-      href: '/document-management', 
+    {
+      label: 'Documents',
+      href: '/document-management',
       icon: <FaFileAlt />,
       color: '#3b82f6',
       desc: 'Smart document management'
     },
-    { 
-      label: 'Automation', 
-      href: '/workflow-automation', 
+    {
+      label: 'Automation',
+      href: '/workflow-automation',
       icon: <FaRobot />,
       color: '#8b5cf6',
       desc: 'Automated workflow processes'
     },
-    { 
-      label: 'Templates', 
-      href: '/templates', 
+    {
+      label: 'Templates',
+      href: '/templates',
       icon: <FaClone />,
       color: '#ef4444',
       desc: 'Pre-built document templates'
     },
-    { 
-      label: 'Security', 
-      href: '/security', 
+    {
+      label: 'Security',
+      href: '/security',
       icon: <FaShieldAlt />,
       color: '#10b981',
       desc: 'Enterprise-grade security'
@@ -90,34 +90,34 @@ const MainNavbar = () => {
   ];
 
   const navItems = [
-    { 
-      label: 'Home', 
-      href: '/', 
+    {
+      label: 'Home',
+      href: '/',
       icon: <FaHome className="safe-nav-link-icon" />,
-      hasDropdown: false 
+      hasDropdown: false
     },
-    { 
-      label: 'Explore', 
-      href: '/aboutus', 
+    {
+      label: 'Explore',
+      href: '/aboutus',
       icon: <FaCompass className="safe-nav-link-icon" />,
-      hasDropdown: false 
+      hasDropdown: false
     },
     // { 
     //   label: 'Features', 
     //   hasDropdown: true,
     //   icon: <FaChartLine className="safe-nav-link-icon" />
     // },
-    { 
-      label: 'Let\'s Talk', 
-      href: '/contactus', 
+    {
+      label: 'Let\'s Talk',
+      href: '/contactus',
       icon: <FaUserFriends className="safe-nav-link-icon" />,
-      hasDropdown: false 
+      hasDropdown: false
     },
-    { 
-      label: 'Upgrade', 
-      href: '/pricing', 
+    {
+      label: 'Upgrade',
+      href: '/pricing',
       icon: <FaCrown className="safe-nav-link-icon" />,
-      hasDropdown: false 
+      hasDropdown: false
     },
   ];
 
@@ -175,7 +175,7 @@ const MainNavbar = () => {
             {navItems.map((item) => (
               <div key={item.label} className="safe-nav-item">
                 {item.hasDropdown ? (
-                  <div 
+                  <div
                     className="safe-dropdown-wrapper"
                     ref={featuresRef}
                     onMouseEnter={() => setIsFeaturesOpen(true)}
@@ -186,7 +186,7 @@ const MainNavbar = () => {
                       <span>Features</span>
                       <FaChevronDown className={`safe-nav-arrow ${isFeaturesOpen ? 'safe-arrow-rotated' : ''}`} />
                     </button>
-                    
+
                     <div className={`safe-nav-dropdown ${isFeaturesOpen ? 'safe-dropdown-show' : ''}`}>
                       <div className="safe-dropdown-header">
                         <div className="safe-dropdown-title">Our Features</div>
@@ -233,15 +233,15 @@ const MainNavbar = () => {
 
           {/* CTA Buttons */}
           <div className="safe-nav-cta">
-            <button 
-              className="safe-btn safe-btn-ghost" 
+            <button
+              className="safe-btn safe-btn-ghost"
               onClick={() => navigate('/login')}
             >
               <FaLightbulb className="safe-btn-icon" />
               <span>Login</span>
             </button>
-            <button 
-              className="safe-btn safe-btn-primary" 
+            <button
+              className="safe-btn safe-btn-primary"
               onClick={() => navigate('/register')}
             >
               <FaSignInAlt className="safe-btn-icon" />
@@ -250,7 +250,7 @@ const MainNavbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             className="safe-mobile-toggle"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
@@ -271,14 +271,14 @@ const MainNavbar = () => {
           <div className="safe-nav-logo" onClick={() => { navigate('/'); setIsMenuOpen(false); }}>
             <div className="safe-logo-icon">
               <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="9" fill="#0d9488"/>
-                <path d="M9 16L13 20L17 16M9 12L13 8L17 12M15 8V24" 
-                      stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <rect width="32" height="32" rx="9" fill="#0d9488" />
+                <path d="M9 16L13 20L17 16M9 12L13 8L17 12M15 8V24"
+                  stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <span className="safe-logo-text">{brandName}</span>
           </div>
-          <button 
+          <button
             className="safe-mobile-close"
             onClick={() => setIsMenuOpen(false)}
             aria-label="Close menu"
@@ -292,7 +292,7 @@ const MainNavbar = () => {
             <div key={item.label}>
               {item.hasDropdown ? (
                 <>
-                  <button 
+                  <button
                     className="safe-mobile-nav-btn"
                     onClick={() => setIsFeaturesOpen(!isFeaturesOpen)}
                   >
@@ -300,7 +300,7 @@ const MainNavbar = () => {
                     <span>Features</span>
                     <FaChevronDown className={`safe-mobile-arrow ${isFeaturesOpen ? 'safe-arrow-rotated' : ''}`} />
                   </button>
-                  
+
                   {isFeaturesOpen && (
                     <div className="safe-mobile-dropdown">
                       <div className="safe-mobile-dropdown-header">
@@ -342,18 +342,18 @@ const MainNavbar = () => {
               )}
             </div>
           ))}
-          
+
           <div className="safe-mobile-cta">
             <div className="safe-mobile-cta-title">Ready to sign smarter?</div>
-            <button 
-              className="safe-btn safe-btn-ghost safe-btn-full" 
+            <button
+              className="safe-btn safe-btn-ghost safe-btn-full"
               onClick={() => { navigate('/login'); setIsMenuOpen(false); }}
             >
               <FaLightbulb className="safe-btn-icon" />
               <span>Login</span>
             </button>
-            <button 
-              className="safe-btn safe-btn-primary safe-btn-full" 
+            <button
+              className="safe-btn safe-btn-primary safe-btn-full"
               onClick={() => { navigate('/register'); setIsMenuOpen(false); }}
             >
               <FaRocket className="safe-btn-icon" />

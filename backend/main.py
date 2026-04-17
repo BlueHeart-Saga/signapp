@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from starlette.middleware.sessions import SessionMiddleware
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from routes import email_service, recipient_documents, recipient_history, recipient_otp, subscription
+from routes import email_service, recipient_documents, recipient_history, recipient_otp, subscription, envelope_management
 from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, template_generator, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, aidoc, summary, ai_workflow_builder
 from fastapi.staticfiles import StaticFiles
 
@@ -71,6 +71,7 @@ app.include_router(admin_control.router)
 app.include_router(admin_template.router)
 app.include_router(templates.router)
 app.include_router(summary.router)
+app.include_router(envelope_management.router)
 
 
 app.include_router(documents.router)

@@ -51,7 +51,7 @@ Once the final signer completes their task:
 
 ## 3. Module Architecture
 
-### 🛡️ Authentication & Identity (auth.py)
+###  Authentication & Identity (auth.py)
 Uses **JWT (JSON Web Tokens)** for stateless, secure session management. Supports standard login, registration, and OAuth-based sessions for cloud imports.
 
 ### 📁 Document Management (documents.py)

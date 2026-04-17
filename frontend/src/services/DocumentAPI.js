@@ -285,7 +285,7 @@ export const downloadDocument = async (id, filename, type = "signed") => {
 
 export const viewDocumentUrl = (id) => {
   const token = localStorage.getItem("token");
-  return `${process.env.REACT_APP_API_BASE_URL}/documents/${id}/view?show_fields=true&include_signatures=true&preview_type=all`;
+  return `${process.env.REACT_APP_API_BASE_URL}/documents/${id}/view?show_fields=true&include_signatures=true&preview_type=all&token=${encodeURIComponent(token)}`;
 };
 
 

@@ -15,6 +15,10 @@ from jose import jwt, JWTError
 from config import JWT_SECRET as SECRET_KEY, JWT_ALGORITHM as ALGORITHM
 import fitz  # PyMuPDF
 from datetime import timedelta
+import random
+import string
+import uuid
+import re
 from .pdf_engine import PDFEngine 
 from .fields import serialize_field_with_recipient
 from .converter import convert_to_pdf, get_pdf_page_count
@@ -163,17 +167,20 @@ class FileOrderItem(BaseModel):
 # ProfessionalCertificateEngine = SafeSignCertificateEngine (set in imports)
       
 # Add this near the top of your file, after the imports
-def generate_envelope_id(prefix: str = "ENV", user_id: str = None) -> str:
+def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
     """
-    Generate a unique envelope ID.
-    Format: ENV-{date}-{random}-{user_initials}
-    Example: ENV-20240115-ABC123-JS
+    Generate a unique professional envelope ID.
+    Format: {random12}-{date}-{random6}-{user_initials}
+    Example: Eds56s8s565v-20260416-74DFDF-MA
     """
-    # Get current date
+    # 1. 12 Characters Random Prefix
+    random_prefix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    
+    # 2. Date String
     date_str = datetime.utcnow().strftime("%Y%m%d")
     
-    # Generate random string (6 characters)
-    random_str = uuid.uuid4().hex[:6].upper()
+    # 3. 6 Characters Random Middle
+    random_mid = uuid.uuid4().hex[:6].upper()
     
     # Get user initials if user_id provided
     initials = ""
@@ -199,8 +206,8 @@ def generate_envelope_id(prefix: str = "ENV", user_id: str = None) -> str:
     if not initials:
         initials = "US"
     
-    # Construct envelope ID
-    envelope_id = f"{prefix}-{date_str}-{random_str}-{initials}"
+    # 4. Final Construction
+    envelope_id = f"{random_prefix}-{date_str}-{random_mid}-{initials}".upper()
     
     # Check if it already exists
     existing = db.documents.find_one({"envelope_id": envelope_id})
@@ -3804,8 +3811,9 @@ async def download_signed(
         "document_id": ObjectId(document_id), 
         "email": current_user["email"]
     })
+    is_admin = current_user.get("role") == "admin"
 
-    if not is_owner and not is_recipient:
+    if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
     # Load base PDF from Azure
@@ -4334,7 +4342,8 @@ async def view_document(
         "email": user.get("email")
     })
     
-    if not is_owner and not is_recipient:
+    is_admin = user.get("role") == "admin"
+    if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
     # Get all fields
@@ -4489,7 +4498,8 @@ async def view_signed_preview(
         "email": user.get("email")
     })
     
-    if not is_owner and not is_recipient:
+    is_admin = user.get("role") == "admin"
+    if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
     # Get all completed fields (or all fields if requested)
@@ -5152,7 +5162,8 @@ async def view_document_with_envelope(
         "email": user.get("email")
     })
     
-    if not is_owner and not is_recipient:
+    is_admin = user.get("role") == "admin"
+    if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
     # Check if envelope ID exists

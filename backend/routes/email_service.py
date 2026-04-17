@@ -988,79 +988,193 @@ class SafeSignSummaryEngine:
     
     @staticmethod
     def _create_fallback_pdf(summary_data):
-        """Elegant Fallback PDF - High Professional Design"""
+        """
+        High-Fidelity Enterprise Fallback PDF - Professional Edition.
+        Used when the complex Platypus layout engine fails or for quick rendering.
+        Provides a dense, professional summary of the document lifecycle.
+        """
         buffer = io.BytesIO()
         from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from datetime import datetime
         
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         
-        # Professional background area
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.WHITE))
-        c.rect(0, 0, width, height, fill=1, stroke=0)
+        # --- BRAND COLORS ---
+        TEAL = colors.HexColor("#0D9488")
+        DARK = colors.HexColor("#1F2937")
+        GRAY_TEXT = colors.HexColor("#4B5563")
+        GRAY_BG = colors.HexColor("#F9FAFB")
+        GRAY_BORDER = colors.HexColor("#E5E7EB")
+        WHITE = colors.white
         
-        # Premium Teal Top Bar
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
-        c.rect(0, height - 10, width, 10, fill=1, stroke=0)
-        
-        # Clean white board with branding
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.WHITE))
-        c.rect(0, height - 80, width, 70, fill=1, stroke=0)
+        # 1. PREMIUM HEADER
+        c.setFillColor(TEAL)
+        c.rect(0, height - 80, width, 80, fill=1, stroke=0)
         
         # Platform Info
         c.setFont("Helvetica-Bold", 24)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.BLACK))
-        c.drawString(50, height - 55, "SafeSign")
+        c.setFillColor(WHITE)
+        c.drawString(50, height - 45, "SafeSign")
         
         c.setFont("Helvetica", 9)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
-        c.drawString(50, height - 72, "Secure Digital Document Summary")
+        c.setFillColor(WHITE)
+        c.drawString(50, height - 60, "Official Document Completion Summary")
         
-        # Title of document
-        c.setFont("Helvetica-Bold", 16)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
-        document_title = summary_data.get('document_name', 'Document Completion Record')
-        if len(document_title) > 40: document_title = document_title[:37] + "..."
-        c.drawRightString(width - 50, height - 55, document_title)
+        # Right Header - Status Badge
+        status = summary_data.get('document_status', 'Pending').upper()
+        c.setFont("Helvetica-Bold", 12)
+        c.drawRightString(width - 50, height - 45, "STATUS: " + status)
         
-        # Envelope section - clean info box
-        box_y = height - 250
-        c.setStrokeColor(colors.HexColor(SafeSignSummaryEngine.GRAY_200))
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_50))
-        c.roundRect(50, box_y, width - 100, 140, 6, fill=1, stroke=1)
+        gen_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        c.setFont("Helvetica", 8)
+        c.drawRightString(width - 50, height - 60, f"Generated: {gen_time}")
         
-        c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.BLACK))
-        c.drawString(70, box_y + 115, "Document Overview (Generated via System Fallback)")
+        # 2. ENVELOPE SUMMARY CARD
+        card_y = height - 200
+        c.setFillColor(GRAY_BG)
+        c.setStrokeColor(GRAY_BORDER)
+        c.roundRect(50, card_y, width - 100, 100, 4, fill=1, stroke=1)
         
-        # Details inside box
-        details_y = box_y + 90
-        c.setFont("Helvetica", 9.5)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(DARK)
+        c.drawString(65, card_y + 80, "ENVELOPE INFORMATION")
         
+        # Envelope Data Points
         details = [
-            ("Document Name:", summary_data.get('document_name', 'N/A')),
-            ("Envelope ID:", summary_data.get('envelope_id', 'N/A')),
-            ("Recipient:", summary_data.get('current_recipient', {}).get('name', 'N/A')),
-            ("Final Status:", summary_data.get('current_recipient', {}).get('status', 'pending').upper()),
-            ("Completion Date:", datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+            ("Document Name", summary_data.get('document_name', 'N/A')),
+            ("Envelope ID", summary_data.get('envelope_id', 'N/A')),
+            ("Sender", f"{summary_data.get('owner_name', 'N/A')} ({summary_data.get('owner_email', 'N/A')})"),
+            ("Completed At", summary_data.get('completed_date', 'In Progress'))
         ]
         
+        y_off = card_y + 60
         for label, val in details:
-            c.setFont("Helvetica-Bold", 9.5)
-            c.drawString(70, details_y, label)
-            c.setFont("Helvetica", 9.5)
-            c.drawString(180, details_y, str(val))
-            details_y -= 18
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(GRAY_TEXT)
+            c.drawString(65, y_off, label + ":")
             
-        # Legal assurance footer
-        c.setFont("Helvetica-Oblique", 8)
-        c.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
-        c.drawCentredString(width/2, 50, "This is a secure system-generated summary. For the full audit record, please access the professional summary portal.")
+            c.setFont("Helvetica", 9)
+            c.setFillColor(DARK)
+            c.drawString(160, y_off, str(val)[:75])
+            y_off -= 16
+            
+        # 3. PARTICIPANTS LIST
+        c.setFont("Helvetica-Bold", 12)
+        c.setFillColor(DARK)
+        c.drawString(50, card_y - 30, "Document Participants")
+        
+        # Table Header
+        table_y = card_y - 50
+        c.setFont("Helvetica-Bold", 9)
+        c.setFillColor(GRAY_TEXT)
+        c.drawString(50, table_y, "NAME / EMAIL")
+        c.drawString(280, table_y, "ROLE")
+        c.drawString(380, table_y, "STATUS")
+        c.drawString(480, table_y, "ACTION DATE")
+        
+        c.setStrokeColor(TEAL)
+        c.setLineWidth(1)
+        c.line(50, table_y - 5, width - 50, table_y - 5)
+        
+        # Draw Participants (limit to 6 for space)
+        participants = summary_data.get('all_recipients', [])
+        curr_y = table_y - 20
+        for p in participants[:6]:
+            c.setFont("Helvetica", 8.5)
+            c.setFillColor(DARK)
+            name_text = f"{p.get('name', 'N/A')}"
+            email_text = f"{p.get('email', 'N/A')}"
+            
+            c.drawString(50, curr_y, name_text[:40])
+            c.setFont("Helvetica-Oblique", 7.5)
+            c.setFillColor(GRAY_TEXT)
+            c.drawString(50, curr_y - 10, email_text[:45])
+            
+            c.setFont("Helvetica", 8.5)
+            c.setFillColor(DARK)
+            c.drawString(280, curr_y, p.get('role', 'signer').title())
+            
+            # Status badge color coding
+            p_status = p.get('status', 'pending').lower()
+            if p_status == 'completed': c.setFillColor(colors.HexColor("#059669"))
+            elif p_status == 'declined': c.setFillColor(colors.red)
+            else: c.setFillColor(GRAY_TEXT)
+            
+            c.drawString(380, curr_y, p_status.upper())
+            
+            c.setFillColor(DARK)
+            c.drawString(480, curr_y, str(p.get('completed_at') or 'Pending'))
+            
+            curr_y -= 25
+            
+        # 4. AUDIT TRAIL / RECENT ACTIVITY
+        trail_y = curr_y - 20
+        c.setFont("Helvetica-Bold", 12)
+        c.setFillColor(DARK)
+        c.drawString(50, trail_y, "Audit Record & Activity History")
+        
+        table_y = trail_y - 20
+        c.setFont("Helvetica-Bold", 9)
+        c.setFillColor(GRAY_TEXT)
+        c.drawString(50, table_y, "TIMESTAMP")
+        c.drawString(180, table_y, "PARTICIPANT / ACTOR")
+        c.drawString(350, table_y, "ACTION TAKEN")
+        
+        c.setStrokeColor(GRAY_BORDER)
+        c.setLineWidth(0.5)
+        c.line(50, table_y - 5, width - 50, table_y - 5)
+        
+        activity = summary_data.get('recent_activity', [])
+        curr_y = table_y - 20
+        for item in activity[:8]: # Last 8 events
+            c.setFont("Helvetica", 8)
+            c.setFillColor(DARK)
+            c.drawString(50, curr_y, str(item.get('date', 'N/A')))
+            c.drawString(180, curr_y, str(item.get('participant', 'System'))[:35])
+            c.drawString(350, curr_y, str(item.get('event', 'Activity'))[:50])
+            curr_y -= 14
+            
+        # 5. SECURITY & EVIDENCE
+        c.setFillColor(GRAY_BG)
+        c.rect(0, 0, width, 80, fill=1, stroke=0)
+        
+        c.setFont("Helvetica-Oblique", 7)
+        c.setFillColor(GRAY_TEXT)
+        legal_text = "EVIDENCE: This document contains a cryptographically verified summary of the signing process. For every signature captured, the IP address, timestamp, and authentication method were recorded. SafeSign maintains the original encrypted transaction audit logs for evidentiary purposes in compliance with global electronic signature regulations."
+        
+        # Wrap legal text
+        text_object = c.beginText(50, 60)
+        text_object.setFont("Helvetica-Oblique", 7)
+        text_object.setTextRenderMode(0)
+        
+        # Simple wrapping
+        words = legal_text.split()
+        line = ""
+        for word in words:
+            if c.stringWidth(line + " " + word) < width - 100:
+                line += " " + word
+            else:
+                text_object.textLine(line.strip())
+                line = word
+        text_object.textLine(line.strip())
+        c.drawText(text_object)
+        
+        # Branding & Bottom Line
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(TEAL)
+        c.drawString(50, 20, "SAFESIGN VERIFIED")
+        
+        c.setFont("Helvetica", 7)
+        c.setFillColor(GRAY_TEXT)
+        c.drawRightString(width - 50, 20, f"Summary ID: {summary_data.get('summary_id', 'N/A')} | Page 1 of 1")
         
         c.save()
         buffer.seek(0)
         return buffer.getvalue()
+
 
 
 # ======================
@@ -1896,7 +2010,22 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         # Create message
         msg = MIMEMultipart()
         msg['Subject'] = subject
-        msg['From'] = EMAIL_FROM
+        
+        # ✅ DYNAMIC SENDER NAME
+        # Attempt to get platform name from branding, fallback to "SafeSign Team"
+        try:
+            branding = db.branding.find_one({}) or {}
+            platform_name = branding.get("platform_name", "SafeSign Team")
+            # If platform_name is just the name, append "Team" or use directly
+            if "Team" not in platform_name:
+                display_name = f"{platform_name} Team"
+            else:
+                display_name = platform_name
+                
+            msg['From'] = f"{display_name} <{EMAIL_FROM if '<' not in EMAIL_FROM else EMAIL_FROM.split('<')[-1].split('>')[0]}>"
+        except:
+            msg['From'] = EMAIL_FROM
+            
         msg['To'] = to_email
         msg.attach(MIMEText(html_content, 'html'))
         
@@ -3587,6 +3716,33 @@ async def send_completed_document_to_recipients(document_id: str):
             print(f"Generating optimized signed PDF for completion emails (Document ID: {document_id})")
             pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
             
+            # ✅ ADDING ENVELOPE HEADER & WATERMARK (MATCHES DOWNLOAD)
+            # This ensures emailed documents look professional and consistent
+            from .pdf_engine import PDFEngine
+            
+            envelope_id = document.get("envelope_id")
+            if envelope_id:
+                try:
+                    pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+                        pdf_bytes,
+                        envelope_id=envelope_id,
+                        color="#000000"
+                    )
+                except Exception as e:
+                    print(f"Warning: Header failed for automated email: {e}")
+                    
+            try:
+                pdf_bytes = PDFEngine.apply_watermark(
+                    pdf_bytes,
+                    "SIGNED DOCUMENT",
+                    color="#4CAF50",
+                    opacity=0.1,
+                    font_size=48,
+                    angle=45
+                )
+            except Exception as e:
+                print(f"Warning: Watermark failed for automated email: {e}")
+            
         except Exception as e:
             print(f"❌ Error in dynamic rendering for email: {str(e)}")
             # Fallback to storage version if dynamic fails
@@ -4096,7 +4252,7 @@ async def send_document_completion_email(
         pdf_attachment.add_header(
             "Content-Disposition",
             "attachment",
-            filename=f"signed_{document_name}"
+            filename=f"completed_{document_name}"
         )
         msg.attach(pdf_attachment)
         
@@ -4359,7 +4515,7 @@ async def generate_document_package(
                     elif bare_filename.lower().endswith(".docx"):
                         bare_filename = bare_filename[:-5]
                         
-                    signed_filename = f"signed_{bare_filename}.pdf"
+                    signed_filename = f"completed_{bare_filename}.pdf"
                     zip_file.writestr(signed_filename, signed_pdf_bytes)
                     print(f"✅ Added signed document (PDF): {signed_filename}")
                 else:
@@ -4463,7 +4619,7 @@ Role: {recipient.get('role', 'signer').replace('_', ' ').title()}
 Completion Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
 
 This package contains:
-1. Signed Document - The final signed version with all signatures
+1. Completed Document - The final signed version with all signatures
 2. Original Document - The original unsigned document
 3. Document Summary - Detailed summary of all fields and signatures
 4. Certificate of Completion - Official certificate with audit trail

@@ -2527,7 +2527,7 @@ class PDFEngine:
         try:
             pdf = PDFEngine.open_pdf(pdf_bytes)
             
-            # 🛡️ SAFETY CHECK: Ensure it's a valid PDF with pages
+            #  SAFETY CHECK: Ensure it's a valid PDF with pages
             if not pdf or not hasattr(pdf, "is_pdf") or not pdf.is_pdf or len(pdf) == 0:
                 if pdf: pdf.close()
                 return pdf_bytes
@@ -2552,12 +2552,12 @@ class PDFEngine:
                 header_height = 20
                 
                 # Left side: Envelope ID in teal color
-                id_text = f"📄 Envelope: {envelope_id}"
+                id_text = f"SAFESIGN ID : {envelope_id.upper()}"
                 page.insert_text(
                     fitz.Point(rect.x0 + 10, rect.y0 + 12),
                     id_text,
                     fontsize=9,
-                    fontname="Helvetica",
+                    fontname="Helvetica-Bold",
                     color=(r, g, b),
                     overlay=True
                 )
@@ -2665,93 +2665,156 @@ class PDFEngine:
     @staticmethod
     def create_summary_pdf(summary_data):
         """
-        Create a PDF document with the summary information.
-        
-        Args:
-            summary_data: Dictionary containing summary information
-            
-        Returns:
-            PDF bytes
+        Create a professional, high-fidelity Document Summary Report (Certificate of Completion).
+        Features a clean, enterprise-grade design with full audit trail and recipient status.
+        Uses a robust data mapper to handle different summary data structures.
         """
-        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
-        from reportlab.lib.units import inch
-        import io 
+        from reportlab.lib import colors
+        import io
         
         buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=letter)
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
         
-        width, height = letter
+        # --- ROBUST DATA MAPPING ---
+        # Handle both flat and nested structures
+        doc_name = summary_data.get('document_name') or summary_data.get('document', {}).get('filename', 'N/A')
+        env_id = summary_data.get('envelope_id') or summary_data.get('document', {}).get('envelope_id', 'N/A')
+        doc_status = summary_data.get('document_status') or summary_data.get('document', {}).get('status', 'N/A')
         
-        # Add title
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(1*inch, height - 1*inch, "Document Signing Summary")
+        # --- BRAND COLORS & CONSTANTS ---
+        TEAL = colors.HexColor("#0D9488")
+        DARK = colors.HexColor("#111827")
+        GRAY_TEXT = colors.HexColor("#374151")
+        GRAY_BG = colors.HexColor("#F9FAFB")
+        WHITE = colors.white
         
-        # Add document info
+        # 1. PREMIUM HEADER SECTION
+        c.setFillColor(TEAL)
+        c.rect(0, height - 90, width, 90, fill=1, stroke=0)
+        
+        # Site Brand
+        c.setFont("Helvetica-Bold", 26)
+        c.setFillColor(WHITE)
+        c.drawString(40, height - 50, "SafeSign")
+        
         c.setFont("Helvetica", 10)
-        y = height - 1.5*inch
+        c.setFillColor(WHITE)
+        c.drawString(40, height - 68, "Official Summary & Completion Certificate")
         
-        doc_info = [
-            f"Document: {summary_data['document']['filename']}",
-            f"Status: {summary_data['document']['status']}",
-            f"Envelope ID: {summary_data['document'].get('envelope_id', 'N/A')}",
-            f"Uploaded: {summary_data['document']['uploaded_at']}",
-            ""
-        ]
-        
-        for line in doc_info:
-            c.drawString(1*inch, y, line)
-            y -= 0.25*inch
-        
-        # Add statistics
+        # Header Right Info
+        status = str(doc_status).upper()
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(1*inch, y, "Statistics")
-        y -= 0.25*inch
+        c.drawRightString(width - 40, height - 48, f"STATUS: {status}")
         
-        c.setFont("Helvetica", 10)
-        stats = [
-            f"Total Recipients: {summary_data['statistics']['total_recipients']}",
-            f"Completed Recipients: {summary_data['statistics']['completed_recipients']}",
-            f"Total Fields: {summary_data['statistics']['total_fields']}",
-            f"Completed Fields: {summary_data['statistics']['completed_fields']}",
-            f"Completion: {summary_data['statistics']['completion_percentage']}%",
-            ""
-        ]
-        
-        for line in stats:
-            c.drawString(1*inch, y, line)
-            y -= 0.25*inch
-        
-        # Add current recipient info
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(1*inch, y, "Your Status")
-        y -= 0.25*inch
-        
-        c.setFont("Helvetica", 10)
-        recipient_info = [
-            f"Name: {summary_data['current_recipient']['name']}",
-            f"Email: {summary_data['current_recipient']['email']}",
-            f"Role: {summary_data['current_recipient']['role']}",
-            f"Status: {summary_data['current_recipient']['status']}",
-            f"OTP Verified: {'Yes' if summary_data['current_recipient']['otp_verified'] else 'No'}",
-            f"Terms Accepted: {'Yes' if summary_data['current_recipient']['terms_accepted'] else 'No'}",
-            ""
-        ]
-        
-        for line in recipient_info:
-            c.drawString(1*inch, y, line)
-            y -= 0.25*inch
-        
-        # Add footer
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
         c.setFont("Helvetica", 8)
-        footer = f"Generated: {summary_data['generated_at']} | For: {summary_data['generated_by']}"
-        c.drawString(1*inch, 0.5*inch, footer)
+        c.drawRightString(width - 40, height - 64, f"Generated On: {timestamp}")
         
-        c.showPage()
+        # 2. ENVELOPE SUMMARY CARD
+        card_y = height - 210
+        c.setFillColor(GRAY_BG)
+        c.setStrokeColor(colors.HexColor("#D1D5DB"))
+        c.roundRect(40, card_y, width - 80, 100, 4, fill=1, stroke=1)
+        
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(DARK)
+        c.drawString(55, card_y + 80, "ENVELOPE SUMMARY")
+        
+        # Envelope Data Points
+        details = [
+            ("Document Name:", doc_name),
+            ("Envelope ID:", env_id),
+            ("Sender:", f"{summary_data.get('owner_name', 'System')} <{summary_data.get('owner_email', 'N/A')}>"),
+            ("Completed Date:", summary_data.get('completed_date', 'Pending Completion'))
+        ]
+        
+        y_pos = card_y + 60
+        for label, value in details:
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(GRAY_TEXT)
+            c.drawString(55, y_pos, label)
+            
+            c.setFont("Helvetica", 9)
+            c.setFillColor(DARK)
+            c.drawString(160, y_pos, str(value)[:85])
+            y_pos -= 15
+            
+        # 3. PARTICIPANTS TABLE
+        c.setFont("Helvetica-Bold", 13)
+        c.setFillColor(DARK)
+        c.drawString(40, card_y - 35, "Participants & Signer Events")
+        
+        # Headers
+        table_y = card_y - 60
+        c.setFont("Helvetica-Bold", 9)
+        c.setFillColor(GRAY_TEXT)
+        c.drawString(40, table_y, "SIGNER INFO")
+        c.drawString(300, table_y, "ROLE")
+        c.drawString(380, table_y, "STATUS")
+        c.drawString(470, table_y, "IP / DATE")
+        
+        c.setStrokeColor(TEAL)
+        c.setLineWidth(1.5)
+        c.line(40, table_y - 4, width - 40, table_y - 4)
+        
+        # Recipient Rows
+        recipients = summary_data.get('all_recipients', [])
+        curr_y = table_y - 25
+        for p in recipients[:10]: # Up to 10 recipients
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(DARK)
+            c.drawString(40, curr_y, p.get('name', 'N/A')[:40])
+            
+            c.setFont("Helvetica", 8)
+            c.setFillColor(GRAY_TEXT)
+            c.drawString(40, curr_y - 10, p.get('email', 'N/A')[:45])
+            
+            c.setFont("Helvetica", 9)
+            c.drawString(300, curr_y, str(p.get('role', 'signer')).title())
+            
+            # Status Badge
+            p_status = str(p.get('status', 'pending')).upper()
+            if p_status == 'COMPLETED':
+                c.setFillColor(colors.HexColor("#059669"))
+            elif p_status in ['DECLINED', 'VOIDED']:
+                c.setFillColor(colors.HexColor("#DC2626"))
+            else:
+                c.setFillColor(colors.HexColor("#D97706"))
+            c.drawString(380, curr_y, p_status)
+            
+            # Action Info
+            c.setFillColor(GRAY_TEXT)
+            c.setFont("Helvetica", 7.5)
+            ip_text = p.get('completed_ip') or p.get('last_ip', '0.0.0.0')
+            c.drawString(470, curr_y, f"IP: {ip_text}")
+            date_text = p.get('completed_at') or p.get('last_action_at', 'Pending')
+            c.drawString(470, curr_y - 10, str(date_text))
+            
+            curr_y -= 30
+            if curr_y < 80: # Break if too long
+                break
+            
+        # 4. AUDIT FOOTER
+        c.setFillColor(GRAY_BG)
+        c.rect(0, 0, width, 50, fill=1, stroke=0)
+        
+        c.setFont("Helvetica-Bold", 9)
+        c.setFillColor(TEAL)
+        c.drawString(40, 20, "VERIFIED BY SAFESIGN")
+        
+        c.setFont("Helvetica", 7)
+        c.setFillColor(GRAY_TEXT)
+        sum_id = summary_data.get('summary_id') or env_id
+        c.drawRightString(width - 40, 25, f"Certificate ID: {sum_id}")
+        c.drawRightString(width - 40, 15, "This is a legally-binding evidence summary of the signing transaction.")
+        
         c.save()
-        
         buffer.seek(0)
-        return buffer.read()
+        return buffer.getvalue()
+
     
     
 

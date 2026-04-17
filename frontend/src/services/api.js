@@ -30,26 +30,32 @@ api.interceptors.response.use(
   }
 );
 
-// helper to set token on axios
+// ✅ Unified Token Management
+let currentToken = localStorage.getItem("token");
+
 export const setAuthToken = (token) => {
-  if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  else delete api.defaults.headers.common["Authorization"];
+  if (token) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    currentToken = token;
+  } else {
+    delete api.defaults.headers.common["Authorization"];
+    currentToken = null;
+  }
 };
 
-// Try to set token from localStorage on initial load
-const token = localStorage.getItem("token");
-if (token) {
-  setAuthToken(token);
+if (currentToken) {
+  setAuthToken(currentToken);
 }
 
-// ✅ Automatically include token
+// ✅ Single, robust Request Interceptor
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  // Always use the latest token from the local variable or storage
+  const token = currentToken || localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+}, (error) => Promise.reject(error));
 
 // Recipient roles
 // Recipient roles

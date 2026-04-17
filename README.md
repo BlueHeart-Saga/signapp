@@ -23,7 +23,7 @@ SafeSign is a modern, enterprise-grade electronic signature platform designed to
 *   **Payment Integration:** Built-in subscription management and billing powered by **Stripe**.
 *   **Identity Verification:** Optional **OTP verification** for signers to ensure identity security.
 
-### 🛡️ Enterprise Security & Compliance
+###  Enterprise Security & Compliance
 - **JWT-based Authentication:** Secure, stateless authentication for all users.
 - **Role-Based Access Control (RBAC):** Granular permissions for Admins and Team members.
 - **Tamper-Evident Signatures:** Ensures document integrity after completion.

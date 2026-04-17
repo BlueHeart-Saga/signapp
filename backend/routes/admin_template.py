@@ -393,9 +393,11 @@ async def get_templates(
     limit: int = Query(default=20, ge=1, le=100),
     category_id: Optional[str] = None,
     search: Optional[str] = None,
+    sort_by: str = Query(default="created_at", description="Sort by field (created_at, title, download_count)"),
+    sort_order: int = Query(default=-1, description="Sort order (1 for ASC, -1 for DESC)"),
     current_user: dict = Depends(role_required(["admin"]))
 ):
-    """Get all templates with pagination"""
+    """Get all templates with pagination and sorting"""
     try:
         # Build query
         query = {"is_active": True}
@@ -417,7 +419,8 @@ async def get_templates(
         skip = (page - 1) * limit
         
         # Get templates
-        templates_cursor = db.document_templates.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        sort_tuple = (sort_by if sort_by in ["created_at", "title", "download_count"] else "created_at", sort_order)
+        templates_cursor = db.document_templates.find(query).sort([sort_tuple]).skip(skip).limit(limit)
         templates = list(templates_cursor)
         
         return {

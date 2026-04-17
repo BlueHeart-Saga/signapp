@@ -327,6 +327,10 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class OnboardingUpdate(BaseModel):
+    has_completed_editor_tour: Optional[bool] = None
+    onboarding_data: Optional[dict] = None
+
 class ErrorResponse(BaseModel):
     error: str
     message: str
@@ -1470,6 +1474,32 @@ async def update_profile(
             status_code=500,
             detail=f"Failed to update profile: {str(e)}"
         )
+
+@router.post("/update-onboarding")
+async def update_onboarding(
+    data: OnboardingUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Securely update user onboarding and walkthrough status"""
+    try:
+        update_doc = {}
+        if data.has_completed_editor_tour is not None:
+            update_doc["has_completed_editor_tour"] = data.has_completed_editor_tour
+        if data.onboarding_data is not None:
+            update_doc["onboarding_data"] = data.onboarding_data
+        
+        if not update_doc:
+            return {"status": "skipped", "message": "No update data provided"}
+
+        await db_update_one(
+            db.users,
+            {"email": current_user["email"]},
+            {"$set": update_doc}
+        )
+        return {"status": "success", "message": "Onboarding status updated"}
+    except Exception as e:
+        print(f"Onboarding update error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update onboarding status")
 
 @router.get("/health")
 async def health_check():

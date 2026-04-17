@@ -28,6 +28,7 @@ const menuItems = {
     { name: "Dashboard", path: "/admin/dashboard", icon: <Home size={18} /> },
     { name: "Manage Users", path: "/admin/users", icon: <Users size={18} /> },
     { name: "Templates", path: "/admin/templates", icon: <FileText size={18} /> },
+    { name: "Envelope Management", path: "/admin/envelopes", icon: <Shield size={18} /> },
     { name: "Logo & Branding", path: "/admin/logo", icon: <Image size={18} /> },
     { name: "Banners", path: "/admin/banner", icon: <Images size={18} /> }
   ],

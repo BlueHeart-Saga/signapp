@@ -47,6 +47,8 @@ const TemplateManagement = () => {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState(-1);
 
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [uploadDialog, setUploadDialog] = useState(false);
@@ -96,7 +98,12 @@ const TemplateManagement = () => {
   const fetchTemplates = useCallback(async (targetPage = page) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: targetPage + 1, limit: rowsPerPage });
+      const params = new URLSearchParams({
+        page: targetPage + 1,
+        limit: rowsPerPage,
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
       if (search) params.append('search', search);
       if (selectedCategory) params.append('category_id', selectedCategory);
       const res = await fetch(`${API_BASE_URL}/admin/templates/?${params}`, { headers: getHeaders() });
@@ -105,7 +112,7 @@ const TemplateManagement = () => {
       setTemplates(data.templates || []);
       setTotalTemplates(data.pagination?.total || 0);
     } catch (e) { setError(e.message); } finally { setLoading(false); }
-  }, [page, rowsPerPage, search, selectedCategory, getHeaders]);
+  }, [page, rowsPerPage, search, selectedCategory, getHeaders, sortBy, sortOrder]);
 
   const fetchStats = async () => {
     try {
@@ -249,7 +256,14 @@ const TemplateManagement = () => {
   };
 
   const handleApplyFilters = () => { setPage(0); fetchTemplates(0); };
-  const handleClearFilters = () => { setSearch(''); setSelectedCategory(''); setPage(0); fetchTemplates(0); };
+  const handleClearFilters = () => {
+    setSearch('');
+    setSelectedCategory('');
+    setSortBy('created_at');
+    setSortOrder(-1);
+    setPage(0);
+    fetchTemplates(0);
+  };
 
   useEffect(() => { fetchCategories(); fetchTemplates(); fetchStats(); }, []);
 
@@ -360,6 +374,26 @@ const TemplateManagement = () => {
                   sx={{ borderRadius: 1.5, fontSize: 13.5, bgcolor: '#f9fafb' }}>
                   <MenuItem value=""><em>All Categories</em></MenuItem>
                   {categories.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel sx={{ fontSize: 13.5 }}>Sort By</InputLabel>
+                <Select
+                  value={`${sortBy}:${sortOrder}`}
+                  label="Sort By"
+                  onChange={(e) => {
+                    const [field, order] = e.target.value.split(':');
+                    setSortBy(field);
+                    setSortOrder(parseInt(order));
+                  }}
+                  sx={{ borderRadius: 1.5, fontSize: 13.5, bgcolor: '#f9fafb' }}
+                >
+                  <MenuItem value="created_at:-1">Newest First</MenuItem>
+                  <MenuItem value="created_at:1">Oldest First</MenuItem>
+                  <MenuItem value="title:1">Title (A-Z)</MenuItem>
+                  <MenuItem value="title:-1">Title (Z-A)</MenuItem>
+                  <MenuItem value="download_count:-1">Most Popular</MenuItem>
                 </Select>
               </FormControl>
               <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>

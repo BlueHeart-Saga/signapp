@@ -6,7 +6,7 @@ from typing import Optional, List, Dict
 import io
 from pydantic import BaseModel
 from routes.fields import validate_field_role
-from .fields import serialize_field_with_recipient
+from .fields import serialize_field_with_recipient, normalize_field_value
 from .pdf_engine import PDFEngine
 from .documents import _log_event, get_merged_pdf, load_document_pdf, apply_completed_fields_to_pdf
 from database import db
@@ -2451,16 +2451,20 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         "completed_at": {"$exists": True}
     }))
     
-    # Prepare all fields with completion flags and coordinates
+    # Prepare all fields with completion flags and normalized values
     all_form_fields = []
     signatures = []
     
     for f in fields:
         field_type = f.get("type")
-        val = f.get("value")
+        
+        # 🔥 USE NORMALIZED VALUE (Matches apply_completed_fields_to_pdf)
+        # This ensures checkboxes, radios, and mail fields render correctly
+        actual_val = normalize_field_value(f)
         
         # Enrich field for PDFEngine
         f_enriched = f.copy()
+        f_enriched["value"] = actual_val
         f_enriched["_render_completed"] = True
         f_enriched["is_completed"] = True
         
@@ -2471,12 +2475,12 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         if "pdf_height" not in f_enriched: f_enriched["pdf_height"] = f.get("height", 30)
         
         if field_type in IMAGE_FIELDS:
-            # Handle image-based fields (signatures, initials, stamps)
+            # Handle image-based fields
             image_data = None
-            if isinstance(val, dict):
-                image_data = val.get("image") or val.get("data")
-            elif isinstance(val, str) and val.startswith("data:image"):
-                image_data = val
+            if isinstance(f.get("value"), dict):
+                image_data = f.get("value").get("image") or f.get("value").get("data")
+            elif isinstance(f.get("value"), str) and f.get("value").startswith("data:image"):
+                image_data = f.get("value")
                 
             if image_data:
                 signatures.append({
@@ -2485,10 +2489,13 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
                     "page": f.get("page", 0)
                 })
         
-        # Always include in fields list for coordinate lookup and form rendering
         all_form_fields.append(f_enriched)
     
-    # Finalize document
+    # Get owner info for header
+    owner = db.users.find_one({"_id": document.get("owner_id")})
+    sender_name = owner.get("full_name") or owner.get("name", "Sender") if owner else "Sender"
+    
+    # Finalize document WITH ENVELOPE HEADER (FIXED)
     final_pdf = PDFEngine.finalize_document(
         pdf_bytes=pdf_bytes,
         signatures=signatures,
@@ -2496,7 +2503,13 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         add_footer=True,
         signer_email="system@safesign.ai",
         ip=request.client.host if request and request.client else "system",
-        timestamp=datetime.utcnow().isoformat()
+        timestamp=datetime.utcnow().isoformat(),
+        # Passing these ensures the header is applied
+        envelope_id=document.get("envelope_id"),
+        document_name=document.get("filename", "document.pdf"),
+        status="Completed",
+        sender=sender_name,
+        created_date=document.get("created_at").strftime("%Y-%m-%d") if document.get("created_at") else None
     )
     
     # Save final PDF to Azure
@@ -3002,41 +3015,81 @@ async def email_signed_document(
     recipient_id: str,
     request: Request
 ):
-    recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
-    if not recipient:
-        raise HTTPException(404, "Recipient not found")
+    try:
+        rid = ObjectId(recipient_id)
+        recipient = db.recipients.find_one({"_id": rid})
+        if not recipient:
+            raise HTTPException(404, "Recipient not found")
 
-    document = db.documents.find_one({"_id": recipient["document_id"]})
-    if not document or document.get("status") != "completed":
-        raise HTTPException(400, "Document not completed")
+        document = db.documents.find_one({"_id": recipient["document_id"]})
+        if not document:
+            raise HTTPException(404, "Document not found")
+        
+        # Allow emailing even if not completed (matches download behavior)
+        if document.get("status") in ["declined", "voided", "expired"]:
+             raise HTTPException(400, f"Cannot email document with status: {document.get('status')}")
 
-    signed_pdf_path = document.get("signed_pdf_path")
-    if not signed_pdf_path:
-        raise HTTPException(404, "Signed PDF missing")
+        # ✅ USE DYNAMIC RENDERING (Matches download route)
+        # This ensures all fields and HEADERS are applied accurately
+        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        if not pdf_bytes:
+            raise HTTPException(404, "Base PDF not found")
 
-    pdf_bytes = storage.download(signed_pdf_path)
+        # 1. Apply fields
+        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
 
-    from .email_service import send_signed_document_email
+        # 2. Add envelope header
+        envelope_id = document.get("envelope_id")
+        if envelope_id:
+            try:
+                pdf_bytes = PDFEngine.apply_minimal_envelope_header(
+                    pdf_bytes,
+                    envelope_id=envelope_id,
+                    color="#000000"
+                )
+            except Exception as e:
+                print(f"Warning: Could not apply envelope header to email: {str(e)}")
 
-    success = send_signed_document_email(
-        to_email=recipient["email"],
-        recipient_name=recipient.get("name", ""),
-        document_name=document.get("filename", "document.pdf"),
-        pdf_bytes=pdf_bytes
-    )
+        # 3. Apply "SIGNED" watermark
+        try:
+            pdf_bytes = PDFEngine.apply_watermark(
+                pdf_bytes,
+                "SIGNED DOCUMENT",
+                color="#4CAF50",
+                opacity=0.1,
+                font_size=48,
+                angle=45
+            )
+        except Exception as e:
+            print(f"Warning: Could not apply watermark to email: {str(e)}")
 
-    if not success:
-        raise HTTPException(500, "Failed to send email")
+        from .email_service import send_signed_document_email
 
-    _log_event(
-        str(document["_id"]),
-        recipient,
-        "email_signed_document",
-        {},
-        request
-    )
+        success = send_signed_document_email(
+            to_email=recipient["email"],
+            recipient_name=recipient.get("name", ""),
+            document_name=document.get("filename", "document.pdf"),
+            pdf_bytes=pdf_bytes
+        )
 
-    return {"message": "Signed document emailed successfully"}
+        if not success:
+            raise HTTPException(500, "Failed to send email")
+
+        _log_event(
+            str(document["_id"]),
+            recipient,
+            "email_signed_document",
+            {"via": "manual_request"},
+            request
+        )
+
+        return {"message": "Signed document emailed successfully"}
+    except Exception as e:
+        print(f"Error emailing signed document: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
 
 # ======================
 # DOCUMENT DOWNLOAD ROUTES (MATCHING FRONTEND)
@@ -3878,52 +3931,9 @@ async def download_professional_summary(
             import traceback
             traceback.print_exc()
             
-            # Enhanced fallback PDF with teal header
-            from reportlab.pdfgen import canvas
-            import io as io_module
-            
-            buffer = io_module.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=A4)
-            width, height = A4
-            
-            # Teal header
-            c.setFillColor(colors.HexColor("#0d9488"))
-            c.rect(0, height - 60, width, 60, fill=1, stroke=0)
-            
-            c.setFont("Helvetica-Bold", 20)
-            c.setFillColor(colors.white)
-            c.drawString(50, height - 40, "SafeSign")
-            c.drawString(width - 200, height - 40, "DOCUMENT SUMMARY")
-            
-            # Content
-            c.setFont("Helvetica-Bold", 14)
-            c.setFillColor(colors.black)
-            c.drawString(50, height - 100, f"Document: {document.get('filename', 'Unknown')}")
-            
-            c.setFont("Helvetica", 11)
-            c.drawString(50, height - 130, f"Envelope ID: {envelope_id}")
-            c.drawString(50, height - 150, f"Recipient: {recipient.get('name', 'Unknown')}")
-            c.drawString(50, height - 170, f"Status: {recipient.get('status', 'pending').upper()}")
-            
-            # Show signature status
-            if signature_value:
-                c.drawString(50, height - 190, "Signature: ✓ Signed")
-            else:
-                c.drawString(50, height - 190, "Signature: Not signed")
-                
-            if has_initials_field:
-                if initials_value:
-                    c.drawString(50, height - 210, "Initials: ✓ Provided")
-                else:
-                    c.drawString(50, height - 210, "Initials: ○ Pending")
-            
-            c.setFont("Helvetica", 9)
-            c.drawString(50, 50, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-            c.drawString(50, 30, "Verified by SafeSign Secure Digital Signature Platform")
-            
-            c.save()
-            buffer.seek(0)
-            pdf_bytes = buffer.read()
+            # Use the newly professionalized fallback engine
+            pdf_bytes = SafeSignSummaryEngine._create_fallback_pdf(summary_data)
+
         
         # ========== CREATE FILENAME ==========
         safe_name = re.sub(r'[^\w\s-]', '', document.get('filename', 'document'))

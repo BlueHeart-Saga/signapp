@@ -59,6 +59,7 @@ import AutoSaveIndicator from './dialogs/AutoSaveIndicator';
 
 import { HistoryService } from '../../services/historyService';
 import { AutosaveService } from '../../services/autosaveService';
+import { useAuth } from '../../context/AuthContext';
 import { setPageTitle } from '../../utils/pageTitle';
 import { documentAPI } from '../../services/builder';
 import {
@@ -73,6 +74,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:900
 
 const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const navigate = useNavigate();
+  const { user, updateOnboardingStatus } = useAuth();
   const { documentId: paramDocumentId } = useParams();
   const documentId = propDocumentId || paramDocumentId;
 
@@ -179,19 +181,28 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   ]);
 
   useEffect(() => {
-    // Show tour on first visit
-    const tourStatus = localStorage.getItem('ss_editor_tour_completed');
-    if (!tourStatus) {
+    // Show tour on first visit - check both local storage and user profile
+    const tourStatusLocal = localStorage.getItem('ss_editor_tour_v1_completed');
+    const tourStatusUser = user?.has_completed_editor_tour;
+
+    if (!tourStatusLocal && !tourStatusUser && user) {
       // Small delay to ensure everything is rendered
       const timer = setTimeout(() => setRunTour(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [user]);
 
   const handleJoyrideCallback = (data) => {
     const { status } = data;
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      localStorage.setItem('ss_editor_tour_completed', 'true');
+      // Persist to local storage for immediate check
+      localStorage.setItem('ss_editor_tour_v1_completed', 'true');
+
+      // Persist to backend for cross-device consistency
+      if (updateOnboardingStatus) {
+        updateOnboardingStatus({ has_completed_editor_tour: true });
+      }
+
       setRunTour(false);
     }
   };
@@ -1070,11 +1081,19 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         continuous
         showProgress
         showSkipButton
-        disableBeacon
-        disableOverlayClose
-        hideCloseButton
+        disableBeacon={true}
+        disableBeacons={true}
+        disableOverlayClose={true}
+        hideCloseButton={true}
         spotlightPadding={10}
+        disableScrolling={false}
         callback={handleJoyrideCallback}
+        locale={{
+          last: 'Finish',
+          next: 'Next',
+          back: 'Back',
+          skip: 'Dismiss Forever'
+        }}
         styles={{
           options: {
             primaryColor: '#0d9488',

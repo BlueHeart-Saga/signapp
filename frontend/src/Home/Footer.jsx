@@ -16,7 +16,7 @@ import API_BASE_URL from "../config/api";
 export default function Footer() {
   const navigate = useNavigate();
 
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Safesign");
   const [tagline, setTagline] = useState(
     "SIGN SMARTER WITH AI-POWERED E-SIGNATURES"
   );
@@ -161,17 +161,16 @@ export default function Footer() {
         <p>© 2026 {brandName} — All rights reserved.</p>
 
         <div className="safesign-footer-policies">
-          <span onClick={() => navigate("/privacy-policy")}>Privacy Policy</span>
-          <span onClick={() => navigate("/terms-of-service")}>
+          <a href="/privacy-policy" onClick={(e) => { e.preventDefault(); navigate("/privacy-policy"); }}>Privacy Policy</a>
+          <a href="/terms-of-service" onClick={(e) => { e.preventDefault(); navigate("/terms-of-service"); }}>
             Terms of Service
-          </span>
-          <span onClick={() => navigate("/cookies")}>Cookie Policy</span>
-          <span onClick={() => navigate("/abusepolicy")}>Abuse Policy</span>
-          <span onClick={() => navigate("/trademarkpolicy")}>Trademark Policy</span>
-          
-          <span onClick={() => navigate("/complaints")}>GDPR Compliance</span>
-          <span onClick={() => navigate("/faq")}>FAQ</span>
-          
+          </a>
+          <a href="/cookies" onClick={(e) => { e.preventDefault(); navigate("/cookies"); }}>Cookie Policy</a>
+          <a href="/abusepolicy" onClick={(e) => { e.preventDefault(); navigate("/abusepolicy"); }}>Abuse Policy</a>
+          <a href="/trademarkpolicy" onClick={(e) => { e.preventDefault(); navigate("/trademarkpolicy"); }}>Trademark Policy</a>
+
+          <a href="/complaints" onClick={(e) => { e.preventDefault(); navigate("/complaints"); }}>GDPR Compliance</a>
+          <a href="/faq" onClick={(e) => { e.preventDefault(); navigate("/faq"); }}>FAQ</a>
         </div>
       </div>
     </footer>

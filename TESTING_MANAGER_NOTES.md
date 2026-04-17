@@ -33,7 +33,7 @@ This document serves as the primary reference for the Quality Assurance and Test
 
 ---
 
-## 🛡️ 3. Security & Permission Matrix
+##  3. Security & Permission Matrix
 *Validate that data is isolated between users and organizations.*
 
 - **Cross-User Leakage:** Attempt to access a `document_id` belonging to User B using User A's JWT token. (Should return 404/403).
