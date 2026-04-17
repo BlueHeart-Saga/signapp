@@ -1,3 +1,17 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Disallow: /admin/
+Disallow: /user/
+Disallow: /recipient/
+Disallow: /verify/
+Disallow: /sign/
+Disallow: /complete/
+Disallow: /auth/
+Disallow: /unauthorized
+
+# Allow search engines to index public assets
+Allow: /static/
+Allow: /images/
+
+# Sitemap location
+Sitemap: https://safesign.devopstrio.co.uk/sitemap.xml

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main Pages -->
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>1.00</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/aboutus</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/contactus</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/pricing</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/e-signature</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/document-management</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/workflow-automation</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/templates</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/security</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Content & Resources -->
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/blog</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/docs</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/faq</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.60</priority>
+  </url>
+
+  <!-- Legal -->
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/privacy-policy</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/terms-of-service</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://safesign.devopstrio.co.uk/cookies</loc>
+    <lastmod>2026-04-17</lastmod>
+    <priority>0.50</priority>
+  </url>
+</urlset>
