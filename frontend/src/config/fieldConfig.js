@@ -43,7 +43,7 @@ export const FIELD_TYPES = {
     icon: <CalendarIcon />,
     color: '#3F51B5',
     placeholder: 'MM/DD/YYYY',
-    defaultWidth: 120,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'date',
     allowedFor: [] // Universal
@@ -53,7 +53,7 @@ export const FIELD_TYPES = {
     icon: <ShortTextIcon />,
     color: '#4CAF50',
     placeholder: 'ENTER TEXT...',
-    defaultWidth: 160,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'textbox',
     allowedFor: [] // Universal
@@ -83,7 +83,7 @@ export const FIELD_TYPES = {
     icon: <ArrowDropDownCircleIcon />,
     color: '#0097A7',
     placeholder: 'Select...',
-    defaultWidth: 160,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'dropdown',
     allowedFor: [] // Universal
@@ -93,7 +93,7 @@ export const FIELD_TYPES = {
     icon: <AttachFileIcon />,
     color: '#795548',
     placeholder: 'ATTACH FILE',
-    defaultWidth: 140,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'attachment',
     allowedFor: [] // Universal
@@ -103,7 +103,7 @@ export const FIELD_TYPES = {
     icon: <CheckIcon />,
     color: '#9C27B0',
     placeholder: 'APPROVE',
-    defaultWidth: 120,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'approval',
     allowedFor: ['approver']
@@ -133,7 +133,7 @@ export const FIELD_TYPES = {
     icon: <EmailIcon />,
     color: '#2196F3',
     placeholder: 'email@example.com',
-    defaultWidth: 160,
+    defaultWidth: 180,
     defaultHeight: 32,
     backendType: 'mail',
     allowedFor: [] // Universal

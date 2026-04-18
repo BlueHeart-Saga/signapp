@@ -8,6 +8,7 @@ import {
     IconButton,
     Tooltip
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
     Refresh as RefreshIcon,
     ChevronRight as ChevronRightIcon,
@@ -108,6 +109,10 @@ const DocumentThumbnails = ({
                         const hasFields = pageFields.length > 0;
                         const thumbUrl = thumbnails[pageNum];
 
+                        // Calculate aspect ratio height (standard base width is 140)
+                        const thumbWidth = 140;
+                        const thumbHeight = Math.round(thumbWidth * ((canvasHeight || 1123) / 794));
+
                         return (
                             <Box
                                 key={pageNum}
@@ -127,8 +132,8 @@ const DocumentThumbnails = ({
                                 <Paper
                                     elevation={isActive ? 6 : 1}
                                     sx={{
-                                        width: 140,
-                                        height: 190,
+                                        width: thumbWidth,
+                                        height: thumbHeight,
                                         position: 'relative',
                                         overflow: 'hidden',
                                         border: isActive ? '3px solid #0d9488' : '1px solid #e5e7eb',
@@ -191,12 +196,12 @@ const DocumentThumbnails = ({
                                                         top: `${top}%`,
                                                         width: `${Math.max(4, width)}%`,
                                                         height: `${Math.max(4, height)}%`,
-                                                        backgroundColor: color,
-                                                        opacity: assignedRecipient ? 0.6 : 0.4,
-                                                        border: `1px solid ${color}`,
-                                                        borderRadius: '1px',
+                                                        backgroundColor: alpha(color, 0.15),
+                                                        border: `1.2px solid ${color}`,
+                                                        borderRadius: '2px',
+                                                        zIndex: 3,
                                                         animation: 'fadeIn 0.5s ease forwards',
-                                                        boxShadow: '0 0.5px 1px rgba(0,0,0,0.1)'
+                                                        boxShadow: '0 0.5px 2px rgba(0,0,0,0.1)'
                                                     }}
                                                 />
                                             );

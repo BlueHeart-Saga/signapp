@@ -198,11 +198,14 @@ const DocumentWorkArea = ({
     // Remove cumulative heights of previous pages and the current page's header
     const pageY = relativeY - (validPage * basePageBlockHeight) - PAGE_HEADER_HEIGHT;
 
-    // 4. Center the field on drop point (base dimensions: ~160x32)
-    // Using standard offsets to ensure placement matches cursor/drag preview top-left
-    const cleanX = Math.round(Math.max(0, Math.min(relativeX - 80, BASE_WIDTH - 160)));
+    // 4. Center the field on drop point (base dimensions are type-specific)
+    const fieldConfig = FIELD_TYPES[fieldType] || { defaultWidth: 160, defaultHeight: 32 };
+    const fWidth = fieldConfig.defaultWidth || 160;
+    const fHeight = fieldConfig.defaultHeight || 32;
+
+    const cleanX = Math.round(Math.max(0, Math.min(relativeX - (fWidth / 2), BASE_WIDTH - fWidth)));
     const cleanY = Math.round(
-      Math.max(0, Math.min(pageY - 14, baseHeight - 32))
+      Math.max(0, Math.min(pageY - (fHeight / 2), baseHeight - fHeight))
     );
 
     // Dispatch event with clean, page-relative coordinates
@@ -405,6 +408,10 @@ const DocumentWorkArea = ({
             const pdfPageNumber = pageIndex + 1;
             const isCurrentPage = pageIndex === currentPage;
 
+            // Simple virtualization: Render pages that are near the current viewport
+            // This prevents the browser from being overwhelmed by dozens of canvases
+            const isNearVisible = Math.abs(pageIndex - currentPage) <= 2;
+
             return (
               <Box
                 key={`page-wrapper-${pageIndex}`}
@@ -412,7 +419,7 @@ const DocumentWorkArea = ({
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  position: 'relative' // For absolute positioning of badge
+                  position: 'relative'
                 }}
               >
                 {/* Simple Professional Page Header */}
@@ -443,22 +450,34 @@ const DocumentWorkArea = ({
                     borderRadius: 0,
                     overflow: 'hidden',
                     border: '1px solid #e2e8f0',
+                    bgcolor: '#f8fafc', // Light background for unrendered pages
                     boxShadow: isCurrentPage ? '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.05)',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
-                  <Page
-                    pageNumber={pdfPageNumber}
-                    width={scaledWidth}
-                    onLoadSuccess={(page) => {
-                      if (pageIndex === 0) {
-                        const calculatedHeight = (BASE_WIDTH / page.originalWidth) * page.originalHeight;
-                        onPdfLoaded?.(calculatedHeight);
-                      }
-                    }}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
+                  {isNearVisible ? (
+                    <Page
+                      pageNumber={pdfPageNumber}
+                      width={scaledWidth}
+                      onLoadSuccess={(page) => {
+                        if (pageIndex === 0) {
+                          const calculatedHeight = (BASE_WIDTH / page.originalWidth) * page.originalHeight;
+                          onPdfLoaded?.(calculatedHeight);
+                        }
+                      }}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      loading={<CircularProgress size={24} />}
+                    />
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, opacity: 0.3 }}>
+                      <CircularProgress size={20} thickness={2} />
+                      <Typography variant="caption">Loading Page {pdfPageNumber}...</Typography>
+                    </Box>
+                  )}
                 </Paper>
               </Box>
             );
@@ -533,32 +552,38 @@ const DocumentWorkArea = ({
       >
         {renderGridLayer}
         <Layer>
-          {fields.map((field) => {
-            const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
+          {fields
+            .filter(field => {
+              // Virtualize Konva objects: Only render fields on or near the current page
+              // This keeps the Stage lightweight and responsive
+              return Math.abs(field.page - currentPage) <= 1;
+            })
+            .map((field) => {
+              const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
 
-            // Calculate Y offset: Each page n is preceded by n * (page + header + gap) plus this page's own header
-            const pageOffsetY =
-              field.page * (scaledHeight + scaledHeaderHeight + PAGE_GAP) +
-              scaledHeaderHeight;
+              // Calculate Y offset: Each page n is preceded by n * (page + header + gap) plus this page's own header
+              const pageOffsetY =
+                field.page * (scaledHeight + scaledHeaderHeight + PAGE_GAP) +
+                scaledHeaderHeight;
 
-            return (
-              <CanvasField
-                key={field.id}
-                field={field}
-                isSelected={selectedFieldId === field.id}
-                onSelect={onSelectField}
-                onDragEnd={onFieldDragEnd}
-                onTransform={onFieldTransform}
-                scale={zoomLevel}
-                validationError={validationError}
-                currentPage={currentPage}
-                showAllFields={true}
-                pageOffsetY={pageOffsetY}
-                recipients={recipients}
-                canvasHeight={baseHeight}
-              />
-            );
-          })}
+              return (
+                <CanvasField
+                  key={field.id}
+                  field={field}
+                  isSelected={selectedFieldId === field.id}
+                  onSelect={onSelectField}
+                  onDragEnd={onFieldDragEnd}
+                  onTransform={onFieldTransform}
+                  scale={zoomLevel}
+                  validationError={validationError}
+                  currentPage={currentPage}
+                  showAllFields={true}
+                  pageOffsetY={pageOffsetY}
+                  recipients={recipients}
+                  canvasHeight={baseHeight}
+                />
+              );
+            })}
         </Layer>
       </Stage>
     );

@@ -24,7 +24,7 @@ import {
   Fab,
   Badge
 } from '@mui/material';
-import { Joyride, STATUS } from 'react-joyride';
+import { Joyride, STATUS, ACTIONS } from 'react-joyride';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
@@ -103,6 +103,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [helpGuideDialogOpen, setHelpGuideDialogOpen] = useState(false);
   const [canvasHeight, setCanvasHeight] = useState(1123); // Default A4 height
 
   // Handle PDF load from WorkArea to get actual proportions
@@ -147,15 +148,18 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
   // ==================== TOUR MANAGEMENT ====================
   const [runTour, setRunTour] = useState(false);
-  const [tourSteps] = useState([
+  const tourSteps = useMemo(() => [
     {
-      target: '#joyride-recipient-list',
-      title: 'Select a Recipient',
-      content: 'Start by selecting a recipient. This highlights the required fields assigned specifically to their role.',
+      target: recipients.length > 0 ? '#joyride-first-recipient' : '#joyride-recipient-list',
+      title: recipients.length > 0 ? 'Select a Recipient' : 'Add a Recipient',
+      content: recipients.length > 0
+        ? 'Start by selecting a recipient. This highlights the required fields assigned specifically to their role.'
+        : 'Start by adding your first recipient. You can assign roles like Signer, Viewer, or Approver.',
       disableBeacon: true,
+      placement: 'right',
     },
     {
-      target: '#joyride-field-palette',
+      target: '#joyride-signature-field',
       title: 'Choose Fields',
       content: 'Once a recipient is selected, click or drag their specific fields (Signature, Date, etc.) onto the document.',
       disableBeacon: true,
@@ -165,6 +169,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       title: 'Design Your Document',
       content: 'Position, move, and snap your fields exactly where you want them on the page.',
       disableBeacon: true,
+      placement: 'bottom',
     },
     {
       target: '#joyride-preview-btn',
@@ -178,31 +183,48 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       content: 'All set? Click here to securely send the document for signing.',
       disableBeacon: true,
     },
-  ]);
+  ], [recipients.length]);
 
   useEffect(() => {
     // Show tour on first visit - check both local storage and user profile
     const tourStatusLocal = localStorage.getItem('ss_editor_tour_v1_completed');
     const tourStatusUser = user?.has_completed_editor_tour;
 
-    if (!tourStatusLocal && !tourStatusUser && user) {
+    console.log('[Joyride] Check:', { tourStatusLocal, tourStatusUser, loading, hasDoc: !!document });
+
+    if (!tourStatusLocal && !tourStatusUser && !loading && document) {
       // Small delay to ensure everything is rendered
-      const timer = setTimeout(() => setRunTour(true), 1500);
+      const timer = setTimeout(() => {
+        console.log('[Joyride] Starting first-time tour...');
+        // Mark as seen/completed immediately to avoid repeats if user navigates away
+        localStorage.setItem('ss_editor_tour_v1_completed', 'true');
+
+        // Also attempt to update backend if possible
+        if (updateOnboardingStatus) {
+          updateOnboardingStatus({ has_completed_editor_tour: true });
+        }
+
+        setRunTour(true);
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [user, loading, document, updateOnboardingStatus]);
 
   const handleJoyrideCallback = (data) => {
-    const { status } = data;
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      // Persist to local storage for immediate check
-      localStorage.setItem('ss_editor_tour_v1_completed', 'true');
+    const { status, type } = data;
 
-      // Persist to backend for cross-device consistency
+    // Auto-save completion status
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status) || data.action === ACTIONS.CLOSE) {
+      localStorage.setItem('ss_editor_tour_v1_completed', 'true');
       if (updateOnboardingStatus) {
         updateOnboardingStatus({ has_completed_editor_tour: true });
       }
+      setRunTour(false);
+    }
 
+    // Handle potential errors (target not found)
+    if (status === STATUS.ERROR) {
+      console.warn('[Joyride] Error detected, stopping tour');
       setRunTour(false);
     }
   };
@@ -214,6 +236,28 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
   useEffect(() => {
     const fetchDocumentData = async () => {
+      // ✅ Strict Token Validation
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error("[AUTH] No token found, redirecting to login");
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const decoded = JSON.parse(atob(token.split('.')[1]));
+        if (decoded.exp * 1000 < Date.now()) {
+          console.warn("[AUTH] Token expired, logging out");
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
+      } catch (e) {
+        console.error("[AUTH] Invalid token format");
+        navigate('/login');
+        return;
+      }
+
       try {
         setLoading(true);
 
@@ -230,6 +274,12 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         setDocument(docData);
         setNumPages(docData.page_count || 1);
         setRecipients(recipientsData);
+
+        // ✅ Auto-select first recipient if none selected
+        if (recipientsData?.length > 0 && !selectedRecipientId) {
+          const sorted = [...recipientsData].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0));
+          setSelectedRecipientId(sorted[0].id);
+        }
 
         const fieldsWithRecipientInfo = fieldsData.map(field => {
           const recipient = recipientsData.find(r => r.id === field.recipient_id);
@@ -638,8 +688,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       type: fieldType,
       label: `${fieldConfig.label} ${fields.length + 1}`,
       placeholder: fieldConfig.placeholder,
-      x: Math.max(20, Math.min(x, 794 - (fieldConfig.defaultWidth || 160) - 20)),
-      y: Math.max(20, Math.min(y, 1123 - (fieldConfig.defaultHeight || 32) - 20)),
+      x: Math.round(Math.max(0, Math.min(x, 794 - (fieldConfig.defaultWidth || 160)))),
+      y: Math.round(Math.max(0, Math.min(y, (canvasHeight || 1123) - (fieldConfig.defaultHeight || 32)))),
       width: fieldConfig.defaultWidth || 160,
       height: fieldConfig.defaultHeight || 32,
       page: targetPage,
@@ -690,7 +740,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
     const newFields = fields.map(field => {
       if (field.id === fieldId) {
         const constrainedX = Math.max(0, Math.min(newX, 794 - field.width));
-        const constrainedY = Math.max(0, Math.min(newY, 1123 - field.height));
+        const currentCanvasHeight = canvasHeight || 1123;
+        const constrainedY = Math.max(0, Math.min(newY, currentCanvasHeight - field.height));
 
         return {
           ...field,
@@ -1078,21 +1129,23 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       <Joyride
         steps={tourSteps}
         run={runTour}
-        continuous
-        showProgress
-        showSkipButton
-        disableBeacon={true}
+        continuous={true}
+        showProgress={true}
+        showSkipButton={true}
         disableBeacons={true}
         disableOverlayClose={true}
-        hideCloseButton={true}
+        hideCloseButton={false}
         spotlightPadding={10}
         disableScrolling={false}
         callback={handleJoyrideCallback}
+        floaterProps={{
+          disableAnimation: true
+        }}
         locale={{
           last: 'Finish',
           next: 'Next',
           back: 'Back',
-          skip: 'Dismiss Forever'
+          skip: "Skip Guide"
         }}
         styles={{
           options: {
@@ -1106,6 +1159,11 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             textAlign: 'left',
             borderRadius: '12px'
           },
+          buttonSkip: {
+            color: '#64748b',
+            fontSize: '13px',
+            fontWeight: '600',
+          },
           buttonNext: {
             borderRadius: '8px',
             fontSize: '13px',
@@ -1118,10 +1176,9 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             fontWeight: '600',
             color: '#64748b'
           },
-          buttonSkip: {
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#64748b'
+          buttonClose: {
+            padding: '8px',
+            color: '#94a3b8'
           }
         }}
       />
@@ -1203,7 +1260,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             <Tooltip title="Help Guide">
               <IconButton
                 size="small"
-                onClick={() => setRunTour(true)}
+                onClick={() => setHelpGuideDialogOpen(true)}
                 sx={{
                   color: '#0d9488',
                   ml: 0.5,
@@ -1556,6 +1613,75 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             disabled={saving || autoSaveStatus.isSaving}
           >
             {saving || autoSaveStatus.isSaving ? 'Saving...' : 'Save & Leave'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Help Guide Selection Dialog */}
+      <Dialog
+        open={helpGuideDialogOpen}
+        onClose={() => setHelpGuideDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: '16px', p: 1 }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Help & Onboarding</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Welcome to the Document Editor! Would you like to view the interactive guide to learn how to prepare your document?
+          </Typography>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<VisibilityIcon />}
+              onClick={() => {
+                setHelpGuideDialogOpen(false);
+                setRunTour(false);
+                // Force a reset by clearing session storage if Joyride uses it, 
+                // but here we just toggle the run state with a small delay
+                setTimeout(() => setRunTour(true), 200);
+              }}
+              sx={{
+                bgcolor: '#0d9488',
+                py: 1.2,
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': { bgcolor: '#0f766e' }
+              }}
+            >
+              View Interactive Guide
+            </Button>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                localStorage.setItem('ss_editor_tour_v1_completed', 'true');
+                setHelpGuideDialogOpen(false);
+                showSnackbar('Automatic guide disabled. You can restart it anytime from this Help button.', 'info');
+              }}
+              sx={{
+                color: '#64748b',
+                borderColor: '#e2e8f0',
+                py: 1,
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': { bgcolor: '#f1f5f9', borderColor: '#cbd5e1' }
+              }}
+            >
+              Don't Show Again
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ pt: 1, px: 3, pb: 2 }}>
+          <Button onClick={() => setHelpGuideDialogOpen(false)} sx={{ color: '#94a3b8', textTransform: 'none' }}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

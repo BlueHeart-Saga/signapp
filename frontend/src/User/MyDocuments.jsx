@@ -269,9 +269,16 @@ export default function MyDocuments() {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
 
-    setFile(selectedFile);
-    setPreviewFile(selectedFile);
-    setPreviewOpen(true);
+    const isDocx = selectedFile.name.toLowerCase().endsWith('.docx');
+
+    if (isDocx) {
+      setFile(selectedFile);
+      handleUpload(selectedFile);
+    } else {
+      setFile(selectedFile);
+      setPreviewFile(selectedFile);
+      setPreviewOpen(true);
+    }
   };
 
 
@@ -437,11 +444,16 @@ export default function MyDocuments() {
 
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      setFile(droppedFile);
-      setPreviewFile(droppedFile);
-      setPreviewOpen(true);
+      const isDocx = droppedFile.name.toLowerCase().endsWith('.docx');
+      if (isDocx) {
+        setFile(droppedFile);
+        handleUpload(droppedFile);
+      } else {
+        setFile(droppedFile);
+        setPreviewFile(droppedFile);
+        setPreviewOpen(true);
+      }
     }
-
   };
 
   // =============================================

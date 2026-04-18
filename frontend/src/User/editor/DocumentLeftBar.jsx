@@ -224,7 +224,7 @@ const DocumentLeftBar = ({
           '&::-webkit-scrollbar-thumb': { background: 'transparent', borderRadius: '10px' },
           '&:hover::-webkit-scrollbar-thumb': { background: '#cbd5e1' }
         }}>
-        {[...recipients].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0)).map((recipient) => {
+        {[...recipients].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0)).map((recipient, index) => {
           const isSelected = selectedRecipientId === recipient.id;
           const recipientColor = getRecipientColor(recipient);
           const roleName = FIELD_ROLES[recipient.role]?.name || recipient.role;
@@ -249,17 +249,38 @@ const DocumentLeftBar = ({
                 }
               }}
             >
-              <Avatar sx={{
-                width: 36,
-                height: 36,
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                bgcolor: recipientColor,
-                color: '#fff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                {recipient.name?.charAt(0).toUpperCase() || '?'}
-              </Avatar>
+              {/* Joyride Anchor - Centered professionally over the entire row content */}
+              {index === 0 && (
+                <Box
+                  id="joyride-first-recipient"
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '260px',
+                    height: '60px',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    zIndex: -1
+                  }}
+                />
+              )}
+
+              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Avatar
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    bgcolor: recipientColor,
+                    color: '#fff',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}>
+                  {recipient.name?.charAt(0).toUpperCase() || '?'}
+                </Avatar>
+              </Box>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
                   <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#333' }} noWrap>
@@ -353,13 +374,12 @@ const DocumentLeftBar = ({
         )}
 
         <Box
-          id="joyride-field-palette"
           sx={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 1
           }}>
-          {availableFieldsList.map((field) => {
+          {availableFieldsList.map((field, index) => {
             const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : '#cbd5e1';
             const canDrag = !!selectedRecipient;
 
@@ -386,6 +406,7 @@ const DocumentLeftBar = ({
                     transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
                     opacity: canDrag ? 1 : 0.5,
                     boxShadow: canDrag ? '0 1px 2px rgba(0,0,0,0.03)' : 'none',
+                    position: 'relative',
                     '&:hover': canDrag ? {
                       borderColor: recipientColor,
                       boxShadow: `0 4px 10px ${recipientColor}15`,
@@ -394,6 +415,24 @@ const DocumentLeftBar = ({
                     '&:active': { cursor: canDrag ? 'grabbing' : 'not-allowed' }
                   }}
                 >
+                  {/* Joyride Anchor for Signature Field */}
+                  {index === 0 && (
+                    <Box
+                      id="joyride-signature-field"
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        pointerEvents: 'none',
+                        zIndex: -1
+                      }}
+                    />
+                  )}
+
                   {/* Drag Handle Indicator */}
                   <Box sx={{
                     display: 'flex',

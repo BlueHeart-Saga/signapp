@@ -11,12 +11,12 @@ const getFieldDisplayText = (field) => {
     case 'textbox': return 'TEXT';
     case 'checkbox': return '✓';
     case 'radio': return '○';
-    case 'dropdown': return '▼';
-    case 'attachment': return '📎';
+    case 'dropdown': return 'OPTIONS';
+    case 'attachment': return 'ADD FILE';
     case 'approval': return 'APPROVE';
     case 'witness_signature': return 'WITNESS SIGN';
     case 'stamp': return 'STAMP';
-    case 'mail': return '✉';
+    case 'mail': return 'EMAIL';
     default: return 'FIELD';
   }
 };
