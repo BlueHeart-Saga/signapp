@@ -1006,7 +1006,7 @@ export default function PrepareSendRecipients() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // ✅ THIS FIXES 401
+            'Authorization': `Bearer ${token}` // THIS FIXES 401
           },
           body: JSON.stringify({
             common_message: commonMessage
@@ -1467,7 +1467,7 @@ export default function PrepareSendRecipients() {
         body: JSON.stringify({
           expiry_days: expiryDays,
           reminder_period: reminderPeriod,
-          signing_order_enabled: signingOrderEnabled, // ✅ Added for persistence
+          signing_order_enabled: signingOrderEnabled, // Added for persistence
         }),
       });
       setIsEditingSettings(false);
@@ -1568,12 +1568,25 @@ export default function PrepareSendRecipients() {
 
   if (!document) {
     return (
-      <div className="docusign-container">
-        <div className="docusign-empty-state">
-          <h3>Document not found</h3>
-          <button onClick={() => navigate('/user/documents')}>
-            Back to Documents
-          </button>
+      <div className="ss-notfound-wrapper">
+        <div className="ss-notfound-container">
+          <div className="ss-notfound-card">
+            <div className="ss-notfound-icon-container">
+              <FaExclamationCircle className="ss-notfound-icon" />
+            </div>
+            <h2 className="ss-notfound-title">Document Not Found</h2>
+            <p className="ss-notfound-text">
+              We couldn't locate the document you're looking for. It may have been removed, or the link might be incorrect.
+            </p>
+            <div className="ss-notfound-actions">
+              <button
+                className="ss-notfound-btn"
+                onClick={() => navigate('/user/documents')}
+              >
+                <FaArrowLeft /> Back to Documents
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -3115,7 +3128,7 @@ export default function PrepareSendRecipients() {
                         }
                       );
 
-                      // ✅ Update local state safely
+                      // Update local state safely
                       setDocument(prev => ({
                         ...prev,
                         filename: finalFilename
@@ -3224,7 +3237,7 @@ export default function PrepareSendRecipients() {
                   const [moved] = items.splice(result.source.index, 1);
                   items.splice(result.destination.index, 0, moved);
 
-                  setMergeOrder(items); // ✅ THIS CONTROLS MERGE ORDER
+                  setMergeOrder(items); // THIS CONTROLS MERGE ORDER
                 }}
               >
                 <Droppable droppableId="merge-files">

@@ -2159,7 +2159,7 @@
 #             {preview_content}
             
 #             <div class="form-actions">
-#                 <button type="button" class="submit-button" onclick="submitForm()">✅ Submit Form</button>
+#                 <button type="button" class="submit-button" onclick="submitForm()">Submit Form</button>
 #                 <button type="button" class="edit-mode-button" onclick="switchToEditMode()">✏️ Edit Template</button>
 #             </div>
 #         </div>
@@ -2281,7 +2281,7 @@
                 
 #                 // Show submission confirmation
 #                 const fieldCount = Object.keys(formData).length;
-#                 alert(`✅ Form submitted successfully!\\n\\nFields filled: ${{fieldCount}}\\n\\nData collected:\\n${{JSON.stringify(formData, null, 2)}}`);
+#                 alert(`Form submitted successfully!\\n\\nFields filled: ${{fieldCount}}\\n\\nData collected:\\n${{JSON.stringify(formData, null, 2)}}`);
                 
 #                 // In real implementation, send data to server
 #                 console.log('Form data:', formData);

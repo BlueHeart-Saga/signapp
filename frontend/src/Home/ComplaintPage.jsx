@@ -103,145 +103,145 @@ export default function ComplaintPage() {
 
   return (
     <>
-    <AbuseHeroCard />
-    <div className="complaint-wrapper">
-      <div className="complaint-card">
-        <h1>Abuse Report Form</h1>
-        <p className="intro">
-          Report phishing, fraud, or unauthorized e-signature requests.  
-          SafeSign’s Trust & Security team will investigate.
-        </p>
+      <AbuseHeroCard />
+      <div className="complaint-wrapper">
+        <div className="complaint-card">
+          <h1>Abuse Report Form</h1>
+          <p className="intro">
+            Report phishing, fraud, or unauthorized e-signature requests.
+            SafeSign’s Trust & Security team will investigate.
+          </p>
 
-        <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit}>
 
-          {/* CONTACT INFO */}
-          <section>
-            <h2>Contact Information</h2>
+            {/* CONTACT INFO */}
+            <section>
+              <h2>Contact Information</h2>
 
-            <label>
-              Name<span>*</span>
-              <input type="text" name="name" required value={form.name} onChange={handleChange} />
-            </label>
+              <label>
+                Name<span>*</span>
+                <input type="text" name="name" required value={form.name} onChange={handleChange} />
+              </label>
 
-            <label>
-              Email<span>*</span>
-              <input type="email" name="email" required value={form.email} onChange={handleChange} />
-            </label>
+              <label>
+                Email<span>*</span>
+                <input type="email" name="email" required value={form.email} onChange={handleChange} />
+              </label>
 
-            <label>
-              Organization / Company
-              <input type="text" name="company" value={form.company} onChange={handleChange} />
-            </label>
+              <label>
+                Organization / Company
+                <input type="text" name="company" value={form.company} onChange={handleChange} />
+              </label>
 
-            <label>
-              Incident Date & Time
-              <input type="datetime-local" name="incident_date" value={form.incident_date} onChange={handleChange} />
-            </label>
-          </section>
+              <label>
+                Incident Date & Time
+                <input type="datetime-local" name="incident_date" value={form.incident_date} onChange={handleChange} />
+              </label>
+            </section>
 
-          {/* ENTITY DETAILS */}
-          <section>
-            <h2>Involved Entity Details</h2>
+            {/* ENTITY DETAILS */}
+            <section>
+              <h2>Involved Entity Details</h2>
 
-            <label>
-              Sender Name
-              <input type="text" name="sender_name" value={form.sender_name} onChange={handleChange} />
-            </label>
+              <label>
+                Sender Name
+                <input type="text" name="sender_name" value={form.sender_name} onChange={handleChange} />
+              </label>
 
-            <label>
-              Sender Email
-              <input type="email" name="sender_email" value={form.sender_email} onChange={handleChange} />
-            </label>
+              <label>
+                Sender Email
+                <input type="email" name="sender_email" value={form.sender_email} onChange={handleChange} />
+              </label>
 
-            <label>
-              Document ID (Optional)
-              <input type="text" name="document_id" value={form.document_id} onChange={handleChange} />
-            </label>
+              <label>
+                Document ID (Optional)
+                <input type="text" name="document_id" value={form.document_id} onChange={handleChange} />
+              </label>
 
-            <label>
-              Document Name
-              <input type="text" name="document_name" value={form.document_name} onChange={handleChange} />
-            </label>
-          </section>
+              <label>
+                Document Name
+                <input type="text" name="document_name" value={form.document_name} onChange={handleChange} />
+              </label>
+            </section>
 
-          {/* COMPLAINT TYPE */}
-          <section>
-            <h2>Abuse Complaint Type<span>*</span></h2>
+            {/* COMPLAINT TYPE */}
+            <section>
+              <h2>Abuse Complaint Type<span>*</span></h2>
 
-            <select
-              name="complaint_type"
-              required
-              value={form.complaint_type}
-              onChange={handleChange}
-            >
-              <option value="">Select type</option>
-              <option value="phishing">Phishing / Scam</option>
-              <option value="unauthorized">Unauthorized Request</option>
-              <option value="impersonation">Impersonation</option>
-              <option value="forgery">Forged Document</option>
-              <option value="spam">Spam</option>
-              <option value="other">Other</option>
-            </select>
-          </section>
-
-          {/* DESCRIPTION + EVIDENCE */}
-          <section>
-            <h2>Evidence</h2>
-
-            <label>
-              Describe the Issue<span>*</span>
-              <textarea
-                name="message"
-                rows={5}
+              <select
+                name="complaint_type"
                 required
-                value={form.message}
+                value={form.complaint_type}
                 onChange={handleChange}
-              />
-            </label>
+              >
+                <option value="">Select type</option>
+                <option value="phishing">Phishing / Scam</option>
+                <option value="unauthorized">Unauthorized Request</option>
+                <option value="impersonation">Impersonation</option>
+                <option value="forgery">Forged Document</option>
+                <option value="spam">Spam</option>
+                <option value="other">Other</option>
+              </select>
+            </section>
 
-            <label className="file-upload">
-              Upload Supporting Evidence<span>*</span>
-              <input
-                type="file"
-                name="evidence"
-                required
-                accept=".png,.jpg,.jpeg,.pdf"
-                onChange={handleChange}
-              />
-              <small>
-                Upload screenshots, PDFs, or email headers.
-              </small>
-            </label>
-          </section>
+            {/* DESCRIPTION + EVIDENCE */}
+            <section>
+              <h2>Evidence</h2>
 
-          {/* DECLARATION */}
-          <section className="declaration">
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="declaration"
-                checked={form.declaration}
-                onChange={handleChange}
-              />
-              I confirm the information provided is accurate and truthful.
-            </label>
-          </section>
+              <label>
+                Describe the Issue<span>*</span>
+                <textarea
+                  name="message"
+                  rows={5}
+                  required
+                  value={form.message}
+                  onChange={handleChange}
+                />
+              </label>
 
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? "Submitting…" : "Submit Abuse Report"}
-          </button>
-        </form>
+              <label className="file-upload">
+                Upload Supporting Evidence<span>*</span>
+                <input
+                  type="file"
+                  name="evidence"
+                  required
+                  accept=".png,.jpg,.jpeg,.pdf"
+                  onChange={handleChange}
+                />
+                <small>
+                  Upload screenshots, PDFs, or email headers.
+                </small>
+              </label>
+            </section>
 
-        <div className="footer-note">
-          This report is confidential and reviewed by SafeSign’s Trust & Security team.
+            {/* DECLARATION */}
+            <section className="declaration">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="declaration"
+                  checked={form.declaration}
+                  onChange={handleChange}
+                />
+                I confirm the information provided is accurate and truthful.
+              </label>
+            </section>
+
+            <button type="submit" className="submit-btn" disabled={loading}>
+              {loading ? "Submitting…" : "Submit Abuse Report"}
+            </button>
+          </form>
+
+          <div className="footer-note">
+            This report is confidential and reviewed by SafeSign’s Trust & Security team.
+          </div>
+          {success && <div className="success-box">Complaint submitted successfully.</div>}
+          {error && <div className="error-box">⚠️ {error}</div>}
         </div>
-        {success && <div className="success-box">✅ Complaint submitted successfully.</div>}
-      {error && <div className="error-box">⚠️ {error}</div>}
-      </div>
 
-      
-    </div>
-<SpamComplaintsPage />
+
+      </div>
+      <SpamComplaintsPage />
     </>
   );
 }

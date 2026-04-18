@@ -97,7 +97,7 @@ async def submit_complaint(
 
     # ⬇️ Store file in GridFS
     file_id = fs.put(
-        evidence.file,   # ✅ file-like object
+        evidence.file,   # file-like object
         filename=evidence.filename,
         content_type=evidence.content_type,
     )

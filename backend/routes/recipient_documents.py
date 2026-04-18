@@ -523,7 +523,7 @@ async def preview_document(
         
         pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-        total_pages = pdf_doc.page_count   # ✅ store early
+        total_pages = pdf_doc.page_count   # store early
 
         if page > total_pages:
             page = 1
@@ -546,7 +546,7 @@ async def preview_document(
             headers={
                 "Cache-Control": "public, max-age=3600",
                 "X-Page-Number": str(page),
-                "X-Total-Pages": str(total_pages)   # ✅ no crash
+                "X-Total-Pages": str(total_pages)   # no crash
             }
         )
 

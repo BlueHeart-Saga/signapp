@@ -7,7 +7,7 @@ import SignatureModal from "./SignatureModal";
 import { saveTemplate } from "../services/TemplateAPI";
 import "../style/documentBuilder.css";
 
-// ✅ Set up correct worker for react-pdf v9+
+// Set up correct worker for react-pdf v9+
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const DocumentBuilder = () => {

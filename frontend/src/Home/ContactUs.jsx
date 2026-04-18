@@ -16,15 +16,15 @@ function ContactUs() {
   const [agreeToPolicy, setAgreeToPolicy] = useState(false);
   const [buttonState, setButtonState] = useState("default"); // "default" or "sent"
   const buttonRef = useRef(null);
-const [showContactInfo, setShowContactInfo] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
 
 
-    useEffect(() => {
-      setPageTitle(
-        "Contact Us",
-        "Get in touch with the SafeSign team for sales, support, or partnership inquiries. We’re here to help you succeed."
-      );
-    }, []);
+  useEffect(() => {
+    setPageTitle(
+      "Contact Us",
+      "Get in touch with the SafeSign team for sales, support, or partnership inquiries. We’re here to help you succeed."
+    );
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,9 +33,9 @@ const [showContactInfo, setShowContactInfo] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     setSubmitStatus(null);
     setButtonState("default");
@@ -68,7 +68,7 @@ const [showContactInfo, setShowContactInfo] = useState(false);
       }
 
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-      
+
       const response = await fetch(`${API_URL}/api/contact`, {
         method: "POST",
         headers: {
@@ -87,21 +87,21 @@ const [showContactInfo, setShowContactInfo] = useState(false);
       }
 
       const result = await response.json();
-      
+
       // Set button to "sent" state after animation
       setTimeout(() => {
         setButtonState("sent");
       }, 800);
-      
-      setSubmitStatus("✅ " + result.message);
-      
+
+      setSubmitStatus("" + result.message);
+
       // Reset form after delay
       setTimeout(() => {
         setFormData({ name: "", email: "", subject: "", message: "" });
         setAgreeToPolicy(false);
         setIsSubmitting(false);
       }, 2000);
-      
+
     } catch (error) {
       console.error("Error submitting contact form:", error);
       setSubmitStatus("❌ Failed to send message. Please try again later.");
@@ -122,10 +122,10 @@ const [showContactInfo, setShowContactInfo] = useState(false);
       <div style={styles.container} className="contact-grid">
 
         {/* Left Side - Hero Image & Contact Info */}
-       <div
-  className={`left-section ${showContactInfo ? "show" : ""}`}
-  style={styles.leftSection}
->
+        <div
+          className={`left-section ${showContactInfo ? "show" : ""}`}
+          style={styles.leftSection}
+        >
 
           {/* Hero Card with Image */}
           <div style={styles.heroCard}>
@@ -139,7 +139,7 @@ const [showContactInfo, setShowContactInfo] = useState(false);
           {/* Contact Methods Card */}
           <div style={styles.contactMethodsCard}>
             <div style={styles.contactMethod}>
-              <div style={{...styles.methodIcon, backgroundColor: '#e3f2fd00'}}>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#e3f2fd00' }}>
                 <span style={styles.methodEmoji}><Mail size={28} color="#0d9488" /></span>
               </div>
               <div style={styles.methodDetails}>
@@ -151,7 +151,7 @@ const [showContactInfo, setShowContactInfo] = useState(false);
             <div style={styles.divider}></div>
 
             <div style={styles.contactMethod}>
-              <div style={{...styles.methodIcon, backgroundColor: '#e8f5e900'}}>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#e8f5e900' }}>
                 <span style={styles.methodEmoji}><Phone size={28} color="#0d9488" /></span>
               </div>
               <div style={styles.methodDetails}>
@@ -163,7 +163,7 @@ const [showContactInfo, setShowContactInfo] = useState(false);
             <div style={styles.divider}></div>
 
             <div style={styles.contactMethod}>
-              <div style={{...styles.methodIcon, backgroundColor: '#f3e5f500'}}>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#f3e5f500' }}>
                 <span style={styles.methodEmoji}><MessageCircle size={28} color="#0d9488" /></span>
               </div>
               <div style={styles.methodDetails}>
@@ -177,12 +177,12 @@ const [showContactInfo, setShowContactInfo] = useState(false);
         {/* Right Side - Contact Form */}
         <div style={styles.rightSection}>
           {/* Mobile Toggle Button */}
-<button
-  className="mobile-toggle"
-  onClick={() => setShowContactInfo(prev => !prev)}
->
-  {showContactInfo ? "Hide contact details" : "Show contact details"}
-</button>
+          <button
+            className="mobile-toggle"
+            onClick={() => setShowContactInfo(prev => !prev)}
+          >
+            {showContactInfo ? "Hide contact details" : "Show contact details"}
+          </button>
 
           <div style={styles.formCard}>
             <div style={styles.formHeader}>
@@ -254,7 +254,7 @@ const [showContactInfo, setShowContactInfo] = useState(false);
               </div>
 
               {/* Animated Button */}
-              <button 
+              <button
                 ref={buttonRef}
                 onClick={handleSubmit}
                 className="button"
@@ -262,10 +262,10 @@ const [showContactInfo, setShowContactInfo] = useState(false);
                 disabled={isSubmitting}
               >
                 <div className="outline" style={buttonStyles.outline}></div>
-                
+
                 {/* Default State */}
-                <div 
-                  className={`state state--default ${buttonState === "sent" ? "hidden" : ""}`} 
+                <div
+                  className={`state state--default ${buttonState === "sent" ? "hidden" : ""}`}
                   style={buttonStyles.state}
                 >
                   <div className="icon" style={buttonStyles.icon}>
@@ -312,10 +312,10 @@ const [showContactInfo, setShowContactInfo] = useState(false);
                     <span style={{ '--i': 10 }}>e</span>
                   </p>
                 </div>
-                
+
                 {/* Sent State */}
-                <div 
-                  className={`state state--sent ${buttonState === "sent" ? "" : "hidden"}`} 
+                <div
+                  className={`state state--sent ${buttonState === "sent" ? "" : "hidden"}`}
                   style={buttonStyles.state}
                 >
                   <div className="icon" style={buttonStyles.icon}>

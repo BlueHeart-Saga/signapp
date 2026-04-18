@@ -14,10 +14,11 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 import os
 import secrets
 import asyncio
+from storage import storage
 from authlib.integrations.starlette_client import OAuth
 from starlette.requests import Request
 from starlette.config import Config
@@ -182,17 +183,33 @@ def generate_otp(length=6):
 # EMAIL SERVICE
 # ============================================
 
-async def send_email(to_email: str, subject: str, body: str):
-    """Send email using SMTP"""
+async def send_email(to_email: str, subject: str, body: str, images: Optional[dict] = None):
+    """Send email using SMTP with support for embedded images (CIDs)"""
     try:
-        # Create message
-        msg = MIMEMultipart()
+        # Create message - 'related' is required for embedding images (CID)
+        msg = MIMEMultipart('related')
         msg['From'] = FROM_EMAIL
         msg['To'] = to_email
         msg['Subject'] = subject
         
-        # Add body to email
-        msg.attach(MIMEText(body, 'html'))
+        # Add body as the first part (alternative)
+        msg_alternative = MIMEMultipart('alternative')
+        msg.attach(msg_alternative)
+        msg_alternative.attach(MIMEText(body, 'html'))
+        
+        # Attach images as related parts
+        if images:
+            for cid, img_data in images.items():
+                if img_data:
+                    # Determine image subtype
+                    subtype = 'png'
+                    if cid.endswith('jpg') or cid.endswith('jpeg'):
+                        subtype = 'jpeg'
+                        
+                    msg_image = MIMEImage(img_data, _subtype=subtype)
+                    msg_image.add_header('Content-ID', f'<{cid}>')
+                    msg_image.add_header('Content-Disposition', 'inline', filename=f"{cid}.{subtype}")
+                    msg.attach(msg_image)
         
         # Create server connection
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
@@ -211,22 +228,374 @@ async def send_email(to_email: str, subject: str, body: str):
         return False
 
 async def send_otp_email(email: str, otp: str):
-    """Send OTP email for password reset"""
-    subject = "Password Reset OTP - Document Signing Platform"
+    """Send high-fidelity OTP email for password reset with embedded assets"""
+    subject = f"{otp} is your verification code"
+    
+    # 1. Fetch Branding Info
+    branding = db.branding.find_one({})
+    platform_name = "SafeSign"
+    if branding:
+        platform_name = branding.get("platform_name", platform_name)
+    
+    images = {}
+    
+    # Base directory for static assets
+    # __file__ is in backend/routes/, so we go up once to get to backend/
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    static_dir = os.path.join(base_dir, "static")
+    
+    # 2. Handle Logo (CID: logo)
+    logo_bytes = None
+    if branding and branding.get("logo_file_path"):
+        try:
+            logo_bytes = storage.download(branding["logo_file_path"])
+        except Exception as e:
+            print(f"Error fetching logo from storage: {e}")
+            
+    if not logo_bytes:
+        # Fallback to local logo if storage logo is missing
+        local_logo_path = os.path.join(static_dir, "branding", "platform_logo.png")
+        if os.path.exists(local_logo_path):
+            with open(local_logo_path, "rb") as f:
+                logo_bytes = f.read()
+    
+    if logo_bytes:
+        images["logo"] = logo_bytes
+        
+    # 3. Handle Banner (CID: banner)
+    banner_path = os.path.join(static_dir, "email", "forgot-password.png")
+    if os.path.exists(banner_path):
+        try:
+            with open(banner_path, "rb") as f:
+                images["banner"] = f.read()
+        except Exception as e:
+            print(f"Error reading banner file: {e}")
+
+    # Generate OTP boxes HTML (Compact for single row)
+    otp_boxes = "".join([
+        f'<div style="display:inline-block; width:40px; height:50px; line-height:50px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; font-size:24px; font-weight:700; color:#1e293b; margin:0 3px; text-align:center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">{digit}</div>'
+        for digit in otp
+    ])
+
     body = f"""
+    <!DOCTYPE html>
     <html>
-    <body>
-        <h2>Password Reset Request</h2>
-        <p>You have requested to reset your password for your Document Signing Platform account.</p>
-        <p>Your One-Time Password (OTP) is: <strong>{otp}</strong></p>
-        <p>This OTP is valid for 10 minutes.</p>
-        <p>If you didn't request this reset, please ignore this email.</p>
-        <br>
-        <p>Best regards,<br>Document Signing Platform Team</p>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header: Logo next to Brand Name (Zero top padding) -->
+                        <tr>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            <img src="cid:logo" alt="Logo" style="height: 32px; width: auto; display: block;">
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">SafeSign</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Full-Width Banner (No side padding) -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="cid:banner" alt="Verification" style="width: 100%; height: auto; display: block; border: 0;">
+                            </td>
+                        </tr>
+                        
+                        <!-- Content Body -->
+                        <tr>
+                            <td style="padding: 40px 20px 30px;">
+                                <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; font-weight: 700;">Hello,</h2>
+                                <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    A login attempt was detected on your <strong>SafeSign</strong> account. Use the one-time passcode below to complete your authentication.
+                                </p>
+                                
+                                <!-- OTP Section (Strict Single Row) -->
+                                <div style="background-color: #f8fafc; border-radius: 12px; padding: 35px 5px; text-align: center; border: 1px solid #f1f5f9;">
+                                    <p style="margin: 0 0 20px; font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;">Your One-Time Passcode</p>
+                                    <div style="margin-bottom: 25px; white-space: nowrap;">
+                                        {otp_boxes}
+                                    </div>
+                                    <p style="margin: 0; font-size: 13px; color: #64748b;">
+                                        Expires In <span style="color: #00A3A3; font-weight: 700;">10 Minutes</span> &bull; Single Use Only
+                                    </p>
+                                </div>
+                                
+                                <!-- Alert Section -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 35px; background-color: #f8fafc; border: 1px solid #fef08a; border-radius: 10px; padding: 15px;">
+                                    <tr>
+                                        <td style="vertical-align: top; width: 20px; padding-top: 2px;">
+                                            <span style="font-size: 18px;">⚠️</span>
+                                        </td>
+                                        <td style="padding-left: 12px; font-size: 13px; line-height: 1.5; color: #854d0e; font-style: italic;">
+                                            If you did not attempt to log in, please secure your account immediately. Never share this code.
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Redesigned Footer Section Exactly as Image -->
+                        <tr>
+                            <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <!-- Policy Links (Exactly as image) -->
+                                <div style="margin-bottom: 12px;">
+                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                </div>
+                                <div style="margin-bottom: 30px;">
+                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
+                                </div>
+
+                                <!-- Social Icons in Rounded Boxes -->
+                                <div style="margin-bottom: 35px;">
+                                    <table border="0" cellspacing="0" cellpadding="0" align="center">
+                                        <tr>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.linkedin.com/company/devopstrioglobal/posts/?feedView=all" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/linkedin--v1.png" alt="in" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.facebook.com/profile.php?id=61579126233218" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/facebook-new.png" alt="f" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.instagram.com/devopstrio_offcl/" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/instagram-new.png" alt="ig" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="#" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/youtube-play--v1.png" alt="yt" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Copyright and Address (Exactly as image) -->
+                                <div style="color: #475569; font-size: 13px; line-height: 1.5; font-weight: 500;">
+                                    <p style="margin: 0;">Copyright 2026 Devopstrio Ltd. All rights reserved.</p>
+                                    <p style="margin: 0;">We are located at 128, City Road, London, EC1V 2NX</p>
+                                    <p style="margin: 0;">United Kingdom</p>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Bottom Teal Bar -->
+                        <tr>
+                            <td align="center" style="background-color: #00A3A3; padding: 15px 20px;">
+                                <p style="margin: 0; color: #ffffff; font-size: 13px; font-weight: 600; letter-spacing: 0.2px;">
+                                    © 2026 Devopstrio. All rights reserved.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """
-    return await send_email(email, subject, body)
+    return await send_email(email, subject, body, images=images)
+
+async def send_welcome_email(email: str, full_name: str = ""):
+    """Send high-fidelity Welcome email for new users with embedded assets"""
+    subject = "Welcome to SafeSign"
+    
+    # 1. Fetch Branding Info
+    branding = await db_find_one(db.branding, {})
+    platform_name = "SafeSign"
+    if branding:
+        platform_name = branding.get("platform_name", platform_name)
+    
+    images = {}
+    
+    # Base directory for static assets
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    static_dir = os.path.join(base_dir, "static")
+    
+    # 2. Handle Logo (CID: logo)
+    logo_bytes = None
+    if branding and branding.get("logo_file_path"):
+        try:
+            logo_bytes = storage.download(branding["logo_file_path"])
+        except Exception as e:
+            print(f"Error fetching logo from storage: {e}")
+            
+    if not logo_bytes:
+        # Fallback to local logo if storage logo is missing
+        local_logo_path = os.path.join(static_dir, "branding", "platform_logo.png")
+        if os.path.exists(local_logo_path):
+            with open(local_logo_path, "rb") as f:
+                logo_bytes = f.read()
+    
+    if logo_bytes:
+        images["logo"] = logo_bytes
+        
+    # 3. Handle Welcome Banner (CID: banner)
+    banner_path = os.path.join(static_dir, "email", "welcome-benner.png")
+    if os.path.exists(banner_path):
+        try:
+            with open(banner_path, "rb") as f:
+                images["banner"] = f.read()
+        except Exception as e:
+            print(f"Error reading welcome banner file: {e}")
+
+    # Build greeting
+    greeting = f"Hello {full_name}," if full_name else "Hello there,"
+
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header: Logo next to Brand Name (Zero top padding) -->
+                        <tr>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            <img src="cid:logo" alt="Logo" style="height: 32px; width: auto; display: block;">
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">SafeSign</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Full-Width Banner (No side padding) -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="cid:banner" alt="Welcome to SafeSign" style="width: 100%; height: auto; display: block; border: 0;">
+                            </td>
+                        </tr>
+                        
+                        <!-- Content Body -->
+                        <tr>
+                            <td style="padding: 40px 20px 30px;">
+                                <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; font-weight: 700;">{greeting}</h2>
+                                
+                                <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    Thank you for showing interest in <strong>SafeSign</strong>.
+                                </p>
+                                
+                                <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    We'd like to let you know that your account has been created successfully. We will keep you posted regarding the next steps.
+                                </p>
+                                
+                                <p style="margin: 0 0 35px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    Meanwhile, we invite you to explore your dashboard and set up your signing preferences. To get started, click the button below.
+                                </p>
+                                
+                                <!-- CTA Button -->
+                                <div style="text-align: left; margin-bottom: 35px;">
+                                    <table border="0" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td align="center" bgcolor="#00A3A3" style="border-radius: 8px;">
+                                                <a href="https://safesign.devopstrio.co.uk/login" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 12px 30px; display: inline-block; font-weight: 700;">
+                                                    Click to proceed
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                <p style="margin: 0; font-size: 15px; color: #475569;">Best,</p>
+                                <p style="margin: 5px 0 0; font-size: 15px; font-weight: 700; color: #1e293b;">SafeSign Team.</p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Redesigned Footer Section Exactly as Image -->
+                        <tr>
+                            <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                                <!-- Policy Links (Exactly as image) -->
+                                <div style="margin-bottom: 12px;">
+                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                </div>
+                                <div style="margin-bottom: 30px;">
+                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
+                                </div>
+
+                                <!-- Social Icons in Rounded Boxes -->
+                                <div style="margin-bottom: 35px;">
+                                    <table border="0" cellspacing="0" cellpadding="0" align="center">
+                                        <tr>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.linkedin.com/company/devopstrioglobal/posts/?feedView=all" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/linkedin--v1.png" alt="in" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.facebook.com/profile.php?id=61579126233218" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/facebook-new.png" alt="f" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.instagram.com/devopstrio_offcl/" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/instagram-new.png" alt="ig" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="#" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/youtube-play--v1.png" alt="yt" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Copyright and Address (Exactly as image) -->
+                                <div style="color: #475569; font-size: 13px; line-height: 1.5; font-weight: 500;">
+                                    <p style="margin: 0;">Copyright 2026 Devopstrio Ltd. All rights reserved.</p>
+                                    <p style="margin: 0;">We are located at 128, City Road, London, EC1V 2NX</p>
+                                    <p style="margin: 0;">United Kingdom</p>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Bottom Teal Bar -->
+                        <tr>
+                            <td align="center" style="background-color: #00A3A3; padding: 15px 20px;">
+                                <p style="margin: 0; color: #ffffff; font-size: 13px; font-weight: 600; letter-spacing: 0.2px;">
+                                    © 2026 Devopstrio. All rights reserved.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    return await send_email(email, subject, body, images=images)
 
 # ============================================
 # DEPENDENCIES
@@ -567,6 +936,12 @@ async def register_user(user_data: UserRegister):
                 }
             )
         
+        # Trigger Welcome Email
+        try:
+            await send_welcome_email(user_data.email.lower(), user_data.full_name)
+        except Exception as email_err:
+            print(f"Warning: Failed to send welcome email to {user_data.email}: {email_err}")
+
         # If recipient, link any existing signed documents
         linked_count = 0
         signature_count = 0
@@ -915,6 +1290,12 @@ async def register_recipient(recipient_data: RecipientSignup):
             {"$set": update_data}
         )
         
+        # Trigger Welcome Email
+        try:
+            await send_welcome_email(recipient_data.email.lower(), recipient_data.full_name)
+        except Exception as email_err:
+            print(f"Warning: Failed to send welcome email to {recipient_data.email}: {email_err}")
+
         # Get the created user and serialize it
         created_user = await db_find_one(db.users, {"_id": result.inserted_id})
         user_response = serialize_doc(created_user)
@@ -1317,6 +1698,12 @@ async def google_callback(
             result = await db_insert_one(db.users, user_doc)
             user_id = str(result.inserted_id)
             
+            # Trigger Welcome Email
+            try:
+                await send_welcome_email(email.lower(), name)
+            except Exception as email_err:
+                print(f"Warning: Failed to send welcome email to {email}: {email_err}")
+
             # Get the created user
             user = await db_find_one(db.users, {"_id": result.inserted_id})
         else:

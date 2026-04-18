@@ -27,11 +27,11 @@ router = APIRouter(prefix="/templates", tags=["Templates"])
 
 fs = gridfs.GridFS(db)
 
-# ✅ MongoDB Collections
+# MongoDB Collections
 templates_collection = db["templates"]
 pdf_files_collection = db["pdf_files"]
 
-# ✅ Constants
+# Constants
 
 SIGNATURE_FIELDS = ["signature", "sig", "sign", "signature_block", "signature_line"]
 TEXT_FIELDS_REGEX = r"\[(.*?)\]|\{(.*?)\}|\<(.*?)\>|___+|name|date|address|email|phone"
@@ -208,7 +208,7 @@ async def upload_pdf(
     template_doc = {
         "name": name,
         "description": description,
-        "pdf_file_id": pdf_file_id,   # ✅ KEY CHANGE
+        "pdf_file_id": pdf_file_id,   # KEY CHANGE
         "page_count": page_count,
         "fields": detected_fields,
         "uploadedAt": datetime.utcnow(),

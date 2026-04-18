@@ -177,7 +177,7 @@ const convertPdfToScreenCoordinates = (field, pageDimensions, scale = 1) => {
 
   // Priority 1: Use PDF coordinates (most accurate for PDF rendering)
   if (field.pdf_x !== undefined && field.pdf_y !== undefined) {
-    // ✅ PDF coordinates are stored with bottom-left origin
+    // PDF coordinates are stored with bottom-left origin
     pdfX = field.pdf_x;
     pdfY = field.pdf_y; // This is the BOTTOM coordinate in PDF space
     fieldWidth = field.pdf_width || field.width || 100;
@@ -543,7 +543,7 @@ const EnhancedFieldOverlay = React.memo(({
         borderRadius: '2px',
         cursor: isClickable ? visualState.cursor : 'default',
 
-        // ✅ Zoho-style hover effects
+        // Zoho-style hover effects
         '&:hover': isClickable ? {
           backgroundColor: 'rgba(255, 152, 0, 0.12)',
           boxShadow: '0 0 0 2px rgba(255, 152, 0, 0.25)',
@@ -1347,7 +1347,7 @@ const RecipientSigningPage = () => {
       }));
 
       // Show success message
-      setSuccess(`✅ ${getFieldDisplayName(field.type)} saved as draft!`);
+      setSuccess(`${getFieldDisplayName(field.type)} saved as draft!`);
       setTimeout(() => setSuccess(''), 3000);
 
       // Auto-close dialog after brief delay
@@ -2048,7 +2048,7 @@ const RecipientSigningPage = () => {
     setNumPagesLoaded(prev => {
       const newCount = prev + 1;
       if (newCount === numPages) {
-        console.log('✅ All pages loaded');
+        console.log('All pages loaded');
       }
       return newCount;
     });

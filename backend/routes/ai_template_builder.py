@@ -1445,7 +1445,7 @@ def create_preview_mode_html(content: str, fields: List[Dict], style: str = "mod
             {preview_content}
             
             <div class="form-actions">
-                <button type="button" class="submit-button" onclick="submitForm()">✅ Submit Form</button>
+                <button type="button" class="submit-button" onclick="submitForm()">Submit Form</button>
                 <button type="button" class="edit-mode-button" onclick="switchToEditMode()">✏️ Edit Template</button>
                 <button type="button" class="convert-button" onclick="convertToDocument()">📄 Convert to Document</button>
             </div>
@@ -1570,7 +1570,7 @@ def create_preview_mode_html(content: str, fields: List[Dict], style: str = "mod
                 
                 // Show submission confirmation
                 const fieldCount = Object.keys(formData).length;
-                alert(`✅ Form submitted successfully!\\n\\nFields filled: ${{fieldCount}}\\n\\nData collected:\\n${{JSON.stringify(formData, null, 2)}}`);
+                alert(`Form submitted successfully!\\n\\nFields filled: ${{fieldCount}}\\n\\nData collected:\\n${{JSON.stringify(formData, null, 2)}}`);
                 
                 // In real implementation, send data to server
                 console.log('Form data:', formData);

@@ -286,7 +286,7 @@ async def generate_stream(data: GenerateDocumentRequest):
             print(f"🧩 Chunks received : {chunk_count}")
             print(f"✍️ Characters total: {total_chars}")
             print(
-                "✅ CONTENT GENERATED"
+                "CONTENT GENERATED"
                 if total_chars > 0
                 else "⚠️ NO CONTENT GENERATED"
             )

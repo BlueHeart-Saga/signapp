@@ -192,7 +192,7 @@ async def add_recipients(
                         "custom_message": "",
                         "view_instructions": "Please review the document carefully before signing"
                     },
-                    # ✅ ADD SENDER INFORMATION
+                    # ADD SENDER INFORMATION
                     "sender_info": sender_info,
                     "status": "created",
                     "added_at": datetime.utcnow(),
@@ -440,7 +440,7 @@ def serialize_recipient(recipient):
             "custom_message": "",
             "view_instructions": "Please review the document carefully before signing"
         }),
-        # ✅ ADD SENDER INFO TO RESPONSE
+        # ADD SENDER INFO TO RESPONSE
         "sender_info": recipient.get("sender_info", {
             "name": "",
             "email": "",
@@ -806,7 +806,7 @@ async def send_invites_to_recipients(
         if not recipients:
             raise HTTPException(status_code=404, detail="No recipients found")
 
-        # ✅ NEW: Validate that all required recipients have fields before sending
+        # NEW: Validate that all required recipients have fields before sending
         # Recipients with roles other than 'viewer' or 'approver' MUST have fields
         ROLES_WITHOUT_FIELDS = [RecipientRole.VIEWER, RecipientRole.APPROVER]
         
@@ -824,7 +824,7 @@ async def send_invites_to_recipients(
                         detail=f"Recipient {recipient['email']} ({role}) must have at least one field assigned before sending."
                     )
 
-        # ✅ NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
+        # NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
         if invites_data.signing_order_enabled:
             # Find the minimum signing order across all document recipients
             all_doc_recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
@@ -1333,7 +1333,7 @@ async def complete_field(
             {"$set": {"status": "in_progress"}}
         )
 
-    # ✅ Normalize role (ENUM → string)
+    # Normalize role (ENUM → string)
     role = recipient["role"].value if hasattr(recipient["role"], "value") else recipient["role"]
     
     validate_field_role(role, field["type"])

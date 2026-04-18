@@ -992,7 +992,7 @@
 // //       setPlaceholders(emptyPlaceholders);
       
 // //       addLog(`${documentType.charAt(0).toUpperCase() + documentType.slice(1)} generated successfully`, "success");
-// //       setToast({ open: true, message: `✅ ${templateType} Generated Successfully!`, type: "success" });
+// //       setToast({ open: true, message: `${templateType} Generated Successfully!`, type: "success" });
       
 // //       setActiveTab(1); // Switch to visual builder tab
       
@@ -1022,7 +1022,7 @@
 
 // //       setGeneratedHtml(response.data.filled_content || "");
 // //       addLog("Document filled with provided values", "success");
-// //       setToast({ open: true, message: "✅ Document Filled Successfully!", type: "success" });
+// //       setToast({ open: true, message: "Document Filled Successfully!", type: "success" });
       
 // //     } catch (error) {
 // //       console.error("Error filling document:", error);
@@ -1337,7 +1337,7 @@
 // //       link.remove();
       
 // //       addLog(`Template ${templateName} downloaded`, "success");
-// //       setToast({ open: true, message: "✅ Template Downloaded!", type: "success" });
+// //       setToast({ open: true, message: "Template Downloaded!", type: "success" });
 // //     } catch (error) {
 // //       console.error("Error downloading template:", error);
 // //       setToast({ open: true, message: "❌ Error Downloading Template!", type: "error" });
@@ -1355,7 +1355,7 @@
       
 // //       fetchSavedTemplates();
 // //       addLog("Template deleted", "success");
-// //       setToast({ open: true, message: "✅ Template Deleted!", type: "success" });
+// //       setToast({ open: true, message: "Template Deleted!", type: "success" });
 // //     } catch (error) {
 // //       console.error("Error deleting template:", error);
 // //       setToast({ open: true, message: "❌ Error Deleting Template!", type: "error" });

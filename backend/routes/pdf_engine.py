@@ -906,7 +906,7 @@ class PDFEngine:
         options = field.get("dropdown_options", [])
 
         # ---------------------------------
-        # ✅ COMPLETED FIELD - DESIGN: NO box, NO arrow
+        # COMPLETED FIELD - DESIGN: NO box, NO arrow
         # ---------------------------------
         if is_completed and selected_text:
             font_size = min(11, rect.height * 0.75)
@@ -1062,7 +1062,7 @@ class PDFEngine:
         except:
             pass
 
-        # ✅ INSERT CLICKABLE LINK over the entire field area
+        # INSERT CLICKABLE LINK over the entire field area
         if url:
             # Ensure URL is absolute for local PDF viewers
             if url.startswith("/") and not url.startswith("//"):
@@ -2025,7 +2025,7 @@ class PDFEngine:
             if isinstance(value, dict):
                 return str(value.get("selected", ""))
         elif field_type == "approval":
-            return "✅ Approved" if value else "❌"
+            return "Approved" if value else "❌"
         
         # Default: convert to string
         return str(value)[:30]

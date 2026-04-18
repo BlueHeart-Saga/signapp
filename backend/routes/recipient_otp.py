@@ -34,6 +34,7 @@ def generate_otp(length=6):
 async def send_otp_email(to_email: str, otp: str, documents_count: int):
     """Send OTP email to recipient"""
     try:
+        current_year = datetime.utcnow().year
         # Create message
         msg = MIMEMultipart()
         msg['From'] = FROM_EMAIL
@@ -42,35 +43,68 @@ async def send_otp_email(to_email: str, otp: str, documents_count: int):
         
         # Create email body
         body = f"""
+        <!DOCTYPE html>
         <html>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: #0d9488; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0;">SafeSign</h1>
-            </div>
-            
-            <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
-                <h2 style="color: #333; margin-top: 0;">Your Document Access Code</h2>
-                
-                <p style="color: #666; line-height: 1.6;">
-                    You have {documents_count} document(s) waiting for your review. 
-                    Use the following One-Time Password (OTP) to access them:
-                </p>
-                
-                <div style="background-color: #fff; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; border: 2px dashed #0d9488;">
-                    <span style="font-size: 36px; font-weight: bold; letter-spacing: 5px; color: #0d9488;">{otp}</span>
-                </div>
-                
-                <p style="color: #666; font-size: 14px;">
-                    This code will expire in 10 minutes for security reasons.
-                </p>
-                
-                <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-                
-                <p style="color: #999; font-size: 12px; text-align: center;">
-                    If you didn't request this code, please ignore this email.<br>
-                    &copy; 2024 SafeSign. All rights reserved.
-                </p>
-            </div>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+                .header {{ background: #00A3A3; color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 30px; background: #ffffff; }}
+                .otp-box {{ background: #f0fdf9; border: 2px dashed #00A3A3; border-radius: 12px; padding: 30px; text-align: center; margin: 25px 0; }}
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Header -->
+                            <tr>
+                                <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                    <span class="brand-name">SafeSign</span>
+                                </td>
+                            </tr>
+                            
+                            <!-- Banner Area -->
+                            <tr>
+                                <td class="header">
+                                    <h1 style="margin: 0; color: #ffffff; font-size: 24px;">Security Verification</h1>
+                                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Secure access to your documents</p>
+                                </td>
+                            </tr>
+                            
+                            <!-- Main Content -->
+                            <tr>
+                                <td class="content">
+                                    <h2 style="margin-top: 0; color: #111827;">Hello there,</h2>
+                                    <p>You have <strong>{documents_count} document(s)</strong> waiting for your review. Use the secure code below to access them:</p>
+                                    
+                                    <div class="otp-box">
+                                        <p style="margin: 0 0 10px 0; font-size: 14px; color: #0d9488; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Access Code</p>
+                                        <div style="font-size: 36px; font-weight: 700; color: #008a8a; letter-spacing: 8px;">{otp}</div>
+                                        <p style="margin: 15px 0 0 0; font-size: 12px; color: #6b7280;">🔒 Valid for 10 minutes</p>
+                                    </div>
+
+                                    <p style="margin-bottom: 0;">If you did not request this code, please ignore this email.</p>
+                                </td>
+                            </tr>
+
+                            <!-- Simple Footer -->
+                            <tr>
+                                <td style="padding: 30px; text-align: center; background: #f8fafc; border-top: 1px solid #f1f5f9;">
+                                    <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                                        &copy; {current_year} SafeSign. All rights reserved.<br>
+                                        Secure electronic signatures powered by AI
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </body>
         </html>
         """

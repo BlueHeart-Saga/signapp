@@ -56,7 +56,7 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 
 # fs = gridfs.GridFS(db)
 
-# ✅ MongoDB Collections
+# MongoDB Collections
 templates_collection = db["document_templates"]
 
 
@@ -929,7 +929,7 @@ def get_field_render_data(field: Dict[str, Any]) -> Dict[str, Any]:
         "value": value,
         "required": field.get("required", True),
         "is_completed": field.get("is_completed", False),
-        # ✅ CRITICAL: Pass through the rendering flag
+        # CRITICAL: Pass through the rendering flag
         "_render_completed": field.get("_render_completed", field.get("is_completed", False))
     }
     
@@ -2016,7 +2016,7 @@ async def list_files(document_id: str, current_user: dict = Depends(get_current_
             "order": f["order"],
             "source": f.get("source", "added"),
 
-            # ✅ NEW (Zoho-style)
+            # NEW (Zoho-style)
             "start_page": start_page,
             "end_page": end_page,
             "page_range": (
@@ -3827,7 +3827,7 @@ async def download_signed(
         print(f"Error reading PDF: {str(e)}")
         raise HTTPException(404, "PDF file not found in storage")
     
-    # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+    # APPLY COMPLETED FIELDS (CRITICAL FIX)
     pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
     
     # Add envelope header
@@ -4022,10 +4022,10 @@ async def builder_pdf(
         "document_id": ObjectId(doc_id)
     }))
 
-    # ✅ Always load merged PDF
+    # Always load merged PDF
     pdf_bytes = load_document_pdf(doc, doc_id)
 
-    # ✅ Apply envelope header (FULL DOCUMENT)
+    # Apply envelope header (FULL DOCUMENT)
     if show_envelope_header and doc.get("envelope_id"):
         pdf_bytes = PDFEngine.apply_minimal_envelope_header(
             pdf_bytes,
@@ -4033,7 +4033,7 @@ async def builder_pdf(
             color="#000000"
         )
 
-    # ✅ Apply fields to ALL pages
+    # Apply fields to ALL pages
     # if show_fields and fields:
     #     enriched = [serialize_field_with_recipient(f) for f in fields]
     #     pdf_bytes = PDFEngine.apply_field_placeholders(
@@ -4115,7 +4115,7 @@ async def owner_preview(
         if recipient_id in recipient_map:
             enriched["recipient"] = recipient_map[recipient_id]
         
-        # ✅ ALWAYS normalize completed field values
+        # ALWAYS normalize completed field values
         if enriched.get("is_completed"):
             enriched["display_value"] = normalize_field_value(field)
         
@@ -4357,7 +4357,7 @@ async def view_document(
         enriched = serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
-        # ✅ CRITICAL: Normalize ALL field values using the same function
+        # CRITICAL: Normalize ALL field values using the same function
         enriched["display_value"] = normalize_field_value(field)
         enriched["value"] = field.get("value")  # Keep original value too
         
@@ -4421,7 +4421,7 @@ async def view_document(
             )
     
     else:  # preview_type == "all" (default)
-        # ✅ Apply completed fields FIRST
+        # Apply completed fields FIRST
         if include_signatures and completed_fields:
             pdf_bytes = apply_all_completed_fields(pdf_bytes, completed_fields, IMAGE_FIELDS)
         
@@ -4731,7 +4731,7 @@ async def view_field_preview(
         enriched = serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
-        # ✅ ALWAYS normalize completed field values
+        # ALWAYS normalize completed field values
         if enriched.get("is_completed"):
             enriched["display_value"] = normalize_field_value(field)
                 
@@ -5219,7 +5219,7 @@ async def view_document_with_envelope(
         enriched = serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
-        # ✅ ALWAYS normalize completed field values
+        # ALWAYS normalize completed field values
         if enriched.get("is_completed"):
             enriched["display_value"] = normalize_field_value(field)
         
@@ -5753,7 +5753,7 @@ async def email_document_owner(
             print(f"Error reading PDF: {str(e)}")
             raise HTTPException(404, "PDF file not found in storage")
         
-        # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+        # APPLY COMPLETED FIELDS (CRITICAL FIX)
         pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
         
         # Add envelope header if exists
@@ -5875,7 +5875,7 @@ async def download_signed_document_owner(
             print(f"Error reading PDF: {str(e)}")
             raise HTTPException(404, "PDF file not found in storage")
         
-        # ✅ APPLY COMPLETED FIELDS (CRITICAL FIX)
+        # APPLY COMPLETED FIELDS (CRITICAL FIX)
         pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
         
         # Apply "SIGNED" watermark

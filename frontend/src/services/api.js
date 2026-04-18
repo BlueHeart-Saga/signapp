@@ -30,7 +30,7 @@ api.interceptors.response.use(
   }
 );
 
-// ✅ Unified Token Management
+// Unified Token Management
 let currentToken = localStorage.getItem("token");
 
 export const setAuthToken = (token) => {
@@ -47,7 +47,7 @@ if (currentToken) {
   setAuthToken(currentToken);
 }
 
-// ✅ Single, robust Request Interceptor
+// Single, robust Request Interceptor
 api.interceptors.request.use((config) => {
   // Always use the latest token from the local variable or storage
   const token = currentToken || localStorage.getItem("token");

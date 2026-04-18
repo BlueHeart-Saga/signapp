@@ -13,6 +13,7 @@ import io
 import uuid
 import re
 from bson import ObjectId
+from typing import Optional, List, Union
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
@@ -2004,19 +2005,86 @@ def generate_otp(length: int = 6) -> str:
     """Generate numeric OTP"""
     return ''.join(random.choices(string.digits, k=length))
 
-def send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email using SMTP"""
+from typing import Optional, Dict
+from email.mime.image import MIMEImage
+
+def get_standard_email_footer():
+    """Returns the unified professional footer HTML used across all platform emails"""
+    current_year = datetime.now().year
+    return f"""
+                        <!-- Redesigned Footer Section Exactly as Image -->
+                        <tr>
+                            <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9; background-color: #ffffff;">
+                                <!-- Policy Links -->
+                                <div style="margin-bottom: 12px;">
+                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                </div>
+                                <div style="margin-bottom: 30px;">
+                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="https://safesign.devopstrio.co.uk/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
+                                </div>
+
+                                <!-- Social Icons in Rounded Boxes (Teal Branding) -->
+                                <div style="margin-bottom: 35px;">
+                                    <table border="0" cellspacing="0" cellpadding="0" align="center">
+                                        <tr>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.linkedin.com/company/devopstrioglobal/posts/?feedView=all" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/linkedin--v1.png" alt="in" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.facebook.com/profile.php?id=61579126233218" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/facebook-new.png" alt="f" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://www.instagram.com/devopstrio_offcl/" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/instagram-new.png" alt="ig" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                            <td style="padding: 0 6px;">
+                                                <a href="https://devopstrio.co.uk/" style="text-decoration: none; display: block; width: 44px; height: 40px; border: 1.2px solid #00A3A3; border-radius: 12px; line-height: 40px; text-align: center;">
+                                                    <img src="https://img.icons8.com/material-rounded/24/00A3A3/domain.png" alt="web" style="width: 20px; height: 20px; vertical-align: middle;">
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Copyright and Address -->
+                                <div style="color: #475569; font-size: 13px; line-height: 1.5; font-weight: 500;">
+                                    <p style="margin: 0;">Copyright {current_year} Devopstrio Ltd. All rights reserved.</p>
+                                    <p style="margin: 0;">We are located at 128, City Road, London, EC1V 2NX</p>
+                                    <p style="margin: 0;">United Kingdom</p>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Bottom Teal Bar -->
+                        <tr>
+                            <td align="center" style="background-color: #00A3A3; padding: 15px 20px;">
+                                <p style="margin: 0; color: #ffffff; font-size: 13px; font-weight: 600; letter-spacing: 0.2px;">
+                                    © {current_year} Devopstrio. All rights reserved.
+                                </p>
+                            </td>
+                        </tr>
+    """
+
+
+def send_email(to_email: str, subject: str, html_content: str, images: Optional[Dict[str, bytes]] = None) -> bool:
+    """Send email using SMTP with support for embedded images (CIDs)"""
     try:
-        # Create message
-        msg = MIMEMultipart()
+        # Create message - 'related' is required for embedding images (CID)
+        msg = MIMEMultipart('related')
         msg['Subject'] = subject
         
-        # ✅ DYNAMIC SENDER NAME
-        # Attempt to get platform name from branding, fallback to "SafeSign Team"
+        # DYNAMIC SENDER NAME
         try:
             branding = db.branding.find_one({}) or {}
             platform_name = branding.get("platform_name", "SafeSign Team")
-            # If platform_name is just the name, append "Team" or use directly
             if "Team" not in platform_name:
                 display_name = f"{platform_name} Team"
             else:
@@ -2027,7 +2095,24 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
             msg['From'] = EMAIL_FROM
             
         msg['To'] = to_email
-        msg.attach(MIMEText(html_content, 'html'))
+        
+        # Add body part
+        msg_alternative = MIMEMultipart('alternative')
+        msg.attach(msg_alternative)
+        msg_alternative.attach(MIMEText(html_content, 'html'))
+        
+        # Attach images as related parts (for CID embedding)
+        if images:
+            for cid, img_data in images.items():
+                if img_data:
+                    subtype = 'png'
+                    if cid.lower().endswith('.jpg') or cid.lower().endswith('.jpeg'):
+                        subtype = 'jpeg'
+                    
+                    msg_image = MIMEImage(img_data, _subtype=subtype)
+                    msg_image.add_header('Content-ID', f'<{cid}>')
+                    msg_image.add_header('Content-Disposition', 'inline', filename=f"{cid}.{subtype}")
+                    msg.attach(msg_image)
         
         # Connect to SMTP server and send
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
@@ -2035,7 +2120,7 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
         
-        print(f"✅ Email sent to {to_email}")
+        print(f"Email sent to {to_email}")
         return True
         
     except Exception as e:
@@ -2090,6 +2175,8 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     role_description = get_role_description(role)
     action_button = get_action_button_text(role)
     
+    standard_footer = get_standard_email_footer()
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -2106,29 +2193,15 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                 padding: 0;
                 background-color: #f9fafb;
             }}
-            .email-wrapper {{
-                max-width: 600px;
-                margin: 0 auto;
-                background: white;
-            }}
-            .brand-header {{
-                text-align: center;
-                padding: 30px 20px 20px 20px;
-                background: #ffffff;
-            }}
             .brand-logo {{
-                height: 70px;
+                height: 45px;
+                width: auto;
             }}
             .platform-name {{
-                font-size: 18px;
-                font-weight: 600;
-                color: #0d9488;
-                margin: 0 0 6px 0;
-            }}
-            .view-browser {{
-                font-size: 13px;
-                color: #6b7280;
-                margin: 0 0 18px 0;
+                font-size: 24px;
+                font-weight: 800;
+                color: #00A3A3;
+                letter-spacing: -0.5px;
             }}
             .document-header {{
                 background: #0d9488;
@@ -2150,18 +2223,20 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                 text-transform: capitalize;
             }}
             .content-section {{
-                padding: 30px;
+                padding: 40px 30px;
             }}
             .greeting {{
                 color: #111827;
                 margin-bottom: 20px;
                 font-size: 16px;
+                font-weight: 700;
             }}
             .info-grid {{
                 background: #f8fafc;
                 border-radius: 8px;
                 padding: 20px;
                 margin: 20px 0;
+                border: 1px solid #e2e8f0;
             }}
             .info-table {{
                 width: 100%;
@@ -2174,30 +2249,30 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
             }}
             .info-label {{
                 color: #6b7280;
-                width: 160px;
+                width: 140px;
                 vertical-align: top;
             }}
             .info-value {{
                 color: #374151;
-                font-weight: 500;
+                font-weight: 600;
             }}
             .otp-container {{
                 text-align: center;
-                margin: 30px 0;
+                margin: 35px 0;
             }}
             .otp-box {{
                 display: inline-block;
-                background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);
-                
+                background-color: #f8fafc;
                 border-radius: 12px;
-                padding: 30px;
-                min-width: 300px;
+                padding: 35px 25px;
+                border: 1px solid #f1f5f9;
+                min-width: 320px;
             }}
             .otp-code {{
                 font-family: 'Courier New', monospace;
                 font-size: 40px;
                 font-weight: 700;
-                color: #0d9488;
+                color: #00A3A3;
                 letter-spacing: 10px;
                 margin: 20px 0;
                 padding: 15px;
@@ -2205,325 +2280,145 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                 border-radius: 8px;
                 display: inline-block;
                 text-align: center;
-            }}
-            .otp-note {{
-                color: #64748b;
-                font-size: 14px;
-                margin: 10px 0;
+                border: 1.5px solid #cbd5e1;
             }}
             .action-button {{
                 display: inline-block;
-                background: #0d9488;
-                color: white;
+                background: #00A3A3;
+                color: #ffffff !important;
                 text-decoration: none;
-                padding: 16px 36px;
+                padding: 14px 34px;
                 border-radius: 8px;
-                font-weight: 600;
+                font-weight: 700;
                 font-size: 16px;
-                margin: 20px 0;
-                border: none;
-                cursor: pointer;
-            }}
-            .action-button:hover {{
-                background: #0d9488;
-                color: white;
-            }}
-            .instructions {{
-                background: #f0fdfa;
-                border-radius: 8px;
-                padding: 20px;
-                margin: 25px 0;
-            }}
-            .instructions h3 {{
-                color: #0d9488;
-                margin-top: 0;
-            }}
-            .instructions ol {{
                 margin: 10px 0;
-                padding-left: 20px;
-            }}
-            .instructions li {{
-                margin-bottom: 8px;
-            }}
-            .support-section {{
-                background: #ecfeff;
-                border-radius: 14px;
-                padding: 20px;
-                margin: 30px 0;
-                display: flex;
-                align-items: center;
-                gap: 16px;
-            }}
-            .support-icon {{
-                width: 56px;
-                height: 56px;
-                border-radius: 50%;
-                background: #e0f2fe;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                flex-shrink: 0;
-            }}
-            .support-text {{
-                flex: 1;
-            }}
-            .support-text h4 {{
-                margin: 0;
-                color: #0f172a;
-                font-size: 16px;
-            }}
-            .support-text p {{
-                margin: 5px 0 0 0;
-                color: #475569;
-                font-size: 14px;
-            }}
-            .support-button {{
-                background: #0ea5e9;
-                color: white;
-                text-decoration: none;
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: 600;
-                white-space: nowrap;
-            }}
-            .footer {{
-                background-color: #000;
-                color: #fff;
-                padding: 30px 20px;
-            }}
-            .footer-content {{
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 20px;
-            }}
-            .footer-left {{
-                flex: 1;
-                padding-right: 15px;
-            }}
-            .footer-logo {{
-                height: 40px;
-                margin-bottom: 10px;
-            }}
-            .footer-tagline {{
-                font-size: 13px;
-                color: #bbb;
-                margin: 0;
-            }}
-            .footer-divider {{
-                width: 1px;
-                background-color: #333;
-                margin: 0 20px;
-            }}
-            .footer-right {{
-                flex: 1;
-                padding-left: 15px;
-            }}
-            .footer-links a {{
-                display: block;
-                color: #fff;
-                text-decoration: none;
-                margin-bottom: 8px;
-                font-size: 14px;
-            }}
-            .footer-links a:hover {{
-                text-decoration: underline;
-            }}
-            .copyright {{
-                text-align: center;
-                font-size: 11px;
-                color: #94a3b8;
-                padding-top: 20px;
-                border-top: 1px solid #333;
-                margin-top: 20px;
             }}
             @media (max-width: 480px) {{
                 .content-section {{
-                    padding: 20px;
+                    padding: 25px 20px;
                 }}
-                .footer-content {{
-                    flex-direction: column;
-                }}
-                .footer-divider {{
-                    width: 100%;
-                    height: 1px;
-                    margin: 20px 0;
+                .otp-box {{
+                    min-width: 100%;
                 }}
                 .otp-code {{
                     font-size: 32px;
-                    letter-spacing: 8px;
-                    padding: 12px;
-                }}
-                .support-section {{
-                    flex-direction: column;
-                    text-align: center;
+                    letter-spacing: 6px;
                 }}
             }}
         </style>
     </head>
-    <body>
-        <div class="email-wrapper">
-            <!-- Brand Header -->
-            <div class="brand-header">
-                {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
-                <div class="platform-name">{platform_name}</div>
-                <div class="view-browser">view this email in your browser</div>
-            </div>
-            
-            <!-- Document Header with Banner -->
-            
-            
-                    <img 
-                        src="{BACKEND_URL}/static/email/otp-banner.png" 
-                        alt="OTP Verification" 
-                        style="width: 100%;"
-                    />
-              
-            <div class="document-header">
-                
-                <h1 class="document-title">Document Signing Verification</h1>
-                <div class="role-badge">{role.replace('_', ' ').title()}</div>
-            </div>
-            
-            <!-- Main Content -->
-            <div class="content-section">
-                <h2 class="greeting">Hello {recipient['name']},</h2>
-                <p style="margin-bottom: 25px; color: #4b5563;">
-                    You have {'requested a new OTP' if is_resend else 'been sent an OTP'} for document verification. 
-                    Use the OTP below to verify your identity and access the document.
-                </p>
-                
-                <!-- Zoho-like Document Information -->
-                <div class="info-grid">
-                    <table class="info-table">
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header: Logo -->
                         <tr>
-                            <td class="info-label"><strong>Document</strong></td>
-                            <td class="info-value">{document['filename']}</td>
+                            <td style="padding: 15px 25px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span class="platform-name">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
                         </tr>
                         
+                        <!-- Banner -->
                         <tr>
-                            <td class="info-label"><strong>Sender</strong></td>
-                            <td class="info-value">
-                                <a href="mailto:{sender_email}" style="color: #2563eb; text-decoration: none;">
-                                    {sender_email}
-                                </a>
+                            <td style="padding: 0;">
+                                <img 
+                                    src="{BACKEND_URL}/static/email/otp-banner.png" 
+                                    alt="OTP Verification" 
+                                    style="width: 100%; height: auto; display: block; border: 0;"
+                                />
                             </td>
                         </tr>
+                        
+                        <!-- Document Context Header -->
                         <tr>
-                            <td class="info-label"><strong>Organization</strong></td>
-                            <td class="info-value">{sender_organization or "-"}</td>
-                        </tr>
-                        <tr>
-                            <td class="info-label"><strong>Expires</strong></td>
-                            <td class="info-value">24 hours from now</td>
-                        </tr>
-                        <tr>
-                            <td class="info-label"><strong>Status</strong></td>
-                            <td class="info-value">
-                                <span style="color: {'#059669' if is_resend else '#0d9488'}; font-weight: 600;">
-                                    {'OTP Resent' if is_resend else 'New OTP Generated'}
-                                </span>
+                            <td class="document-header">
+                                <h1 class="document-title" style="margin: 0; color: #ffffff;">Document Verification</h1>
+                                <div class="role-badge">{role.replace('_', ' ').title()}</div>
                             </td>
                         </tr>
+                        
+                        <!-- Main Content -->
+                        <tr>
+                            <td class="content-section">
+                                <h2 class="greeting">Hello {recipient['name']},</h2>
+                                <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    A verification attempt was detected for <strong>{document['filename']}</strong>. 
+                                    Use the one-time passcode below to verify your identity and access the document.
+                                </p>
+                                
+                                <!-- Document Info -->
+                                <div class="info-grid">
+                                    <table class="info-table">
+                                        <tr>
+                                            <td class="info-label">Document</td>
+                                            <td class="info-value">{document['filename']}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="info-label">Sender</td>
+                                            <td class="info-value">
+                                                <a href="mailto:{sender_email}" style="color: #00A3A3; text-decoration: none;">
+                                                    {sender_name} ({sender_email})
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="info-label">Expires</td>
+                                            <td class="info-value">24 hours from now</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                <!-- OTP Display -->
+                                <div class="otp-container">
+                                    <div class="otp-box">
+                                        <p style="margin: 0 0 15px; font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;">
+                                            Your One-Time Passcode
+                                        </p>
+                                        <div class="otp-code">{otp}</div>
+                                        <p style="margin: 0; font-size: 13px; color: #64748b;">
+                                            Valid for 10 Minutes &bull; Single Use Only
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Action Button -->
+                                <div style="text-align: center; margin: 30px 0;">
+                                    <a href="{action_url}" class="action-button">
+                                        {action_button} →
+                                    </a>
+                                </div>
+                                
+                                <!-- Security Notice -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 15px;">
+                                    <tr>
+                                        <td style="vertical-align: top; width: 20px; padding-top: 2px;">
+                                            <span style="font-size: 18px;">⚠️</span>
+                                        </td>
+                                        <td style="padding-left: 12px; font-size: 13px; line-height: 1.5; color: #b91c1c;">
+                                            <strong>Security Notice:</strong> Never share this OTP with anyone. Our staff will never ask for your code.
+                                            If you didn't request this code, please 
+                                            <a href="{complaints_url}" style="color: #dc2626; font-weight: 700;">report it immediately</a>.
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        {standard_footer}
                     </table>
-                </div>
-                
-                <!-- OTP Display -->
-                <div class="otp-container">
-                    <div class="otp-box">
-                        <h3 style="margin: 0 0 15px 0; color: #0d9488; font-size: 18px;">
-                            One-Time Password (OTP)
-                        </h3>
-                        <div class="otp-code">{otp}</div>
-                        
-                    </div>
-                </div>
-                
-                <!-- Action Button -->
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{action_url}" class="action-button" style="color: white; background-color: #0d9488; padding: 12px 24px; border-radius: 6px; text-decoration: none;">
-                        {action_button} →
-                    </a>
-                </div>
-                
-                
-                
-                <!-- Security Note -->
-                <div style="
-                    background: #fef2f2;
-                    border: 1px solid #fecaca;
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin: 20px 0;
-                    font-size: 14px;
-                ">
-                    <strong>Security Notice:</strong> 
-                    Never share this OTP with anyone. {platform_name} staff will never ask for your OTP.
-                    If you didn't request this OTP, please 
-                    <a href="{complaints_url}" style="color: #dc2626; text-decoration: none;">report it immediately</a>.
-                </div>
-                
-                <!-- Support Contact -->
-                <div class="support-section">
-                    <div class="support-icon">🎧</div>
-                    <div class="support-text">
-                        <h4>Need help with verification?</h4>
-                        <p>Our support team is happy to assist you with any questions about the OTP or signing process.</p>
-                    </div>
-                    <a href="mailto:support@{platform_name.lower().replace(' ', '')}.com" class="support-button">
-                        Contact Support
-                    </a>
-                </div>
-                
-                <!-- Additional Info -->
-                <div style="
-                    background: #f8fafc;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin-top: 25px;
-                    font-size: 13px;
-                    color: #64748b;
-                ">
-                    <p style="margin: 0;">
-                        <strong>Note:</strong> This OTP was sent via {platform_name}'s secure email system. 
-                        If you have any concerns about the legitimacy of this email, please verify the sender 
-                        ({sender_email}) or contact us at 
-                        <a href="mailto:security@{platform_name.lower().replace(' ', '')}.com" style="color: #0d9488;">
-                            security@{platform_name.lower().replace(' ', '')}.com
-                        </a>
-                    </p>
-                </div>
-            </div>
-            
-            <!-- Footer -->
-            <div class="footer">
-                <div class="footer-content">
-                    <div class="footer-left">
-                        {f'<img src="{logo_url}" alt="{platform_name}" class="footer-logo">' if logo_url else ''}
-                        <p class="footer-tagline">Secure electronic signatures powered by AI</p>
-                    </div>
-                    
-                    <div class="footer-divider"></div>
-                    
-                    <div class="footer-right">
-                        <div class="footer-links">
-                            <a href="{FRONTEND_URL}">Home</a>
-                            <a href="{FRONTEND_URL}/aboutus">About Us</a>
-                            <a href="{FRONTEND_URL}/contactus">Contact</a>
-                            <a href="{FRONTEND_URL}/pricing">Pricing</a>
-                            <a href="{FRONTEND_URL}/security">Security</a>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="copyright">
-                    © {current_year} {platform_name}. All rights reserved.<br>
-                    This is an automated message — please do not reply to this email.
-                </div>
-            </div>
-        </div>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """
@@ -2631,63 +2526,110 @@ def send_recipient_activity_notification_to_owner(
         
         subject = f"{emoji} {recipient_name} {status.title()} Signing – {document_name}"
         
+        # 4. Handle Banner (CID: banner)
+        images = {}
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        banner_path = os.path.join(base_dir, "static", "email", "Progress-update.png")
+        if os.path.exists(banner_path):
+            try:
+                with open(banner_path, "rb") as f:
+                    images["banner"] = f.read()
+            except Exception as e:
+                print(f"Error reading activity banner: {e}")
+
+        standard_footer = get_standard_email_footer()
+        
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
-                .container {{ max-width: 600px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
-                .header {{ background: #0d9488; color: white; padding: 30px; text-align: center; }}
-                .content {{ padding: 30px; }}
+                .brand-logo {{ height: 32px; width: auto; display: block; }}
+                .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+                .header {{ background: #0d9488; color: white; padding: 25px 30px; text-align: center; }}
+                .banner-img {{ width: 100%; height: auto; display: block; margin: 0; }}
+                .content {{ padding: 30px; background: #ffffff; }}
                 .status-badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-weight: 500; font-size: 14px; background-color: {color}; margin-bottom: 20px; }}
                 .details-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }}
                 .details-table td {{ padding: 12px 0; border-bottom: 1px solid #e5e7eb; }}
                 .label {{ color: #6b7280; width: 140px; }}
                 .value {{ font-weight: 600; color: #111827; }}
-                .footer {{ background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e5e7eb; }}
-                .button {{ display: inline-block; background: #0d9488; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
+                .button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
             </style>
         </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin:0; font-size: 20px;">Signing Progress Update</h1>
-                </div>
-                <div class="content">
-                    <div class="status-badge">{text}</div>
-                    <p>Hello,</p>
-                    <p>This is an automated update regarding your document <strong>{document_name}</strong>. A recipient has just updated their status.</p>
-                    
-                    <table class="details-table">
-                        <tr>
-                            <td class="label">Recipient</td>
-                            <td class="value">{recipient_name} ({recipient_email})</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Status</td>
-                            <td class="value" style="color: {color};">{text}</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Timestamp</td>
-                            <td class="value">{timestamp}</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Document</td>
-                            <td class="value">{document_name}</td>
-                        </tr>
-                    </table>
-                    
-                    <div style="text-align: center;">
-                        <a href="{FRONTEND_URL}/user/document-summary/{document['_id']}" class="button">View Document Status</a>
-                    </div>
-                </div>
-                <div class="footer">
-                    © {current_year} {platform_name}. Secure electronic signatures.<br>
-                    This is an automated notification.
-                </div>
-            </div>
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Header: Logo -->
+                            <tr>
+                                <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                    <table border="0" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td style="vertical-align: middle;">
+                                                {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                            </td>
+                                            <td style="vertical-align: middle; padding-left: 10px;">
+                                                <span class="brand-name">{platform_name}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            
+                            <!-- Full-Width Banner -->
+                            <tr>
+                                <td style="padding: 0;">
+                                    <img src="cid:banner" alt="Progress Update" class="banner-img">
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="header">
+                                    <h1 style="margin:0; font-size: 20px; color: #ffffff;">Signing Progress Update</h1>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="content">
+                                    <div class="status-badge">{text}</div>
+                                    <p style="margin-top: 0;">Hello,</p>
+                                    <p>This is an automated update regarding your document <strong>{document_name}</strong>. A recipient has just updated their status.</p>
+                                    
+                                    <table class="details-table">
+                                        <tr>
+                                            <td class="label">Recipient</td>
+                                            <td class="value">{recipient_name} ({recipient_email})</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Status</td>
+                                            <td class="value" style="color: {color};">{text}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Timestamp</td>
+                                            <td class="value">{timestamp}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Document</td>
+                                            <td class="value">{document_name}</td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <div style="text-align: center; margin-bottom: 20px;">
+                                        <a href="{FRONTEND_URL}/user/document-summary/{document['_id']}" class="button">View Document Status</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            {standard_footer}
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </body>
         </html>
         """
@@ -2702,9 +2644,14 @@ def send_recipient_activity_notification_to_owner(
         if existing:
             print(f"ℹ️ Owner already notified for {status} status of {recipient_email}")
             return True
+        
+        # Determine receiver URL (use FRONTEND_URL from config or env)
+        receiver_url = FRONTEND_URL
+        if not receiver_url.startswith('http'):
+            receiver_url = f"https://{receiver_url}"
 
         # Send email
-        success = send_email(owner_email, subject, html_content)
+        success = send_email(owner_email, subject, html_content, images=images)
         
         if success:
             # Log the notification in activity
@@ -2717,7 +2664,7 @@ def send_recipient_activity_notification_to_owner(
                 "timestamp": datetime.utcnow(),
                 "status_notified": status
             })
-            print(f"✅ Owner notified: {recipient_name} {status}")
+            print(f"Owner notified: {recipient_name} {status}")
             
         return success
         
@@ -2847,6 +2794,8 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
         
         messages_html += '</div>'
     
+    standard_footer = get_standard_email_footer()
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -2855,526 +2804,119 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Action Required: {document['filename']}</title>
         <style>
-            body {{
-                font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-                line-height: 1.6;
-                color: #374151;
-                margin: 0;
-                padding: 0;
-                background-color: #f9fafb;
-            }}
-            .email-wrapper {{
-                max-width: 600px;
-                margin: 0 auto;
-                background: white;
-            }}
-            .header {{
-                color: white;
-            }}
-            .brand-section {{
-                display: flex;
-                border-bottom: 2px double;
-                margin: 0 auto;
-                align-items: center;
-                flex-direction: column;
-
-            }}
-            .brand-logo {{
-                height: 100px;
-                width: auto;
-            }}
-            .brand-name {{
-                font-size: 24px;
-                font-weight: 600;
-                color: #0d9488;
-                margin: auto 0;
-                margin-bottom: 20px;
-            }}
-            .document-title {{
-                text-align: center;
-                padding: 16px 0;
-                background: #0d9488;
-            }}
-            .document-title h1 {{
-                margin: 0;
-                color: white;
-                font-size: 20px;
-                font-weight: 500;
-            }}
-            .role-badge {{
-                display: inline-block;
-                background: rgba(255, 255, 255, 0.2);
-                padding: 6px 16px;
-                border-radius: 20px;
-                font-size: 14px;
-                margin-top: 8px;
-            }}
-            .content {{
-                padding: 30px;
-            }}
-            .greeting {{
-                color: #111827;
-                margin-bottom: 20px;
-            }}
-            .doc-info-grid {{
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 16px;
-                margin-top: 16px;
-            }}
-            .info-item {{
-                display: inline;
-                flex-direction: column;
-            }}
-            .info-label {{
-                font-size: 12px;
-                color: #64748b;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                margin-bottom: 4px;
-            }}
-            .info-value {{
-                font-weight: 600;
-                color: #1e293b;
-                font-size: 14px;
-            }}
-            .messages-section {{
-                margin: 24px 0;
-            }}
-            .message {{
-                
-                border-left: 4px solid #0d9488;
-                padding: 16px;
-                margin: 12px 0;
-                border-radius: 0 4px 4px 0;
-            }}
-            .message h3 {{
-                margin: 0 0 8px 0;
-                font-size: 14px;
-                font-weight: 600;
-            }}
-            .role-task {{
-                background: #f0fdfa;
-                border: 1px solid #ccfbf1;
-                border-radius: 8px;
-                padding: 20px;
-                margin: 20px 0;
-            }}
-            .role-task h3 {{
-                color: #0d9488;
-                margin-top: 0;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }}
-            .otp-section {{
-                background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);
-                border: 2px solid #0d9488;
-                border-radius: 12px;
-                padding: 24px;
-                margin: 24px 0;
-                text-align: center;
-            }}
-            .otp-code {{
-                font-family: 'Courier New', 'SF Mono', monospace;
-                font-size: 36px;
-                font-weight: 700;
-                letter-spacing: 8px;
-                color: #0d9488;
-                margin: 16px 0;
-                padding: 8px;
-                background: white;
-                border-radius: 6px;
-                display: inline-block;
-            }}
-            .action-button {{
-                display: inline-block;
-                background: #0d9488;
-                color: white;
-                text-decoration: none;
-                padding: 14px 32px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 16px;
-                margin: 16px 0;
-                border: none;
-                cursor: pointer;
-                text-align: center;
-            }}
-            .action-button:hover {{
-                background: #0f766e;
-            }}
-            .security-note {{
-                background: #fef2f2;
-                border: 1px solid #fecaca;
-                border-radius: 8px;
-                padding: 16px;
-                margin: 20px 0;
-                font-size: 14px;
-            }}
-            
-            .footer a {{
-                color: #0d9488;
-                text-decoration: none;
-            }}
-            .footer a:hover {{
-                text-decoration: underline;
-            }}
-            @media (max-width: 480px) {{
-                .content {{
-                    padding: 20px;
-                }}
-                .doc-info-grid {{
-                    grid-template-columns: 1fr;
-                }}
-                .otp-code {{
-                    font-size: 28px;
-                    letter-spacing: 6px;
-                }}
-            }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+            .brand-logo {{ height: 32px; width: auto; display: block; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+            .document-header {{ background: #0d9488; color: white; padding: 24px 30px; text-align: center; }}
+            .role-badge {{ display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-top: 8px; }}
+            .content {{ padding: 30px; background: #ffffff; }}
+            .info-grid {{ background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0; }}
+            .info-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+            .info-table td {{ padding: 8px 0; border-bottom: 1px solid #e5e7eb; }}
+            .info-label {{ color: #6b7280; width: 160px; vertical-align: top; font-weight: 600; }}
+            .info-value {{ color: #374151; }}
+            .message-box {{ background: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+            .otp-box {{ background: #fff7ed; border: 1.5px solid #fdba74; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }}
+            .otp-code {{ font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #ea580c; letter-spacing: 6px; }}
+            .action-button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 16px; margin: 20px 0; }}
         </style>
     </head>
-    <body>
-        <div class="email-wrapper">
-            <!-- Header with Branding -->
-            <div class="header">
-                            <div style="
-                text-align:center;
-                padding:30px 20px 20px 20px;
-                background:#ffffff;
-                font-family:Arial, sans-serif;
-            ">
-
-                <!-- Logo -->
-                {f'''
-                <img 
-                    src="{logo_url}" 
-                    alt="{platform_name}"
-                    style="height:70px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;"
-                />
-                ''' if logo_url else ''}
-
-                <!-- Brand Name -->
-                <p style="
-                    font-size:18px;
-                    font-weight:600;
-                    color:#0d9488;
-                    margin:0 0 6px 0;
-                ">
-                    {platform_name}
-                </p>
-
-                <!-- View in browser (optional) -->
-                <p style="
-                    font-size:13px;
-                    color:#6b7280;
-                    margin:0 0 18px 0;
-                ">
-                    view this email in your browser
-                </p>
-
-            </div>
-                <div class="document-title">
-                    <h1>Action Required: Please Sign Document</h1>
-                    <div class="role-badge">{role.replace('_', ' ').title()}</div>
-                </div>
-                
-
-            </div>
-            <!-- Banner Image -->
-                <div style="text-align: center;">
-                    <img 
-                        src="{BACKEND_URL}/static/email/banner.png"
-                        alt="SafeSign Banner"
-                        style="
-                            width: 100%;
-                            display: block;
-                            margin: auto;
-                        "
-                    />
-                </div>
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header: Logo -->
+                        <tr>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span class="brand-name">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Banner Image -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="{BACKEND_URL}/static/email/banner.png" alt="SafeSign Banner" style="width: 100%; height: auto; display: block; border: 0;" />
+                            </td>
+                        </tr>
+                        
+                        <!-- Document Header -->
+                        <tr>
+                            <td class="document-header">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">Action Required: Please Sign Document</h1>
+                                <div class="role-badge">{role.replace('_', ' ').title()}</div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Main Content -->
+                        <tr>
+                            <td class="content">
+                                <h2 style="margin-top: 0; color: #111827;">Hello {recipient['name']},</h2>
+                                <p><strong>{sender_organization or sender_name}</strong> has requested you to review and sign <strong>{document['filename']}</strong>.</p>
+                                
+                                <div class="info-grid">
+                                    <table class="info-table">
+                                        <tr>
+                                            <td class="info-label">Sender</td>
+                                            <td class="info-value">
+                                                <a href="mailto:{sender_email}" style="color: #00A3A3; text-decoration: none;">{sender_name} ({sender_email})</a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="info-label">Document</td>
+                                            <td class="info-value">{document['filename']}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="info-label">Expires</td>
+                                            <td class="info-value">{document.get('expires_at', '24 hours from now')}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="info-label">Your Role</td>
+                                            <td class="info-value">{role.replace('_', ' ').title()}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                {messages_html if messages_html else ''}
+                                
+                                <div class="message-box">
+                                    <h3 style="margin-top: 0; font-size: 14px; color: #111827;">Task Description</h3>
+                                    <p style="margin-bottom: 0; font-size: 14px; color: #4b5563;">{role_instructions.get(role, 'Please review the document and take appropriate action.')}</p>
+                                </div>
+                                
+                                <div class="otp-box">
+                                    <p style="margin: 0 0 10px; font-size: 14px; color: #9a3412; font-weight: 600;">Your Access Code</p>
+                                    <div class="otp-code">{otp}</div>
+                                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #c2410c;">🔒 Valid for single use only</p>
+                                </div>
+                                
+                                <div style="text-align: center;">
+                                    <a href="{action_url}" class="action-button">{action_button} →</a>
+                                </div>
+                            </td>
+                        </tr>
             
-            <!-- Main Content -->
-            <div class="content">
-                <h2 class="greeting">Hello {recipient['name']},</h2>
-                <p>You have been requested to <strong>{role_description}</strong> for an important document.</p>
-                
-                <!-- Document Information -->
-                
-                
-                <!-- Document Information (Zoho-style simple) -->
-<div style="margin: 24px 0; font-family: Arial, sans-serif;">
 
-    <!-- Intro Line -->
-    <p style="
-        font-size:15px;
-        color:#374151;
-        margin:0 0 16px 0;
-        line-height:1.6;
-    ">
-        <strong>{sender_organization or sender_name}</strong> has requested you to review and sign
-        <strong>{document['filename']}</strong>.
-    </p>
-
-    <!-- Info Table -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="
-        font-size:14px;
-        color:#374151;
-    ">
-        <tr>
-            <td style="padding:6px 0; width:160px; color:#6b7280;">
-                <strong>Sender</strong>
-            </td>
-            <td style="padding:6px 0;">
-                <a href="mailto:{sender_email}" style="color:#2563eb; text-decoration:none;">
-                    {sender_email}
-                </a>
-            </td>
-        </tr>
-
-        <tr>
-            <td style="padding:6px 0; color:#6b7280;">
-                <strong>Organization Name</strong>
-            </td>
-            <td style="padding:6px 0;">
-                {sender_organization or "-"}
-            </td>
-        </tr>
-
-        <tr>
-            <td style="padding:6px 0; color:#6b7280;">
-                <strong>Document Name</strong>
-            </td>
-            <td style="padding:6px 0;">
-                {document['filename']}
-            </td>
-        </tr>
-
-        <tr>
-            <td style="padding:6px 0; color:#6b7280;">
-                <strong>Expires on</strong>
-            </td>
-            <td style="padding:6px 0;">
-                {document.get('expires_at', '24 hours from now')}
-            </td>
-        </tr>
-
-        <tr>
-            <td style="padding:6px 0; color:#6b7280;">
-                <strong>Message to all</strong>
-            </td>
-            <td style="padding:6px 0;">
-                {common_message if common_message else "-"}
-            </td>
-        </tr>
-
-        <tr>
-            <td style="padding:6px 0; color:#6b7280; vertical-align:top;">
-                <strong>Private Message</strong>
-            </td>
-            <td style="padding:6px 0; line-height:1.6;">
-                {personal_message if personal_message else "-"}
-            </td>
-        </tr>
-    </table>
-
-</div>
-
-
-                
-                
-
-                
-                <!-- Messages Section -->
-                {messages_html}
-                
-                <!-- Role Specific Task -->
-                <div class="role-task">
-                    <h3> Your Specific Task</h3>
-                    <p>{role_instructions.get(role, 'Please review the document and take appropriate action.')}</p>
-                    
-                </div>
-                
-                <!-- OTP Section -->
-                <div class="otp-section">
-                    <h3 style="color: #0d9488; margin-top: 0;">One-Time Password</h3>
-                    <div class="otp-code">{otp}</div>
-                    <p style="color: #64748b; font-size: 14px; margin: 8px 0;">
-                         Valid for 24 hours •  Single use only
-                    </p>
-                </div>
-                
-                <!-- Action Button -->
-                <div style="text-align: center; margin: 24px 0;">
-                    <a href="{action_url}" class="action-button" style="text-align: center; color: white;">
-                        {action_button} →
-                    </a>
-                    
-                </div>
-                
-                
-            
-            <!-- Help Support Box -->
-<div style="
-    background:#f8fafc;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:20px;
-    margin:30px 0;
-    font-family:Arial, sans-serif;
-">
-
-    <!-- Support Help Box -->
-<div style="
-    display:flex;
-    align-items:center;
-    gap:16px;
-    background:#ecfeff;
-    border-radius:14px;
-    padding:18px 20px;
-    margin:30px 0;
-    font-family:Arial, sans-serif;
-">
-
-    <!-- Left Icon / Avatar -->
-    <div style="
-        width:56px;
-        height:56px;
-        border-radius:50%;
-        background:#e0f2fe;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:26px;
-        flex-shrink:0;
-    ">
-        🎧
-    </div>
-
-    <!-- Text Content -->
-    <div style="flex:1;">
-        <p style="
-            margin:0;
-            font-size:16px;
-            font-weight:600;
-            color:#0f172a;
-        ">
-            Need help with signing?
-        </p>
-        <p style="
-            margin:4px 0 0 0;
-            font-size:14px;
-            color:#475569;
-            line-height:1.5;
-        ">
-            Our support team is happy to assist you with any questions.
-        </p>
-    </div>
-
-    <!-- CTA Button -->
-    <a href="mailto:support@safesign.com"
-       style="
-        display:inline-block;
-        background:#0ea5e9;
-        color:#ffffff;
-        text-decoration:none;
-        padding:10px 18px;
-        border-radius:8px;
-        font-size:14px;
-        font-weight:600;
-        white-space:nowrap;
-       ">
-        Email us
-    </a>
-
-</div>
 
             
             
-            <div class="footer">
-                <p style="margin: 0 0 12px 0;">
-                    <strong>This email was sent via {platform_name}</strong>, a secure electronic signature service.
-                    The document included requires your electronic signature, so please review it carefully before signing.
-                </p>
-
-                <p style="margin: 0 0 12px 0;">
-                    This message was sent because a sender requested your signature using {platform_name}.
-                    We use secure, encrypted connections to protect your data.
-                    If you believe this email is not legitimate, you can
-                    <a href="{complaints_url}" style="color:#0d9488; text-decoration:none;">report an issue</a>
-                    or
-                    <a href="{login_url}" style="color:#0d9488; text-decoration:none;">contact our platform</a>.
-                </p>
-
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;">
-            </div>
-
-            <!-- Footer -->
-             
-            <table width="100%" cellpadding="0" cellspacing="0" style="
-                background-color:#000;
-                padding:30px 20px;
-                color:#fff;
-                font-family:Arial, sans-serif;
-            ">
-                <tr>
-                    <!-- LEFT: Logo + Tagline -->
-                    <td width="45%" valign="top" style="padding-right:15px;">
-                        {f'''
-                        <img 
-                            src="{logo_url}" 
-                            alt="{platform_name}"
-                            style="height:40px; display:block; margin-bottom:10px;"
-                        />
-                        ''' if logo_url else ''}
-                        <p style="font-size:13px; color:#bbb; margin:0;">
-                            Sign smarter with AI-powered e-signatures
-                        </p>
-                    </td>
-
-                    <!-- CENTER: Divider -->
-                    <td width="10%" align="center" valign="top">
-                        <div style="
-                            width:1px;
-                            height:80px;
-                            background-color:#333;
-                            margin:auto;
-                        "></div>
-                    </td>
-
-                    <!-- RIGHT: Navigation Links -->
-                    <td width="45%" valign="top" style="padding-left:15px;">
-                        <a href="{FRONTEND_URL}" style="display:block; color:#fff; text-decoration:none; margin-bottom:8px;">Home</a>
-                        <a href="{FRONTEND_URL}/aboutus" style="display:block; color:#fff; text-decoration:none; margin-bottom:8px;">About Us</a>
-                        <a href="{FRONTEND_URL}/contactus" style="display:block; color:#fff; text-decoration:none; margin-bottom:8px;">Contact</a>
-                        <a href="{FRONTEND_URL}/pricing" style="display:block; color:#fff; text-decoration:none; margin-bottom:8px;">Pricing</a>
-                        <a href="{FRONTEND_URL}/security" style="display:block; color:#fff; text-decoration:none;">Security</a>
-                    </td>
-                </tr>
-
-                <!-- Bottom Divider -->
-                <tr>
-                    <td colspan="3" style="padding-top:20px;">
-                        <div style="border-top:1px solid #333;"></div>
-                    </td>
-                </tr>
-
-                <!-- COPYRIGHT -->
-                <tr>
-                    <td colspan="3" style="padding-top:15px; text-align:center;">
-                        <p style="font-size:11px; color:#94a3b8; margin:0;">
-                            © {current_year} {platform_name}. All rights reserved.<br>
-                            This is an automated message — please do not reply.
-                        </p>
+            {standard_footer}
+                        </table>
                     </td>
                 </tr>
             </table>
-
-
-        </div>
-    </body>
-    </html>
-    """
+        </body>
+        </html>
+        """
     
     subject = f"{get_role_emoji(role)} Action Required: Please {role_description} - {document['filename']}"
     return send_email(recipient['email'], subject, html_content)
@@ -3442,7 +2984,7 @@ async def send_bulk_invites(
                         "invited_at": datetime.utcnow()
                     }}
                 )
-                print(f"✅ {recipient.get('role', 'signer').title()} invitation sent to {recipient['email']}")
+                print(f"{recipient.get('role', 'signer').title()} invitation sent to {recipient['email']}")
                 
                 # Log successful send
                 db.document_activity.insert_one({
@@ -3494,95 +3036,83 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     role = recipient.get('role', 'signer')
     action_button = get_action_button_text(role)
     
+    # Get branding info
+    branding = db.branding.find_one({}) or {}
+    platform_name = branding.get("platform_name", "SafeSign")
+    logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
+    
+    standard_footer = get_standard_email_footer()
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{ 
-                font-family: 'Arial', sans-serif; 
-                line-height: 1.6;
-                color: #333;
-                max-width: 600px;
-                margin: 0 auto;
-                padding: 20px;
-            }}
-            .header {{ 
-                background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
-                color: white;
-                padding: 25px;
-                text-align: center;
-                border-radius: 10px 10px 0 0;
-            }}
-            .content {{ 
-                padding: 25px;
-                background: #fff3e0;
-                border-radius: 0 0 10px 10px;
-            }}
-            .otp {{ 
-                font-size: 28px;
-                font-weight: bold;
-                color: #ff9800;
-                text-align: center;
-                margin: 20px 0;
-                letter-spacing: 4px;
-            }}
-            .button {{ 
-                display: inline-block;
-                padding: 12px 25px;
-                background: #ff9800;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                font-weight: bold;
-            }}
-            .note {{
-                background: white;
-                padding: 15px;
-                border-radius: 5px;
-                margin: 15px 0;
-                border-left: 4px solid #ff9800;
-            }}
-            .role-badge {{
-                display: inline-block;
-                background: rgba(255,255,255,0.2);
-                padding: 3px 10px;
-                border-radius: 15px;
-                font-size: 12px;
-                margin-left: 10px;
-                text-transform: capitalize;
-            }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+            .brand-logo {{ height: 32px; width: auto; display: block; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+            .header {{ background: #f97316; color: white; padding: 25px 30px; text-align: center; }}
+            .content {{ padding: 30px; background: #ffffff; }}
+            .otp-box {{ background-color: #fff7ed; border: 1.5px solid #fdba74; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }}
+            .otp-code {{ font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #ea580c; letter-spacing: 6px; }}
+            .button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
+            .note {{ background: #f8fafc; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; font-size: 14px; }}
         </style>
     </head>
-    <body>
-        <div class="header">
-            <h1>🔔 Reminder: Document Action Required</h1>
-            <div class="role-badge">Role: {role.replace('_', ' ').title()}</div>
-        </div>
-        
-        <div class="content">
-            <h2>Hello {recipient['name']},</h2>
-            <p>This is a friendly reminder to complete your required action for the document:</p>
-            
-            <div class="note">
-                <strong>Document:</strong> {document['filename']}<br>
-                <strong>Your Role:</strong> {role.replace('_', ' ').title()}<br>
-                <strong>Action Required:</strong> {get_role_description(role)}
-            </div>
-            
-            <div class="otp">
-                Your New OTP: {new_otp}
-            </div>
-            
-            <p style="text-align: center;">
-                <a href="{action_url}" class="button">{action_button}</a>
-            </p>
-            
-            <div class="note">
-                <strong>Note:</strong> Your previous OTP has been replaced with this new one for security reasons.
-            </div>
-        </div>
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header: Logo -->
+                        <tr>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            <span class="brand-name">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="header">
+                                <h1 style="margin:0; font-size: 20px; color: #ffffff;">🔔 Reminder: Action Required</h1>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="content">
+                                <h2>Hello {recipient['name']},</h2>
+                                <p>This is a friendly reminder to complete your required action for <strong>{document['filename']}</strong>.</p>
+                                
+                                <div class="note">
+                                    <strong>Document:</strong> {document['filename']}<br>
+                                    <strong>Your Role:</strong> {role.replace('_', ' ').title()}<br>
+                                    <strong>Task:</strong> {get_role_description(role)}
+                                </div>
+                                
+                                <div class="otp-box">
+                                    <p style="margin: 0 0 10px; font-size: 14px; color: #9a3412; font-weight: 600;">Your New One-Time Passcode</p>
+                                    <div class="otp-code">{new_otp}</div>
+                                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #c2410c;">Note: This replaces any previous code sent to you.</p>
+                                </div>
+                                
+                                <div style="text-align: center;">
+                                    <a href="{action_url}" class="button">{action_button} →</a>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        {standard_footer}
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """
@@ -3602,19 +3132,73 @@ def send_signed_document_email(
     document_name: str,
     pdf_bytes: bytes
 ) -> bool:
+    standard_footer = get_standard_email_footer()
     try:
         msg = MIMEMultipart()
         msg["From"] = EMAIL_FROM
         msg["To"] = to_email
         msg["Subject"] = f"Signed Document: {document_name}"
 
-        html_body = f"""
-        <p>Hello {recipient_name},</p>
-        <p>Your signed document <strong>{document_name}</strong> is attached.</p>
-        <p>Thank you for using our platform.</p>
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+                .document-header {{ background: #00A3A3; color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 30px; background: #ffffff; }}
+                .info-box {{ background: #f8fafc; border-radius: 12px; padding: 25px; margin: 25px 0; border: 1.5px solid #e2e8f0; border-style: dashed; text-align: center; }}
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Banner Image -->
+                            <tr>
+                                <td style="padding: 0;">
+                                    <img src="{BACKEND_URL}/static/email/completed-document.png" alt="Document Signed" style="width: 100%; height: auto; display: block; border: 0;" />
+                                </td>
+                            </tr>
+                            
+                            <!-- Document Header -->
+                            <tr>
+                                <td class="document-header">
+                                    <h1 style="margin: 0; color: #ffffff; font-size: 24px;">Your Document is Signed!</h1>
+                                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Securely delivered to your inbox</p>
+                                </td>
+                            </tr>
+                            
+                            <!-- Main Content -->
+                            <tr>
+                                <td class="content">
+                                    <h2 style="margin-top: 0; color: #111827;">Hello {recipient_name},</h2>
+                                    <p>Your signed document <strong>{document_name}</strong> is processed and attached to this email for your records.</p>
+                                    
+                                    <div class="info-box">
+                                        <div style="font-size: 40px; margin-bottom: 15px;">📥</div>
+                                        <h3 style="margin: 0; color: #0d9488;">Signed PDF Attached</h3>
+                                        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Please see the attachment at the bottom of this email.</p>
+                                    </div>
+
+                                    <p style="margin-bottom: 0;">Thank you for using our platform for your secure digital signatures.</p>
+                                </td>
+                            </tr>
+
+                            {standard_footer}
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
         """
 
-        msg.attach(MIMEText(html_body, "html"))
+        msg.attach(MIMEText(html_content, "html"))
 
         attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
         attachment.add_header(
@@ -3644,23 +3228,75 @@ def send_document_email(
     body: str,
     document_name: str,
     pdf_bytes: bytes,
-    envelope_id: str = None
+    envelope_id: Optional[str] = None
 ) -> bool:
     """
     Send document via email with attachment.
     """
     try:
-        # Create message
-        msg = MIMEMultipart()
-        msg["From"] = f"{sender_name} <{sender_email}>"
-        msg["To"] = f"{to_name} <{to_email}>" if to_name else to_email
-        msg["Subject"] = subject
+        standard_footer = get_standard_email_footer()
         
-        # Add body
-        if envelope_id:
-            body += f"\n\nEnvelope ID: {envelope_id}"
+        # Build HTML content
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+                .document-header {{ background: #008a8a; color: white; padding: 30px; text-align: center; }}
+                .content {{ padding: 30px; background: #ffffff; }}
+                .message-box {{ background: #f8fafc; border-left: 4px solid #00A3A3; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Header -->
+                            <tr>
+                                <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                    <span class="brand-name">SafeSign</span>
+                                </td>
+                            </tr>
+                            
+                            <!-- Document Header -->
+                            <tr>
+                                <td class="document-header">
+                                    <h1 style="margin: 0; color: #ffffff; font-size: 20px;">Document Shared With You</h1>
+                                </td>
+                            </tr>
+                            
+                            <!-- Main Content -->
+                            <tr>
+                                <td class="content">
+                                    <h2 style="margin-top: 0; color: #111827;">Hello {to_name or 'there'},</h2>
+                                    <p><strong>{sender_name}</strong> ({sender_email}) has shared a document with you.</p>
+                                    
+                                    <div class="message-box">
+                                        <p style="margin: 0; font-size: 15px;">{body}</p>
+                                    </div>
+                                    
+                                    <p>Document Name: <strong>{document_name}</strong></p>
+                                    {f'<p style="color: #6b7280; font-size: 13px;">Envelope ID: {envelope_id}</p>' if envelope_id else ''}
+                                    
+                                    <p style="margin-bottom: 0;">Please find the attached document for your review.</p>
+                                </td>
+                            </tr>
+
+                            {standard_footer}
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
         
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
         
         # Add PDF attachment
         attachment = MIMEBase("application", "pdf")
@@ -3702,7 +3338,7 @@ async def send_completed_document_to_recipients(document_id: str):
             print(f"❌ Document {document_id} is not completed (status: {document.get('status')})")
             return False
         
-        # ✅ USE UNIFIED RENDERING TO ENSURE PDF FORMAT WITH SIGNATURES
+        # USE UNIFIED RENDERING TO ENSURE PDF FORMAT WITH SIGNATURES
         # This solves the issue where original formats like DOCX were being sent in emails.
         try:
             from .documents import load_document_pdf, apply_completed_fields_to_pdf
@@ -3716,7 +3352,7 @@ async def send_completed_document_to_recipients(document_id: str):
             print(f"Generating optimized signed PDF for completion emails (Document ID: {document_id})")
             pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
             
-            # ✅ ADDING ENVELOPE HEADER & WATERMARK (MATCHES DOWNLOAD)
+            # ADDING ENVELOPE HEADER & WATERMARK (MATCHES DOWNLOAD)
             # This ensures emailed documents look professional and consistent
             from .pdf_engine import PDFEngine
             
@@ -3806,7 +3442,7 @@ async def send_completed_document_to_recipients(document_id: str):
                 
                 if success:
                     success_count += 1
-                    print(f"✅ Sent completed document to {recipient_email}")
+                    print(f"Sent completed document to {recipient_email}")
                     
                     # Log the email send
                     db.document_activity.insert_one({
@@ -3907,7 +3543,20 @@ async def send_document_completion_email(
         
         
         # Create email content
-        subject = f"✅ Document Signed: {document_name}"
+        subject = f"Document Signed: {document_name}"
+
+        # 4. Handle Banner (CID: banner)
+        images = {}
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        banner_path = os.path.join(base_dir, "static", "email", "completed-document.png")
+        if os.path.exists(banner_path):
+            try:
+                with open(banner_path, "rb") as f:
+                    images["banner"] = f.read()
+            except Exception as e:
+                print(f"Error reading completion banner: {e}")
+        
+        standard_footer = get_standard_email_footer()
         
         html_content = f"""
         <!DOCTYPE html>
@@ -3925,36 +3574,23 @@ async def send_document_completion_email(
                     padding: 0;
                     background-color: #f9fafb;
                 }}
-                .email-wrapper {{
-                    max-width: 600px;
-                    margin: 0 auto;
-                    background: white;
-                }}
-                .brand-header {{
-                    text-align: center;
-                    padding: 30px 20px 20px 20px;
-                    background: #ffffff;
-                }}
                 .brand-logo {{
-                    height: 70px;
+                    height: 32px;
+                    width: auto;
+                    display: block;
                 }}
-                .platform-name {{
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #0d9488;
-                    margin: 0 0 6px 0;
-                }}
-                .view-browser {{
-                    font-size: 13px;
-                    color: #6b7280;
-                    margin: 0 0 18px 0;
+                .brand-name {{
+                    font-size: 24px;
+                    font-weight: 800;
+                    color: #00A3A3;
+                    letter-spacing: -0.5px;
                 }}
                 .header-banner {{
                     text-align: center;
                     background: #059669;
                 }}
                 .document-header {{
-                    background: #059669;
+                    background: #00a3a3;
                     color: white;
                     padding: 24px 30px;
                     text-align: center;
@@ -3973,6 +3609,7 @@ async def send_document_completion_email(
                 }}
                 .content-section {{
                     padding: 30px;
+                    background: #ffffff;
                 }}
                 .greeting {{
                     color: #111827;
@@ -3984,6 +3621,7 @@ async def send_document_completion_email(
                     border-radius: 8px;
                     padding: 20px;
                     margin: 20px 0;
+                    border: 1px solid #e2e8f0;
                 }}
                 .info-table {{
                     width: 100%;
@@ -4001,7 +3639,7 @@ async def send_document_completion_email(
                 }}
                 .info-value {{
                     color: #374151;
-                    font-weight: 500;
+                    font-weight: 600;
                 }}
                 .completion-section {{
                     background: #ecfdf5;
@@ -4011,132 +3649,67 @@ async def send_document_completion_email(
                     margin: 24px 0;
                     text-align: center;
                 }}
-                .completion-icon {{
-                    font-size: 48px;
-                    margin-bottom: 16px;
-                }}
                 .download-button {{
                     display: inline-block;
-                    background: #059669;
-                    color: white;
+                    background: #00A3A3;
+                    color: #ffffff !important;
                     text-decoration: none;
                     padding: 14px 32px;
-                    border-radius: 6px;
-                    font-weight: 600;
+                    border-radius: 8px;
+                    font-weight: 700;
                     font-size: 16px;
                     margin: 20px 0;
-                    border: none;
-                    cursor: pointer;
-                }}
-                .download-button:hover {{
-                    background: #047857;
-                }}
-                .signature-section {{
-                    margin: 30px 0;
-                    padding: 20px;
-                    background: #f0fdfa;
-                    border-radius: 8px;
-                    border-left: 4px solid #0d9488;
-                }}
-                .attachment-info {{
-                    background: #e0f2fe;
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin: 20px 0;
-                    font-size: 14px;
-                    color: #0369a1;
-                }}
-                .footer {{
-                    background-color: #000;
-                    color: #fff;
-                    padding: 30px 20px;
-                }}
-                .footer-content {{
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 20px;
-                }}
-                .footer-left {{
-                    flex: 1;
-                    padding-right: 15px;
-                }}
-                .footer-logo {{
-                    height: 40px;
-                    margin-bottom: 10px;
-                }}
-                .footer-tagline {{
-                    font-size: 13px;
-                    color: #bbb;
-                    margin: 0;
-                }}
-                .footer-divider {{
-                    width: 1px;
-                    background-color: #333;
-                    margin: 0 20px;
-                }}
-                .footer-right {{
-                    flex: 1;
-                    padding-left: 15px;
-                }}
-                .footer-links a {{
-                    display: block;
-                    color: #fff;
-                    text-decoration: none;
-                    margin-bottom: 8px;
-                    font-size: 14px;
-                }}
-                .footer-links a:hover {{
-                    text-decoration: underline;
-                }}
-                .copyright {{
-                    text-align: center;
-                    font-size: 11px;
-                    color: #94a3b8;
-                    padding-top: 20px;
-                    border-top: 1px solid #333;
-                    margin-top: 20px;
                 }}
                 @media (max-width: 480px) {{
                     .content-section {{
                         padding: 20px;
                     }}
-                    .footer-content {{
-                        flex-direction: column;
-                    }}
-                    .footer-divider {{
-                        width: 100%;
-                        height: 1px;
-                        margin: 20px 0;
-                    }}
                 }}
             </style>
         </head>
-        <body>
-            <div class="email-wrapper">
-                <!-- Brand Header -->
-                <div class="brand-header">
-                    {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
-                    <div class="platform-name">{platform_name}</div>
-                    <div class="view-browser">view this email in your browser</div>
-                </div>
-                
-                <!-- Banner Image -->
-                <div class="header-banner">
-                    <img 
-                        src="{BACKEND_URL}/static/email/completed-banner.png" 
-                        alt="Document Completed" 
-                        style="width: 100%;"
-                    />
-                </div>
-                
-                <!-- Document Header -->
-                <div class="document-header">
-                    <h1 class="document-title">✅ Document Successfully Signed</h1>
-                    <div class="success-badge">COMPLETED</div>
-                </div>
-                
-                <!-- Main Content -->
-                <div class="content-section">
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Header: Logo -->
+                            <tr>
+                                <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                    <table border="0" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td style="vertical-align: middle;">
+                                                {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                            </td>
+                                            <td style="vertical-align: middle; padding-left: 10px;">
+                                                <span class="brand-name">{platform_name}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            
+                            <!-- Banner Image -->
+                            <tr>
+                                <td style="padding: 0; background: #059669;">
+                                    <img 
+                                        src="cid:banner" 
+                                        alt="Document Completed" 
+                                        style="width: 100%; height: auto; display: block;"
+                                    />
+                                </td>
+                            </tr>
+                            
+                            <!-- Document Header -->
+                            <tr>
+                                <td class="document-header">
+                                    <h1 class="document-title" style="margin: 0; color: #ffffff;">Document Executed Successfully</h1>
+                                    <div class="success-badge">All Signatures Captured</div>
+                                </td>
+                            </tr>
+                            
+                            <!-- Main Content -->
+                            <tr>
+                                <td class="content-section">
                     <h2 class="greeting">Hello {recipient_name},</h2>
                     <p style="margin-bottom: 25px; color: #4b5563;">
                         The document you were involved with has been successfully signed and completed. 
@@ -4174,18 +3747,11 @@ async def send_document_completion_email(
                         </table>
                     </div>
                     
-                    <!-- Completion Section -->
-                    <div class="completion-section">
-                        <div class="completion-icon">✅</div>
-                        <h3 style="margin: 0 0 16px 0; color: #059669;">Document Successfully Signed</h3>
-                        <p style="color: #047857; margin-bottom: 20px;">
-                            All required signatures have been collected. This document is now legally binding.
-                        </p>
-                    </div>
+                    
                     
                     <!-- Download Button -->
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{BACKEND_URL}/signing/recipient/{str(recipient['_id']) if recipient else 'unknown'}/download/signed" class="download-button" style="color: white; background-color: #059669; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                        <a href="{BACKEND_URL}/signing/recipient/{str(recipient['_id']) if recipient else 'unknown'}/download/signed" class="download-button" style="color: white; background-color: #00a3a3; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
                             Download Signed Document
                         </a>
                     </div>
@@ -4207,46 +3773,33 @@ async def send_document_completion_email(
                     <!-- Support Section -->
                     
                 
-                <!-- Footer -->
-                <div class="footer">
-                    <div class="footer-content">
-                        <div class="footer-left">
-                            {f'<img src="{logo_url}" alt="{platform_name}" class="footer-logo">' if logo_url else ''}
-                            <p class="footer-tagline">Secure electronic signatures powered by AI</p>
-                        </div>
-                        
-                        <div class="footer-divider"></div>
-                        
-                        <div class="footer-right">
-                            <div class="footer-links">
-                                <a href="{FRONTEND_URL}">Home</a>
-                                <a href="{FRONTEND_URL}/aboutus">About Us</a>
-                                <a href="{FRONTEND_URL}/contactus">Contact</a>
-                                <a href="{FRONTEND_URL}/pricing">Pricing</a>
-                                <a href="{FRONTEND_URL}/security">Security</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="copyright">
-                        © {current_year} {platform_name}. All rights reserved.<br>
-                        This is an automated message — please do not reply to this email.
-                    </div>
-                </div>
-            </div>
+                            {standard_footer}
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </body>
         </html>
         """
         
-        # Create email message
-        msg = MIMEMultipart()
+        # Create email message - 'related' is required for embedding images (CID)
+        msg = MIMEMultipart('related')
         msg["From"] = EMAIL_FROM
         msg["To"] = recipient_email
         msg["Subject"] = subject
         
         # Attach HTML body
-        msg.attach(MIMEText(html_content, "html"))
+        msg_alternative = MIMEMultipart('alternative')
+        msg.attach(msg_alternative)
+        msg_alternative.attach(MIMEText(html_content, "html"))
         
+        # Attach Banner Image as CID
+        if images.get("banner"):
+            msg_image = MIMEImage(images["banner"], _subtype="png")
+            msg_image.add_header('Content-ID', '<banner>')
+            msg_image.add_header('Content-Disposition', 'inline', filename="banner.png")
+            msg.attach(msg_image)
+
         # Attach PDF document
         pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
         pdf_attachment.add_header(
@@ -4256,7 +3809,7 @@ async def send_document_completion_email(
         )
         msg.attach(pdf_attachment)
         
-        # ✅ ATTACH FULL ZIP PACKAGE
+        # ATTACH FULL ZIP PACKAGE
         try:
             package_data = await generate_document_package(
                 document=document,
@@ -4286,7 +3839,7 @@ async def send_document_completion_email(
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
         
-        print(f"✅ Sent completed document to {recipient_email}")
+        print(f"Sent completed document to {recipient_email}")
         return True
         
     except Exception as e:
@@ -4390,7 +3943,7 @@ async def send_completed_document_package(document_id: str):
                     
                     if success:
                         success_count += 1
-                        print(f"✅ Sent document package to {recipient_email}")
+                        print(f"Sent document package to {recipient_email}")
                         
                         # Log the email send
                         current_recipient = target["recipient_obj"]
@@ -4517,7 +4070,7 @@ async def generate_document_package(
                         
                     signed_filename = f"completed_{bare_filename}.pdf"
                     zip_file.writestr(signed_filename, signed_pdf_bytes)
-                    print(f"✅ Added signed document (PDF): {signed_filename}")
+                    print(f"Added signed document (PDF): {signed_filename}")
                 else:
                     print(f"❌ Could not load base PDF for package")
             except Exception as e:
@@ -4547,7 +4100,7 @@ async def generate_document_package(
                             
                         original_filename = f"original_{bare_filename}.pdf"
                         zip_file.writestr(original_filename, original_pdf_bytes)
-                        print(f"✅ Added original document (PDF): {original_filename}")
+                        print(f"Added original document (PDF): {original_filename}")
                 except Exception as e:
                     print(f"❌ Error adding original document to package: {e}")
             
@@ -4557,7 +4110,7 @@ async def generate_document_package(
                 summary_pdf_bytes = SafeSignSummaryEngine.create_document_summary_pdf(summary_data)
                 summary_filename = f"summary_{base_name}.pdf"
                 zip_file.writestr(summary_filename, summary_pdf_bytes)
-                print(f"✅ Added document summary: {summary_filename}")
+                print(f"Added document summary: {summary_filename}")
             except Exception as e:
                 print(f"❌ Error generating summary: {e}")
             
@@ -4567,7 +4120,7 @@ async def generate_document_package(
                 certificate_pdf_bytes = SafeSignCertificateEngine.create_certificate_pdf(certificate_data)
                 certificate_filename = f"certificate_{base_name}.pdf"
                 zip_file.writestr(certificate_filename, certificate_pdf_bytes)
-                print(f"✅ Added certificate: {certificate_filename}")
+                print(f"Added certificate: {certificate_filename}")
             except Exception as e:
                 print(f"❌ Error generating certificate: {e}")
             
@@ -4603,7 +4156,7 @@ async def generate_document_package(
                                 zip_attr_name = f"attachments/{rec_name}_{orig_filename}"
                                 
                                 zip_file.writestr(zip_attr_name, file_bytes)
-                                print(f"✅ Added attachment: {zip_attr_name}")
+                                print(f"Added attachment: {zip_attr_name}")
                             except Exception as e:
                                 print(f"❌ Error adding attachment {attr.get('_id')}: {e}")
             except Exception as e:
@@ -4999,7 +4552,9 @@ def send_package_email(
         else:
             completed_date = str(completed_at)[:10]
         
-        subject = subject_override or f"✅ Document Package: {document_name} - All Signed Documents"
+        subject = subject_override or f"Document Package: {document_name} - All Signed Documents"
+        
+        standard_footer = get_standard_email_footer()
         
         html_content = f"""
         <!DOCTYPE html>
@@ -5009,242 +4564,80 @@ def send_package_email(
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Document Package: {document_name}</title>
             <style>
-                body {{
-                    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #374151;
-                    margin: 0;
-                    padding: 0;
-                    background-color: #f9fafb;
-                }}
-                .email-wrapper {{
-                    max-width: 600px;
-                    margin: 0 auto;
-                    background: white;
-                }}
-                .brand-header {{
-                    text-align: center;
-                    padding: 30px 20px 20px 20px;
-                    background: #ffffff;
-                }}
-                .brand-logo {{
-                    height: 70px;
-                }}
-                .platform-name {{
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #0d9488;
-                    margin: 0 0 6px 0;
-                }}
-                .document-header {{
-                    background: #0d9488;
-                    color: white;
-                    padding: 24px 30px;
-                    text-align: center;
-                }}
-                .document-title {{
-                    font-size: 20px;
-                    font-weight: 500;
-                    margin: 0 0 12px 0;
-                }}
-                .content-section {{
-                    padding: 30px;
-                }}
-                .info-grid {{
-                    background: #f8fafc;
-                    border-radius: 8px;
-                    padding: 20px;
-                    margin: 20px 0;
-                }}
-                .info-table {{
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 14px;
-                }}
-                .info-table td {{
-                    padding: 10px 0;
-                    border-bottom: 1px solid #e5e7eb;
-                }}
-                .info-label {{
-                    color: #6b7280;
-                    width: 160px;
-                    vertical-align: top;
-                }}
-                .info-value {{
-                    color: #374151;
-                    font-weight: 500;
-                }}
-                .package-section {{
-                    background: #ecfdf5;
-                    border: 2px solid #a7f3d0;
-                    border-radius: 12px;
-                    padding: 24px;
-                    margin: 24px 0;
-                    text-align: center;
-                }}
-                .package-icon {{
-                    font-size: 48px;
-                    margin-bottom: 16px;
-                }}
-                .package-contents {{
-                    background: #f0fdfa;
-                    border-radius: 8px;
-                    padding: 20px;
-                    margin: 20px 0;
-                    text-align: left;
-                }}
-                .package-contents ul {{
-                    list-style-type: none;
-                    padding-left: 0;
-                }}
-                .package-contents li {{
-                    padding: 8px 0;
-                    border-bottom: 1px solid #e5e7eb;
-                }}
-                .package-contents li:last-child {{
-                    border-bottom: none;
-                }}
-                .file-icon {{
-                    font-size: 18px;
-                    margin-right: 10px;
-                }}
-                .footer {{
-                    background-color: #000;
-                    color: #fff;
-                    padding: 30px 20px;
-                }}
-                .footer-content {{
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 20px;
-                }}
-                .footer-left {{
-                    flex: 1;
-                    padding-right: 15px;
-                }}
-                .footer-logo {{
-                    height: 40px;
-                    margin-bottom: 10px;
-                }}
-                .footer-tagline {{
-                    font-size: 13px;
-                    color: #bbb;
-                    margin: 0;
-                }}
-                .footer-divider {{
-                    width: 1px;
-                    background-color: #333;
-                    margin: 0 20px;
-                }}
-                .footer-right {{
-                    flex: 1;
-                    padding-left: 15px;
-                }}
-                .footer-links a {{
-                    display: block;
-                    color: #fff;
-                    text-decoration: none;
-                    margin-bottom: 8px;
-                    font-size: 14px;
-                }}
-                .copyright {{
-                    text-align: center;
-                    font-size: 11px;
-                    color: #94a3b8;
-                    padding-top: 20px;
-                    border-top: 1px solid #333;
-                    margin-top: 20px;
-                }}
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+                .document-header {{ background: #00A3A3; color: white; padding: 30px; text-align: center; }}
+                .content {{ padding: 30px; background: #ffffff; }}
+                .info-grid {{ background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0; }}
+                .info-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+                .info-table td {{ padding: 10px 0; border-bottom: 1px solid #e5e7eb; }}
+                .info-label {{ color: #6b7280; width: 150px; vertical-align: top; font-weight: 600; }}
+                .info-value {{ color: #374151; }}
+                .package-box {{ background: #ecfdf5; border: 2px solid #a7f3d0; border-radius: 12px; padding: 25px; margin: 25px 0; }}
+                .package-item {{ display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #d1fae5; }}
             </style>
         </head>
-        <body>
-            <div class="email-wrapper">
-                <div class="brand-header">
-                    {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
-                    <div class="platform-name">{platform_name}</div>
-                </div>
-                
-                <div class="document-header">
-                    <h1 class="document-title">✅ Document Package Ready</h1>
-                </div>
-                
-                <div class="content-section">
-                    <h2>Hello {recipient_name},</h2>
-                    <p>The document you were involved with has been successfully signed and completed.</p>
-                    
-                    <div class="info-grid">
-                        <table class="info-table">
+        <body style="margin: 0; padding: 0; background-color: #ffffff;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+                <tr>
+                    <td align="center">
+                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                            <!-- Header -->
                             <tr>
-                                <td class="info-label"><strong>Document</strong></td>
-                                <td class="info-value">{document_name}</td>
+                                <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                    <span class="brand-name">SafeSign</span>
+                                </td>
                             </tr>
-                            {f'<tr><td class="info-label"><strong>Envelope ID</strong></td><td class="info-value">{envelope_id}</td></tr>' if envelope_id else ''}
+                            
+                            <!-- Document Header -->
                             <tr>
-                                <td class="info-label"><strong>Completed On</strong></td>
-                                <td class="info-value">{completed_date}</td>
+                                <td class="document-header">
+                                    <h1 style="margin: 0; color: #ffffff; font-size: 22px;">Document Package Ready</h1>
+                                    <p style="margin: 8px 0 0 0; opacity: 0.9;">All parties have signed successfully</p>
+                                </td>
                             </tr>
+                            
+                            <!-- Main Content -->
                             <tr>
-                                <td class="info-label"><strong>Sender</strong></td>
-                                <td class="info-value">{sender_email}</td>
-                            </tr>
-                        </table>
-                    </div>
+                                <td class="content">
+                                    <h2 style="margin-top: 0; color: #111827;">Hello {recipient_name},</h2>
+                                    <p>The document processing is complete. Your fully signed package is attached.</p>
+                                    
+                                    <div class="info-grid">
+                                        <table class="info-table">
+                                            <tr>
+                                                <td class="info-label">Document</td>
+                                                <td class="info-value">{document_name}</td>
+                                            </tr>
+                                            {f'<tr><td class="info-label">Envelope ID</td><td class="info-value">{envelope_id}</td></tr>' if envelope_id else ''}
+                                            <tr>
+                                                <td class="info-label">Completed On</td>
+                                                <td class="info-value">{completed_date}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
 
-                    {summary_html if summary_html else ""}
-                    
-                    <div class="package-section">
-                        <div class="package-icon">📦</div>
-                        <h3 style="margin: 0 0 10px 0; color: #059669;">Complete Document Package</h3>
-                        <p style="margin-bottom: 20px;">Your ZIP file contains all signed documents and certificates</p>
-                        
-                        <div class="package-contents">
-                            <h4 style="margin-top: 0; color: #0d9488;">Package Contents:</h4>
-                            <ul>
-                                <li><span class="file-icon">📄</span> Signed Document - Final signed version</li>
-                                <li><span class="file-icon">📄</span> Original Document - Unsigned original</li>
-                                <li><span class="file-icon">📊</span> Document Summary - Detailed field summary</li>
-                                <li><span class="file-icon">🏆</span> Certificate of Completion - Official certificate</li>
-                                <li><span class="file-icon">📝</span> README.txt - Package information</li>
-                            </ul>
-                        </div>
-                        
-                        <p style="margin: 20px 0;">
-                            <strong>📎 The ZIP file is attached to this email.</strong>
-                        </p>
-                    </div>
-                    
-                    <div style="margin: 20px 0; padding: 15px; background: #e0f2fe; border-radius: 8px;">
-                        <p style="margin: 0; color: #0369a1;">
-                            <strong>Note:</strong> All documents in this package are legally binding and ready for your records.
-                            The ZIP file contains everything you need for documentation and audit purposes.
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="footer">
-                    <div class="footer-content">
-                        <div class="footer-left">
-                            {f'<img src="{logo_url}" alt="{platform_name}" class="footer-logo">' if logo_url else ''}
-                            <p class="footer-tagline">Secure electronic signatures powered by AI</p>
-                        </div>
-                        
-                        <div class="footer-divider"></div>
-                        
-                        <div class="footer-right">
-                            <div class="footer-links">
-                                <a href="{FRONTEND_URL}">Home</a>
-                                <a href="{FRONTEND_URL}/aboutus">About Us</a>
-                                <a href="{FRONTEND_URL}/contactus">Contact</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="copyright">
-                        © {current_year} {platform_name}. All rights reserved.<br>
-                        This is an automated message — please do not reply.
-                    </div>
-                </div>
-            </div>
+                                    {summary_html if summary_html else ""}
+                                    
+                                    <div class="package-box">
+                                        <h3 style="margin: 0 0 15px 0; color: #064e3b; text-align: center;">📦 Package Contents:</h3>
+                                        <div style="font-size: 14px; color: #065f46;">
+                                            • Signed Document (Final Version)<br>
+                                            • Original Document<br>
+                                            • Document Summary & Audit Trail<br>
+                                            • Official Certificate of Completion
+                                        </div>
+                                    </div>
+                                    
+                                    <p style="font-size: 14px; text-align: center; color: #6b7280;">📌 The ZIP file is attached to this email.</p>
+                                </td>
+                            </tr>
+
+                            {standard_footer}
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </body>
         </html>
         """
@@ -5273,7 +4666,7 @@ def send_package_email(
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
         
-        print(f"✅ Sent document package to {recipient_email}")
+        print(f"Sent document package to {recipient_email}")
         return True
         
     except Exception as e:
@@ -5321,33 +4714,62 @@ async def send_expiration_email_to_owner(document: dict):
     doc_name = document.get("filename", "Document")
     envelope_id = document.get("envelope_id", "N/A")
     
+    current_year = datetime.utcnow().year
+    standard_footer = get_standard_email_footer()
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{ font-family: 'Inter', 'Arial', sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; }}
-            .header {{ background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-            .content {{ padding: 30px; border: 1px solid #e1e4e8; border-top: none; border-radius: 0 0 8px 8px; }}
-            .footer {{ padding: 20px; text-align: center; font-size: 0.85em; color: #666; }}
-            .tagline {{ font-size: 0.8em; opacity: 0.8; margin-top: 5px; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #dc2626; letter-spacing: -0.5px; }}
+            .alert-header {{ background: #dc2626; color: white; padding: 30px; text-align: center; }}
+            .content {{ padding: 30px; background: #ffffff; }}
+            .info-card {{ background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
         </style>
     </head>
-    <body>
-        <div class="header">
-            <h1>Document Expired</h1>
-            <div class="tagline">SafeSign Security Alert</div>
-        </div>
-        <div class="content">
-            <p>Dear Owner,</p>
-            <p>Your document "<strong>{doc_name}</strong>" (Envelope: {envelope_id}) has expired before all recipients could sign.</p>
-            <p>Status has been updated to <strong>Expired</strong>, and recipients will no longer be able to sign this document.</p>
-            <p>If you wish to continue, you will need to re-send or create a new document.</p>
-        </div>
-        <div class="footer">
-            &copy; {datetime.utcnow().year} SafeSign - All Rights Reserved
-        </div>
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                <span class="brand-name">SafeSign</span>
+                            </td>
+                        </tr>
+                        
+                        <!-- Alert Header -->
+                        <tr>
+                            <td class="alert-header">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">⚠️ Document Expired</h1>
+                            </td>
+                        </tr>
+                        
+                        <!-- Main Content -->
+                        <tr>
+                            <td class="content">
+                                <h2 style="margin-top: 0; color: #111827;">Document Expiry Alert</h2>
+                                <p>Your document "<strong>{doc_name}</strong>" has expired before all recipients could sign.</p>
+                                
+                                <div class="info-card">
+                                    <p style="margin: 0; font-size: 14px;"><strong>Envelope ID:</strong> {envelope_id}</p>
+                                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #991b1b;">This document is now inactive and cannot be signed.</p>
+                                </div>
+                                
+                                <p>If you still require these signatures, you will need to re-send the document or create a new request.</p>
+                            </td>
+                        </tr>
+
+                        {standard_footer}
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """
@@ -5378,32 +4800,61 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
     doc_name = document.get("filename", "Document")
     owner_name = document.get("owner_name") or document.get("owner_email", "The sender")
     
+    current_year = datetime.utcnow().year
+    standard_footer = get_standard_email_footer()
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{ font-family: 'Inter', 'Arial', sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; }}
-            .header {{ background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-            .content {{ padding: 30px; border: 1px solid #e1e4e8; border-top: none; border-radius: 0 0 8px 8px; }}
-            .footer {{ padding: 20px; text-align: center; font-size: 0.85em; color: #666; }}
-            .tagline {{ font-size: 0.8em; opacity: 0.8; margin-top: 5px; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #dc2626; letter-spacing: -0.5px; }}
+            .alert-header {{ background: #dc2626; color: white; padding: 30px; text-align: center; }}
+            .content {{ padding: 30px; background: #ffffff; }}
+            .info-card {{ background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
         </style>
     </head>
-    <body>
-        <div class="header">
-            <h1>Signature Request Expired</h1>
-            <div class="tagline">SafeSign Security Alert</div>
-        </div>
-        <div class="content">
-            <p>Hello {recipient.get('name', 'there')},</p>
-            <p>The signature request for "<strong>{doc_name}</strong>" from {owner_name} has expired.</p>
-            <p>You can no longer sign or view this document. If you have questions, please contact the sender directly.</p>
-        </div>
-        <div class="footer">
-            &copy; {datetime.utcnow().year} SafeSign - All Rights Reserved
-        </div>
+    <body style="margin: 0; padding: 0; background-color: #ffffff;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                                <span class="brand-name">SafeSign</span>
+                            </td>
+                        </tr>
+                        
+                        <!-- Alert Header -->
+                        <tr>
+                            <td class="alert-header">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">🕒 Request Expired</h1>
+                            </td>
+                        </tr>
+                        
+                        <!-- Main Content -->
+                        <tr>
+                            <td class="content">
+                                <h2 style="margin-top: 0; color: #111827;">Hello {recipient.get('name', 'there')},</h2>
+                                <p>The signature request for "<strong>{doc_name}</strong>" from {owner_name} has expired.</p>
+                                
+                                <div class="info-card">
+                                    <p style="margin: 0; font-size: 14px; color: #991b1b;">You can no longer sign or view this document.</p>
+                                </div>
+                                
+                                <p>If you have questions regarding this request, please contact the sender directly.</p>
+                            </td>
+                        </tr>
+
+                        {standard_footer}
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """

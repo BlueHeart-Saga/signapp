@@ -93,7 +93,7 @@ export default function AIDocumentEditor() {
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
 
-          // ✅ Insert RAW HTML safely
+          // Insert RAW HTML safely
           editor.commands.insertContent(chunk);
         }
       }

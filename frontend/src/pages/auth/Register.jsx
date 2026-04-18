@@ -36,28 +36,28 @@
 //     setErrorMsg("");
 //   };
 
-//   // ✅ Validate form
+//   // Validate form
 //   const validateForm = () => {
 //     if (formData.password.length < 6) {
 //       setErrorMsg("Password must be at least 6 characters long");
 //       return false;
 //     }
-    
+
 //     if (formData.password !== formData.confirmPassword) {
 //       setErrorMsg("Passwords do not match");
 //       return false;
 //     }
-    
+
 //     if (formData.role === "user" && !formData.organization_name.trim()) {
 //       setErrorMsg("Organization name is required for organization users");
 //       return false;
 //     }
-    
+
 //     if (formData.role === "recipient" && !formData.full_name.trim()) {
 //       setErrorMsg("Full name is required for recipients");
 //       return false;
 //     }
-    
+
 //     return true;
 //   };
 
@@ -85,7 +85,7 @@
 //       } else if (formData.role === "user") {
 //         payload.organization_name = formData.organization_name.trim();
 //       }
-      
+
 //       // Add full name for all roles except admin (optional)
 //       if (formData.full_name.trim() && formData.role !== "admin") {
 //         payload.full_name = formData.full_name.trim();
@@ -93,10 +93,10 @@
 
 //       const res = await api.post("/auth/register", payload);
 
-//       alert("✅ Registration successful!");
+//       alert("Registration successful!");
 //       const role = res?.data?.user?.role || formData.role;
 
-//       // ✅ Redirect by role
+//       // Redirect by role
 //       if (role === "admin") navigate("/admin/dashboard");
 //       else if (role === "user") navigate("/user/dashboard");
 //       else if (role === "recipient") navigate("/recipient/dashboard");
@@ -498,7 +498,7 @@ import {
 import Explore from "@mui/icons-material/Explore";
 import People from "@mui/icons-material/People";
 import Upgrade from "@mui/icons-material/Upgrade";
-import { 
+import {
   FaCrown,
 } from 'react-icons/fa';
 import LockOutlined from "@mui/icons-material/LockOutlined";
@@ -521,7 +521,7 @@ const Register = ({ onRegister }) => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [brandName, setBrandName] = useState("SafeSign");
   const [logoUrl, setLogoUrl] = useState(null);
-const { setUser, setToken } = useAuth();
+  const { setUser, setToken } = useAuth();
 
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [currentRole, setCurrentRole] = useState("user");
@@ -572,23 +572,23 @@ const { setUser, setToken } = useAuth();
     let interval;
     if (isAutoPlaying) {
       interval = setInterval(() => {
-        setCurrentImageIndex((prevIndex) => 
+        setCurrentImageIndex((prevIndex) =>
           prevIndex === images.length - 1 ? 0 : prevIndex + 1
         );
       }, 5000); // Change image every 5 seconds
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [isAutoPlaying, images.length]);
 
   useEffect(() => {
-  setPageTitle(
-    "Register",
-    "Create a SafeSign account and start signing and managing documents online today."
-  );
-}, []);  
+    setPageTitle(
+      "Register",
+      "Create a SafeSign account and start signing and managing documents online today."
+    );
+  }, []);
 
   // Handle input change
   const handleChange = (e) => {
@@ -602,13 +602,13 @@ const { setUser, setToken } = useAuth();
   const toggleAdminMode = () => {
     const newAdminMode = !isAdminMode;
     setIsAdminMode(newAdminMode);
-    
+
     if (newAdminMode) {
       setCurrentRole("admin");
     } else {
       setCurrentRole("user");
     }
-    
+
     // Reset relevant fields
     setFormData(prev => ({
       ...prev,
@@ -680,140 +680,140 @@ const { setUser, setToken } = useAuth();
   };
 
   // Submit registration
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setErrorMsg("");
-  // setSuccessMsg("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+    // setSuccessMsg("");
 
-  // Basic validation
-  if (!validateEmail(formData.email)) {
-    setErrorMsg("Please enter a valid email address");
-    toast.error("Please enter a valid email address");
-    setLoading(false);
-    return;
-  }
-
-  if (formData.password.length < 6) {
-    setErrorMsg("Password must be at least 6 characters");
-    toast.error("Password must be at least 6 characters");
-    setLoading(false);
-    return;
-  }
-
-  try {
-    // 🔹 1. REGISTER USER
-    const payload = {
-      email: formData.email.trim().toLowerCase(),
-      password: formData.password.trim(),
-      role: isAdminMode ? "admin" : currentRole,
-    };
-
-    if (payload.role === "user") {
-      payload.organization_name = formData.organization_name.trim();
+    // Basic validation
+    if (!validateEmail(formData.email)) {
+      setErrorMsg("Please enter a valid email address");
+      toast.error("Please enter a valid email address");
+      setLoading(false);
+      return;
     }
 
-    if (payload.role === "recipient") {
-      payload.full_name = formData.full_name.trim();
+    if (formData.password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters");
+      setLoading(false);
+      return;
     }
 
-    if (payload.role === "admin") {
-      payload.secret_key = formData.secret_key.trim();
-    }
+    try {
+      // 🔹 1. REGISTER USER
+      const payload = {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password.trim(),
+        role: isAdminMode ? "admin" : currentRole,
+      };
 
-    const registerRes = await api.post("/auth/register", payload);
-
-    if (!registerRes || registerRes.status !== 200) {
-      throw new Error("Registration failed");
-    }
-
-    // 🔹 2. AUTO LOGIN
-    const form = new URLSearchParams();
-    form.append("username", payload.email);
-    form.append("password", payload.password);
-
-    const loginRes = await api.post("/auth/login", form.toString(), {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-
-    const token = loginRes.data?.access_token;
-    const user = loginRes.data?.user;
-
-    if (!token || !user) {
-      throw new Error("Auto-login failed");
-    }
-
-    // 🔹 3. SAVE AUTH STATE
-    setToken(token);
-    setUser(user);
-
-
-    setSuccessMsg("✅ Account created successfully! Redirecting...");
-
-
-    // 🔹 4. ROLE-BASED REDIRECT
-    setTimeout(() => {
-      switch (user.role) {
-        case "admin":
-          navigate("/admin/dashboard");
-          break;
-        case "recipient":
-          navigate("/recipient/home");
-          break;
-        default:
-          navigate("/user");
+      if (payload.role === "user") {
+        payload.organization_name = formData.organization_name.trim();
       }
-    }, 700);
 
-  } catch (err) {
-    console.error("Registration Error:", err);
-
-    let message = "Registration failed. Please try again.";
-
-    if (err.response) {
-      const data = err.response.data;
-      
-      // Handle different error response formats from your backend
-      if (typeof data.detail === "string") {
-        message = data.detail;
-      } else if (data.detail && typeof data.detail === "object") {
-        // Handle the structured error response from your backend
-        message = data.detail.message || data.detail.error || message;
-        
-        // Check for specific error codes from your backend
-        if (data.detail.code === "EMAIL_EXISTS") {
-          message = "This email is already registered. Please use a different email or try logging in.";
-        } else if (data.detail.code === "INVALID_ADMIN_SECRET") {
-          message = "The provided admin secret key is invalid.";
-        } else if (data.detail.code === "ADMIN_SECRET_REQUIRED") {
-          message = "Admin secret key is required for admin registration.";
-        } else if (data.detail.code === "FULL_NAME_REQUIRED") {
-          message = "Full name is required for recipient accounts.";
-        } else if (data.detail.code === "DB_CONNECTION_ERROR") {
-          message = "Unable to connect to the database. Please try again later.";
-        } else if (data.detail.code === "DB_QUERY_ERROR") {
-          message = "This email address is already registered. Please use a different email or try logging in.";
-        } else if (data.detail.code === "USER_CREATION_FAILED") {
-          message = "Unable to create user account. Please try again.";
-        }
-        
-        // Add field-specific message if available
-        if (data.detail.field) {
-          message = `${data.detail.field}: ${message}`;
-        }
-      } else if (data.message) {
-        message = data.message;
+      if (payload.role === "recipient") {
+        payload.full_name = formData.full_name.trim();
       }
-    } else if (err.request) {
-      message = "Unable to connect to server. Please check your internet connection.";
-    }
 
-    toast.error(message);
-    setErrorMsg(message);
-  } finally {
-    setLoading(false);
-  }
-};
+      if (payload.role === "admin") {
+        payload.secret_key = formData.secret_key.trim();
+      }
+
+      const registerRes = await api.post("/auth/register", payload);
+
+      if (!registerRes || registerRes.status !== 200) {
+        throw new Error("Registration failed");
+      }
+
+      // 🔹 2. AUTO LOGIN
+      const form = new URLSearchParams();
+      form.append("username", payload.email);
+      form.append("password", payload.password);
+
+      const loginRes = await api.post("/auth/login", form.toString(), {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      const token = loginRes.data?.access_token;
+      const user = loginRes.data?.user;
+
+      if (!token || !user) {
+        throw new Error("Auto-login failed");
+      }
+
+      // 🔹 3. SAVE AUTH STATE
+      setToken(token);
+      setUser(user);
+
+
+      setSuccessMsg("Account created successfully! Redirecting...");
+
+
+      // 🔹 4. ROLE-BASED REDIRECT
+      setTimeout(() => {
+        switch (user.role) {
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          case "recipient":
+            navigate("/recipient/home");
+            break;
+          default:
+            navigate("/user");
+        }
+      }, 700);
+
+    } catch (err) {
+      console.error("Registration Error:", err);
+
+      let message = "Registration failed. Please try again.";
+
+      if (err.response) {
+        const data = err.response.data;
+
+        // Handle different error response formats from your backend
+        if (typeof data.detail === "string") {
+          message = data.detail;
+        } else if (data.detail && typeof data.detail === "object") {
+          // Handle the structured error response from your backend
+          message = data.detail.message || data.detail.error || message;
+
+          // Check for specific error codes from your backend
+          if (data.detail.code === "EMAIL_EXISTS") {
+            message = "This email is already registered. Please use a different email or try logging in.";
+          } else if (data.detail.code === "INVALID_ADMIN_SECRET") {
+            message = "The provided admin secret key is invalid.";
+          } else if (data.detail.code === "ADMIN_SECRET_REQUIRED") {
+            message = "Admin secret key is required for admin registration.";
+          } else if (data.detail.code === "FULL_NAME_REQUIRED") {
+            message = "Full name is required for recipient accounts.";
+          } else if (data.detail.code === "DB_CONNECTION_ERROR") {
+            message = "Unable to connect to the database. Please try again later.";
+          } else if (data.detail.code === "DB_QUERY_ERROR") {
+            message = "This email address is already registered. Please use a different email or try logging in.";
+          } else if (data.detail.code === "USER_CREATION_FAILED") {
+            message = "Unable to create user account. Please try again.";
+          }
+
+          // Add field-specific message if available
+          if (data.detail.field) {
+            message = `${data.detail.field}: ${message}`;
+          }
+        } else if (data.message) {
+          message = data.message;
+        }
+      } else if (err.request) {
+        message = "Unable to connect to server. Please check your internet connection.";
+      }
+
+      toast.error(message);
+      setErrorMsg(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   // Google Sign In
@@ -829,7 +829,7 @@ const handleSubmit = async (e) => {
 
   // Carousel navigation
   const nextImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1
     );
     setIsAutoPlaying(false);
@@ -837,7 +837,7 @@ const handleSubmit = async (e) => {
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
     );
     setIsAutoPlaying(false);
@@ -878,7 +878,7 @@ const handleSubmit = async (e) => {
         Your documents and signatures are protected with military-grade encryption, 
         secure infrastructure, and globally recognized compliance standards.
       </p> */}
-      
+
       <div className="security-grid">
         <div className="security-item">
           <div className="security-icon-wrapper">
@@ -889,7 +889,7 @@ const handleSubmit = async (e) => {
             <p>Uptime SLA</p>
           </div>
         </div>
-        
+
         <div className="security-item">
           <div className="security-icon-wrapper">
             <Lock />
@@ -899,7 +899,7 @@ const handleSubmit = async (e) => {
             <p>AES Encryption</p>
           </div>
         </div>
-        
+
         <div className="security-item">
           <div className="security-icon-wrapper">
             <AccessTime />
@@ -910,7 +910,7 @@ const handleSubmit = async (e) => {
           </div>
         </div>
       </div>
-      
+
       {/* <div className="security-buttons">
         <button className="demo-btn">Request a Demo →</button>
         <button className="trial-btn">Start Free Trial</button>
@@ -926,21 +926,21 @@ const handleSubmit = async (e) => {
       <div className="register-hero">
         {/* Image Carousel */}
 
-        
+
 
 
         <div className="hero-overlay">
 
 
-          
-           {/* Floating avatars */}
-  <div className="avatar avatar-left">
-    {/* <img src="/images/avatar1.jpg" alt="User" /> */}
-  </div>
 
-  <div className="avatar avatar-right">
-    {/* <img src="/images/avatar2.jpg" alt="User" /> */}
-  </div>
+          {/* Floating avatars */}
+          <div className="avatar avatar-left">
+            {/* <img src="/images/avatar1.jpg" alt="User" /> */}
+          </div>
+
+          <div className="avatar avatar-right">
+            {/* <img src="/images/avatar2.jpg" alt="User" /> */}
+          </div>
           <div className="hero-content">
             {/* <div className="brand-logo" onClick={goToHome}>
   {logoUrl ? (
@@ -956,7 +956,7 @@ const handleSubmit = async (e) => {
   )}
 </div> */}
 
-{/* <motion.img
+            {/* <motion.img
   key={currentImageIndex}
   src={images[currentImageIndex]}
   alt="Login visual"
@@ -975,41 +975,41 @@ const handleSubmit = async (e) => {
   }}
 /> */}
 
-<div className="insight-visual">
-   {/* Floating avatars */}
- 
+            <div className="insight-visual">
+              {/* Floating avatars */}
 
-  <div className="main-circle">
-    <div className="bg-circle"></div>
 
-    <img
-      src={images[currentImageIndex]}
-      alt="Smart Signing"
-      className="person-image"
-    />
-  </div>
+              <div className="main-circle">
+                <div className="bg-circle"></div>
 
- 
+                <img
+                  src={images[currentImageIndex]}
+                  alt="Smart Signing"
+                  className="person-image"
+                />
+              </div>
 
-  {/* Chat bubble */}
-  {/* <div className="chat-bubble">•••</div> */}
-</div>
 
-<div className="hero-text center">
-  <h1>Smart Signing Insights</h1>
-  <p className="hero-subtitle">
-    Clear visuals that show how your documents move from sent to signed.
-  </p>
-</div>
 
-            
+              {/* Chat bubble */}
+              {/* <div className="chat-bubble">•••</div> */}
+            </div>
+
+            <div className="hero-text center">
+              <h1>Smart Signing Insights</h1>
+              <p className="hero-subtitle">
+                Clear visuals that show how your documents move from sent to signed.
+              </p>
+            </div>
+
+
             {/* <div className="hero-text">
               <h1>Join SafeSign Today</h1>
               <p className="hero-subtitle">
                 Start your journey with secure digital signatures and streamline your document workflow
               </p>
             </div> */}
-            
+
             {/* <SecurityFeatures /> */}
           </div>
         </div>
@@ -1021,35 +1021,35 @@ const handleSubmit = async (e) => {
           <Home />
         </button> */}
         <div className="top-nav">
-  <button className="nav-item active" onClick={goToHome}>
-    <Home fontSize="small" />
-    <span>Home</span>
-  </button>
+          <button className="nav-item active" onClick={goToHome}>
+            <Home fontSize="small" />
+            <span>Home</span>
+          </button>
 
-  <button className="nav-item" onClick={() => navigate("/aboutus")}>
-    <Explore fontSize="small" />
-    <span>Explore</span>
-  </button>
+          <button className="nav-item" onClick={() => navigate("/aboutus")}>
+            <Explore fontSize="small" />
+            <span>Explore</span>
+          </button>
 
-  <button className="nav-item" onClick={() => navigate("/contactus")}>
-    <People fontSize="small" />
-    <span>Let’s Talk</span>
-  </button>
+          <button className="nav-item" onClick={() => navigate("/contactus")}>
+            <People fontSize="small" />
+            <span>Let’s Talk</span>
+          </button>
 
-  <button className="nav-item upgrade" onClick={() => navigate("/pricing")}>
-    <FaCrown fontSize="small" />
-    <span>Upgrade</span>
-  </button>
-</div>
+          <button className="nav-item upgrade" onClick={() => navigate("/pricing")}>
+            <FaCrown fontSize="small" />
+            <span>Upgrade</span>
+          </button>
+        </div>
 
         <div className="register-wrapper">
-          <motion.div 
+          <motion.div
             className="register-card"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
-            <div  style={{ textAlign: "center", marginBottom: "20px" }}>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
 
               <div className="brand-logo" onClick={goToHome}>
                 {logoUrl ? (
@@ -1064,19 +1064,19 @@ const handleSubmit = async (e) => {
                   </div>
                 )}
               </div>
-  <h2
-    style={{
-      fontSize: "20px",
-      fontWeight: "600",
-      color: "#0d9488",
-      letterSpacing: "0.3px",
-      marginBottom: "6px"
-    }}
-  >
-    Activate Your Workspace
-  </h2>
+              <h2
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "600",
+                  color: "#0d9488",
+                  letterSpacing: "0.3px",
+                  marginBottom: "6px"
+                }}
+              >
+                Activate Your Workspace
+              </h2>
 
-  {/* <p
+              {/* <p
     style={{
       fontSize: "13px",
       color: "#6b7280",
@@ -1085,7 +1085,7 @@ const handleSubmit = async (e) => {
   >
     Start signing documents securely in seconds
   </p> */}
-</div>
+            </div>
 
 
             <button className="google-btn" onClick={handleGoogleSignIn}>
@@ -1150,14 +1150,14 @@ const handleSubmit = async (e) => {
               {/* Email */}
               <div className="form-group">
                 <label>Email <span className="required">*</span></label>
-                <input 
-                  type="email" 
-                  className="form-input" 
+                <input
+                  type="email"
+                  className="form-input"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="you@company.com" 
-                  required 
+                  placeholder="you@company.com"
+                  required
                 />
               </div>
 
@@ -1165,25 +1165,25 @@ const handleSubmit = async (e) => {
               <div className="form-group">
                 <label>Password <span className="required">*</span></label>
                 <div className="password-wrapper">
-                  <input 
+                  <input
                     type={showPassword ? "text" : "password"}
-                    className="form-input" 
+                    className="form-input"
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter Password (min. 6 characters)" 
-                    minLength="6" 
-                    required 
+                    placeholder="Enter Password (min. 6 characters)"
+                    minLength="6"
+                    required
                   />
-                  <button 
-                    type="button" 
-                    className="toggle-password" 
+                  <button
+                    type="button"
+                    className="toggle-password"
                     onClick={togglePasswordVisibility}
                   >
                     {showPassword ? <LockOpenOutlined /> : <LockOutlined />}
                   </button>
                 </div>
-                
+
                 {/* Password Strength Indicator */}
                 {formData.password && (
                   <div className="password-strength">
@@ -1239,8 +1239,8 @@ const handleSubmit = async (e) => {
               )}
 
               {/* Submit Button */}
-              <button 
-                className="submit-btn" 
+              <button
+                className="submit-btn"
                 type="submit"
                 disabled={loading}
               >

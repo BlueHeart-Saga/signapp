@@ -259,7 +259,7 @@ const SpamComplaintsPage = () => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.size <= 5 * 1024 * 1024) { // 5MB limit
-      setFormData({...formData, evidence: file});
+      setFormData({ ...formData, evidence: file });
     } else {
       alert('File size must be less than 5MB');
     }
@@ -288,10 +288,10 @@ const SpamComplaintsPage = () => {
             <p className="safe-hero-subtitle">
               Help us maintain a secure platform by reporting suspicious emails and activities
             </p>
-            
+
             <div className="safe-stats-grid">
               <div className="safe-stat-item">
-                <div className="safe-stat-icon" style={{background: '#fef3c7'}}>
+                <div className="safe-stat-icon" style={{ background: '#fef3c7' }}>
                   <Clock size={20} color="#d97706" />
                 </div>
                 <div className="safe-stat-content">
@@ -300,7 +300,7 @@ const SpamComplaintsPage = () => {
                 </div>
               </div>
               <div className="safe-stat-item">
-                <div className="safe-stat-icon" style={{background: '#dbeafe'}}>
+                <div className="safe-stat-icon" style={{ background: '#dbeafe' }}>
                   <CheckCircle size={20} color="#1d4ed8" />
                 </div>
                 <div className="safe-stat-content">
@@ -309,7 +309,7 @@ const SpamComplaintsPage = () => {
                 </div>
               </div>
               <div className="safe-stat-item">
-                <div className="safe-stat-icon" style={{background: '#f0fdf4'}}>
+                <div className="safe-stat-icon" style={{ background: '#f0fdf4' }}>
                   <Lock size={20} color="#059669" />
                 </div>
                 <div className="safe-stat-content">
@@ -326,21 +326,21 @@ const SpamComplaintsPage = () => {
       <section className="safe-complaints-tabs">
         <div className="safe-complaints-container">
           <div className="safe-tabs-navigation">
-            <button 
+            <button
               className={`safe-tab ${activeTab === 'report' ? 'safe-tab-active' : ''}`}
               onClick={() => setActiveTab('report')}
             >
               <Flag size={18} />
               Report Spam
             </button>
-            <button 
+            <button
               className={`safe-tab ${activeTab === 'guide' ? 'safe-tab-active' : ''}`}
               onClick={() => setActiveTab('guide')}
             >
               <Eye size={18} />
               Identification Guide
             </button>
-            <button 
+            <button
               className={`safe-tab ${activeTab === 'faq' ? 'safe-tab-active' : ''}`}
               onClick={() => setActiveTab('faq')}
             >
@@ -376,12 +376,12 @@ const SpamComplaintsPage = () => {
                   </h3>
                   <div className="safe-complaint-types">
                     {complaintTypes.map(type => (
-                      <div 
+                      <div
                         key={type.id}
                         className={`safe-complaint-type ${selectedType === type.id ? 'safe-type-selected' : ''}`}
                         onClick={() => {
                           setSelectedType(type.id);
-                          setFormData({...formData, reason: type.title});
+                          setFormData({ ...formData, reason: type.title });
                         }}
                       >
                         <div className="safe-type-icon">
@@ -405,7 +405,7 @@ const SpamComplaintsPage = () => {
                     <span className="safe-step-number">2</span>
                     Provide Details
                   </h3>
-                  
+
                   <div className="safe-form-grid">
                     <div className="safe-form-group">
                       <label htmlFor="reporterName">
@@ -416,7 +416,7 @@ const SpamComplaintsPage = () => {
                         type="text"
                         id="reporterName"
                         value={formData.reporterName}
-                        onChange={(e) => setFormData({...formData, reporterName: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, reporterName: e.target.value })}
                         placeholder="Enter your full name"
                         required
                       />
@@ -431,7 +431,7 @@ const SpamComplaintsPage = () => {
                         type="email"
                         id="reporterEmail"
                         value={formData.reporterEmail}
-                        onChange={(e) => setFormData({...formData, reporterEmail: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, reporterEmail: e.target.value })}
                         placeholder="Enter your email address"
                         required
                       />
@@ -446,7 +446,7 @@ const SpamComplaintsPage = () => {
                         type="email"
                         id="spamEmail"
                         value={formData.spamEmail}
-                        onChange={(e) => setFormData({...formData, spamEmail: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, spamEmail: e.target.value })}
                         placeholder="Email that received spam"
                         required
                       />
@@ -461,7 +461,7 @@ const SpamComplaintsPage = () => {
                         type="email"
                         id="senderEmail"
                         value={formData.senderEmail}
-                        onChange={(e) => setFormData({...formData, senderEmail: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, senderEmail: e.target.value })}
                         placeholder="Spam sender's email"
                       />
                     </div>
@@ -475,7 +475,7 @@ const SpamComplaintsPage = () => {
                         type="text"
                         id="documentName"
                         value={formData.documentName}
-                        onChange={(e) => setFormData({...formData, documentName: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, documentName: e.target.value })}
                         placeholder="Name of document in email"
                       />
                     </div>
@@ -489,7 +489,7 @@ const SpamComplaintsPage = () => {
                         type="date"
                         id="receivedDate"
                         value={formData.receivedDate}
-                        onChange={(e) => setFormData({...formData, receivedDate: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
                         required
                       />
                     </div>
@@ -503,7 +503,7 @@ const SpamComplaintsPage = () => {
                     <textarea
                       id="description"
                       value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Describe the spam email, why you believe it's spam, and any other relevant details..."
                       rows={4}
                       required
@@ -517,7 +517,7 @@ const SpamComplaintsPage = () => {
                     <span className="safe-step-number">3</span>
                     Upload Evidence
                   </h3>
-                  
+
                   <div className="safe-evidence-upload">
                     <label className="safe-upload-area">
                       <Upload size={24} />
@@ -532,14 +532,14 @@ const SpamComplaintsPage = () => {
                         hidden
                       />
                     </label>
-                    
+
                     {formData.evidence && (
                       <div className="safe-file-preview">
                         <FileText size={20} />
                         <span>{formData.evidence.name}</span>
-                        <button 
+                        <button
                           type="button"
-                          onClick={() => setFormData({...formData, evidence: null})}
+                          onClick={() => setFormData({ ...formData, evidence: null })}
                           className="safe-remove-file"
                         >
                           <X size={16} />
@@ -558,7 +558,7 @@ const SpamComplaintsPage = () => {
                             name="urgency"
                             value={level}
                             checked={formData.urgency === level}
-                            onChange={(e) => setFormData({...formData, urgency: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
                           />
                           <span className={`safe-urgency-badge safe-urgency-${level}`}>
                             {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -591,7 +591,7 @@ const SpamComplaintsPage = () => {
                   <Eye size={24} />
                   How to Identify Spam vs Legitimate Emails
                 </h2>
-                
+
                 <div className="safe-search-section">
                   <Search size={18} />
                   <input
@@ -607,8 +607,8 @@ const SpamComplaintsPage = () => {
               {/* Guide Sections */}
               <div className="safe-sections-container">
                 {filteredSections.map((section, index) => (
-                  <section 
-                    key={section.id} 
+                  <section
+                    key={section.id}
                     id={section.id}
                     className="safe-guide-section-item"
                   >
@@ -619,10 +619,10 @@ const SpamComplaintsPage = () => {
                       </h2>
                       <ChevronDown className={`safe-expand-arrow ${expandedSections[section.id] ? 'safe-arrow-expanded' : ''}`} />
                     </div>
-                    
+
                     <div className={`safe-section-content ${expandedSections[section.id] ? 'safe-content-expanded' : ''}`}>
                       <p className="safe-section-text">{section.content}</p>
-                      
+
                       {section.subSections && section.subSections.length > 0 && (
                         <div className="safe-sub-sections">
                           {section.subSections.map((subSection, subIndex) => (
@@ -647,15 +647,15 @@ const SpamComplaintsPage = () => {
                 <div className="safe-checklist-grid">
                   <div className="safe-checklist-item safe-item-good">
                     <CheckCircle size={16} />
-                    <span>✅ Hover over links to verify URL</span>
+                    <span>Hover over links to verify URL</span>
                   </div>
                   <div className="safe-checklist-item safe-item-good">
                     <CheckCircle size={16} />
-                    <span>✅ Check sender email carefully</span>
+                    <span>Check sender email carefully</span>
                   </div>
                   <div className="safe-checklist-item safe-item-good">
                     <CheckCircle size={16} />
-                    <span>✅ Verify document names match</span>
+                    <span>Verify document names match</span>
                   </div>
                   <div className="safe-checklist-item safe-item-bad">
                     <AlertTriangle size={16} />
@@ -678,33 +678,33 @@ const SpamComplaintsPage = () => {
           {activeTab === 'faq' && (
             <div className="safe-faq-section">
               <h2 className="safe-faq-title">Frequently Asked Questions</h2>
-              
+
               <div className="safe-faq-grid">
                 <div className="safe-faq-item">
                   <h3>How long does investigation take?</h3>
                   <p>Most investigations are completed within 24-48 hours. Complex cases may take up to 5 business days. You will receive email updates throughout the process.</p>
                 </div>
-                
+
                 <div className="safe-faq-item">
                   <h3>Will the sender know I reported them?</h3>
                   <p>No. All reports are confidential. We investigate discreetly and only contact senders when necessary for investigation or legal compliance.</p>
                 </div>
-                
+
                 <div className="safe-faq-item">
                   <h3>What if I accidentally marked legitimate email as spam?</h3>
                   <p>Contact our support team immediately. We can whitelist legitimate senders and ensure future emails reach your inbox.</p>
                 </div>
-                
+
                 <div className="safe-faq-item">
                   <h3>Do you work with law enforcement?</h3>
                   <p>Yes, for criminal activities like phishing or identity theft. We cooperate with law enforcement through proper legal channels and provide evidence when required by court order.</p>
                 </div>
-                
+
                 <div className="safe-faq-item">
                   <h3>How can I prevent future spam?</h3>
                   <p>Use email filters, never share your email publicly, use unique passwords, and enable two-factor authentication on your SafeSign account.</p>
                 </div>
-                
+
                 <div className="safe-faq-item">
                   <h3>What happens to confirmed spammers?</h3>
                   <p>Accounts are immediately suspended, IPs are blocked, domains are blacklisted, and in severe cases, legal action is pursued.</p>

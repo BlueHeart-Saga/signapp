@@ -7,7 +7,7 @@ import {
   TextField, Chip, Alert, Snackbar, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Tooltip, Card, CardContent, Grid, Avatar,
-  FormControlLabel, Checkbox,  Fab, Toolbar, AppBar,
+  FormControlLabel, Checkbox, Fab, Toolbar, AppBar,
   List, ListItem, ListItemText, ListItemIcon,
   Slider, CircularProgress, MenuItem, Badge
 } from '@mui/material';
@@ -53,13 +53,13 @@ import { GridView, Close, Fullscreen } from '@mui/icons-material';
 import Switch from "@mui/material/Switch";
 import CloseIcon from "@mui/icons-material/Close";
 
-import LocalOfferIcon from '@mui/icons-material/LocalOffer'; 
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { Document, Page } from 'react-pdf';
 import { Stage, Layer, Rect, Text, Circle, Group, Line, Transformer } from 'react-konva';
 import { useNavigate, useParams } from 'react-router-dom';
 // In the imports section, add:
 import { ArrowForward } from '@mui/icons-material';
-import {  FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
 import { pdfjs } from 'react-pdf';
 import { DndProvider } from 'react-dnd';
@@ -68,7 +68,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { HistoryService } from '../services/historyService';
 import { AutosaveService } from '../services/autosaveService';
 
-  import { setPageTitle } from "../utils/pageTitle";
+import { setPageTitle } from "../utils/pageTitle";
 
 pdfjs.GlobalWorkerOptions.workerSrc =
   `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -92,36 +92,36 @@ const apiRequest = async (url, options = {}) => {
     'Content-Type': 'application/json',
     ...options.headers,
   };
-  
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers,
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || 'API request failed');
   }
-  
+
   return response.json();
 };
 
 // API functions matching backend
 // API functions matching backend - FIXED
 const documentAPI = {
-  getDocument: (documentId) => 
+  getDocument: (documentId) =>
     apiRequest(`/documents/${documentId}`),
-  
-  getRecipients: (documentId) => 
+
+  getRecipients: (documentId) =>
     apiRequest(`/recipients/${documentId}`),
-  
-  getFields: (documentId) => 
+
+  getFields: (documentId) =>
     apiRequest(`/documents/${documentId}/fields`),
-  
+
   saveFields: (documentId, fields) =>
     // fetch(`${API_BASE_URL}/documents/${documentId}/fields`, {
     //   method: 'POST',
@@ -138,13 +138,13 @@ const documentAPI = {
     // }),
 
     apiRequest(`/documents/${documentId}/fields`),
-  
-  sendInvites: (documentId, data) => 
+
+  sendInvites: (documentId, data) =>
     apiRequest(`/recipients/${documentId}/send-invites`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   getBuilderPdfUrl: (id) =>
     `${API_BASE_URL}/documents/${id}/builder-pdf?token=${localStorage.getItem('token')}`,
 
@@ -173,7 +173,7 @@ const UNIVERSAL_FIELDS = ['date', 'textbox', 'checkbox', 'radio', 'dropdown', 'a
 // Color generation function matching backend
 const generateRecipientColor = (email) => {
   if (!email) return '#808080';
-  
+
   // Simple hash function matching backend logic
   const hash = (str) => {
     let hash = 0;
@@ -183,35 +183,35 @@ const generateRecipientColor = (email) => {
     }
     return Math.abs(hash);
   };
-  
+
   const hashInt = hash(email);
-  
+
   // Generate pastel colors (matching backend's HSL values)
   const hue = hashInt % 360;
   const saturation = 65 + (hashInt % 15); // 65-80%
   const lightness = 85 + (hashInt % 10);  // 85-95%
-  
+
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 };
 
 // Helper function to get recipient color
 const getRecipientColor = (recipient) => {
   if (!recipient) return '#808080'; // Default gray
-  
+
   // If recipient has a direct color property, use it
   if (recipient.color) return recipient.color;
-  
+
   // If recipient has an email, generate from it
   if (recipient.email) return generateRecipientColor(recipient.email);
-  
+
   // If recipient has name but no email, generate from name
   if (recipient.name) return generateRecipientColor(recipient.name);
-  
+
   // If recipient has role, use role-based color
   if (recipient.role && ROLE_BORDER_COLORS[recipient.role]) {
     return ROLE_BORDER_COLORS[recipient.role];
   }
-  
+
   // Ultimate fallback
   return '#808080';
 };
@@ -268,7 +268,7 @@ const getRoleColor = (recipient, roleId) => {
   if (recipient && recipient.color) {
     return recipient.color;
   }
-  
+
   // Fallback colors based on role
   const fallbackColors = {
     signer: '#2196F3',
@@ -278,7 +278,7 @@ const getRoleColor = (recipient, roleId) => {
     in_person_signer: '#9C27B0',
     viewer: '#795548'
   };
-  
+
   return fallbackColors[roleId] || '#0d9488';
 };
 
@@ -424,7 +424,7 @@ const FIELD_TYPES = {
     backendType: 'mail',
     allowedFor: [] // Universal field
   },
-  
+
 };
 
 const PDF_DPI = 72;
@@ -448,17 +448,17 @@ const convertPDFToScreen = (pdfCoord, pdfWidth, canvasWidth) => {
 const validateFieldAssignment = (fieldType, recipientRole) => {
   // Get the rules for this role
   const rules = ROLE_FIELD_RULES[recipientRole];
-  
+
   // If rules is 'ALL', allow any field type
   if (rules === 'ALL') {
     return true;
   }
-  
+
   // If rules is an array, check if field type is in the array
   if (Array.isArray(rules)) {
     return rules.includes(fieldType);
   }
-  
+
   // For viewers or other roles with no rules
   return false;
 };
@@ -469,18 +469,18 @@ const getAvailableFieldTypesForRole = (role) => {
     .filter(([type, config]) => {
       // Viewers get no fields
       if (role === 'viewer') return false;
-      
+
       // Get role rules
       const rules = ROLE_FIELD_RULES[role];
-      
+
       // If rules is 'ALL', include all field types
       if (rules === 'ALL') return true;
-      
+
       // If rules is an array, check if field type is in the array
       if (Array.isArray(rules)) {
         return rules.includes(type);
       }
-      
+
       return false;
     })
     .map(([type, config]) => ({ type, ...config }));
@@ -503,10 +503,10 @@ const normalizeFieldCoordinates = (field, canvasWidth = 794, canvasHeight = 1123
 // Canvas Field Component
 // ============================================
 
-const CanvasField = ({ 
-  field, 
-  isSelected, 
-  onSelect, 
+const CanvasField = ({
+  field,
+  isSelected,
+  onSelect,
   onDragEnd,
   onTransform,
   scale = 1,
@@ -535,19 +535,19 @@ const CanvasField = ({
     // Prevent event bubbling
     e.cancelBubble = true;
     e.evt.preventDefault();
-    
+
     // If we're dragging, don't register as click
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       return;
     }
-    
+
     // Clear any pending timer
     if (clickTimer.current) {
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
     }
-    
+
     // Direct select
     onSelect(field.id);
   };
@@ -565,11 +565,11 @@ const CanvasField = ({
     // If we start moving, set dragging flag
     const currentX = e.target.x();
     const currentY = e.target.y();
-    
+
     const dx = currentX - dragStartPos.current.x;
     const dy = currentY - dragStartPos.current.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
+
     if (distance > 2) { // Small threshold to detect movement
       isDraggingRef.current = true;
     }
@@ -578,18 +578,18 @@ const CanvasField = ({
   const handleDragEnd = (e) => {
     const newX = e.target.x();
     const newY = e.target.y();
-    
+
     // Convert from Konva scale to real pixels
     const realX = newX / scale;
     const realY = newY / scale;
-    
+
     // Constrain to canvas boundaries
     const canvasWidth = 794;  // Match your canvas
     const canvasHeight = 1123; // Match your canvas
-    
+
     const constrainedX = Math.max(0, Math.min(realX, canvasWidth - field.width));
     const constrainedY = Math.max(0, Math.min(realY, canvasHeight - field.height));
-    
+
     onDragEnd(field.id, Math.round(constrainedX), Math.round(constrainedY));
   };
 
@@ -617,7 +617,7 @@ const CanvasField = ({
 
   const fieldType = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
   const borderColor = validationError ? '#FF0000' : (isSelected ? '#FF4081' : fieldType.color);
-  
+
   const assignedRecipient = field.assignedRecipient || field.recipientInfo;
   const recipientRole = assignedRecipient?.role;
   const isValidAssignment = recipientRole ? validateFieldAssignment(field.type, recipientRole) : true;
@@ -626,13 +626,13 @@ const CanvasField = ({
   const isOtherPage = field.page !== currentPage;
   // Calculate if field is on current page
   const isCurrentPage = field.page === currentPage;
-  
+
   // Calculate opacity based on page
   const opacity = showAllFields && !isCurrentPage ? 0.3 : 1;
 
   // Add page offset to Y position when showing all pages
   const adjustedY = field.y * scale + pageOffsetY;
-  
+
   // Add page indicator for fields on other pages
   const pageIndicator = showAllFields && isOtherPage ? (
     <Group x={field.width * scale - 30} y={-25 * scale}>
@@ -658,19 +658,19 @@ const CanvasField = ({
   ) : null;
 
   // Add boundary function to prevent dragging outside canvas
- const dragBoundFunc = useCallback((pos) => {
+  const dragBoundFunc = useCallback((pos) => {
     // Field dimensions
     const fieldWidth = field.width * scale;
     const fieldHeight = field.height * scale;
-    
+
     // Stage dimensions (passed from parent or use fixed values)
     const stageWidth = 794 * scale; // Use your canvas width
     const stageHeight = 1123 * scale; // Use your canvas height
-    
+
     // Constrain to stage boundaries
     const constrainedX = Math.max(0, Math.min(pos.x, stageWidth - fieldWidth));
     const constrainedY = Math.max(0, Math.min(pos.y, stageHeight - fieldHeight));
-    
+
     return {
       x: constrainedX,
       y: constrainedY
@@ -678,60 +678,60 @@ const CanvasField = ({
   }, [field.width, field.height, scale]);
 
   // Update the CanvasField component renderFieldContent function
-const renderFieldContent = () => {
-  // Get the field type configuration
-  const fieldTypeConfig = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
-  
-  // Safely get recipient color
-  const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldTypeConfig.color;
-  const borderColor = validationError ? '#FF0000' : (isSelected ? '#FF4081' : recipientColor || fieldTypeConfig.color);
-  
-  // Determine if field is for a specific recipient or generic
-  const isAssignedToRecipient = Boolean(assignedRecipient);
-  
-  // Helper function to add alpha to hex colors using proper hex alpha values
-  const addAlphaToHex = (hex, alphaHex) => {
-    if (!hex) return '#80808080'; // Return default gray with 50% opacity
-    
-    // Remove # if present
-    hex = hex.replace('#', '');
-    
-    // If hex is 3 characters, expand to 6
-    if (hex.length === 3) {
-      hex = hex.split('').map(char => char + char).join('');
-    }
-    
-    // Ensure hex is 6 characters
-    if (hex.length !== 6) {
-      hex = '808080'; // Default gray
-    }
-    
-    // Return 8-character hex with alpha
-    return `#${hex}${alphaHex}`;
-  };
-  
-  // Helper to get fill color with opacity using hex alpha values
-  const getFillColor = (baseColor, alphaHex, defaultColor) => {
-    if (isAssignedToRecipient && baseColor) {
-      return addAlphaToHex(baseColor, alphaHex);
-    }
-    return defaultColor;
-  };
+  const renderFieldContent = () => {
+    // Get the field type configuration
+    const fieldTypeConfig = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
 
-  switch (field.type) {
-    case 'signature':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '1A', '#F8F8F8')} // 1A = 10% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[4, 4]}
-            cornerRadius={6}
-          />
-          {/* <Text
+    // Safely get recipient color
+    const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldTypeConfig.color;
+    const borderColor = validationError ? '#FF0000' : (isSelected ? '#FF4081' : recipientColor || fieldTypeConfig.color);
+
+    // Determine if field is for a specific recipient or generic
+    const isAssignedToRecipient = Boolean(assignedRecipient);
+
+    // Helper function to add alpha to hex colors using proper hex alpha values
+    const addAlphaToHex = (hex, alphaHex) => {
+      if (!hex) return '#80808080'; // Return default gray with 50% opacity
+
+      // Remove # if present
+      hex = hex.replace('#', '');
+
+      // If hex is 3 characters, expand to 6
+      if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+      }
+
+      // Ensure hex is 6 characters
+      if (hex.length !== 6) {
+        hex = '808080'; // Default gray
+      }
+
+      // Return 8-character hex with alpha
+      return `#${hex}${alphaHex}`;
+    };
+
+    // Helper to get fill color with opacity using hex alpha values
+    const getFillColor = (baseColor, alphaHex, defaultColor) => {
+      if (isAssignedToRecipient && baseColor) {
+        return addAlphaToHex(baseColor, alphaHex);
+      }
+      return defaultColor;
+    };
+
+    switch (field.type) {
+      case 'signature':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '1A', '#F8F8F8')} // 1A = 10% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[4, 4]}
+              cornerRadius={6}
+            />
+            {/* <Text
             x={(field.width * scale) / 2}
             y={(field.height * scale) / 2}
             text={assignedRecipient ? "SIGN" : "✍️"}
@@ -741,7 +741,7 @@ const renderFieldContent = () => {
             fontStyle={assignedRecipient ? "bold" : "normal"}
             fill={isAssignedToRecipient ? recipientColor : '#000000'}
           /> */}
-          {/* <Text
+            {/* <Text
             x={(field.width * scale) / 2}
             y={(field.height * scale) - 15 * scale}
             text={assignedRecipient ? assignedRecipient.name.split(' ')[0] : "Sign here"}
@@ -749,22 +749,22 @@ const renderFieldContent = () => {
             fill={isAssignedToRecipient ? recipientColor : '#666666'}
             align="center"
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'witness_signature':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '26', '#FFF3E0')} // 26 = 15% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[4, 4]}
-            cornerRadius={6}
-          />
-          {/* <Text
+      case 'witness_signature':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '26', '#FFF3E0')} // 26 = 15% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[4, 4]}
+              cornerRadius={6}
+            />
+            {/* <Text
             x={(field.width * scale) / 2}
             y={(field.height * scale) / 2}
             text={isAssignedToRecipient ? "WITNESS" : "WITNESS"}
@@ -784,22 +784,22 @@ const renderFieldContent = () => {
               align="center"
             />
           )} */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'approval':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '1A', '#F3E5F5')} // 1A = 10% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[2, 2]}
-            cornerRadius={3}
-          />
-          {/* <Text
+      case 'approval':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '1A', '#F3E5F5')} // 1A = 10% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[2, 2]}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={(field.width * scale) / 2}
             y={(field.height * scale) / 2}
             text={isAssignedToRecipient ? "APPROVED" : "APPROVED"}
@@ -819,22 +819,22 @@ const renderFieldContent = () => {
               align="center"
             />
           )} */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'initials':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '1A', '#F0F8FF')} // 1A = 10% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[2, 2]}
-            cornerRadius={3}
-          />
-          {/* <Text
+      case 'initials':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '1A', '#F0F8FF')} // 1A = 10% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[2, 2]}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={(field.width * scale) / 2}
             y={(field.height * scale) / 2}
             text={isAssignedToRecipient ? "INI" : "INI"}
@@ -844,7 +844,7 @@ const renderFieldContent = () => {
             fontStyle="bold"
             fill={isAssignedToRecipient ? recipientColor : '#2196F3'}
           /> */}
-          {/* {isAssignedToRecipient && (
+            {/* {isAssignedToRecipient && (
             <Text
               x={(field.width * scale) / 2}
               y={(field.height * scale) - 12 * scale}
@@ -854,21 +854,21 @@ const renderFieldContent = () => {
               align="center"
             />
           )} */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'date':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            cornerRadius={3}
-          />
-          {/* <Text
+      case 'date':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={8 * scale}
             y={(field.height * scale) / 2 - 6 * scale}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}'s Date` : "MM/DD/YYYY"}
@@ -879,21 +879,21 @@ const renderFieldContent = () => {
             align="left"
             verticalAlign="middle"
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'checkbox':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            cornerRadius={4}
-          />
-          {/* <Line
+      case 'checkbox':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              cornerRadius={4}
+            />
+            {/* <Line
             points={[
               8 * scale, field.height * scale / 2,
               12 * scale, field.height * scale - 8 * scale,
@@ -903,7 +903,7 @@ const renderFieldContent = () => {
             strokeWidth={2}
             visible={field.value === true}
           /> */}
-          {/* <Text
+            {/* <Text
             x={field.width * scale + 8 * scale}
             y={field.height * scale / 2}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}: ${field.label || "Checkbox"}` : field.label || "Checkbox"}
@@ -912,28 +912,28 @@ const renderFieldContent = () => {
             verticalAlign="middle"
             fill={isAssignedToRecipient ? recipientColor : '#333333'}
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'radio':
-      return (
-        <Group>
-          <Circle
-            x={field.width * scale / 2}
-            y={field.height * scale / 2}
-            radius={field.width * scale / 2 - 2}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-          />
-          {/* <Circle
+      case 'radio':
+        return (
+          <Group>
+            <Circle
+              x={field.width * scale / 2}
+              y={field.height * scale / 2}
+              radius={field.width * scale / 2 - 2}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+            />
+            {/* <Circle
             x={field.width * scale / 2}
             y={field.height * scale / 2}
             radius={field.width * scale / 4}
             fill={isAssignedToRecipient ? recipientColor : fieldTypeConfig.color}
             visible={field.value === true}
           /> */}
-          {/* <Text
+            {/* <Text
             x={field.width * scale + 8 * scale}
             y={field.height * scale / 2}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}: ${field.label || "Radio"}` : field.label || "Radio"}
@@ -942,21 +942,21 @@ const renderFieldContent = () => {
             verticalAlign="middle"
             fill={isAssignedToRecipient ? recipientColor : '#333333'}
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'dropdown':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            cornerRadius={3}
-          />
-          {/* <Text
+      case 'dropdown':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={8 * scale}
             y={field.height * scale / 2 - 6 * scale}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}: Select...` : field.placeholder || "Select option..."}
@@ -977,40 +977,40 @@ const renderFieldContent = () => {
             strokeWidth={1.5}
             fill={isAssignedToRecipient ? recipientColor : '#666666'}
           /> */}
-        </Group>
-      );
-
-    case 'attachment':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '1A', '#F5F5F5')} // 1A = 10% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[2, 2]}
-            cornerRadius={6}
-          />
-          <Group x={16 * scale} y={8 * scale}>
-            <Rect
-              width={16 * scale}
-              height={20 * scale}
-              fill={getFillColor(recipientColor, '4D', '#E0E0E0')} // 4D = 30% opacity
-              stroke={isAssignedToRecipient ? recipientColor : '#999999'}
-              strokeWidth={1}
-            />
-            <Rect
-              x={4 * scale}
-              y={-4 * scale}
-              width={8 * scale}
-              height={4 * scale}
-              fill={getFillColor(recipientColor, '4D', '#E0E0E0')} // 4D = 30% opacity
-              stroke={isAssignedToRecipient ? recipientColor : '#999999'}
-              strokeWidth={1}
-            />
           </Group>
-          {/* <Text
+        );
+
+      case 'attachment':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '1A', '#F5F5F5')} // 1A = 10% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[2, 2]}
+              cornerRadius={6}
+            />
+            <Group x={16 * scale} y={8 * scale}>
+              <Rect
+                width={16 * scale}
+                height={20 * scale}
+                fill={getFillColor(recipientColor, '4D', '#E0E0E0')} // 4D = 30% opacity
+                stroke={isAssignedToRecipient ? recipientColor : '#999999'}
+                strokeWidth={1}
+              />
+              <Rect
+                x={4 * scale}
+                y={-4 * scale}
+                width={8 * scale}
+                height={4 * scale}
+                fill={getFillColor(recipientColor, '4D', '#E0E0E0')} // 4D = 30% opacity
+                stroke={isAssignedToRecipient ? recipientColor : '#999999'}
+                strokeWidth={1}
+              />
+            </Group>
+            {/* <Text
             x={40 * scale}
             y={field.height * scale / 2}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]} Upload` : "Upload File"}
@@ -1019,22 +1019,22 @@ const renderFieldContent = () => {
             verticalAlign="middle"
             fill={isAssignedToRecipient ? recipientColor : '#666666'}
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'stamp':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '26', 'rgba(255, 235, 238, 0.7)')} // 26 = 15% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            dash={[3, 3]}
-            cornerRadius={8}
-          />
-          {/* <Text
+      case 'stamp':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '26', 'rgba(255, 235, 238, 0.7)')} // 26 = 15% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              dash={[3, 3]}
+              cornerRadius={8}
+            />
+            {/* <Text
             x={field.width * scale / 2}
             y={field.height * scale / 2}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}'s Stamp` : "OFFICIAL STAMP"}
@@ -1044,7 +1044,7 @@ const renderFieldContent = () => {
             fontStyle="bold"
             fill={isAssignedToRecipient ? recipientColor : '#D32F2F'}
           /> */}
-          {/* <Text
+            {/* <Text
             x={field.width * scale / 2}
             y={field.height * scale / 2 + 16 * scale}
             text={isAssignedToRecipient ? "Approved" : "APPROVED"}
@@ -1054,21 +1054,21 @@ const renderFieldContent = () => {
             fontStyle={isAssignedToRecipient ? "normal" : "italic"}
             fill={isAssignedToRecipient ? recipientColor : '#666666'}
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    case 'mail':
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            cornerRadius={3}
-          />
-          {/* <Text
+      case 'mail':
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={8 * scale}
             y={(field.height * scale) / 2 - 6 * scale}
             text={isAssignedToRecipient ? `${assignedRecipient.name.split(' ')[0]}: Email` : "✉️ email@example.com"}
@@ -1079,21 +1079,21 @@ const renderFieldContent = () => {
             align="left"
             verticalAlign="middle"
           /> */}
-        </Group>
-      );
+          </Group>
+        );
 
-    default: // textbox
-      return (
-        <Group>
-          <Rect
-            width={field.width * scale}
-            height={field.height * scale}
-            fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
-            stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
-            strokeWidth={validationError ? 2 : 1.5}
-            cornerRadius={3}
-          />
-          {/* <Text
+      default: // textbox
+        return (
+          <Group>
+            <Rect
+              width={field.width * scale}
+              height={field.height * scale}
+              fill={getFillColor(recipientColor, '14', '#FFFFFF')} // 14 = 8% opacity
+              stroke={validationError ? '#FF0000' : (isAssignedToRecipient ? recipientColor : fieldTypeConfig.color)}
+              strokeWidth={validationError ? 2 : 1.5}
+              cornerRadius={3}
+            />
+            {/* <Text
             x={8 * scale}
             y={(field.height * scale) / 2 - 6 * scale}
             text={isAssignedToRecipient ? 
@@ -1107,18 +1107,18 @@ const renderFieldContent = () => {
             align="left"
             verticalAlign="middle"
           /> */}
-        </Group>
-      );
-  }
-};
+          </Group>
+        );
+    }
+  };
 
 
 
-// Replace the borderColor calculation:
-const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldType.color;
+  // Replace the borderColor calculation:
+  const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) : fieldType.color;
 
 
-   return (
+  return (
     <>
       <Group
         ref={shapeRef}
@@ -1161,20 +1161,20 @@ const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) 
         )}
         {/* Add this to show which page the field is on */}
         {pageIndicator}
-        
+
         {renderFieldContent()}
 
         {/* Field label with error indicator */}
         <Group>
-         <Text
-  x={5 * scale}
-  y={-25 * scale}
-  text={`${assignedRecipient ? assignedRecipient.name.split(' ')[0] + ': ' : ''}${field.label || field.name}${field.required ? ' *' : ''}${isOtherPage ? ` (Page ${field.page + 1})` : ''}`}
-  fontSize={11 * scale}
-  fontFamily="Arial"
-  fill={validationError ? '#FF0000' : (isOtherPage ? '#888888' : (assignedRecipient ? recipientColor : '#666666'))}
-  width={field.width * scale}
-/>
+          <Text
+            x={5 * scale}
+            y={-25 * scale}
+            text={`${assignedRecipient ? assignedRecipient.name.split(' ')[0] + ': ' : ''}${field.label || field.name}${field.required ? ' *' : ''}${isOtherPage ? ` (Page ${field.page + 1})` : ''}`}
+            fontSize={11 * scale}
+            fontFamily="Arial"
+            fill={validationError ? '#FF0000' : (isOtherPage ? '#888888' : (assignedRecipient ? recipientColor : '#666666'))}
+            width={field.width * scale}
+          />
           {validationError && (
             <Text
               x={5 * scale}
@@ -1194,7 +1194,7 @@ const recipientColor = assignedRecipient ? getRecipientColor(assignedRecipient) 
               x={0}
               y={0}
               radius={6}
-              fill={getRecipientColor(assignedRecipient)} 
+              fill={getRecipientColor(assignedRecipient)}
               stroke="#FFFFFF"
               strokeWidth={1.5}
             />
@@ -1243,7 +1243,7 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
     e.dataTransfer.effectAllowed = 'copy';
   };
 
-  
+
 
   // Group recipients by role
   const recipientsByRole = useMemo(() => {
@@ -1254,7 +1254,7 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
       }
       groups[recipient.role].push(recipient);
     });
-    
+
     // Sort roles by priority order
     const roleOrder = ['signer', 'in_person_signer', 'approver', 'form_filler', 'witness', 'viewer'];
     const sortedGroups = {};
@@ -1263,22 +1263,22 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     // Add any remaining roles not in the order
     Object.keys(groups).forEach(role => {
       if (!sortedGroups[role]) {
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     return sortedGroups;
   }, [recipients]);
 
   // Filter recipients by search
   const filteredRecipients = useMemo(() => {
     if (!searchTerm) return recipients;
-    
-    return recipients.filter(recipient => 
+
+    return recipients.filter(recipient =>
       recipient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       recipient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       FIELD_ROLES[recipient.role]?.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -1286,14 +1286,14 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
   }, [recipients, searchTerm]);
 
   // Get selected recipient
-  
 
-   // Get selected recipient color
+
+  // Get selected recipient color
   const selectedRecipient = useMemo(() => {
     return recipients.find(r => r.id === selectedRecipientId);
   }, [recipients, selectedRecipientId]);
 
- 
+
 
   // Get available fields for selected recipient
   const availableFields = useMemo(() => {
@@ -1311,7 +1311,7 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
       });
       return allFields;
     }
-    
+
     // If recipient selected, show only fields for that role
     return {
       [selectedRecipient.role]: {
@@ -1329,7 +1329,7 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
     }));
   };
 
-   // Helper function to get recipient color
+  // Helper function to get recipient color
   const getRecipientColor = (recipient) => {
     return recipient?.color || '#808080'; // Default gray if no color
   };
@@ -1337,10 +1337,10 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
 
 
   return (
-    <Paper sx={{ 
-      height: '100%', 
-      borderRadius: 2, 
-      display: 'flex', 
+    <Paper sx={{
+      height: '100%',
+      borderRadius: 2,
+      display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
       border: '1px solid',
@@ -1357,9 +1357,9 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
         <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: '1.1rem' }}>
           Field Library
         </Typography> */}
-        
-        {/* Search bar */}
-        {/* <TextField
+
+      {/* Search bar */}
+      {/* <TextField
           fullWidth
           size="small"
           placeholder="Search recipients by name, email, or role..."
@@ -1379,9 +1379,9 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
           }}
           sx={{ mb: 2 }}
         /> */}
-        
-        {/* Selected recipient info */}
-        {/* {selectedRecipient && (
+
+      {/* Selected recipient info */}
+      {/* {selectedRecipient && (
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -1393,8 +1393,8 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
             position: 'relative',
             overflow: 'hidden'
           }}> */}
-            {/* Decorative left border */}
-            {/* <Box sx={{
+      {/* Decorative left border */}
+      {/* <Box sx={{
               position: 'absolute',
               left: 0,
               top: 0,
@@ -1452,8 +1452,8 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
             </IconButton>
           </Box>
         )} */}
-        
-        {/* {!selectedRecipient && (
+
+      {/* {!selectedRecipient && (
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -1473,14 +1473,14 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
       </Box> */}
 
       {/* Main content area - Top-Bottom layout */}
-      <Box sx={{ 
-        flex: 1, 
-        display: 'flex', 
+      <Box sx={{
+        flex: 1,
+        display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden'
       }}>
         {/* Top section: All recipients list */}
-        <Box sx={{ 
+        <Box sx={{
           flex: 1,
           minHeight: '40%',
           maxHeight: '60%',
@@ -1491,9 +1491,9 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
           overflow: 'hidden'
         }}>
           {/* Recipients header */}
-          <Box sx={{ 
-            p: 1.5, 
-            borderBottom: 1, 
+          <Box sx={{
+            p: 1.5,
+            borderBottom: 1,
             borderColor: 'divider',
             bgcolor: 'grey.50',
             display: 'flex',
@@ -1503,21 +1503,21 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
             <Typography variant="subtitle2" fontWeight={600}>
               All Recipients ({filteredRecipients.length})
             </Typography>
-            <Chip 
-              label={`${recipients.length} total`} 
-              size="small" 
+            <Chip
+              label={`${recipients.length} total`}
+              size="small"
               variant="outlined"
               sx={{ height: 24, fontSize: '0.75rem' }}
             />
           </Box>
-          
+
           {/* Grouped recipients list */}
-          <Box sx={{ 
-            flex: 1, 
-            overflow: 'auto', 
+          <Box sx={{
+            flex: 1,
+            overflow: 'auto',
             p: 2,
-             // Hide scrollbar
-            '&::-webkit-scrollbar': { 
+            // Hide scrollbar
+            '&::-webkit-scrollbar': {
               display: 'none'
             },
             '&::-webkit-scrollbar-track': {
@@ -1530,50 +1530,50 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
           }}>
             {Object.entries(recipientsByRole).map(([role, roleRecipients]) => {
               const roleInfo = FIELD_ROLES[role];
-              const filtered = roleRecipients.filter(r => 
+              const filtered = roleRecipients.filter(r =>
                 filteredRecipients.some(fr => fr.id === r.id)
               );
-              
+
               if (filtered.length === 0) return null;
-              
+
               const isExpanded = expandedRoles[role] !== false; // Default to expanded
-              
+
               return (
                 <Box key={role} sx={{ mb: 2 }}>
                   {/* Role header with toggle */}
-                  <Box 
-  sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: 1, 
-    mb: 1,
-    p: 1,
-    borderRadius: 1,
-    bgcolor: selectedRecipient && selectedRecipient.role === role ? 
-      `${getRecipientColor(selectedRecipient)}10` : 
-      (ROLE_BG_COLORS[role] || 'grey.50'),
-    borderLeft: `4px solid ${selectedRecipient && selectedRecipient.role === role ? 
-      getRecipientColor(selectedRecipient) : 
-      (ROLE_BORDER_COLORS[role] || '#6b7280')}`,
-    cursor: 'pointer',
-    '&:hover': {
-      bgcolor: selectedRecipient && selectedRecipient.role === role ? 
-        `${getRecipientColor(selectedRecipient)}15` : 
-        (ROLE_BG_COLORS[role] ? ROLE_BG_COLORS[role].replace('0.05', '0.08') : 'grey.100')
-    }
-  }}
-  onClick={() => toggleRoleExpansion(role)}
->
-  <Avatar sx={{ 
-    bgcolor: selectedRecipient && selectedRecipient.role === role ? 
-      getRecipientColor(selectedRecipient) : 
-      (ROLE_BORDER_COLORS[role] || '#6b7280'), 
-    width: 28, 
-    height: 28,
-    fontSize: '0.75rem'
-  }}>
-    {roleInfo?.icon}
-  </Avatar>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 1,
+                      p: 1,
+                      borderRadius: 1,
+                      bgcolor: selectedRecipient && selectedRecipient.role === role ?
+                        `${getRecipientColor(selectedRecipient)}10` :
+                        (ROLE_BG_COLORS[role] || 'grey.50'),
+                      borderLeft: `4px solid ${selectedRecipient && selectedRecipient.role === role ?
+                        getRecipientColor(selectedRecipient) :
+                        (ROLE_BORDER_COLORS[role] || '#6b7280')}`,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: selectedRecipient && selectedRecipient.role === role ?
+                          `${getRecipientColor(selectedRecipient)}15` :
+                          (ROLE_BG_COLORS[role] ? ROLE_BG_COLORS[role].replace('0.05', '0.08') : 'grey.100')
+                      }
+                    }}
+                    onClick={() => toggleRoleExpansion(role)}
+                  >
+                    <Avatar sx={{
+                      bgcolor: selectedRecipient && selectedRecipient.role === role ?
+                        getRecipientColor(selectedRecipient) :
+                        (ROLE_BORDER_COLORS[role] || '#6b7280'),
+                      width: 28,
+                      height: 28,
+                      fontSize: '0.75rem'
+                    }}>
+                      {roleInfo?.icon}
+                    </Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="body2" fontWeight={600}>
                         {roleInfo?.name}
@@ -1583,90 +1583,90 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip 
-                        label={`${getAvailableFieldTypesForRole(role).length} fields`} 
-                        size="small" 
-                        sx={{ 
-                          height: 20, 
+                      <Chip
+                        label={`${getAvailableFieldTypesForRole(role).length} fields`}
+                        size="small"
+                        sx={{
+                          height: 20,
                           fontSize: '0.65rem',
                           bgcolor: 'rgba(255,255,255,0.8)'
                         }}
                       />
                       {isExpanded ? (
-                        <ArrowBackIcon sx={{ 
-                          transform: 'rotate(-90deg)', 
+                        <ArrowBackIcon sx={{
+                          transform: 'rotate(-90deg)',
                           fontSize: 18,
                           color: 'text.secondary'
                         }} />
                       ) : (
-                        <ArrowBackIcon sx={{ 
-                          transform: 'rotate(90deg)', 
+                        <ArrowBackIcon sx={{
+                          transform: 'rotate(90deg)',
                           fontSize: 18,
                           color: 'text.secondary'
                         }} />
                       )}
                     </Box>
                   </Box>
-                  
+
                   {/* Recipients in this role (collapsible) */}
                   {isExpanded && (
                     <Box sx={{ pl: 2 }}>
                       {filtered.map((recipient) => {
                         const isSelected = selectedRecipientId === recipient.id;
                         const fieldCount = 0; // You might want to calculate this
-                        
-      const recipientColor = getRecipientColor(recipient);
+
+                        const recipientColor = getRecipientColor(recipient);
                         return (
-        <Box
-          key={recipient.id}
-          onClick={() => onSelectRecipient && onSelectRecipient(recipient.id)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            p: 1.5,
-            mb: 0.5,
-            borderRadius: 1,
-            width: '100%', 
-            bgcolor: isSelected ? 
-              `${recipientColor}15` : 'transparent', // Use recipient color with opacity
-            border: isSelected ? 
-              `0.2px solid ${recipientColor}` : '0.1px solid transparent',
-            borderLeft: `3px solid ${isSelected ? recipientColor : 'transparent'}`,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            position: 'relative',
-            '&:hover': {
-              bgcolor: isSelected ? 
-                `${recipientColor}25` : 'grey.50',
-              transform: isSelected ? 'none' : 'translateX(2px)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-            }
-          }}
-        >
-                            <Avatar sx={{ 
-                              width: 32, 
+                          <Box
+                            key={recipient.id}
+                            onClick={() => onSelectRecipient && onSelectRecipient(recipient.id)}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              p: 1.5,
+                              mb: 0.5,
+                              borderRadius: 1,
+                              width: '100%',
+                              bgcolor: isSelected ?
+                                `${recipientColor}15` : 'transparent', // Use recipient color with opacity
+                              border: isSelected ?
+                                `0.2px solid ${recipientColor}` : '0.1px solid transparent',
+                              borderLeft: `3px solid ${isSelected ? recipientColor : 'transparent'}`,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              position: 'relative',
+                              '&:hover': {
+                                bgcolor: isSelected ?
+                                  `${recipientColor}25` : 'grey.50',
+                                transform: isSelected ? 'none' : 'translateX(2px)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                              }
+                            }}
+                          >
+                            <Avatar sx={{
+                              width: 32,
                               height: 32,
                               fontSize: '0.875rem',
-                              bgcolor: getRecipientColor(recipient), 
+                              bgcolor: getRecipientColor(recipient),
                               color: isSelected ? '#ffffff' : 'text.primary',
                               fontWeight: isSelected ? 600 : 400
                             }}>
                               {recipient.name?.charAt(0) || 'R'}
                             </Avatar>
                             <Box sx={{ flex: 1 }}>
-                              <Typography 
-                                variant="body2" 
+                              <Typography
+                                variant="body2"
                                 fontWeight={isSelected ? 600 : 400}
                                 noWrap
                               >
                                 {recipient.name}
                               </Typography>
-                              <Typography 
-                                variant="caption" 
-                                color="text.secondary" 
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
                                 noWrap
-                                sx={{ 
+                                sx={{
                                   fontSize: '0.75rem',
                                   opacity: isSelected ? 0.8 : 0.6
                                 }}
@@ -1678,22 +1678,22 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
                               <Chip
                                 label={fieldCount}
                                 size="small"
-                                sx={{ 
-                                  height: 20, 
+                                sx={{
+                                  height: 20,
                                   fontSize: '0.65rem',
                                   minWidth: 24,
                                   backgroundColor: `${getRecipientColor(recipient)}20`,  // 20% opacity of recipient color
-    color: getRecipientColor(recipient),
-    borderColor: getRecipientColor(recipient)
+                                  color: getRecipientColor(recipient),
+                                  borderColor: getRecipientColor(recipient)
                                 }}
                               />
                             )}
                             {isSelected && (
-                              <CheckCircleIcon 
-                                sx={{ 
-                                  fontSize: 18, 
-                                  color: getRecipientColor(recipient) 
-                                }} 
+                              <CheckCircleIcon
+                                sx={{
+                                  fontSize: 18,
+                                  color: getRecipientColor(recipient)
+                                }}
                               />
                             )}
                           </Box>
@@ -1704,10 +1704,10 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
                 </Box>
               );
             })}
-            
+
             {filteredRecipients.length === 0 && (
-              <Box sx={{ 
-                textAlign: 'center', 
+              <Box sx={{
+                textAlign: 'center',
                 py: 6,
                 color: 'text.secondary'
               }}>
@@ -1731,276 +1731,276 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
 
         {/* Bottom section: Available fields */}
         {selectedRecipient && (
-        <Box sx={{
-  flex: 1,
-  minHeight: '40%',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden'
-}}>
-  {/* Fields header */}
-  <Box sx={{
-    p: 2,
-    borderBottom: 1,
-    borderColor: 'divider',
-    bgcolor: 'grey.50',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  }}>
-    <Box>
-      <Typography variant="subtitle2" fontWeight={600}>
-        {selectedRecipient ?
-          `Available Fields for ${selectedRecipient.name}` :
-          'Available Fields by Role'
-        }
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {selectedRecipient ?
-          `Drag fields to assign to ${selectedRecipient.name}` :
-          'Select a recipient to assign fields'
-        }
-      </Typography>
-    </Box>
-    {selectedRecipient && (
-      <Chip
-        label={FIELD_ROLES[selectedRecipient.role]?.name}
-        size="small"
-        sx={{
-          height: 24,
-          fontSize: '0.75rem',
-          bgcolor: `${ROLE_BORDER_COLORS[selectedRecipient.role]}20`,
-          color: ROLE_BORDER_COLORS[selectedRecipient.role],
-          fontWeight: 600,
-          borderRadius: 1
-        }}
-      />
-    )}
-  </Box>
-
-  {/* Available fields content - Single column layout */}
-  <Box sx={{
-    flex: 1,
-    overflow: 'auto',
-    // Hide scrollbar for cleaner look
-    '&::-webkit-scrollbar': {
-      display: 'none'
-    },
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none'
-  }}>
-    {Object.keys(availableFields).length > 0 ? (
-      <Box sx={{ p: 0 }}>
-        {Object.entries(availableFields).map(([role, { roleInfo, fields }]) => (
-          <Box key={role} sx={{ mb: 2 }}>
-            {/* Role header - only show when no recipient selected */}
-            {!selectedRecipient && (
-              <Box sx={{
-                p: 2,
-                bgcolor: 'background.paper',
-                borderBottom: 1,
-                borderColor: 'divider',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5
-              }}>
-                <Avatar sx={{
-                  bgcolor: ROLE_BORDER_COLORS[role] || '#6b7280',
-                  width: 28,
-                  height: 28,
-                  fontSize: '0.75rem',
-                  fontWeight: 600
-                }}>
-                  {roleInfo?.icon}
-                </Avatar>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
-                    {roleInfo?.name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {fields.length} field{fields.length !== 1 ? 's' : ''} available
-                  </Typography>
-                </Box>
+          <Box sx={{
+            flex: 1,
+            minHeight: '40%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Fields header */}
+            <Box sx={{
+              p: 2,
+              borderBottom: 1,
+              borderColor: 'divider',
+              bgcolor: 'grey.50',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {selectedRecipient ?
+                    `Available Fields for ${selectedRecipient.name}` :
+                    'Available Fields by Role'
+                  }
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {selectedRecipient ?
+                    `Drag fields to assign to ${selectedRecipient.name}` :
+                    'Select a recipient to assign fields'
+                  }
+                </Typography>
               </Box>
-            )}
+              {selectedRecipient && (
+                <Chip
+                  label={FIELD_ROLES[selectedRecipient.role]?.name}
+                  size="small"
+                  sx={{
+                    height: 24,
+                    fontSize: '0.75rem',
+                    bgcolor: `${ROLE_BORDER_COLORS[selectedRecipient.role]}20`,
+                    color: ROLE_BORDER_COLORS[selectedRecipient.role],
+                    fontWeight: 600,
+                    borderRadius: 1
+                  }}
+                />
+              )}
+            </Box>
 
-            {/* Fields list - single column */}
-            {/* // In the FieldLibrary component, update the fields rendering section: */}
+            {/* Available fields content - Single column layout */}
+            <Box sx={{
+              flex: 1,
+              overflow: 'auto',
+              // Hide scrollbar for cleaner look
+              '&::-webkit-scrollbar': {
+                display: 'none'
+              },
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}>
+              {Object.keys(availableFields).length > 0 ? (
+                <Box sx={{ p: 0 }}>
+                  {Object.entries(availableFields).map(([role, { roleInfo, fields }]) => (
+                    <Box key={role} sx={{ mb: 2 }}>
+                      {/* Role header - only show when no recipient selected */}
+                      {!selectedRecipient && (
+                        <Box sx={{
+                          p: 2,
+                          bgcolor: 'background.paper',
+                          borderBottom: 1,
+                          borderColor: 'divider',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5
+                        }}>
+                          <Avatar sx={{
+                            bgcolor: ROLE_BORDER_COLORS[role] || '#6b7280',
+                            width: 28,
+                            height: 28,
+                            fontSize: '0.75rem',
+                            fontWeight: 600
+                          }}>
+                            {roleInfo?.icon}
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              {roleInfo?.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {fields.length} field{fields.length !== 1 ? 's' : ''} available
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
 
-{/* Fields list - compact 2 columns grid */}
-<Box sx={{ 
-  p: 1,
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, 1fr)',
-  gap: 1,
-  '@media (max-width: 1200px)': {
-    gridTemplateColumns: '1fr'
-  }
-}}>
-  {fields.map((field) => {
-    // Get the selected recipient if available
-    const selectedRecipient = recipients.find(r => r.id === selectedRecipientId);
-    const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : field.color;
-    
-    return (
-      <Card
-        key={field.type}
-        sx={{
-          cursor: 'grab',
-          border: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          display: 'flex',
-          alignItems: 'center',
-          p: 1,
-          borderRadius: 1,
-          transition: 'all 0.2s',
-          minHeight: 40, // Even more compact
-          position: 'relative', // For pseudo-element
-          overflow: 'hidden', // To contain the left border
-              // NEW: Reduce icon size
-    '& .MuiAvatar-root': {
-      // Reduced from 28
-      fontSize: '0.65rem', // Reduced font size
-      '& svg': {
-        fontSize: '0.85rem', // Reduce icon size inside Avatar
-      }
-    },
+                      {/* Fields list - single column */}
+                      {/* // In the FieldLibrary component, update the fields rendering section: */}
 
-          '&:hover': {
-            bgcolor: selectedRecipient ? `${recipientColor}08` : `${field.color}08`,
-            transform: 'translateY(-2px)',
-            borderColor: selectedRecipient ? recipientColor : field.color,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          },
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 3,
-            bgcolor: selectedRecipient ? recipientColor : field.color,
-            opacity: selectedRecipient ? 0.9 : 0.7
-          }
-        }}
-        draggable
-        onDragStart={(e) => handleDragStart(e, field.type)}
-      >
-        {/* Icon with recipient color */}
-        <Avatar sx={{
-          bgcolor: selectedRecipient ? recipientColor : field.color,
-          width: 25,
-          height: 25,
-          fontSize: '0.75rem',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-          mr: 1,
-          transition: 'all 0.2s'
-        }}>
-          {field.icon}
-        </Avatar>
+                      {/* Fields list - compact 2 columns grid */}
+                      <Box sx={{
+                        p: 1,
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 1,
+                        '@media (max-width: 1200px)': {
+                          gridTemplateColumns: '1fr'
+                        }
+                      }}>
+                        {fields.map((field) => {
+                          // Get the selected recipient if available
+                          const selectedRecipient = recipients.find(r => r.id === selectedRecipientId);
+                          const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : field.color;
 
-        {/* Field info - compact */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              mb: 0.25,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: 'block',
-              lineHeight: 1.2,
-              color: selectedRecipient ? 'text.primary' : 'inherit'
-            }}
-          >
-            {field.label}
-          </Typography>
-        </Box>
+                          return (
+                            <Card
+                              key={field.type}
+                              sx={{
+                                cursor: 'grab',
+                                border: 1,
+                                borderColor: 'divider',
+                                bgcolor: 'background.paper',
+                                display: 'flex',
+                                alignItems: 'center',
+                                p: 1,
+                                borderRadius: 1,
+                                transition: 'all 0.2s',
+                                minHeight: 40, // Even more compact
+                                position: 'relative', // For pseudo-element
+                                overflow: 'hidden', // To contain the left border
+                                // NEW: Reduce icon size
+                                '& .MuiAvatar-root': {
+                                  // Reduced from 28
+                                  fontSize: '0.65rem', // Reduced font size
+                                  '& svg': {
+                                    fontSize: '0.85rem', // Reduce icon size inside Avatar
+                                  }
+                                },
 
-        {/* Drag icon with recipient color */}
-        <DragIndicatorIcon sx={{
-          color: selectedRecipient ? recipientColor : 'action.active',
-          fontSize: 14,
-          opacity: 0.7,
-          ml: 0.5
-        }} />
-      </Card>
-    );
-  })}
-</Box>
+                                '&:hover': {
+                                  bgcolor: selectedRecipient ? `${recipientColor}08` : `${field.color}08`,
+                                  transform: 'translateY(-2px)',
+                                  borderColor: selectedRecipient ? recipientColor : field.color,
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                                },
+                                '&::before': {
+                                  content: '""',
+                                  position: 'absolute',
+                                  left: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: 3,
+                                  bgcolor: selectedRecipient ? recipientColor : field.color,
+                                  opacity: selectedRecipient ? 0.9 : 0.7
+                                }
+                              }}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, field.type)}
+                            >
+                              {/* Icon with recipient color */}
+                              <Avatar sx={{
+                                bgcolor: selectedRecipient ? recipientColor : field.color,
+                                width: 25,
+                                height: 25,
+                                fontSize: '0.75rem',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                mr: 1,
+                                transition: 'all 0.2s'
+                              }}>
+                                {field.icon}
+                              </Avatar>
+
+                              {/* Field info - compact */}
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    mb: 0.25,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: 'block',
+                                    lineHeight: 1.2,
+                                    color: selectedRecipient ? 'text.primary' : 'inherit'
+                                  }}
+                                >
+                                  {field.label}
+                                </Typography>
+                              </Box>
+
+                              {/* Drag icon with recipient color */}
+                              <DragIndicatorIcon sx={{
+                                color: selectedRecipient ? recipientColor : 'action.active',
+                                fontSize: 14,
+                                opacity: 0.7,
+                                ml: 0.5
+                              }} />
+                            </Card>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 8,
+                  px: 2,
+                  textAlign: 'center'
+                }}>
+                  {selectedRecipient ? (
+                    <>
+                      <InfoIcon sx={{
+                        fontSize: 48,
+                        mb: 2,
+                        color: 'action.disabled'
+                      }} />
+                      <Typography variant="body1" gutterBottom sx={{ mb: 1 }}>
+                        No fields available for {selectedRecipient.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {FIELD_ROLES[selectedRecipient.role]?.description}
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <SelectAllIcon sx={{
+                        fontSize: 48,
+                        mb: 2,
+                        color: 'action.disabled'
+                      }} />
+                      <Typography variant="body1" gutterBottom sx={{ mb: 1 }}>
+                        Select a recipient to view available fields
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 280 }}>
+                        Fields are role-specific. Click on a recipient above to see what they can sign.
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              )}
+            </Box>
           </Box>
-        ))}
-      </Box>
-    ) : (
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 8,
-        px: 2,
-        textAlign: 'center'
-      }}>
-        {selectedRecipient ? (
-          <>
-            <InfoIcon sx={{
-              fontSize: 48,
-              mb: 2,
-              color: 'action.disabled'
-            }} />
-            <Typography variant="body1" gutterBottom sx={{ mb: 1 }}>
-              No fields available for {selectedRecipient.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {FIELD_ROLES[selectedRecipient.role]?.description}
-            </Typography>
-          </>
-        ) : (
-          <>
-            <SelectAllIcon sx={{
-              fontSize: 48,
-              mb: 2,
-              color: 'action.disabled'
-            }} />
-            <Typography variant="body1" gutterBottom sx={{ mb: 1 }}>
+        )}
+        {/* Show message when no recipient is selected */}
+        {!selectedRecipient && (
+          <Box sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 3,
+            textAlign: 'center',
+            color: 'text.secondary',
+            borderTop: 1,
+            borderColor: 'divider'
+          }}>
+            <SelectAllIcon sx={{ fontSize: 48, mb: 2, opacity: 0.3 }} />
+            <Typography variant="body1" gutterBottom>
               Select a recipient to view available fields
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 280 }}>
-              Fields are role-specific. Click on a recipient above to see what they can sign.
+            <Typography variant="caption">
+              Click on a recipient above to see what fields they can use
             </Typography>
-          </>
+          </Box>
         )}
-      </Box>
-    )}
-  </Box>
-</Box>
-)}
-{/* Show message when no recipient is selected */}
-{!selectedRecipient && (
-  <Box sx={{
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    p: 3,
-    textAlign: 'center',
-    color: 'text.secondary',
-    borderTop: 1,
-    borderColor: 'divider'
-  }}>
-    <SelectAllIcon sx={{ fontSize: 48, mb: 2, opacity: 0.3 }} />
-    <Typography variant="body1" gutterBottom>
-      Select a recipient to view available fields
-    </Typography>
-    <Typography variant="caption">
-      Click on a recipient above to see what fields they can use
-    </Typography>
-  </Box>
-)}
       </Box>
     </Paper>
   );
@@ -2017,42 +2017,42 @@ const FieldLibrary = ({ onAddField, recipients = [], onSelectRecipient, selected
 // Enhanced Field Properties Panel with Field-Specific Settings
 // ============================================
 
-const FieldPropertiesPanel = ({ 
-  field, 
-  onChange, 
-  onDelete, 
-  recipients = [], 
-  numPages = 1, 
-  onDuplicate, 
-  selectedRecipientId, 
-  onSelectRecipient 
+const FieldPropertiesPanel = ({
+  field,
+  onChange,
+  onDelete,
+  recipients = [],
+  numPages = 1,
+  onDuplicate,
+  selectedRecipientId,
+  onSelectRecipient
 }) => {
   const [localField, setLocalField] = useState(field || {});
   const [validationError, setValidationError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRoles, setExpandedRoles] = useState({});
   const [currentPage, setCurrentPage] = useState(field?.page || 0);
-  
+
   // State for field-specific settings
   const [fieldSettings, setFieldSettings] = useState({
     // Radio button settings
     groupName: field?.group_name || `group_${Date.now()}`,
-    
+
     // Dropdown settings
     dropdownOptions: field?.dropdown_options || [],
     newOption: '',
-    
+
     // General settings
     placeholder: field?.placeholder || '',
     required: field?.required || false,
     label: field?.label || '',
-    
+
     // Email validation (for mail fields)
     emailValidation: field?.email_validation || true,
-    
+
     // Font size
     fontSize: field?.font_size || 12,
-    
+
     // Checkbox/radio initial state
     checked: field?.checked || false
   });
@@ -2061,15 +2061,15 @@ const FieldPropertiesPanel = ({
   useEffect(() => {
     if (field) {
       // Update local field state
-      const shouldUpdate = 
-        localField.recipient_id !== field.recipient_id || 
+      const shouldUpdate =
+        localField.recipient_id !== field.recipient_id ||
         localField.type !== field.type;
-      
+
       if (shouldUpdate) {
         setLocalField({ ...field });
         validateAssignment(field.recipient_id, field.type);
       }
-      
+
       // Initialize field-specific settings
       const settings = {
         groupName: field.group_name || `group_${Date.now()}`,
@@ -2082,9 +2082,9 @@ const FieldPropertiesPanel = ({
         fontSize: field.font_size || 12,
         checked: field.checked || false
       };
-      
+
       setFieldSettings(settings);
-      
+
       // Auto-open right sidebar for radio/dropdown fields
       if (field.type === 'radio' || field.type === 'dropdown') {
         // You might want to trigger the parent's sidebar open here
@@ -2104,7 +2104,7 @@ const FieldPropertiesPanel = ({
       setValidationError('Recipient not found');
       return false;
     }
-    
+
     const isValid = validateFieldAssignment(fieldType, recipient.role);
     if (!isValid) {
       const allowedFields = (() => {
@@ -2124,28 +2124,28 @@ const FieldPropertiesPanel = ({
     } else {
       setValidationError('');
     }
-    
+
     return isValid;
   };
 
   const handleChange = (key, value) => {
     const updated = { ...localField, [key]: value };
     setLocalField(updated);
-    
+
     if (key === 'page') {
       const pageValue = parseInt(value);
       const boundedPage = Math.max(0, Math.min(pageValue, numPages - 1));
       updated.page = boundedPage;
       setCurrentPage(boundedPage);
     }
-    
+
     if (key === 'recipient_id' || key === 'type') {
       validateAssignment(
         key === 'recipient_id' ? value : updated.recipient_id,
         key === 'type' ? value : updated.type
       );
     }
-    
+
     if (onChange) {
       onChange(field.id, updated);
     }
@@ -2153,58 +2153,58 @@ const FieldPropertiesPanel = ({
 
   // Handle field-specific setting changes
   const handleSettingChange = (setting, value) => {
-  const newSettings = { ...fieldSettings, [setting]: value };
-  setFieldSettings(newSettings);
-  
-  // Build the complete update object for the field
-  const fieldUpdate = {};
-  
-  switch (setting) {
-  case 'groupName':
-    fieldUpdate.group_name = value;
-    break;
+    const newSettings = { ...fieldSettings, [setting]: value };
+    setFieldSettings(newSettings);
 
-  case 'dropdownOptions':
-    fieldUpdate.dropdown_options = value;
-    break;
+    // Build the complete update object for the field
+    const fieldUpdate = {};
 
-  case 'placeholder':
-    fieldUpdate.placeholder = value;
-    break;
+    switch (setting) {
+      case 'groupName':
+        fieldUpdate.group_name = value;
+        break;
 
-  case 'required':
-    fieldUpdate.required = Boolean(value);
-    break;
+      case 'dropdownOptions':
+        fieldUpdate.dropdown_options = value;
+        break;
 
-  case 'label':
-    fieldUpdate.label = value;
-    break;
+      case 'placeholder':
+        fieldUpdate.placeholder = value;
+        break;
 
-  case 'emailValidation':
-    fieldUpdate.email_validation = Boolean(value);
-    break;
+      case 'required':
+        fieldUpdate.required = Boolean(value);
+        break;
 
-  case 'fontSize':
-    fieldUpdate.font_size = Number(value);
-    break;
+      case 'label':
+        fieldUpdate.label = value;
+        break;
 
-  case 'checked':
-    fieldUpdate.checked = Boolean(value);
-    break;
+      case 'emailValidation':
+        fieldUpdate.email_validation = Boolean(value);
+        break;
 
-  default:
-    console.warn('Unknown setting:', setting);
-    return; // or break
-}
+      case 'fontSize':
+        fieldUpdate.font_size = Number(value);
+        break;
 
-    
+      case 'checked':
+        fieldUpdate.checked = Boolean(value);
+        break;
+
+      default:
+        console.warn('Unknown setting:', setting);
+        return; // or break
+    }
+
+
     handleChange(Object.keys(fieldUpdate)[0], Object.values(fieldUpdate)[0]);
   };
 
   // Handle adding new dropdown option
   const handleAddDropdownOption = () => {
     if (fieldSettings.newOption.trim() === '') return;
-    
+
     const newOptions = [...fieldSettings.dropdownOptions, fieldSettings.newOption.trim()];
     handleSettingChange('dropdownOptions', newOptions);
     handleSettingChange('newOption', '');
@@ -2227,8 +2227,8 @@ const FieldPropertiesPanel = ({
   // Get filtered recipients
   const getFilteredRecipients = () => {
     if (!localField.type) return recipients;
-    
-    return recipients.filter(recipient => 
+
+    return recipients.filter(recipient =>
       validateFieldAssignment(localField.type, recipient.role)
     );
   };
@@ -2237,14 +2237,14 @@ const FieldPropertiesPanel = ({
   const recipientsByRole = useMemo(() => {
     const groups = {};
     const filtered = getFilteredRecipients();
-    
+
     filtered.forEach(recipient => {
       if (!groups[recipient.role]) {
         groups[recipient.role] = [];
       }
       groups[recipient.role].push(recipient);
     });
-    
+
     const roleOrder = ['signer', 'in_person_signer', 'approver', 'form_filler', 'witness', 'viewer'];
     const sortedGroups = {};
     roleOrder.forEach(role => {
@@ -2252,21 +2252,21 @@ const FieldPropertiesPanel = ({
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     Object.keys(groups).forEach(role => {
       if (!sortedGroups[role]) {
         sortedGroups[role] = groups[role];
       }
     });
-    
+
     return sortedGroups;
   }, [recipients, localField.type]);
 
   // Filter recipients by search
   const filteredRecipients = useMemo(() => {
     if (!searchTerm) return getFilteredRecipients();
-    
-    return getFilteredRecipients().filter(recipient => 
+
+    return getFilteredRecipients().filter(recipient =>
       recipient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       recipient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       FIELD_ROLES[recipient.role]?.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -2283,7 +2283,7 @@ const FieldPropertiesPanel = ({
 
   const handleSelectRecipientInPanel = (recipientId) => {
     handleChange('recipient_id', recipientId);
-    
+
     if (onSelectRecipient) {
       onSelectRecipient(recipientId);
     }
@@ -2312,9 +2312,9 @@ const FieldPropertiesPanel = ({
   const isValid = !validationError;
 
   return (
-    <Paper sx={{ 
-      height: '100%', 
-      borderRadius: 2, 
+    <Paper sx={{
+      height: '100%',
+      borderRadius: 2,
       overflow: 'auto',
       scrollbarWidth: 'none',
       msOverflowStyle: 'none',
@@ -2322,9 +2322,9 @@ const FieldPropertiesPanel = ({
         display: 'none',
       }
     }}>
-      <Box sx={{ 
-        p: 2, 
-        borderBottom: 1, 
+      <Box sx={{
+        p: 2,
+        borderBottom: 1,
         borderColor: 'divider'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -2350,8 +2350,8 @@ const FieldPropertiesPanel = ({
       <Box sx={{ p: 2 }}>
         {/* Validation Alert */}
         {!isValid && (
-          <Alert 
-            severity="error" 
+          <Alert
+            severity="error"
             sx={{ mb: 2 }}
             icon={<ErrorIcon />}
           >
@@ -2371,208 +2371,208 @@ const FieldPropertiesPanel = ({
         />
 
         {/* Field-Specific Settings Section */}
-        {(field.type === 'radio' || field.type === 'dropdown' || 
+        {(field.type === 'radio' || field.type === 'dropdown' ||
           field.type === 'mail' || field.type === 'checkbox') && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1,
-              color: fieldType.color 
-            }}>
-              <SettingsIcon fontSize="small" />
-              {fieldType.label} Settings
-            </Typography>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                color: fieldType.color
+              }}>
+                <SettingsIcon fontSize="small" />
+                {fieldType.label} Settings
+              </Typography>
 
-            {/* Radio Button Settings */}
-            {field.type === 'radio' && (
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Group Name"
-                  value={fieldSettings.groupName}
-                  onChange={(e) => handleSettingChange('groupName', e.target.value)}
-                  helperText="Radio buttons with the same group name will be mutually exclusive"
-                  sx={{ mb: 1.5 }}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={fieldSettings.checked}
-                      onChange={(e) => handleSettingChange('checked', e.target.checked)}
-                    />
-                  }
-                  label="Initially checked"
-                  sx={{ mb: 1 }}
-                />
-                <Alert severity="info" sx={{ fontSize: '0.75rem', py: 0.5 }}>
-                  Tip: Give all radio buttons in a group the same Group Name
-                </Alert>
-              </Box>
-            )}
-
-            {/* Dropdown Settings */}
-            {field.type === 'dropdown' && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" gutterBottom>
-                  Dropdown Options
-                </Typography>
-                
-                {/* Add new option */}
-                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              {/* Radio Button Settings */}
+              {field.type === 'radio' && (
+                <Box sx={{ mb: 2 }}>
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder="Add new option..."
-                    value={fieldSettings.newOption}
-                    onChange={(e) => handleSettingChange('newOption', e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddDropdownOption()}
+                    label="Group Name"
+                    value={fieldSettings.groupName}
+                    onChange={(e) => handleSettingChange('groupName', e.target.value)}
+                    helperText="Radio buttons with the same group name will be mutually exclusive"
+                    sx={{ mb: 1.5 }}
                   />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleAddDropdownOption}
-                    disabled={!fieldSettings.newOption.trim()}
-                  >
-                    Add
-                  </Button>
-                </Box>
-
-                {/* Options list */}
-                {fieldSettings.dropdownOptions.length > 0 ? (
-                  <Paper variant="outlined" sx={{ maxHeight: 150, overflow: 'auto', mb: 1.5 }}>
-                    <List dense>
-                      {fieldSettings.dropdownOptions.map((option, index) => (
-                        <ListItem
-                          key={index}
-                          secondaryAction={
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={() => handleRemoveDropdownOption(index)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          }
-                          sx={{
-                            py: 0.5,
-                            borderBottom: index < fieldSettings.dropdownOptions.length - 1 ? 1 : 0,
-                            borderColor: 'divider'
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 36 }}>
-                            <DragIndicatorIcon sx={{ color: 'action.active' }} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Typography variant="body2">
-                                {option}
-                              </Typography>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                ) : (
-                  <Alert severity="warning" sx={{ mb: 1.5 }}>
-                    No options added. Add at least one option.
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={fieldSettings.checked}
+                        onChange={(e) => handleSettingChange('checked', e.target.checked)}
+                      />
+                    }
+                    label="Initially checked"
+                    sx={{ mb: 1 }}
+                  />
+                  <Alert severity="info" sx={{ fontSize: '0.75rem', py: 0.5 }}>
+                    Tip: Give all radio buttons in a group the same Group Name
                   </Alert>
+                </Box>
+              )}
+
+              {/* Dropdown Settings */}
+              {field.type === 'dropdown' && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Dropdown Options
+                  </Typography>
+
+                  {/* Add new option */}
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Add new option..."
+                      value={fieldSettings.newOption}
+                      onChange={(e) => handleSettingChange('newOption', e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddDropdownOption()}
+                    />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleAddDropdownOption}
+                      disabled={!fieldSettings.newOption.trim()}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+
+                  {/* Options list */}
+                  {fieldSettings.dropdownOptions.length > 0 ? (
+                    <Paper variant="outlined" sx={{ maxHeight: 150, overflow: 'auto', mb: 1.5 }}>
+                      <List dense>
+                        {fieldSettings.dropdownOptions.map((option, index) => (
+                          <ListItem
+                            key={index}
+                            secondaryAction={
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => handleRemoveDropdownOption(index)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            }
+                            sx={{
+                              py: 0.5,
+                              borderBottom: index < fieldSettings.dropdownOptions.length - 1 ? 1 : 0,
+                              borderColor: 'divider'
+                            }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <DragIndicatorIcon sx={{ color: 'action.active' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2">
+                                  {option}
+                                </Typography>
+                              }
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  ) : (
+                    <Alert severity="warning" sx={{ mb: 1.5 }}>
+                      No options added. Add at least one option.
+                    </Alert>
+                  )}
+
+                  {/* Options count */}
+                  <Typography variant="caption" color="text.secondary">
+                    {fieldSettings.dropdownOptions.length} option(s)
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Mail Field Settings */}
+              {field.type === 'mail' && (
+                <Box sx={{ mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Placeholder Email"
+                    value={fieldSettings.placeholder}
+                    onChange={(e) => handleSettingChange('placeholder', e.target.value)}
+                    placeholder="example@domain.com"
+                    sx={{ mb: 1.5 }}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={fieldSettings.emailValidation}
+                        onChange={(e) => handleSettingChange('emailValidation', e.target.checked)}
+                      />
+                    }
+                    label="Validate email format"
+                  />
+                </Box>
+              )}
+
+              {/* Checkbox Settings */}
+              {field.type === 'checkbox' && (
+                <Box sx={{ mb: 2 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={fieldSettings.checked}
+                        onChange={(e) => handleSettingChange('checked', e.target.checked)}
+                      />
+                    }
+                    label="Initially checked"
+                  />
+                </Box>
+              )}
+
+              {/* Text Field Settings */}
+              {(field.type === 'textbox' || field.type === 'date') && (
+                <Box sx={{ mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Placeholder Text"
+                    value={fieldSettings.placeholder}
+                    onChange={(e) => handleSettingChange('placeholder', e.target.value)}
+                    placeholder={field.type === 'date' ? "MM/DD/YYYY" : "Enter text..."}
+                    sx={{ mb: 1.5 }}
+                  />
+                </Box>
+              )}
+
+              {/* Font Size for all text-based fields */}
+              {(field.type === 'textbox' || field.type === 'date' ||
+                field.type === 'mail' || field.type === 'dropdown') && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      Font Size
+                    </Typography>
+                    <Slider
+                      size="small"
+                      value={fieldSettings.fontSize}
+                      onChange={(_, value) => handleSettingChange('fontSize', value)}
+                      min={8}
+                      max={24}
+                      step={1}
+                      marks={[
+                        { value: 8, label: '8' },
+                        { value: 12, label: '12' },
+                        { value: 16, label: '16' },
+                        { value: 20, label: '20' },
+                        { value: 24, label: '24' }
+                      ]}
+                      valueLabelDisplay="auto"
+                      sx={{ mt: 1 }}
+                    />
+                  </Box>
                 )}
-
-                {/* Options count */}
-                <Typography variant="caption" color="text.secondary">
-                  {fieldSettings.dropdownOptions.length} option(s)
-                </Typography>
-              </Box>
-            )}
-
-            {/* Mail Field Settings */}
-            {field.type === 'mail' && (
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Placeholder Email"
-                  value={fieldSettings.placeholder}
-                  onChange={(e) => handleSettingChange('placeholder', e.target.value)}
-                  placeholder="example@domain.com"
-                  sx={{ mb: 1.5 }}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={fieldSettings.emailValidation}
-                      onChange={(e) => handleSettingChange('emailValidation', e.target.checked)}
-                    />
-                  }
-                  label="Validate email format"
-                />
-              </Box>
-            )}
-
-            {/* Checkbox Settings */}
-            {field.type === 'checkbox' && (
-              <Box sx={{ mb: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={fieldSettings.checked}
-                      onChange={(e) => handleSettingChange('checked', e.target.checked)}
-                    />
-                  }
-                  label="Initially checked"
-                />
-              </Box>
-            )}
-
-            {/* Text Field Settings */}
-            {(field.type === 'textbox' || field.type === 'date') && (
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Placeholder Text"
-                  value={fieldSettings.placeholder}
-                  onChange={(e) => handleSettingChange('placeholder', e.target.value)}
-                  placeholder={field.type === 'date' ? "MM/DD/YYYY" : "Enter text..."}
-                  sx={{ mb: 1.5 }}
-                />
-              </Box>
-            )}
-
-            {/* Font Size for all text-based fields */}
-            {(field.type === 'textbox' || field.type === 'date' || 
-              field.type === 'mail' || field.type === 'dropdown') && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" gutterBottom>
-                  Font Size
-                </Typography>
-                <Slider
-                  size="small"
-                  value={fieldSettings.fontSize}
-                  onChange={(_, value) => handleSettingChange('fontSize', value)}
-                  min={8}
-                  max={24}
-                  step={1}
-                  marks={[
-                    { value: 8, label: '8' },
-                    { value: 12, label: '12' },
-                    { value: 16, label: '16' },
-                    { value: 20, label: '20' },
-                    { value: 24, label: '24' }
-                  ]}
-                  valueLabelDisplay="auto"
-                  sx={{ mt: 1 }}
-                />
-              </Box>
-            )}
-          </Box>
-        )}
+            </Box>
+          )}
 
         {/* Assign to Recipient Section */}
         <Typography variant="subtitle2" fontWeight={600} gutterBottom>
@@ -2581,13 +2581,13 @@ const FieldPropertiesPanel = ({
 
         {/* Current Recipient Display (if assigned) */}
         {currentRecipient && (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1, 
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
             p: 1.5,
             mb: 2,
-            bgcolor: `${getRecipientColor(currentRecipient)}10`, 
+            bgcolor: `${getRecipientColor(currentRecipient)}10`,
             borderRadius: 1.5,
             border: `1px solid ${getRecipientColor(currentRecipient)}`,
             position: 'relative',
@@ -2601,10 +2601,10 @@ const FieldPropertiesPanel = ({
               width: 4,
               bgcolor: getRecipientColor(currentRecipient)
             }} />
-            
-            <Avatar sx={{ 
-              bgcolor: getRecipientColor(currentRecipient), 
-              width: 36, 
+
+            <Avatar sx={{
+              bgcolor: getRecipientColor(currentRecipient),
+              width: 36,
               height: 36,
               fontSize: '1rem',
               fontWeight: 600,
@@ -2620,7 +2620,7 @@ const FieldPropertiesPanel = ({
                 <Chip
                   label={FIELD_ROLES[currentRecipient.role]?.name}
                   size="small"
-                  sx={{ 
+                  sx={{
                     height: 20,
                     fontSize: '0.65rem',
                     fontWeight: 600,
@@ -2634,10 +2634,10 @@ const FieldPropertiesPanel = ({
                 </Typography>
               </Box>
             </Box>
-            <IconButton 
-              size="small" 
+            <IconButton
+              size="small"
               onClick={handleClearRecipient}
-              sx={{ 
+              sx={{
                 p: 0.75,
                 bgcolor: 'background.paper',
                 border: '1px solid',
@@ -2665,7 +2665,7 @@ const FieldPropertiesPanel = ({
                 startAdornment: (
                   <PersonIcon sx={{ mr: 1, color: 'action.active', fontSize: 20 }} />
                 ),
-                sx: { 
+                sx: {
                   borderRadius: 2,
                   backgroundColor: 'grey.50',
                   '&:hover': {
@@ -2677,8 +2677,8 @@ const FieldPropertiesPanel = ({
             />
 
             {/* Compatible Recipients List */}
-            <Box sx={{ 
-              maxHeight: 200, 
+            <Box sx={{
+              maxHeight: 200,
               overflow: 'auto',
               border: '1px solid',
               borderColor: 'divider',
@@ -2690,21 +2690,21 @@ const FieldPropertiesPanel = ({
               {Object.keys(recipientsByRole).length > 0 ? (
                 Object.entries(recipientsByRole).map(([role, roleRecipients]) => {
                   const roleInfo = FIELD_ROLES[role];
-                  const filtered = roleRecipients.filter(r => 
+                  const filtered = roleRecipients.filter(r =>
                     filteredRecipients.some(fr => fr.id === r.id)
                   );
-                  
+
                   if (filtered.length === 0) return null;
-                  
+
                   const isExpanded = expandedRoles[role] !== false;
-                  
+
                   return (
                     <Box key={role} sx={{ mb: 1.5 }}>
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 1, 
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
                           mb: 1,
                           p: 1,
                           borderRadius: 1,
@@ -2712,16 +2712,16 @@ const FieldPropertiesPanel = ({
                           borderLeft: `4px solid ${ROLE_BORDER_COLORS[role] || '#6b7280'}`,
                           cursor: 'pointer',
                           '&:hover': {
-                            bgcolor: ROLE_BG_COLORS[role] ? 
-                              ROLE_BG_COLORS[role].replace('0.05', '0.08') : 
+                            bgcolor: ROLE_BG_COLORS[role] ?
+                              ROLE_BG_COLORS[role].replace('0.05', '0.08') :
                               'grey.100'
                           }
                         }}
                         onClick={() => toggleRoleExpansion(role)}
                       >
-                        <Avatar sx={{ 
-                          bgcolor: ROLE_BORDER_COLORS[role] || '#6b7280', 
-                          width: 24, 
+                        <Avatar sx={{
+                          bgcolor: ROLE_BORDER_COLORS[role] || '#6b7280',
+                          width: 24,
                           height: 24,
                           fontSize: '0.75rem'
                         }}>
@@ -2736,26 +2736,26 @@ const FieldPropertiesPanel = ({
                           </Typography>
                         </Box>
                         {isExpanded ? (
-                          <ArrowBackIcon sx={{ 
-                            transform: 'rotate(-90deg)', 
+                          <ArrowBackIcon sx={{
+                            transform: 'rotate(-90deg)',
                             fontSize: 18,
                             color: 'text.secondary'
                           }} />
                         ) : (
-                          <ArrowBackIcon sx={{ 
-                            transform: 'rotate(90deg)', 
+                          <ArrowBackIcon sx={{
+                            transform: 'rotate(90deg)',
                             fontSize: 18,
                             color: 'text.secondary'
                           }} />
                         )}
                       </Box>
-                      
+
                       {isExpanded && (
                         <Box sx={{ pl: 1 }}>
                           {filtered.map((recipient) => {
                             const isSelected = localField.recipient_id === recipient.id;
                             const recipientColor = getRecipientColor(recipient);
-                            
+
                             return (
                               <Box
                                 key={recipient.id}
@@ -2779,8 +2779,8 @@ const FieldPropertiesPanel = ({
                                   }
                                 }}
                               >
-                                <Avatar sx={{ 
-                                  width: 32, 
+                                <Avatar sx={{
+                                  width: 32,
                                   height: 32,
                                   fontSize: '0.875rem',
                                   bgcolor: recipientColor,
@@ -2790,18 +2790,18 @@ const FieldPropertiesPanel = ({
                                   {recipient.name?.charAt(0) || 'R'}
                                 </Avatar>
                                 <Box sx={{ flex: 1 }}>
-                                  <Typography 
-                                    variant="body2" 
+                                  <Typography
+                                    variant="body2"
                                     fontWeight={isSelected ? 600 : 400}
                                     noWrap
                                   >
                                     {recipient.name}
                                   </Typography>
-                                  <Typography 
-                                    variant="caption" 
-                                    color="text.secondary" 
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
                                     noWrap
-                                    sx={{ 
+                                    sx={{
                                       fontSize: '0.75rem',
                                       opacity: isSelected ? 0.8 : 0.6
                                     }}
@@ -2810,11 +2810,11 @@ const FieldPropertiesPanel = ({
                                   </Typography>
                                 </Box>
                                 {isSelected && (
-                                  <CheckCircleIcon 
-                                    sx={{ 
-                                      fontSize: 18, 
+                                  <CheckCircleIcon
+                                    sx={{
+                                      fontSize: 18,
                                       color: recipientColor
-                                    }} 
+                                    }}
                                   />
                                 )}
                               </Box>
@@ -2826,8 +2826,8 @@ const FieldPropertiesPanel = ({
                   );
                 })
               ) : (
-                <Box sx={{ 
-                  textAlign: 'center', 
+                <Box sx={{
+                  textAlign: 'center',
                   py: 3,
                   color: 'text.secondary'
                 }}>
@@ -2843,14 +2843,14 @@ const FieldPropertiesPanel = ({
             </Box>
 
             {/* Compatibility Info */}
-            <Alert 
-              severity="info" 
+            <Alert
+              severity="info"
               icon={<InfoIcon />}
               sx={{ mb: 2 }}
             >
               <Typography variant="caption">
                 This {fieldType.label.toLowerCase()} field is compatible with:{' '}
-                {(FIELD_TYPES[field.type]?.allowedFor || []).map(role => 
+                {(FIELD_TYPES[field.type]?.allowedFor || []).map(role =>
                   FIELD_ROLES[role]?.name
                 ).filter(Boolean).join(', ') || 'all roles'}
               </Typography>
@@ -2983,7 +2983,7 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
       const recipient = recipients.find(r => r.id === recipientId);
       return recipient ? validateFieldAssignment(f.type, recipient.role) : false;
     });
-    
+
     return {
       total: assignedFields.length,
       valid: validFields.length,
@@ -3033,10 +3033,13 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
         </IconButton> */}
       </Box>
 
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 , scrollbarWidth: 'none', // Firefox
+      <Box sx={{
+        flex: 1, overflow: 'auto', p: 2, scrollbarWidth: 'none', // Firefox
         msOverflowStyle: 'none', // IE and Edge
         '&::-webkit-scrollbar': {
-          display: 'none', } }}>
+          display: 'none',
+        }
+      }}>
         <List dense>
           {recipients.map((recipient) => {
             const roleInfo = FIELD_ROLES[recipient.role];
@@ -3044,19 +3047,19 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
             const hasInvalid = stats.invalid > 0;
 
             return (
-              <Card 
-                key={recipient.id} 
-                variant="outlined" 
-                sx={{ 
+              <Card
+                key={recipient.id}
+                variant="outlined"
+                sx={{
                   mb: 1,
                   borderColor: hasInvalid ? '#FF000040' : 'divider'
                 }}
               >
                 <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Avatar sx={{ 
-                      bgcolor: getRecipientColor(recipient), 
-                      width: 32, 
+                    <Avatar sx={{
+                      bgcolor: getRecipientColor(recipient),
+                      width: 32,
                       height: 32,
                       fontSize: '0.875rem'
                     }}>
@@ -3075,7 +3078,7 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
                       size="small"
                       sx={{
                         backgroundColor: `${getRecipientColor(recipient)}20`,
-    color: getRecipientColor(recipient),
+                        color: getRecipientColor(recipient),
                         height: 20,
                         fontSize: '0.65rem'
                       }}
@@ -3083,9 +3086,9 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
                   </Box>
 
                   {/* Field Stats */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'space-between',
                     mt: 1
                   }}>
@@ -3100,7 +3103,7 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
                         </Typography>
                       </Badge>
                     </Box>
-                    
+
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       {hasInvalid && (
                         <Tooltip title={`${stats.invalid} incompatible fields`}>
@@ -3117,20 +3120,20 @@ const RecipientsPanel = ({ recipients = [], fields = [], onAddRecipientClick }) 
 
                   {/* Allowed Fields */}
                   {/* Allowed Fields */}
-<Box sx={{ mt: 1 }}>
-  <Typography variant="caption" color="text.secondary">
-    Allowed: {(() => {
-      const rules = ROLE_FIELD_RULES[recipient.role];
-      if (rules === 'ALL') {
-        return 'All field types';
-      } else if (Array.isArray(rules)) {
-        return rules.map(f => FIELD_TYPES[f]?.label).filter(Boolean).join(', ') || 'None';
-      } else {
-        return 'None';
-      }
-    })()}
-  </Typography>
-</Box>
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Allowed: {(() => {
+                        const rules = ROLE_FIELD_RULES[recipient.role];
+                        if (rules === 'ALL') {
+                          return 'All field types';
+                        } else if (Array.isArray(rules)) {
+                          return rules.map(f => FIELD_TYPES[f]?.label).filter(Boolean).join(', ') || 'None';
+                        } else {
+                          return 'None';
+                        }
+                      })()}
+                    </Typography>
+                  </Box>
                 </CardContent>
               </Card>
             );
@@ -3160,7 +3163,7 @@ const ValidationSummary = ({ fields, recipients }) => {
   }
 
   return (
-    <Alert 
+    <Alert
       severity={invalidFields.length > 0 ? "error" : "warning"}
       sx={{ mb: 2 }}
     >
@@ -3207,17 +3210,17 @@ const ValidationSummary = ({ fields, recipients }) => {
 // Add Recipient Dialog Component
 // ============================================
 
-const AddRecipientDialog = ({ 
-  open, 
-  onClose, 
-  onAddRecipient, 
+const AddRecipientDialog = ({
+  open,
+  onClose,
+  onAddRecipient,
   existingRecipients = [],
-  documentId 
+  documentId
 }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [availableRoles, setAvailableRoles] = useState([]);
-  
+
   const [recipientForm, setRecipientForm] = useState({
     name: '',
     email: '',
@@ -3250,11 +3253,11 @@ const AddRecipientDialog = ({
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!recipientForm.name.trim()) {
       newErrors.name = 'Name is required';
     }
-    
+
     if (!recipientForm.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(recipientForm.email)) {
@@ -3264,11 +3267,11 @@ const AddRecipientDialog = ({
     if (existingRecipients.some(r => r.email.toLowerCase() === recipientForm.email.toLowerCase())) {
       newErrors.email = 'This email is already added as a recipient';
     }
-    
+
     if (recipientForm.role === 'witness' && !recipientForm.witness_for) {
       newErrors.witness_for = 'Please select a signer to witness';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -3279,7 +3282,7 @@ const AddRecipientDialog = ({
       ...prev,
       [name]: name === 'signing_order' ? parseInt(value) || 1 : value
     }));
-    
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -3287,7 +3290,7 @@ const AddRecipientDialog = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -3302,7 +3305,7 @@ const AddRecipientDialog = ({
       };
 
       await onAddRecipient(recipientData);
-      
+
       setRecipientForm({
         name: '',
         email: '',
@@ -3312,9 +3315,9 @@ const AddRecipientDialog = ({
         witness_for: ''
       });
       setErrors({});
-      
+
       onClose();
-      
+
     } catch (error) {
       console.error('Error adding recipient:', error);
       setErrors({ submit: error.message || 'Failed to add recipient' });
@@ -3324,7 +3327,7 @@ const AddRecipientDialog = ({
   };
 
   const getSigners = () => {
-    return existingRecipients.filter(r => 
+    return existingRecipients.filter(r =>
       r.role === 'signer' || r.role === 'in_person_signer'
     );
   };
@@ -3339,7 +3342,7 @@ const AddRecipientDialog = ({
           Add New Recipient
         </Box>
       </DialogTitle>
-      
+
       <form onSubmit={handleSubmit}>
         <DialogContent>
           {/* Error Alert */}
@@ -3354,7 +3357,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
               Basic Information
             </Typography>
-            
+
             {/* Name Field */}
             <Box sx={{ mb: 2.5 }}>
               <TextField
@@ -3370,7 +3373,7 @@ const AddRecipientDialog = ({
                 size="medium"
               />
             </Box>
-            
+
             {/* Email Field */}
             <Box sx={{ mb: 2.5 }}>
               <TextField
@@ -3394,7 +3397,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
               Role & Settings
             </Typography>
-            
+
             <Box sx={{ display: 'flex', gap: 2, mb: 2.5 }}>
               {/* Role Selection */}
               <Box sx={{ flex: 1 }}>
@@ -3430,7 +3433,7 @@ const AddRecipientDialog = ({
                   ))}
                 </TextField>
               </Box>
-              
+
               {/* Signing Order */}
               <Box sx={{ width: 140 }}>
                 <TextField
@@ -3455,7 +3458,7 @@ const AddRecipientDialog = ({
               <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
                 Witness Assignment
               </Typography>
-              
+
               <Box sx={{ mb: 2.5 }}>
                 <TextField
                   select
@@ -3475,8 +3478,8 @@ const AddRecipientDialog = ({
                   {signers.map((signer) => (
                     <MenuItem key={signer.id} value={signer.id}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar sx={{ 
-                          width: 24, 
+                        <Avatar sx={{
+                          width: 24,
                           height: 24,
                           bgcolor: getRecipientColor(signer),
                           fontSize: '0.75rem'
@@ -3493,7 +3496,7 @@ const AddRecipientDialog = ({
                     </MenuItem>
                   ))}
                 </TextField>
-                
+
                 {signers.length === 0 && (
                   <Alert severity="info" sx={{ mt: 1.5 }}>
                     <Typography variant="body2">
@@ -3510,7 +3513,7 @@ const AddRecipientDialog = ({
               <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
                 Form Field Permissions
               </Typography>
-              
+
               <Box sx={{ mb: 2.5 }}>
                 <TextField
                   fullWidth
@@ -3537,7 +3540,7 @@ const AddRecipientDialog = ({
             <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>
               Role Permissions
             </Typography>
-            
+
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                 <InfoIcon sx={{ color: 'primary.main', mt: 0.25 }} />
@@ -3548,12 +3551,12 @@ const AddRecipientDialog = ({
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {availableRoles.find(r => r.id === recipientForm.role)?.description}
                   </Typography>
-                  
+
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
                     {(() => {
                       const rules = ROLE_FIELD_RULES[recipientForm.role];
                       let allowedFields = [];
-                      
+
                       if (rules === 'ALL') {
                         allowedFields = Object.values(FIELD_TYPES).slice(0, 6);
                       } else if (Array.isArray(rules)) {
@@ -3562,7 +3565,7 @@ const AddRecipientDialog = ({
                           .filter(Boolean)
                           .slice(0, 6);
                       }
-                      
+
                       return allowedFields.map((field, index) => (
                         <Chip
                           key={index}
@@ -3578,7 +3581,7 @@ const AddRecipientDialog = ({
                         />
                       ));
                     })()}
-                    
+
                     {(() => {
                       const rules = ROLE_FIELD_RULES[recipientForm.role];
                       if (rules === 'ALL') {
@@ -3599,18 +3602,18 @@ const AddRecipientDialog = ({
             </Paper>
           </Box>
         </DialogContent>
-        
+
         <DialogActions sx={{ px: 3, pb: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Button 
-            onClick={onClose} 
+          <Button
+            onClick={onClose}
             disabled={loading}
             sx={{ minWidth: 100 }}
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
+          <Button
+            type="submit"
+            variant="contained"
             // disabled={loading}
             disabled={loading || document?.status === 'sent'}
             startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
@@ -3645,13 +3648,13 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
     try {
       setLoading(true);
       setError('');
-      
+
       // Get the preview URL
       const previewUrl = documentAPI.getOwnerPreviewUrl(documentId);
       setPdfUrl(previewUrl);
-      
+
       // You can add additional API calls here if needed
-      
+
     } catch (err) {
       console.error('Error loading preview:', err);
       setError('Failed to load document preview');
@@ -3685,9 +3688,9 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
+    <Dialog
+      open={open}
+      onClose={onClose}
       maxWidth="xl"
       fullWidth
       fullScreen={false}
@@ -3710,23 +3713,23 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
           </IconButton>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent dividers sx={{ p: 0, position: 'relative', backgroundColor: '#f5f5f5' }}>
         {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '70vh' 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '70vh'
           }}>
             <CircularProgress />
           </Box>
         ) : error ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
             height: '70vh',
             textAlign: 'center'
           }}>
@@ -3734,8 +3737,8 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
             <Typography color="error" gutterBottom>
               {error}
             </Typography>
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               onClick={loadPreview}
               sx={{ mt: 2 }}
             >
@@ -3745,12 +3748,12 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
         ) : (
           <>
             {/* Preview Controls */}
-            <Paper 
-              elevation={1} 
-              sx={{ 
-                position: 'absolute', 
-                top: 16, 
-                right: 16, 
+            <Paper
+              elevation={1}
+              sx={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
                 zIndex: 1000,
                 display: 'flex',
                 alignItems: 'center',
@@ -3759,57 +3762,57 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
               }}
             >
               <Tooltip title="Zoom Out">
-                <IconButton 
-                  size="small" 
+                <IconButton
+                  size="small"
                   onClick={handleZoomOut}
                   disabled={zoom <= 0.5}
                 >
                   <ZoomOutIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              
+
               <Typography variant="body2" sx={{ minWidth: 50, textAlign: 'center' }}>
                 {Math.round(zoom * 100)}%
               </Typography>
-              
+
               <Tooltip title="Zoom In">
-                <IconButton 
-                  size="small" 
+                <IconButton
+                  size="small"
                   onClick={handleZoomIn}
                   disabled={zoom >= 3}
                 >
                   <ZoomInIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              
+
               <Divider orientation="vertical" flexItem />
-              
+
               <Tooltip title="Reset Zoom">
                 <IconButton size="small" onClick={handleResetZoom}>
                   <PreviewIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              
+
               {numPages > 1 && (
                 <>
                   <Divider orientation="vertical" flexItem />
                   <Tooltip title="Previous Page">
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       onClick={handlePrevPage}
                       disabled={currentPage <= 1}
                     >
                       <ArrowBackIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  
+
                   <Typography variant="body2">
                     Page {currentPage} of {numPages}
                   </Typography>
-                  
+
                   <Tooltip title="Next Page">
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       onClick={handleNextPage}
                       disabled={currentPage >= numPages}
                     >
@@ -3821,25 +3824,25 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
             </Paper>
 
             {/* PDF Viewer */}
-          {pdfUrl && (
-  <Document file={pdfUrl}>
-    <Box>
-      {Array.from({ length: numPages }).map((_, i) => (
-        <Page key={`page-${i}`} pageNumber={i + 1} />
-      ))}
-    </Box>
-  </Document>
-)}
+            {pdfUrl && (
+              <Document file={pdfUrl}>
+                <Box>
+                  {Array.from({ length: numPages }).map((_, i) => (
+                    <Page key={`page-${i}`} pageNumber={i + 1} />
+                  ))}
+                </Box>
+              </Document>
+            )}
           </>
         )}
       </DialogContent>
-      
+
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={onClose}>
           Close
         </Button>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           onClick={onClose}
         >
           Continue Editing
@@ -3852,17 +3855,17 @@ const PreviewDialog = ({ open, onClose, documentId }) => {
 
 // Success Dialog Component
 // Success Dialog Component with Professional Tick Animation
-const SuccessDialog = ({ 
-  open, 
-  onClose, 
+const SuccessDialog = ({
+  open,
+  onClose,
   onNavigateToDashboard,
   onNavigateToDocuments,
   documentName = '',
   recipientCount = 0
 }) => {
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
@@ -3870,8 +3873,8 @@ const SuccessDialog = ({
         timeout: { enter: 300, exit: 200 }
       }}
     >
-      <DialogContent sx={{ 
-        p: 4, 
+      <DialogContent sx={{
+        p: 4,
         textAlign: 'center',
         display: 'flex',
         flexDirection: 'column',
@@ -3915,8 +3918,8 @@ const SuccessDialog = ({
             sx={{
               width: 80,
               height: 80,
-              top:'8%',
-              margin:'auto',
+              top: '8%',
+              margin: 'auto',
               borderRadius: '50%',
               bgcolor: 'success.light',
               display: 'flex',
@@ -3935,15 +3938,15 @@ const SuccessDialog = ({
               }
             }}
           >
-            <CheckCircleIcon 
-              sx={{ 
-                fontSize: 48, 
+            <CheckCircleIcon
+              sx={{
+                fontSize: 48,
                 color: 'rgb(218 233 219)',
                 filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-              }} 
+              }}
             />
           </Box>
-          
+
           {/* Additional sparkle effect */}
           <Box sx={{
             position: 'absolute',
@@ -3963,11 +3966,11 @@ const SuccessDialog = ({
 
         {/* Success Title with fade-in animation */}
         <Box sx={{ animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: '0.4s' }}>
-          <Typography 
-            variant="h5" 
-            gutterBottom 
+          <Typography
+            variant="h5"
+            gutterBottom
             fontWeight={600}
-            sx={{ 
+            sx={{
               opacity: 0,
               transform: 'translateY(20px)',
               animation: 'fadeInUp 0.5s ease-out forwards',
@@ -3979,9 +3982,9 @@ const SuccessDialog = ({
         </Box>
 
         {/* Success Message */}
-        <Typography 
-          variant="body1" 
-          color="text.secondary" 
+        <Typography
+          variant="body1"
+          color="text.secondary"
           paragraph
           sx={{
             opacity: 0,
@@ -3994,10 +3997,10 @@ const SuccessDialog = ({
         </Typography>
 
         {documentName && (
-          <Chip 
+          <Chip
             label={documentName}
             variant="outlined"
-            sx={{ 
+            sx={{
               mb: 2,
               opacity: 0,
               transform: 'scale(0.8)',
@@ -4008,11 +4011,11 @@ const SuccessDialog = ({
         )}
 
         {/* Stats Summary */}
-        <Paper 
-          variant="outlined" 
-          sx={{ 
-            p: 2, 
-            mb: 3, 
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 3,
             width: '100%',
             opacity: 0,
             transform: 'translateY(20px)',
@@ -4044,11 +4047,11 @@ const SuccessDialog = ({
         </Paper>
 
         {/* Next Steps Info */}
-        <Alert 
-          severity="info" 
+        <Alert
+          severity="info"
           icon={<InfoIcon />}
-          sx={{ 
-            mb: 3, 
+          sx={{
+            mb: 3,
             width: '100%',
             opacity: 0,
             animation: 'fadeIn 0.5s ease-out forwards',
@@ -4157,8 +4160,8 @@ const SuccessDialog = ({
         `}</style>
       </DialogContent>
 
-      <DialogActions sx={{ 
-        p: 3, 
+      <DialogActions sx={{
+        p: 3,
         pt: 0,
         justifyContent: 'center',
         gap: 2,
@@ -4177,7 +4180,7 @@ const SuccessDialog = ({
         >
           Stay Here
         </Button>
-        
+
         <Button
           variant="contained"
           color="primary"
@@ -4187,7 +4190,7 @@ const SuccessDialog = ({
         >
           Go to Dashboard
         </Button>
-        
+
         <Button
           variant="contained"
           color="secondary"
@@ -4206,11 +4209,11 @@ const SuccessDialog = ({
 // AutoSaveIndicator Component (new)
 // ============================================
 
-const AutoSaveIndicator = ({ 
-  enabled, 
-  onToggle, 
+const AutoSaveIndicator = ({
+  enabled,
+  onToggle,
   status = {},
-  onForceSave 
+  onForceSave
 }) => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -4279,7 +4282,7 @@ const AutoSaveIndicator = ({
                 size="small"
                 onClick={onForceSave}
                 disabled={status.isSaving}
-                sx={{ 
+                sx={{
                   p: 0.5,
                   '&:hover': { bgcolor: 'action.hover' }
                 }}
@@ -4301,7 +4304,7 @@ const AutoSaveIndicator = ({
 const DocumentBuilder = () => {
   const navigate = useNavigate();
   const { documentId } = useParams();
-  
+
   const [document, setDocument] = useState(null);
   const [recipients, setRecipients] = useState([]);
   const [fields, setFields] = useState([]);
@@ -4314,33 +4317,33 @@ const DocumentBuilder = () => {
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [numPages, setNumPages] = useState(1);
-   const [addRecipientDialogOpen, setAddRecipientDialogOpen] = useState(false);
-   const [previewDialogOpen, setPreviewDialogOpen] = useState(false); 
-const [selectedRecipientId, setSelectedRecipientId] = useState(null);
-const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
-// const [showAllPages, setShowAllPages] = useState(false);
+  const [addRecipientDialogOpen, setAddRecipientDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [selectedRecipientId, setSelectedRecipientId] = useState(null);
+  const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
+  // const [showAllPages, setShowAllPages] = useState(false);
   // const pdfUrl = documentAPI.getBuilderPdfUrl(documentId);
-// const [pdfUrl, setPdfUrl] = useState('');
-// const [pdfVersion, setPdfVersion] = useState(0);
+  // const [pdfUrl, setPdfUrl] = useState('');
+  // const [pdfVersion, setPdfVersion] = useState(0);
 
   // Add rename states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newDocumentName, setNewDocumentName] = useState('');
 
-   // Use useMemo for pdfUrl to prevent unnecessary changes
+  // Use useMemo for pdfUrl to prevent unnecessary changes
   // Generate pdfUrl with version for cache busting
-//  const getPdfUrl = useCallback(() => {
-//   if (!documentId) return '';
-//   const baseUrl = documentAPI.getBuilderPdfUrl(documentId);
-//   return `${baseUrl}&timestamp=${Date.now()}`;
-// }, [documentId]);
+  //  const getPdfUrl = useCallback(() => {
+  //   if (!documentId) return '';
+  //   const baseUrl = documentAPI.getBuilderPdfUrl(documentId);
+  //   return `${baseUrl}&timestamp=${Date.now()}`;
+  // }, [documentId]);
 
 
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
 
-    // Add these new state variables:
+  // Add these new state variables:
   const [historyService] = useState(() => new HistoryService(100)); // 100 history states
   const [autosaveService, setAutosaveService] = useState(null);
   const [undoRedoInfo, setUndoRedoInfo] = useState({ canUndo: false, canRedo: false });
@@ -4355,186 +4358,186 @@ const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false);
 
 
   const showSnackbar = useCallback((message, severity) => {
-  setSnackbar({ open: true, message, severity });
-}, []);
+    setSnackbar({ open: true, message, severity });
+  }, []);
 
 
-useEffect(() => {
-  setPageTitle(
-    "Edit Document",
-    "Edit and prepare your document for signing using SafeSign’s builder."
-  );
-}, []);    
+  useEffect(() => {
+    setPageTitle(
+      "Edit Document",
+      "Edit and prepare your document for signing using SafeSign’s builder."
+    );
+  }, []);
 
-// Add this useEffect in your DocumentBuilder component
-useEffect(() => {
-  const handleKeyDown = (e) => {
-    // Ignore typing in inputs
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  // Add this useEffect in your DocumentBuilder component
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore typing in inputs
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-    if (e.ctrlKey) {
-      switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          setCurrentPage(prev => Math.max(0, prev - 1));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          setCurrentPage(prev => Math.min(numPages - 1, prev + 1));
-          break;
-        case 'Home':
-          e.preventDefault();
-          setCurrentPage(0);
-          break;
-        case 'End':
-          e.preventDefault();
-          setCurrentPage(numPages - 1);
-          break;
-        default:
-          break;
+      if (e.ctrlKey) {
+        switch (e.key) {
+          case 'ArrowLeft':
+            e.preventDefault();
+            setCurrentPage(prev => Math.max(0, prev - 1));
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            setCurrentPage(prev => Math.min(numPages - 1, prev + 1));
+            break;
+          case 'Home':
+            e.preventDefault();
+            setCurrentPage(0);
+            break;
+          case 'End':
+            e.preventDefault();
+            setCurrentPage(numPages - 1);
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [numPages]);
+
+  useEffect(() => {
+    if (selectedFieldId) {
+      const selectedField = fields.find(f => f.id === selectedFieldId);
+      if (selectedField && (selectedField.type === 'radio' || selectedField.type === 'dropdown')) {
+        setRightSidebarExpanded(true);
       }
     }
-  };
+  }, [selectedFieldId, fields]);
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [numPages]);
-
-useEffect(() => {
-  if (selectedFieldId) {
-    const selectedField = fields.find(f => f.id === selectedFieldId);
-    if (selectedField && (selectedField.type === 'radio' || selectedField.type === 'dropdown')) {
-      setRightSidebarExpanded(true);
-    }
-  }
-}, [selectedFieldId, fields]);
-
-// Simple Page Navigation Component
-const PageNavigation = ({ 
-  currentPage, 
-  numPages, 
-  onPageChange,
-  onToggleAllPages,
-  showAllPages 
-}) => (
-  <Paper
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      p: 1.5,
-      gap: 2,
-      backgroundColor: 'background.paper',
-      borderRadius: 2,
-      boxShadow: 2,
-      width: 'fit-content',
-      mx: 'auto',
-      mb: 2
-    }}
-  >
-    {/* All Pages Toggle */}
-    <Tooltip title={showAllPages ? "Show single page" : "Show all pages"}>
-      <IconButton
-        size="small"
-        onClick={onToggleAllPages}
-        color={showAllPages ? "primary" : "default"}
-      >
-        {showAllPages ? <GridView /> : <Fullscreen />}
-      </IconButton>
-    </Tooltip>
-    {/* <IconButton 
+  // Simple Page Navigation Component
+  const PageNavigation = ({
+    currentPage,
+    numPages,
+    onPageChange,
+    onToggleAllPages,
+    showAllPages
+  }) => (
+    <Paper
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 1.5,
+        gap: 2,
+        backgroundColor: 'background.paper',
+        borderRadius: 2,
+        boxShadow: 2,
+        width: 'fit-content',
+        mx: 'auto',
+        mb: 2
+      }}
+    >
+      {/* All Pages Toggle */}
+      <Tooltip title={showAllPages ? "Show single page" : "Show all pages"}>
+        <IconButton
+          size="small"
+          onClick={onToggleAllPages}
+          color={showAllPages ? "primary" : "default"}
+        >
+          {showAllPages ? <GridView /> : <Fullscreen />}
+        </IconButton>
+      </Tooltip>
+      {/* <IconButton 
   onClick={() => setShowAllPages(!showAllPages)}
   color={showAllPages ? "primary" : "default"}
 >
   {showAllPages ? <GridView /> : <Fullscreen />}
 </IconButton> */}
 
-    {/* Page Navigation */}
-    {!showAllPages && (
-      <>
-        <Tooltip title="First page">
-          <IconButton
-            size="small"
-            onClick={() => onPageChange(0)}
-            disabled={currentPage === 0}
-          >
-            <ChevronLeftIcon />
-            <ChevronLeftIcon sx={{ ml: -1 }} />
-          </IconButton>
-        </Tooltip>
+      {/* Page Navigation */}
+      {!showAllPages && (
+        <>
+          <Tooltip title="First page">
+            <IconButton
+              size="small"
+              onClick={() => onPageChange(0)}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeftIcon />
+              <ChevronLeftIcon sx={{ ml: -1 }} />
+            </IconButton>
+          </Tooltip>
 
-        <Tooltip title="Previous page">
-          <IconButton
-            size="small"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 0}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-        </Tooltip>
+          <Tooltip title="Previous page">
+            <IconButton
+              size="small"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </Tooltip>
 
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1,
-          px: 2 
-        }}>
-          <TextField
-            select
-            size="small"
-            value={currentPage}
-            onChange={(e) => onPageChange(parseInt(e.target.value))}
-            sx={{ 
-              width: 80,
-              '& .MuiSelect-select': { py: 0.75 }
-            }}
-          >
-            {Array.from({ length: numPages }, (_, i) => (
-              <MenuItem key={i} value={i}>
-                Page {i + 1}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Typography variant="body2" color="text.secondary">
-            of {numPages}
-          </Typography>
-        </Box>
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 2
+          }}>
+            <TextField
+              select
+              size="small"
+              value={currentPage}
+              onChange={(e) => onPageChange(parseInt(e.target.value))}
+              sx={{
+                width: 80,
+                '& .MuiSelect-select': { py: 0.75 }
+              }}
+            >
+              {Array.from({ length: numPages }, (_, i) => (
+                <MenuItem key={i} value={i}>
+                  Page {i + 1}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Typography variant="body2" color="text.secondary">
+              of {numPages}
+            </Typography>
+          </Box>
 
-        <Tooltip title="Next page">
-          <IconButton
-            size="small"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= numPages - 1}
-          >
-            <ArrowForward />
-          </IconButton>
-        </Tooltip>
+          <Tooltip title="Next page">
+            <IconButton
+              size="small"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage >= numPages - 1}
+            >
+              <ArrowForward />
+            </IconButton>
+          </Tooltip>
 
-        <Tooltip title="Last page">
-          <IconButton
-            size="small"
-            onClick={() => onPageChange(numPages - 1)}
-            disabled={currentPage >= numPages - 1}
-          >
-            <ArrowForward />
-            <ArrowForward sx={{ ml: -1 }} />
-          </IconButton>
-        </Tooltip>
-      </>
-    )}
+          <Tooltip title="Last page">
+            <IconButton
+              size="small"
+              onClick={() => onPageChange(numPages - 1)}
+              disabled={currentPage >= numPages - 1}
+            >
+              <ArrowForward />
+              <ArrowForward sx={{ ml: -1 }} />
+            </IconButton>
+          </Tooltip>
+        </>
+      )}
 
-    {/* Page Info */}
-    <Chip
-      label={`${numPages} page${numPages !== 1 ? 's' : ''}`}
-      size="small"
-      variant="outlined"
-      color="primary"
-    />
-  </Paper>
-);
+      {/* Page Info */}
+      <Chip
+        label={`${numPages} page${numPages !== 1 ? 's' : ''}`}
+        size="small"
+        variant="outlined"
+        color="primary"
+      />
+    </Paper>
+  );
 
-// Add rename function
+  // Add rename function
   const handleRenameDocument = async () => {
     if (!newDocumentName.trim() || !documentId) {
       showSnackbar('Please enter a valid document name', 'error');
@@ -4543,10 +4546,10 @@ const PageNavigation = ({
 
     try {
       setRenaming(true);
-      
+
       // Add .pdf extension if not present
-      const filename = newDocumentName.trim().endsWith('.pdf') 
-        ? newDocumentName.trim() 
+      const filename = newDocumentName.trim().endsWith('.pdf')
+        ? newDocumentName.trim()
         : `${newDocumentName.trim()}.pdf`;
 
       const response = await fetch(`${API_BASE_URL}/documents/${documentId}/rename`, {
@@ -4564,12 +4567,12 @@ const PageNavigation = ({
 
       // Update local document state
       setDocument(prev => prev ? { ...prev, filename } : null);
-      
+
       // Close dialog and show success
       setRenameDialogOpen(false);
       setNewDocumentName('');
       showSnackbar('Document renamed successfully!', 'success');
-      
+
     } catch (error) {
       console.error('Error renaming document:', error);
       showSnackbar('Failed to rename document', 'error');
@@ -4588,365 +4591,364 @@ const PageNavigation = ({
   }, [document]);
 
 
-// Replace the existing handleSelectRecipient with this:
-const handleSelectRecipient = (recipientId) => {
-  setSelectedRecipientId(recipientId);
-  
-  // If there's a selected field, update its recipient too
-  if (selectedFieldId) {
-    const selectedField = fields.find(f => f.id === selectedFieldId);
-    if (selectedField) {
-      // Check if the field type is compatible with the selected recipient
-      const recipient = recipients.find(r => r.id === recipientId);
-      if (recipient && validateFieldAssignment(selectedField.type, recipient.role)) {
-        handleFieldChange(selectedFieldId, { recipient_id: recipientId });
-      } else if (!recipientId) {
-        // Clear recipient if null/undefined
-        handleFieldChange(selectedFieldId, { recipient_id: null });
+  // Replace the existing handleSelectRecipient with this:
+  const handleSelectRecipient = (recipientId) => {
+    setSelectedRecipientId(recipientId);
+
+    // If there's a selected field, update its recipient too
+    if (selectedFieldId) {
+      const selectedField = fields.find(f => f.id === selectedFieldId);
+      if (selectedField) {
+        // Check if the field type is compatible with the selected recipient
+        const recipient = recipients.find(r => r.id === recipientId);
+        if (recipient && validateFieldAssignment(selectedField.type, recipient.role)) {
+          handleFieldChange(selectedFieldId, { recipient_id: recipientId });
+        } else if (!recipientId) {
+          // Clear recipient if null/undefined
+          handleFieldChange(selectedFieldId, { recipient_id: null });
+        }
       }
     }
-  }
-};
+  };
 
 
 
 
-// Toggle function
-const toggleRightSidebar = () => {
-  setRightSidebarExpanded(!rightSidebarExpanded);
-};
+  // Toggle function
+  const toggleRightSidebar = () => {
+    setRightSidebarExpanded(!rightSidebarExpanded);
+  };
 
   // Debug counter
   const renderCount = useRef(0);
-  
+
   useEffect(() => {
     renderCount.current += 1;
     console.log(`DocumentBuilder rendered ${renderCount.current} times`);
   });
 
   // Fetch document data - ADD showSnackbar dependency
- useEffect(() => {
+  useEffect(() => {
     // Update the fetchDocumentData function
-// Update the fetchDocumentData function
-const fetchDocumentData = async () => {
-  try {
-    setLoading(true);
-    
-    if (!documentId) {
-      throw new Error('No document ID provided');
-    }
+    // Update the fetchDocumentData function
+    const fetchDocumentData = async () => {
+      try {
+        setLoading(true);
 
-    // Fetch all data in parallel if possible
-    const [docData, recipientsData, fieldsData] = await Promise.all([
-      documentAPI.getDocument(documentId),
-      documentAPI.getRecipients(documentId),
-      documentAPI.getFields(documentId)
-    ]);
-    
-    // Single state update
-    setDocument(docData);
-    setNumPages(docData.page_count || 1);
-    setRecipients(recipientsData);
-    
-    // Process fields once
-    const fieldsWithRecipientInfo = fieldsData.map(field => {
-      const recipient = recipientsData.find(r => r.id === field.recipient_id);
-      
-      return {
-        id: field.id,
-        name: `field_${field.type}_${field.id}`,
-        type: field.type,
-        label: field.label || field.type.charAt(0).toUpperCase() + field.type.slice(1),
-        x: field.x,
-        y: field.y,
-        width: field.width,
-        height: field.height,
-        page: field.page || 0,
-        required: field.required || false,
-        recipient_id: field.recipient_id,
-        recipientInfo: recipient,
-        assignedRecipient: recipient
-      };
-    });
-    
-    setFields(fieldsWithRecipientInfo);
-    
-  } catch (error) {
-    console.error('Error fetching document data:', error);
-    showSnackbar(`Failed to load document: ${error.message}`, 'error');
-  } finally {
-    setLoading(false);
-  }
-};
+        if (!documentId) {
+          throw new Error('No document ID provided');
+        }
+
+        // Fetch all data in parallel if possible
+        const [docData, recipientsData, fieldsData] = await Promise.all([
+          documentAPI.getDocument(documentId),
+          documentAPI.getRecipients(documentId),
+          documentAPI.getFields(documentId)
+        ]);
+
+        // Single state update
+        setDocument(docData);
+        setNumPages(docData.page_count || 1);
+        setRecipients(recipientsData);
+
+        // Process fields once
+        const fieldsWithRecipientInfo = fieldsData.map(field => {
+          const recipient = recipientsData.find(r => r.id === field.recipient_id);
+
+          return {
+            id: field.id,
+            name: `field_${field.type}_${field.id}`,
+            type: field.type,
+            label: field.label || field.type.charAt(0).toUpperCase() + field.type.slice(1),
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            page: field.page || 0,
+            required: field.required || false,
+            recipient_id: field.recipient_id,
+            recipientInfo: recipient,
+            assignedRecipient: recipient
+          };
+        });
+
+        setFields(fieldsWithRecipientInfo);
+
+      } catch (error) {
+        console.error('Error fetching document data:', error);
+        showSnackbar(`Failed to load document: ${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchDocumentData();
   }, [documentId, showSnackbar]);
 
   // Manual save with versioning - UPDATED
-const handleSaveFields = async () => {
-  // -------------------- GUARDS --------------------
-  if (!documentId) {
-    showSnackbar('No document selected', 'error');
-    return;
-  }
-
-  if (saving) return;
-
-  try {
-    setSaving(true);
-    setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
-
-    // -------------------- PDF & CANVAS CONSTANTS --------------------
-    // PDF page size (Letter: points)
-    const PDF_PAGE_WIDTH = 612;   // 8.5 * 72
-    const PDF_PAGE_HEIGHT = 792;  // 11 * 72
-
-    // Frontend canvas size
-    const CANVAS_WIDTH = 794;
-    const CANVAS_HEIGHT = 1123;
-
-    // Scale ratios: Canvas → PDF
-    const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
-    const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
-
-    // -------------------- BUILD PAYLOAD --------------------
-    const payload = fields.map(field => {
-      // Ensure backend page index (0-based)
-      const backendPage = Math.max(
-        0,
-        Math.min(field.page ?? 0, (numPages ?? 1) - 1)
-      );
-
-      console.log(
-        `Saving field: type=${field.type}, page=${backendPage} (0-indexed)`
-      );
-
-      // Stored canvas dimensions (fallback to defaults)
-      const fieldPageWidth = field.pageWidth ?? CANVAS_WIDTH;
-      const fieldPageHeight = field.pageHeight ?? CANVAS_HEIGHT;
-
-      // Scale if field was created on a different canvas size
-      const xScale = CANVAS_WIDTH / fieldPageWidth;
-      const yScale = CANVAS_HEIGHT / fieldPageHeight;
-
-      // Normalize canvas coordinates
-      const normalizedX = (field.x ?? 50) * xScale;
-      const normalizedY = (field.y ?? 50) * yScale;
-      const normalizedWidth = (field.width ?? 100) * xScale;
-      const normalizedHeight = (field.height ?? 40) * yScale;
-
-      // Convert to PDF coordinates
-      const pdfX = normalizedX * scaleX;
-      const pdfY =
-        normalizedY * scaleY + backendPage * PDF_PAGE_HEIGHT;
-      const pdfWidth = normalizedWidth * scaleX;
-      const pdfHeight = normalizedHeight * scaleY;
-
-      // -------------------- BASE FIELD PAYLOAD --------------------
-      const basePayload = {
-        id: field.isNew ? undefined : field.id,
-        page: backendPage,
-
-        // Canvas coordinates
-        x: normalizedX,
-        y: normalizedY,
-        width: normalizedWidth,
-        height: normalizedHeight,
-
-        // PDF coordinates
-        pdf_x: pdfX,
-        pdf_y: pdfY,
-        pdf_width: pdfWidth,
-        pdf_height: pdfHeight,
-
-        // Reference dimensions
-        page_width: PDF_PAGE_WIDTH,
-        page_height: PDF_PAGE_HEIGHT,
-        canvas_width: CANVAS_WIDTH,
-        canvas_height: CANVAS_HEIGHT,
-
-        // Common field properties
-        type: field.type,
-        recipient_id: field.recipient_id ?? null,
-        required: Boolean(field.required),
-        label: field.label ?? '',
-        placeholder: field.placeholder ?? ''
-      };
-
-      // -------------------- TYPE-SPECIFIC EXTENSIONS --------------------
-      if (field.type === 'dropdown') {
-        basePayload.dropdown_options =
-          field.dropdown_options?.length
-            ? field.dropdown_options
-            : ['Option 1', 'Option 2', 'Option 3'];
-      }
-
-      if (field.type === 'radio') {
-        basePayload.group_name =
-          field.group_name ?? `group_${Date.now()}`;
-      }
-
-      if (field.type === 'mail') {
-        basePayload.email_validation =
-          field.email_validation !== false;
-      }
-
-      if (field.type === 'checkbox') {
-        basePayload.checked = Boolean(field.checked);
-      }
-
-      return basePayload;
-    });
-
-    console.log(
-      'Saving fields with page info:',
-      payload.map(f => ({
-        page: f.page,
-        type: f.type,
-        pdf_y: f.pdf_y,
-        page_height: f.page_height
-      }))
-    );
-
-    // -------------------- API CALL --------------------
-    const response = await fetch(
-      `${API_BASE_URL}/documents/${documentId}/fields`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(payload)
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to save fields');
+  const handleSaveFields = async () => {
+    // -------------------- GUARDS --------------------
+    if (!documentId) {
+      showSnackbar('No document selected', 'error');
+      return;
     }
 
-    const result = await response.json();
+    if (saving) return;
 
-    // -------------------- SYNC BACKEND → FRONTEND --------------------
-    const updatedFields = fields.map(field => {
-      const matched = result.fields?.find(sf => {
-        const pageMatch = sf.page === (field.page ?? 0);
-        const typeMatch = sf.type === field.type;
-        const positionMatch =
-          Math.abs(sf.x - (field.x ?? 0)) < 20 &&
-          Math.abs(sf.y - (field.y ?? 0)) < 20;
+    try {
+      setSaving(true);
+      setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
 
-        return pageMatch && typeMatch && positionMatch;
+      // -------------------- PDF & CANVAS CONSTANTS --------------------
+      // PDF page size (Letter: points)
+      const PDF_PAGE_WIDTH = 612;   // 8.5 * 72
+      const PDF_PAGE_HEIGHT = 792;  // 11 * 72
+
+      // Frontend canvas size
+      const CANVAS_WIDTH = 794;
+      const CANVAS_HEIGHT = 1123;
+
+      // Scale ratios: Canvas → PDF
+      const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
+      const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
+
+      // -------------------- BUILD PAYLOAD --------------------
+      const payload = fields.map(field => {
+        // Ensure backend page index (0-based)
+        const backendPage = Math.max(
+          0,
+          Math.min(field.page ?? 0, (numPages ?? 1) - 1)
+        );
+
+        console.log(
+          `Saving field: type=${field.type}, page=${backendPage} (0-indexed)`
+        );
+
+        // Stored canvas dimensions (fallback to defaults)
+        const fieldPageWidth = field.pageWidth ?? CANVAS_WIDTH;
+        const fieldPageHeight = field.pageHeight ?? CANVAS_HEIGHT;
+
+        // Scale if field was created on a different canvas size
+        const xScale = CANVAS_WIDTH / fieldPageWidth;
+        const yScale = CANVAS_HEIGHT / fieldPageHeight;
+
+        // Normalize canvas coordinates
+        const normalizedX = (field.x ?? 50) * xScale;
+        const normalizedY = (field.y ?? 50) * yScale;
+        const normalizedWidth = (field.width ?? 100) * xScale;
+        const normalizedHeight = (field.height ?? 40) * yScale;
+
+        // Convert to PDF coordinates
+        const pdfX = normalizedX * scaleX;
+        const pdfY =
+          normalizedY * scaleY + backendPage * PDF_PAGE_HEIGHT;
+        const pdfWidth = normalizedWidth * scaleX;
+        const pdfHeight = normalizedHeight * scaleY;
+
+        // -------------------- BASE FIELD PAYLOAD --------------------
+        const basePayload = {
+          id: field.isNew ? undefined : field.id,
+          page: backendPage,
+
+          // Canvas coordinates
+          x: normalizedX,
+          y: normalizedY,
+          width: normalizedWidth,
+          height: normalizedHeight,
+
+          // PDF coordinates
+          pdf_x: pdfX,
+          pdf_y: pdfY,
+          pdf_width: pdfWidth,
+          pdf_height: pdfHeight,
+
+          // Reference dimensions
+          page_width: PDF_PAGE_WIDTH,
+          page_height: PDF_PAGE_HEIGHT,
+          canvas_width: CANVAS_WIDTH,
+          canvas_height: CANVAS_HEIGHT,
+
+          // Common field properties
+          type: field.type,
+          recipient_id: field.recipient_id ?? null,
+          required: Boolean(field.required),
+          label: field.label ?? '',
+          placeholder: field.placeholder ?? ''
+        };
+
+        // -------------------- TYPE-SPECIFIC EXTENSIONS --------------------
+        if (field.type === 'dropdown') {
+          basePayload.dropdown_options =
+            field.dropdown_options?.length
+              ? field.dropdown_options
+              : ['Option 1', 'Option 2', 'Option 3'];
+        }
+
+        if (field.type === 'radio') {
+          basePayload.group_name =
+            field.group_name ?? `group_${Date.now()}`;
+        }
+
+        if (field.type === 'mail') {
+          basePayload.email_validation =
+            field.email_validation !== false;
+        }
+
+        if (field.type === 'checkbox') {
+          basePayload.checked = Boolean(field.checked);
+        }
+
+        return basePayload;
       });
 
-      return {
-        ...field,
-        isNew: false,
-        id: matched?.id ?? field.id,
-        x: matched?.x ?? field.x,
-        y: matched?.y ?? field.y,
-        page: matched?.page ?? field.page
-      };
-    });
+      console.log(
+        'Saving fields with page info:',
+        payload.map(f => ({
+          page: f.page,
+          type: f.type,
+          pdf_y: f.pdf_y,
+          page_height: f.page_height
+        }))
+      );
 
-    setFields(updatedFields);
-    historyService.push(updatedFields);
-    updateUndoRedoInfo();
+      // -------------------- API CALL --------------------
+      const response = await fetch(
+        `${API_BASE_URL}/documents/${documentId}/fields`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(payload)
+        }
+      );
 
-    setAutoSaveStatus({
-      lastSaved: new Date(),
-      isSaving: false,
-      hasUnsavedChanges: false
-    });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to save fields');
+      }
 
-    showSnackbar(
-      `Saved ${result.count} fields across ${
-        new Set(updatedFields.map(f => f.page)).size
-      } pages`,
-      'success'
-    );
+      const result = await response.json();
 
-    console.log('📤 Final saved fields:');
-    updatedFields.forEach((f, i) => {
-      console.log(`Field ${i}: page=${f.page}, type=${f.type}`);
-    });
+      // -------------------- SYNC BACKEND → FRONTEND --------------------
+      const updatedFields = fields.map(field => {
+        const matched = result.fields?.find(sf => {
+          const pageMatch = sf.page === (field.page ?? 0);
+          const typeMatch = sf.type === field.type;
+          const positionMatch =
+            Math.abs(sf.x - (field.x ?? 0)) < 20 &&
+            Math.abs(sf.y - (field.y ?? 0)) < 20;
 
-    return result;
-  } catch (err) {
-    console.error('Error saving fields:', err);
+          return pageMatch && typeMatch && positionMatch;
+        });
 
-    if (err.message?.includes('locked')) {
+        return {
+          ...field,
+          isNew: false,
+          id: matched?.id ?? field.id,
+          x: matched?.x ?? field.x,
+          y: matched?.y ?? field.y,
+          page: matched?.page ?? field.page
+        };
+      });
+
+      setFields(updatedFields);
+      historyService.push(updatedFields);
+      updateUndoRedoInfo();
+
+      setAutoSaveStatus({
+        lastSaved: new Date(),
+        isSaving: false,
+        hasUnsavedChanges: false
+      });
+
       showSnackbar(
-        'Document is locked. Fields cannot be modified after sending.',
-        'error'
+        `Saved ${result.count} fields across ${new Set(updatedFields.map(f => f.page)).size
+        } pages`,
+        'success'
       );
-      setDocument(prev =>
-        prev ? { ...prev, status: 'sent' } : null
-      );
-    } else {
-      showSnackbar(err.message || 'Failed to save fields', 'error');
-    }
 
-    throw err;
-  } finally {
-    setSaving(false);
-  }
-};
+      console.log('📤 Final saved fields:');
+      updatedFields.forEach((f, i) => {
+        console.log(`Field ${i}: page=${f.page}, type=${f.type}`);
+      });
+
+      return result;
+    } catch (err) {
+      console.error('Error saving fields:', err);
+
+      if (err.message?.includes('locked')) {
+        showSnackbar(
+          'Document is locked. Fields cannot be modified after sending.',
+          'error'
+        );
+        setDocument(prev =>
+          prev ? { ...prev, status: 'sent' } : null
+        );
+      } else {
+        showSnackbar(err.message || 'Failed to save fields', 'error');
+      }
+
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
 
 
 
   // Memoize expensive calculations
-const getFieldValidationError = useCallback(
-  (field) => {
-    if (!field || !field.recipient_id) return false;
-    if (!Array.isArray(recipients)) return false;
+  const getFieldValidationError = useCallback(
+    (field) => {
+      if (!field || !field.recipient_id) return false;
+      if (!Array.isArray(recipients)) return false;
 
-    const recipient = recipients.find(r => r.id === field.recipient_id);
-    if (!recipient) return true;
+      const recipient = recipients.find(r => r.id === field.recipient_id);
+      if (!recipient) return true;
 
-    return !validateFieldAssignment(field.type, recipient.role);
-  },
-  [recipients]
-);
+      return !validateFieldAssignment(field.type, recipient.role);
+    },
+    [recipients]
+  );
 
 
-// Add this effect to your DocumentBuilder component
-useEffect(() => {
-  // Check for fields with unreasonable sizes
-  const hasInvalidSizes = fields.some(field => {
-    const defaultWidth = FIELD_TYPES[field.type]?.defaultWidth || 100;
-    const defaultHeight = FIELD_TYPES[field.type]?.defaultHeight || 40;
-    
-    return field.width > defaultWidth * 5 || field.height > defaultHeight * 5;
-  });
-  
-  if (hasInvalidSizes) {
-    // Reset oversized fields
-    const correctedFields = fields.map(field => {
+  // Add this effect to your DocumentBuilder component
+  useEffect(() => {
+    // Check for fields with unreasonable sizes
+    const hasInvalidSizes = fields.some(field => {
       const defaultWidth = FIELD_TYPES[field.type]?.defaultWidth || 100;
       const defaultHeight = FIELD_TYPES[field.type]?.defaultHeight || 40;
-      
-      // If field is way too large, reset to reasonable size
-      if (field.width > defaultWidth * 5) {
-        return {
-          ...field,
-          width: defaultWidth * 1.5, // 150% of default
-          height: defaultHeight * 1.5
-        };
-      }
-      return field;
+
+      return field.width > defaultWidth * 5 || field.height > defaultHeight * 5;
     });
-    
-    if (JSON.stringify(correctedFields) !== JSON.stringify(fields)) {
-      setFields(correctedFields);
+
+    if (hasInvalidSizes) {
+      // Reset oversized fields
+      const correctedFields = fields.map(field => {
+        const defaultWidth = FIELD_TYPES[field.type]?.defaultWidth || 100;
+        const defaultHeight = FIELD_TYPES[field.type]?.defaultHeight || 40;
+
+        // If field is way too large, reset to reasonable size
+        if (field.width > defaultWidth * 5) {
+          return {
+            ...field,
+            width: defaultWidth * 1.5, // 150% of default
+            height: defaultHeight * 1.5
+          };
+        }
+        return field;
+      });
+
+      if (JSON.stringify(correctedFields) !== JSON.stringify(fields)) {
+        setFields(correctedFields);
+      }
     }
-  }
-}, [fields]);
+  }, [fields]);
 
 
 
-// Add function to handle adding recipients
+  // Add function to handle adding recipients
   const handleAddRecipient = async (recipientData) => {
     try {
       // Simulate API call to add recipient
@@ -4966,19 +4968,19 @@ useEffect(() => {
       }
 
       const result = await response.json();
-      
+
       // Add new recipient to the list
       const newRecipient = {
         id: result.recipients?.[0]?.id || Date.now().toString(),
         ...recipientData,
         added_at: new Date().toISOString()
       };
-      
+
       setRecipients(prev => [...prev, newRecipient]);
       showSnackbar('Recipient added successfully!', 'success');
-      
+
       return newRecipient;
-      
+
     } catch (error) {
       console.error('Error adding recipient:', error);
       throw error;
@@ -4987,179 +4989,179 @@ useEffect(() => {
 
   // Manual save with versioning
 
-// const handleSaveFields = async () => {
-//   if (!documentId) {
-//     showSnackbar('No document selected', 'error');
-//     return;
-//   }
+  // const handleSaveFields = async () => {
+  //   if (!documentId) {
+  //     showSnackbar('No document selected', 'error');
+  //     return;
+  //   }
 
-//   if (saving) return;
+  //   if (saving) return;
 
-//   try {
-//     setSaving(true);
-//     setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
+  //   try {
+  //     setSaving(true);
+  //     setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
 
-//     // Standard PDF page dimensions (Letter size)
-//     const PDF_PAGE_WIDTH = 612;   // 8.5 inches * 72 points/inch = 612 points
-//     const PDF_PAGE_HEIGHT = 792;  // 11 inches * 72 points/inch = 792 points
-    
-//     // Your Konva canvas dimensions (what users see)
-//     const CANVAS_WIDTH = 794;     // Canvas width in pixels
-//     const CANVAS_HEIGHT = 1123;   // Canvas height in pixels
+  //     // Standard PDF page dimensions (Letter size)
+  //     const PDF_PAGE_WIDTH = 612;   // 8.5 inches * 72 points/inch = 612 points
+  //     const PDF_PAGE_HEIGHT = 792;  // 11 inches * 72 points/inch = 792 points
 
-//     // Build payload matching backend expectations
-//     const payload = fields.map(f => {
-//       // Ensure field has valid coordinates
-//       const fieldX = f.x ?? 50;
-//       const fieldY = f.y ?? 50;
-//       const fieldWidth = f.width ?? FIELD_TYPES[f.type]?.defaultWidth ?? 200;
-//       const fieldHeight = f.height ?? FIELD_TYPES[f.type]?.defaultHeight ?? 40;
+  //     // Your Konva canvas dimensions (what users see)
+  //     const CANVAS_WIDTH = 794;     // Canvas width in pixels
+  //     const CANVAS_HEIGHT = 1123;   // Canvas height in pixels
 
-//       // Calculate scaling ratio between canvas and PDF
-//       const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
-//       const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
+  //     // Build payload matching backend expectations
+  //     const payload = fields.map(f => {
+  //       // Ensure field has valid coordinates
+  //       const fieldX = f.x ?? 50;
+  //       const fieldY = f.y ?? 50;
+  //       const fieldWidth = f.width ?? FIELD_TYPES[f.type]?.defaultWidth ?? 200;
+  //       const fieldHeight = f.height ?? FIELD_TYPES[f.type]?.defaultHeight ?? 40;
 
-//       // Convert canvas pixels to PDF points
-//       const pdfX = fieldX * scaleX;
-//       const pdfY = fieldY * scaleY;
-//       const pdfWidth = fieldWidth * scaleX;
-//       const pdfHeight = fieldHeight * scaleY;
+  //       // Calculate scaling ratio between canvas and PDF
+  //       const scaleX = PDF_PAGE_WIDTH / CANVAS_WIDTH;
+  //       const scaleY = PDF_PAGE_HEIGHT / CANVAS_HEIGHT;
 
-//       return {
-//         id: f.isNew ? undefined : f.id,
-//         page: f.page ?? 0,
-        
-//         // Send ORIGINAL canvas coordinates (frontend)
-//         x: fieldX,      // Canvas pixels
-//         y: fieldY,      // Canvas pixels
-//         width: fieldWidth,
-//         height: fieldHeight,
-        
-//         // REQUIRED for backend conversion
-//         page_width: PDF_PAGE_WIDTH,
-//         page_height: PDF_PAGE_HEIGHT,
-//         canvas_width: CANVAS_WIDTH,
-//         canvas_height: CANVAS_HEIGHT,
-        
-//         // Field properties
-//         type: f.type,
-//         recipient_id: f.recipient_id ?? null,
-//         required: Boolean(f.required),
-        
-//         // Optional properties
-//         label: f.label || '',
-//         placeholder: f.placeholder || '',
-//         font_size: f.font_size || 12
-//       };
-//     });
+  //       // Convert canvas pixels to PDF points
+  //       const pdfX = fieldX * scaleX;
+  //       const pdfY = fieldY * scaleY;
+  //       const pdfWidth = fieldWidth * scaleX;
+  //       const pdfHeight = fieldHeight * scaleY;
 
-//     console.log('Saving fields payload:', JSON.stringify(payload, null, 2));
+  //       return {
+  //         id: f.isNew ? undefined : f.id,
+  //         page: f.page ?? 0,
 
-//     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/fields`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Authorization': `Bearer ${localStorage.getItem('token')}`
-//       },
-//       body: JSON.stringify(payload)
-//     });
+  //         // Send ORIGINAL canvas coordinates (frontend)
+  //         x: fieldX,      // Canvas pixels
+  //         y: fieldY,      // Canvas pixels
+  //         width: fieldWidth,
+  //         height: fieldHeight,
 
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       throw new Error(errorData.detail || 'Failed to save fields');
-//     }
+  //         // REQUIRED for backend conversion
+  //         page_width: PDF_PAGE_WIDTH,
+  //         page_height: PDF_PAGE_HEIGHT,
+  //         canvas_width: CANVAS_WIDTH,
+  //         canvas_height: CANVAS_HEIGHT,
 
-//     const result = await response.json();
-    
-//     // Update fields with backend IDs
-//     const savedFields = fields.map(f => {
-//       const savedField = result.fields?.find(sf => 
-//         sf.recipient_id === f.recipient_id && 
-//         sf.type === f.type &&
-//         Math.abs(sf.canvas_x - (f.x || 0)) < 10 &&
-//         Math.abs(sf.canvas_y - (f.y || 0)) < 10
-//       );
-      
-//       return {
-//         ...f,
-//         isNew: false,
-//         id: savedField?.id || f.id
-//       };
-//     });
+  //         // Field properties
+  //         type: f.type,
+  //         recipient_id: f.recipient_id ?? null,
+  //         required: Boolean(f.required),
 
-//     setFields(savedFields);
-//     historyService.push(savedFields);
-//     updateUndoRedoInfo();
+  //         // Optional properties
+  //         label: f.label || '',
+  //         placeholder: f.placeholder || '',
+  //         font_size: f.font_size || 12
+  //       };
+  //     });
 
-//     setSaveVersion(prev => prev + 1);
-//     setAutoSaveStatus({
-//       lastSaved: new Date(),
-//       isSaving: false,
-//       hasUnsavedChanges: false
-//     });
+  //     console.log('Saving fields payload:', JSON.stringify(payload, null, 2));
 
-//     showSnackbar(`Saved ${result.count} fields successfully`, 'success');
-    
-//     // Force PDF reload ONLY after manual save
-//     const newPdfUrl = documentAPI.getBuilderPdfUrl(documentId) + `&v=${Date.now()}`;
-    
-//     return result;
+  //     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/fields`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('token')}`
+  //       },
+  //       body: JSON.stringify(payload)
+  //     });
 
-//   } catch (err) {
-//     console.error('Error saving fields:', err);
-//     showSnackbar(err.message || 'Failed to save fields', 'error');
-//     throw err;
-//   } finally {
-//     setSaving(false);
-//   }
-// };
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.detail || 'Failed to save fields');
+  //     }
 
+  //     const result = await response.json();
 
+  //     // Update fields with backend IDs
+  //     const savedFields = fields.map(f => {
+  //       const savedField = result.fields?.find(sf => 
+  //         sf.recipient_id === f.recipient_id && 
+  //         sf.type === f.type &&
+  //         Math.abs(sf.canvas_x - (f.x || 0)) < 10 &&
+  //         Math.abs(sf.canvas_y - (f.y || 0)) < 10
+  //       );
+
+  //       return {
+  //         ...f,
+  //         isNew: false,
+  //         id: savedField?.id || f.id
+  //       };
+  //     });
+
+  //     setFields(savedFields);
+  //     historyService.push(savedFields);
+  //     updateUndoRedoInfo();
+
+  //     setSaveVersion(prev => prev + 1);
+  //     setAutoSaveStatus({
+  //       lastSaved: new Date(),
+  //       isSaving: false,
+  //       hasUnsavedChanges: false
+  //     });
+
+  //     showSnackbar(`Saved ${result.count} fields successfully`, 'success');
+
+  //     // Force PDF reload ONLY after manual save
+  //     const newPdfUrl = documentAPI.getBuilderPdfUrl(documentId) + `&v=${Date.now()}`;
+
+  //     return result;
+
+  //   } catch (err) {
+  //     console.error('Error saving fields:', err);
+  //     showSnackbar(err.message || 'Failed to save fields', 'error');
+  //     throw err;
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
 
 
 
 
 
-// Update the AutosaveService initialization to respect the toggle
+
+
+  // Update the AutosaveService initialization to respect the toggle
   useEffect(() => {
-  const service = new AutosaveService(
-    documentId,
-    async (fields) => {
-      // Only save if auto-save is enabled
-      if (!autoSaveEnabled) {
-        console.log('Auto-save skipped (disabled)');
-        return fields;
+    const service = new AutosaveService(
+      documentId,
+      async (fields) => {
+        // Only save if auto-save is enabled
+        if (!autoSaveEnabled) {
+          console.log('Auto-save skipped (disabled)');
+          return fields;
+        }
+
+        // Convert to backend format
+        const payload = fields.map(field => ({
+          id: field.isNew ? undefined : field.id,
+          page: field.page ?? 0,
+          x: field.x ?? 0,
+          y: field.y ?? 0,
+          width: field.width ?? FIELD_TYPES[field.type]?.defaultWidth ?? 200,
+          height: field.height ?? FIELD_TYPES[field.type]?.defaultHeight ?? 40,
+          type: field.type,
+          recipient_id: field.recipient_id ?? null,
+          label: field.label,
+          placeholder: field.placeholder,
+          required: field.required ?? false
+        }));
+
+        await documentAPI.saveFields(documentId, payload);
+
+        // Mark fields as saved
+        return fields.map(f => ({ ...f, isNew: false }));
+      },
+      {
+        debounceTime: 5000, // Increase to 5 seconds to reduce frequency
+        maxRetries: 3,
+        enabled: autoSaveEnabled,
+        silent: true // Add silent mode to not trigger UI updates
       }
-      
-      // Convert to backend format
-      const payload = fields.map(field => ({
-        id: field.isNew ? undefined : field.id,
-        page: field.page ?? 0,
-        x: field.x ?? 0,
-        y: field.y ?? 0,
-        width: field.width ?? FIELD_TYPES[field.type]?.defaultWidth ?? 200,
-        height: field.height ?? FIELD_TYPES[field.type]?.defaultHeight ?? 40,
-        type: field.type,
-        recipient_id: field.recipient_id ?? null,
-        label: field.label,
-        placeholder: field.placeholder,
-        required: field.required ?? false
-      }));
+    );
 
-      await documentAPI.saveFields(documentId, payload);
-      
-      // Mark fields as saved
-      return fields.map(f => ({ ...f, isNew: false }));
-    },
-    {
-      debounceTime: 5000, // Increase to 5 seconds to reduce frequency
-      maxRetries: 3,
-      enabled: autoSaveEnabled,
-      silent: true // Add silent mode to not trigger UI updates
-    }
-  );
-
-  setAutosaveService(service);
+    setAutosaveService(service);
 
     // Listen to autosave events
     const handleAutosaveSuccess = () => {
@@ -5214,23 +5216,23 @@ useEffect(() => {
     if (!autosaveService || fields.length === 0 || !autoSaveEnabled) return;
 
     const hasChanges = autosaveService.hasUnsavedChanges(fields);
-    
+
     if (hasChanges) {
       setAutoSaveStatus(prev => ({
         ...prev,
         hasUnsavedChanges: true,
         isSaving: true
       }));
-      
+
       autosaveService.scheduleSave(fields);
     }
-  }, [fields, autosaveService, autoSaveEnabled]); 
+  }, [fields, autosaveService, autoSaveEnabled]);
 
 
   // Add force save function
   const handleForceSave = async () => {
     if (!autosaveService || fields.length === 0) return;
-    
+
     try {
       setAutoSaveStatus(prev => ({ ...prev, isSaving: true }));
       await autosaveService.forceSave(fields);
@@ -5243,10 +5245,10 @@ useEffect(() => {
   // Add toggle handler
   const handleToggleAutoSave = (enabled) => {
     setAutoSaveEnabled(enabled);
-    
+
     if (enabled) {
       showSnackbar('Auto-save enabled', 'info');
-      
+
       // Trigger save if there are unsaved changes
       if (autoSaveStatus.hasUnsavedChanges) {
         handleForceSave();
@@ -5264,27 +5266,27 @@ useEffect(() => {
   // Undo function
   const undo = useCallback(() => {
     if (!historyService.canUndo()) return;
-    
+
     const previousState = historyService.undo();
     setFields(previousState);
     updateUndoRedoInfo();
-    
+
     // Deselect field if it no longer exists
     if (selectedFieldId && !previousState.find(f => f.id === selectedFieldId)) {
       setSelectedFieldId(null);
     }
-    
+
     showSnackbar('Undo successful', 'info');
   }, [historyService, selectedFieldId, showSnackbar]);
 
   // Redo function
   const redo = useCallback(() => {
     if (!historyService.canRedo()) return;
-    
+
     const nextState = historyService.redo();
     setFields(nextState);
     updateUndoRedoInfo();
-    
+
     showSnackbar('Redo successful', 'info');
   }, [historyService, showSnackbar]);
 
@@ -5300,133 +5302,133 @@ useEffect(() => {
 
   // Handle canvas drop events
 
-const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
-  const fieldConfig = FIELD_TYPES[fieldType];
-  
-  // Ensure page is valid
-  const targetPage = Math.max(0, Math.min(page, numPages - 1));
-  console.log(`Adding field: type=${fieldType}, targetPage=${targetPage} (0-indexed), currentPage=${currentPage}, totalPages=${numPages}`);
-  
-  // Get proper page dimensions
-  const pageWidth = 794;  // Your canvas width
-  const pageHeight = 1123; // Your canvas height
-  
-  // Constrain to page boundaries
-  const fieldWidth = fieldConfig.defaultWidth || 100;
-  const fieldHeight = fieldConfig.defaultHeight || 40;
-  
-  const constrainedX = Math.max(20, Math.min(x, pageWidth - fieldWidth - 20));
-  const constrainedY = Math.max(20, Math.min(y, pageHeight - fieldHeight - 20));
-  
-  // Find compatible recipient
-  let selectedRecipient = null;
-  
-  if (selectedRecipientId) {
-    const recipient = recipients.find(r => r.id === selectedRecipientId);
-    if (recipient && validateFieldAssignment(fieldType, recipient.role)) {
-      selectedRecipient = recipient;
+  const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
+    const fieldConfig = FIELD_TYPES[fieldType];
+
+    // Ensure page is valid
+    const targetPage = Math.max(0, Math.min(page, numPages - 1));
+    console.log(`Adding field: type=${fieldType}, targetPage=${targetPage} (0-indexed), currentPage=${currentPage}, totalPages=${numPages}`);
+
+    // Get proper page dimensions
+    const pageWidth = 794;  // Your canvas width
+    const pageHeight = 1123; // Your canvas height
+
+    // Constrain to page boundaries
+    const fieldWidth = fieldConfig.defaultWidth || 100;
+    const fieldHeight = fieldConfig.defaultHeight || 40;
+
+    const constrainedX = Math.max(20, Math.min(x, pageWidth - fieldWidth - 20));
+    const constrainedY = Math.max(20, Math.min(y, pageHeight - fieldHeight - 20));
+
+    // Find compatible recipient
+    let selectedRecipient = null;
+
+    if (selectedRecipientId) {
+      const recipient = recipients.find(r => r.id === selectedRecipientId);
+      if (recipient && validateFieldAssignment(fieldType, recipient.role)) {
+        selectedRecipient = recipient;
+      }
     }
-  }
-  
-  // If no selected recipient or invalid selection, find first compatible
-  if (!selectedRecipient) {
-    selectedRecipient = recipients.find(recipient => 
-      validateFieldAssignment(fieldType, recipient.role)
-    );
-  }
-  
-  const newField = normalizeFieldCoordinates({
-    id: uuidv4(),
-    name: `${fieldType}_${fields.length + 1}`,
-    type: fieldType,
-    label: `${fieldConfig.label} ${fields.length + 1}`,
-    placeholder: fieldConfig.placeholder,
-    x: Math.round(constrainedX),
-    y: Math.round(constrainedY),
-    width: fieldWidth,
-    height: fieldHeight,
-    page: targetPage, // Store as 0-indexed
-    required: false,
-    recipient_id: selectedRecipient?.id || null,
-    assignedRecipient: selectedRecipient,
-    isNew: true,
-    pageWidth: pageWidth,
-    pageHeight: pageHeight,
 
-    // 🔴 FIX: Ensure dropdown fields have options
-    ...(fieldType === 'dropdown' && { 
-      dropdown_options: ['Option 1', 'Option 2', 'Option 3'] 
-    }),
-    ...(fieldType === 'radio' && { group_name: `group_${Date.now()}` }),
-    ...(fieldType === 'mail' && { placeholder: 'email@example.com' })
-  });
-  
-  const newFields = [...fields, newField];
-  commitFieldChange(newFields);
-  setSelectedFieldId(newField.id);
+    // If no selected recipient or invalid selection, find first compatible
+    if (!selectedRecipient) {
+      selectedRecipient = recipients.find(recipient =>
+        validateFieldAssignment(fieldType, recipient.role)
+      );
+    }
 
-  // Auto-open right sidebar for radio/dropdown fields
-  if (fieldType === 'radio' || fieldType === 'dropdown') {
-    setRightSidebarExpanded(true);
-  }
-  
-  // Switch to the page where field was added
-  if (targetPage !== currentPage) {
-    setCurrentPage(targetPage);
-  }
-}, [recipients, fields, currentPage, commitFieldChange, selectedRecipientId, numPages]);// Added selectedRecipientId dependency
+    const newField = normalizeFieldCoordinates({
+      id: uuidv4(),
+      name: `${fieldType}_${fields.length + 1}`,
+      type: fieldType,
+      label: `${fieldConfig.label} ${fields.length + 1}`,
+      placeholder: fieldConfig.placeholder,
+      x: Math.round(constrainedX),
+      y: Math.round(constrainedY),
+      width: fieldWidth,
+      height: fieldHeight,
+      page: targetPage, // Store as 0-indexed
+      required: false,
+      recipient_id: selectedRecipient?.id || null,
+      assignedRecipient: selectedRecipient,
+      isNew: true,
+      pageWidth: pageWidth,
+      pageHeight: pageHeight,
+
+      // 🔴 FIX: Ensure dropdown fields have options
+      ...(fieldType === 'dropdown' && {
+        dropdown_options: ['Option 1', 'Option 2', 'Option 3']
+      }),
+      ...(fieldType === 'radio' && { group_name: `group_${Date.now()}` }),
+      ...(fieldType === 'mail' && { placeholder: 'email@example.com' })
+    });
+
+    const newFields = [...fields, newField];
+    commitFieldChange(newFields);
+    setSelectedFieldId(newField.id);
+
+    // Auto-open right sidebar for radio/dropdown fields
+    if (fieldType === 'radio' || fieldType === 'dropdown') {
+      setRightSidebarExpanded(true);
+    }
+
+    // Switch to the page where field was added
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage);
+    }
+  }, [recipients, fields, currentPage, commitFieldChange, selectedRecipientId, numPages]);// Added selectedRecipientId dependency
 
   const handleFieldChange = useCallback((fieldId, updates) => {
-    const updatedRecipient = updates.recipient_id ? 
-      recipients.find(r => r.id === updates.recipient_id) : 
+    const updatedRecipient = updates.recipient_id ?
+      recipients.find(r => r.id === updates.recipient_id) :
       undefined;
-    
-    const newFields = fields.map(field => 
-      field.id === fieldId ? { 
-        ...field, 
+
+    const newFields = fields.map(field =>
+      field.id === fieldId ? {
+        ...field,
         ...updates,
         assignedRecipient: updatedRecipient || field.assignedRecipient
       } : field
     );
-    
+
     commitFieldChange(newFields);
   }, [fields, recipients, commitFieldChange]);
 
   const handleFieldDelete = useCallback((fieldId) => {
     const newFields = fields.filter(field => field.id !== fieldId);
     commitFieldChange(newFields);
-    
+
     if (selectedFieldId === fieldId) {
       setSelectedFieldId(null);
     }
   }, [fields, selectedFieldId, commitFieldChange]);
 
- const handleFieldDragEnd = useCallback((fieldId, newX, newY) => {
-  const newFields = fields.map(field => {
-    if (field.id === fieldId) {
-      // Get current field's page dimensions
-      const pageWidth = field.pageWidth || 794;
-      const pageHeight = field.pageHeight || 1123;
-      const fieldWidth = field.width || FIELD_TYPES[field.type]?.defaultWidth || 100;
-      const fieldHeight = field.height || FIELD_TYPES[field.type]?.defaultHeight || 40;
-      
-      // Constrain to page boundaries
-      const constrainedX = Math.max(0, Math.min(newX, pageWidth - fieldWidth));
-      const constrainedY = Math.max(0, Math.min(newY, pageHeight - fieldHeight));
-      
-      return normalizeFieldCoordinates({
-        ...field,
-        x: Math.round(constrainedX),
-        y: Math.round(constrainedY),
-        page: field.page, // Keep same page when dragging
-        pageWidth: pageWidth,
-        pageHeight: pageHeight
-      });
-    }
-    return field;
-  });
-  commitFieldChange(newFields);
-}, [fields, commitFieldChange]);
+  const handleFieldDragEnd = useCallback((fieldId, newX, newY) => {
+    const newFields = fields.map(field => {
+      if (field.id === fieldId) {
+        // Get current field's page dimensions
+        const pageWidth = field.pageWidth || 794;
+        const pageHeight = field.pageHeight || 1123;
+        const fieldWidth = field.width || FIELD_TYPES[field.type]?.defaultWidth || 100;
+        const fieldHeight = field.height || FIELD_TYPES[field.type]?.defaultHeight || 40;
+
+        // Constrain to page boundaries
+        const constrainedX = Math.max(0, Math.min(newX, pageWidth - fieldWidth));
+        const constrainedY = Math.max(0, Math.min(newY, pageHeight - fieldHeight));
+
+        return normalizeFieldCoordinates({
+          ...field,
+          x: Math.round(constrainedX),
+          y: Math.round(constrainedY),
+          page: field.page, // Keep same page when dragging
+          pageWidth: pageWidth,
+          pageHeight: pageHeight
+        });
+      }
+      return field;
+    });
+    commitFieldChange(newFields);
+  }, [fields, commitFieldChange]);
 
   const handleFieldTransform = useCallback((fieldId, updates) => {
     const newFields = fields.map(field =>
@@ -5435,60 +5437,60 @@ const handleAddField = useCallback((fieldType, x, y, page = currentPage) => {
     commitFieldChange(newFields);
   }, [fields, commitFieldChange]);
 
-  
+
 
 
 
   // Keyboard shortcuts
- // Update the keyboard handler in DocumentBuilder to prevent negative positions:
-useEffect(() => {
-  const handleKeyDown = (e) => {
-    // Ignore typing in inputs
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  // Update the keyboard handler in DocumentBuilder to prevent negative positions:
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore typing in inputs
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-    if (selectedFieldId) {
-      const selectedField = fields.find(f => f.id === selectedFieldId);
-      if (selectedField) {
-        const moveAmount = e.shiftKey ? 10 : 1;
-        
-        // Get current position
-        let newX = selectedField.x;
-        let newY = selectedField.y;
-        
-        switch (e.key) {
-          case 'ArrowUp':
-            e.preventDefault();
-            newY = Math.max(0, selectedField.y - moveAmount);
-            break;
-          case 'ArrowDown':
-            e.preventDefault();
-            newY = Math.min(1123 - selectedField.height, selectedField.y + moveAmount);
-            break;
-          case 'ArrowLeft':
-            e.preventDefault();
-            newX = Math.max(0, selectedField.x - moveAmount);
-            break;
-          case 'ArrowRight':
-            e.preventDefault();
-            newX = Math.min(794 - selectedField.width, selectedField.x + moveAmount);
-            break;
-        }
-        
-        // Only update if position changed
-        if (newX !== selectedField.x || newY !== selectedField.y) {
-          handleFieldDragEnd(selectedFieldId, newX, newY);
+      if (selectedFieldId) {
+        const selectedField = fields.find(f => f.id === selectedFieldId);
+        if (selectedField) {
+          const moveAmount = e.shiftKey ? 10 : 1;
+
+          // Get current position
+          let newX = selectedField.x;
+          let newY = selectedField.y;
+
+          switch (e.key) {
+            case 'ArrowUp':
+              e.preventDefault();
+              newY = Math.max(0, selectedField.y - moveAmount);
+              break;
+            case 'ArrowDown':
+              e.preventDefault();
+              newY = Math.min(1123 - selectedField.height, selectedField.y + moveAmount);
+              break;
+            case 'ArrowLeft':
+              e.preventDefault();
+              newX = Math.max(0, selectedField.x - moveAmount);
+              break;
+            case 'ArrowRight':
+              e.preventDefault();
+              newX = Math.min(794 - selectedField.width, selectedField.x + moveAmount);
+              break;
+          }
+
+          // Only update if position changed
+          if (newX !== selectedField.x || newY !== selectedField.y) {
+            handleFieldDragEnd(selectedFieldId, newX, newY);
+          }
         }
       }
-    }
-  };
+    };
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [selectedFieldId, fields, handleFieldDragEnd]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFieldId, fields, handleFieldDragEnd]);
 
 
-   // Handle navigation with unsaved changes warning
+  // Handle navigation with unsaved changes warning
   const handleNavigateWithCheck = useCallback((path) => {
     if (autoSaveStatus.hasUnsavedChanges) {
       setPendingNavigation(path);
@@ -5513,23 +5515,23 @@ useEffect(() => {
 
 
 
-   // Handle canvas drop events - FIXED with useCallback
+  // Handle canvas drop events - FIXED with useCallback
   // Update the event listener
-useEffect(() => {
-  const handleCanvasDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const { fieldType, x, y, page } = e.detail;
-    handleAddField(fieldType, x, y, page);
-  };
+  useEffect(() => {
+    const handleCanvasDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  window.addEventListener('canvasDrop', handleCanvasDrop);
-  
-  return () => {
-    window.removeEventListener('canvasDrop', handleCanvasDrop);
-  };
-}, [handleAddField]);// Add handleAddField as dependency
+      const { fieldType, x, y, page } = e.detail;
+      handleAddField(fieldType, x, y, page);
+    };
+
+    window.addEventListener('canvasDrop', handleCanvasDrop);
+
+    return () => {
+      window.removeEventListener('canvasDrop', handleCanvasDrop);
+    };
+  }, [handleAddField]);// Add handleAddField as dependency
 
   // Handle canvas actions - memoized
   const handleCanvasAction = useCallback((action) => {
@@ -5552,7 +5554,7 @@ useEffect(() => {
 
 
 
- 
+
   // Handle finish and send
   const handleFinishAndSend = async () => {
     if (!documentId) {
@@ -5590,446 +5592,403 @@ useEffect(() => {
 
 
   // Navigation handlers for success dialog
-const handleNavigateToDashboard = () => {
-  navigate('/user/dashboard');
-  setSuccessDialogOpen(false);
-};
+  const handleNavigateToDashboard = () => {
+    navigate('/user/dashboard');
+    setSuccessDialogOpen(false);
+  };
 
-const handleNavigateToDocuments = () => {
-  navigate('/user/documents');
-  setSuccessDialogOpen(false);
-};
+  const handleNavigateToDocuments = () => {
+    navigate('/user/documents');
+    setSuccessDialogOpen(false);
+  };
 
-const handleStayOnPage = () => {
-  setSuccessDialogOpen(false);
-  // Optionally refresh data or show additional info
-};
+  const handleStayOnPage = () => {
+    setSuccessDialogOpen(false);
+    // Optionally refresh data or show additional info
+  };
 
   // Actually send invites
   // Actually send invites
-const sendInvites = async () => {
-  try {
-    setSaving(true);
-    
-    // First save fields
-    await handleSaveFields();
-    
-    // Send invites to all recipients
-    const recipientIds = recipients.map(r => r.id);
-    
-    if (recipientIds.length === 0) {
-      showSnackbar('Please add recipients first', 'warning');
-      return;
-    }
+  const sendInvites = async () => {
+    try {
+      setSaving(true);
 
-    await documentAPI.sendInvites(documentId, {
-      recipient_ids: recipientIds,
-      message: "Please review and sign the document"
-    });
-    
-    // Show success message
-    showSnackbar('Invites sent successfully!', 'success');
-    setFinishDialogOpen(false);
-    
-    // Show success dialog after a short delay
-    setTimeout(() => {
-      setSuccessDialogOpen(true);
-    }, 500);
-    
-  } catch (error) {
-    console.error('Error sending invites:', error);
-    showSnackbar(`Failed to send invites: ${error.message}`, 'error');
-  } finally {
-    setSaving(false);
-  }
-};
+      // First save fields
+      await handleSaveFields();
 
+      // Send invites to all recipients
+      const recipientIds = recipients.map(r => r.id);
 
-  
+      if (recipientIds.length === 0) {
+        showSnackbar('Please add recipients first', 'warning');
+        return;
+      }
 
-  // Add history state
-const [history, setHistory] = useState({
-  past: [],
-  present: fields,
-  future: []
-});
+      await documentAPI.sendInvites(documentId, {
+        recipient_ids: recipientIds,
+        message: "Please review and sign the document"
+      });
 
+      // Show success message
+      showSnackbar('Invites sent successfully!', 'success');
+      setFinishDialogOpen(false);
 
-const commitChange = (newFields) => {
-  setHistory(prev => ({
-    past: [...prev.past, prev.present],
-    present: newFields,
-    future: [] // clear redo stack
-  }));
-};
+      // Show success dialog after a short delay
+      setTimeout(() => {
+        setSuccessDialogOpen(true);
+      }, 500);
 
-const addField = (field) => {
-  commitChange([...fields, field]);
-};
-
-const updateField = (id, updates) => {
-  commitChange(
-    fields.map(f => f.id === id ? { ...f, ...updates } : f)
-  );
-};
-
-const deleteField = (id) => {
-  commitChange(fields.filter(f => f.id !== id));
-};
-
-
-
-
-// Create history functions
-// const undo = () => {
-//   setHistory(prev => {
-//     if (prev.past.length === 0) return prev;
-
-//     const previous = prev.past[prev.past.length - 1];
-//     const newPast = prev.past.slice(0, -1);
-
-//     return {
-//       past: newPast,
-//       present: previous,
-//       future: [prev.present, ...prev.future]
-//     };
-//   });
-// };
-
-
-// const redo = () => {
-//   setHistory(prev => {
-//     if (prev.future.length === 0) return prev;
-
-//     const next = prev.future[0];
-//     const newFuture = prev.future.slice(1);
-
-//     return {
-//       past: [...prev.past, prev.present],
-//       present: next,
-//       future: newFuture
-//     };
-//   });
-// };
-
-
-
-// Update on field changes
-const updateFields = (newFields) => {
-  setHistory({
-    past: [...history.past, fields],
-    present: newFields,
-    future: []
-  });
-  setFields(newFields);
-};
-
-
-
-useEffect(() => {
-  const handleKeyDown = (e) => {
-    // Ignore typing inside inputs / textareas
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-    // SAVE
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-      e.preventDefault();
-      handleSaveFields();
-      return;
-    }
-
-    // UNDO / REDO
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-      e.preventDefault();
-      if (e.shiftKey) redo();
-      else undo();
-      return;
-    }
-
-    // DELETE FIELD (Delete / Backspace)
-    if (
-      (e.key === 'Delete' || e.key === 'Backspace') &&
-      selectedFieldId
-    ) {
-      e.preventDefault();
-      handleFieldDelete(selectedFieldId);
-      return;
-    }
-
-    // OPTIONAL: Ctrl / Cmd + D delete
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      e.key.toLowerCase() === 'd' &&
-      selectedFieldId
-    ) {
-      e.preventDefault();
-      handleFieldDelete(selectedFieldId);
+    } catch (error) {
+      console.error('Error sending invites:', error);
+      showSnackbar(`Failed to send invites: ${error.message}`, 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [
-  selectedFieldId,
-  handleSaveFields,
-  handleFieldDelete,
-  undo,
-  redo
-]);
+
+
+
+  // Add history state
+  const [history, setHistory] = useState({
+    past: [],
+    present: fields,
+    future: []
+  });
+
+
+  const commitChange = (newFields) => {
+    setHistory(prev => ({
+      past: [...prev.past, prev.present],
+      present: newFields,
+      future: [] // clear redo stack
+    }));
+  };
+
+  const addField = (field) => {
+    commitChange([...fields, field]);
+  };
+
+  const updateField = (id, updates) => {
+    commitChange(
+      fields.map(f => f.id === id ? { ...f, ...updates } : f)
+    );
+  };
+
+  const deleteField = (id) => {
+    commitChange(fields.filter(f => f.id !== id));
+  };
+
+
+
+
+  // Create history functions
+  // const undo = () => {
+  //   setHistory(prev => {
+  //     if (prev.past.length === 0) return prev;
+
+  //     const previous = prev.past[prev.past.length - 1];
+  //     const newPast = prev.past.slice(0, -1);
+
+  //     return {
+  //       past: newPast,
+  //       present: previous,
+  //       future: [prev.present, ...prev.future]
+  //     };
+  //   });
+  // };
+
+
+  // const redo = () => {
+  //   setHistory(prev => {
+  //     if (prev.future.length === 0) return prev;
+
+  //     const next = prev.future[0];
+  //     const newFuture = prev.future.slice(1);
+
+  //     return {
+  //       past: [...prev.past, prev.present],
+  //       present: next,
+  //       future: newFuture
+  //     };
+  //   });
+  // };
+
+
+
+  // Update on field changes
+  const updateFields = (newFields) => {
+    setHistory({
+      past: [...history.past, fields],
+      present: newFields,
+      future: []
+    });
+    setFields(newFields);
+  };
+
+
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore typing inside inputs / textareas
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      // SAVE
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSaveFields();
+        return;
+      }
+
+      // UNDO / REDO
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+
+      // DELETE FIELD (Delete / Backspace)
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        selectedFieldId
+      ) {
+        e.preventDefault();
+        handleFieldDelete(selectedFieldId);
+        return;
+      }
+
+      // OPTIONAL: Ctrl / Cmd + D delete
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === 'd' &&
+        selectedFieldId
+      ) {
+        e.preventDefault();
+        handleFieldDelete(selectedFieldId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    selectedFieldId,
+    handleSaveFields,
+    handleFieldDelete,
+    undo,
+    redo
+  ]);
 
   // Filter fields for current page
 
 
 
-const currentPageFields = useMemo(() => 
-  fields.filter(f => f.page === currentPage), 
-  [fields, currentPage]
-);
+  const currentPageFields = useMemo(() =>
+    fields.filter(f => f.page === currentPage),
+    [fields, currentPage]
+  );
 
   // Add page navigation component:
-const PageNavigator = ({ numPages, currentPage, onPageChange }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-    <IconButton 
-      onClick={() => onPageChange(currentPage - 1)}
-      disabled={currentPage === 0}
-    >
-      <ArrowBackIcon />
-    </IconButton>
-    <Typography>
-      Page {currentPage + 1} of {numPages}
-    </Typography>
-    <IconButton 
-      onClick={() => onPageChange(currentPage + 1)}
-      disabled={currentPage === numPages - 1}
-    >
-      <ArrowForward />
-    </IconButton>
-  </Box>
-);
+  const PageNavigator = ({ numPages, currentPage, onPageChange }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <IconButton
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 0}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <Typography>
+        Page {currentPage + 1} of {numPages}
+      </Typography>
+      <IconButton
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === numPages - 1}
+      >
+        <ArrowForward />
+      </IconButton>
+    </Box>
+  );
 
 
-// Add handler in DocumentBuilder
-const handleDuplicateField = useCallback((fieldId) => {
-  const fieldToDuplicate = fields.find(f => f.id === fieldId);
-  if (!fieldToDuplicate) return;
+  // Add handler in DocumentBuilder
+  const handleDuplicateField = useCallback((fieldId) => {
+    const fieldToDuplicate = fields.find(f => f.id === fieldId);
+    if (!fieldToDuplicate) return;
 
-  const newField = {
-    ...fieldToDuplicate,
-    id: uuidv4(),
-    isNew: true, // Mark as new
-    x: fieldToDuplicate.x + 20,
-    y: fieldToDuplicate.y + 20,
-    label: `${fieldToDuplicate.label} (Copy)`
-  };
-
-  setFields(prev => [...prev, newField]);
-  setSelectedFieldId(newField.id);
-}, [fields]);
-
-
-
-
-
-// ============================================
-// Document Canvas Component (Updated)
-// ============================================
-// ============================================
-// Optimized Document Canvas Component with Single PDF Load
-// ============================================
-
-const DocumentCanvas = React.memo(({
-  documentId,
-  fields = [],
-  selectedFieldId,
-  onSelectField,
-  onFieldDragEnd,
-  onFieldTransform,
-  scale = 1,
-  onCanvasClick,
-  showGrid = true,
-  getFieldValidationError,
-  currentPage = 0,
-  numPages = 1,
-  onPageChange
-}) => {
-  const stageRef = useRef();
-  const containerRef = useRef();
-  const [pdfLoaded, setPdfLoaded] = useState(false);
-  const [pdfError, setPdfError] = useState(null);
-  
-  // ✅ SINGLE PDF URL - loaded only once
-  const pdfUrl = useMemo(() => {
-    if (!documentId) return null;
-    const url = documentAPI.getBuilderPdfUrl(documentId);
-    console.log('PDF URL generated once:', url);
-    return url;
-  }, [documentId]);
-  
-  // Calculate dimensions
-  const scaledWidth = BASE_WIDTH * scale;
-  const scaledHeight = BASE_HEIGHT * scale;
-  const pageGap = 20;
-
-  // Handle canvas click
-  const handleCanvasClick = useCallback((e) => {
-    if (e.target === e.target.getStage()) {
-      onSelectField(null);
-    }
-  }, [onSelectField]);
-
-  // Handle drag and drop
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const fieldType = e.dataTransfer.getData('fieldType');
-    if (!fieldType) return;
-
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const pointerPosition = stage.getPointerPosition();
-    if (!pointerPosition) return;
-
-    // Calculate which page was clicked on
-    const pageHeight = scaledHeight + pageGap;
-    const dropY = pointerPosition.y;
-    const targetPage = Math.floor(dropY / pageHeight);
-    
-    // Ensure target page is within bounds
-    const validPage = Math.max(0, Math.min(targetPage, numPages - 1));
-    
-    // Adjust Y position relative to the page
-    let relativeY = (dropY - (validPage * pageHeight)) / scale;
-    relativeY = Math.max(0, Math.min(relativeY, BASE_HEIGHT));
-    
-    // Adjust X position
-    let relativeX = pointerPosition.x / scale;
-    relativeX = Math.max(0, Math.min(relativeX, BASE_WIDTH));
-
-    // Dispatch event with page info
-    window.dispatchEvent(
-      new CustomEvent('canvasDrop', {
-        detail: { 
-          fieldType, 
-          x: relativeX, 
-          y: relativeY,
-          page: validPage
-        }
-      })
-    );
-  }, [scale, numPages, scaledHeight, pageGap]);
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-
-  // Setup event listeners
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener('drop', handleDrop);
-    container.addEventListener('dragover', handleDragOver);
-
-    return () => {
-      container.removeEventListener('drop', handleDrop);
-      container.removeEventListener('dragover', handleDragOver);
+    const newField = {
+      ...fieldToDuplicate,
+      id: uuidv4(),
+      isNew: true, // Mark as new
+      x: fieldToDuplicate.x + 20,
+      y: fieldToDuplicate.y + 20,
+      label: `${fieldToDuplicate.label} (Copy)`
     };
-  }, [handleDrop, handleDragOver]);
 
-  // Handle PDF load success
-  const handlePdfLoadSuccess = useCallback(() => {
-    setPdfLoaded(true);
-    setPdfError(null);
-  }, []);
+    setFields(prev => [...prev, newField]);
+    setSelectedFieldId(newField.id);
+  }, [fields]);
 
-  const handlePdfLoadError = useCallback((error) => {
-    console.error('PDF load error:', error);
-    setPdfError('Failed to load PDF document');
-    setPdfLoaded(false);
-  }, []);
 
-  // Memoize PDF pages rendering - Now inside single Document wrapper
-  const renderPdfPages = useMemo(() => {
-    if (!pdfUrl) {
-      return (
-        <Box sx={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: `${pageGap}px`,
-          padding: `${pageGap}px 0`
-        }}>
-          {Array.from({ length: numPages }, (_, pageIndex) => (
-            <Paper
-              key={`page-placeholder-${pageIndex}`}
-              sx={{
-                width: `${scaledWidth}px`,
-                height: `${scaledHeight}px`,
-                backgroundColor: '#f5f5f5',
-                borderRadius: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CircularProgress />
-            </Paper>
-          ))}
-        </Box>
+
+
+
+  // ============================================
+  // Document Canvas Component (Updated)
+  // ============================================
+  // ============================================
+  // Optimized Document Canvas Component with Single PDF Load
+  // ============================================
+
+  const DocumentCanvas = React.memo(({
+    documentId,
+    fields = [],
+    selectedFieldId,
+    onSelectField,
+    onFieldDragEnd,
+    onFieldTransform,
+    scale = 1,
+    onCanvasClick,
+    showGrid = true,
+    getFieldValidationError,
+    currentPage = 0,
+    numPages = 1,
+    onPageChange
+  }) => {
+    const stageRef = useRef();
+    const containerRef = useRef();
+    const [pdfLoaded, setPdfLoaded] = useState(false);
+    const [pdfError, setPdfError] = useState(null);
+
+    // SINGLE PDF URL - loaded only once
+    const pdfUrl = useMemo(() => {
+      if (!documentId) return null;
+      const url = documentAPI.getBuilderPdfUrl(documentId);
+      console.log('PDF URL generated once:', url);
+      return url;
+    }, [documentId]);
+
+    // Calculate dimensions
+    const scaledWidth = BASE_WIDTH * scale;
+    const scaledHeight = BASE_HEIGHT * scale;
+    const pageGap = 20;
+
+    // Handle canvas click
+    const handleCanvasClick = useCallback((e) => {
+      if (e.target === e.target.getStage()) {
+        onSelectField(null);
+      }
+    }, [onSelectField]);
+
+    // Handle drag and drop
+    const handleDrop = useCallback((e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fieldType = e.dataTransfer.getData('fieldType');
+      if (!fieldType) return;
+
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pointerPosition = stage.getPointerPosition();
+      if (!pointerPosition) return;
+
+      // Calculate which page was clicked on
+      const pageHeight = scaledHeight + pageGap;
+      const dropY = pointerPosition.y;
+      const targetPage = Math.floor(dropY / pageHeight);
+
+      // Ensure target page is within bounds
+      const validPage = Math.max(0, Math.min(targetPage, numPages - 1));
+
+      // Adjust Y position relative to the page
+      let relativeY = (dropY - (validPage * pageHeight)) / scale;
+      relativeY = Math.max(0, Math.min(relativeY, BASE_HEIGHT));
+
+      // Adjust X position
+      let relativeX = pointerPosition.x / scale;
+      relativeX = Math.max(0, Math.min(relativeX, BASE_WIDTH));
+
+      // Dispatch event with page info
+      window.dispatchEvent(
+        new CustomEvent('canvasDrop', {
+          detail: {
+            fieldType,
+            x: relativeX,
+            y: relativeY,
+            page: validPage
+          }
+        })
       );
-    }
+    }, [scale, numPages, scaledHeight, pageGap]);
 
-    if (pdfError) {
-      return (
-        <Box sx={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          gap: 2,
-          p: 3
-        }}>
-          <ErrorIcon sx={{ fontSize: 48, color: 'error.main' }} />
-          <Typography color="error" align="center">
-            {pdfError}
-          </Typography>
-          <Button 
-            variant="outlined" 
-            onClick={() => {
-              setPdfError(null);
-              setPdfLoaded(false);
-            }}
-          >
-            Retry Loading
-          </Button>
-        </Box>
-      );
-    }
+    const handleDragOver = useCallback((e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+    }, []);
 
-    // ✅ SINGLE DOCUMENT WRAPPER with multiple pages inside
-    return (
-      <Document
-        file={pdfUrl}
-        // onLoadSuccess={handlePdfLoadSuccess}
-        // onLoadError={handlePdfLoadError}
-        loading={
-          <Box sx={{ 
+    // Setup event listeners
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      container.addEventListener('drop', handleDrop);
+      container.addEventListener('dragover', handleDragOver);
+
+      return () => {
+        container.removeEventListener('drop', handleDrop);
+        container.removeEventListener('dragover', handleDragOver);
+      };
+    }, [handleDrop, handleDragOver]);
+
+    // Handle PDF load success
+    const handlePdfLoadSuccess = useCallback(() => {
+      setPdfLoaded(true);
+      setPdfError(null);
+    }, []);
+
+    const handlePdfLoadError = useCallback((error) => {
+      console.error('PDF load error:', error);
+      setPdfError('Failed to load PDF document');
+      setPdfLoaded(false);
+    }, []);
+
+    // Memoize PDF pages rendering - Now inside single Document wrapper
+    const renderPdfPages = useMemo(() => {
+      if (!pdfUrl) {
+        return (
+          <Box sx={{
             display: 'flex',
-            justifyContent: 'center',
+            flexDirection: 'column',
             alignItems: 'center',
-            height: '100%'
+            gap: `${pageGap}px`,
+            padding: `${pageGap}px 0`
           }}>
-            {/* <CircularProgress /> */}
+            {Array.from({ length: numPages }, (_, pageIndex) => (
+              <Paper
+                key={`page-placeholder-${pageIndex}`}
+                sx={{
+                  width: `${scaledWidth}px`,
+                  height: `${scaledHeight}px`,
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <CircularProgress />
+              </Paper>
+            ))}
           </Box>
-        }
-        error={
-          <Box sx={{ 
+        );
+      }
+
+      if (pdfError) {
+        return (
+          <Box sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -6040,67 +5999,110 @@ const DocumentCanvas = React.memo(({
           }}>
             <ErrorIcon sx={{ fontSize: 48, color: 'error.main' }} />
             <Typography color="error" align="center">
-              Failed to load PDF
+              {pdfError}
             </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setPdfError(null);
+                setPdfLoaded(false);
+              }}
+            >
+              Retry Loading
+            </Button>
           </Box>
-        }
-        options={{
-          cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-          cMapPacked: true,
-          standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`
-        }}
-      >
-        {/* Multiple pages inside single Document */}
-        <Box sx={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: `${pageGap}px`,
-          padding: `${pageGap}px 0`
-        }}>
-          {Array.from({ length: numPages }, (_, pageIndex) => {
-            const pdfPageNumber = pageIndex + 1;
-            const isCurrentPage = pageIndex === currentPage;
-            
-            return (
-              <Box
-                key={`page-${pageIndex}`}
-                sx={{
-                  width: `${scaledWidth}px`,
-                  height: `${scaledHeight}px`,
-                  position: 'relative',
-                  backgroundColor: 'white',
-                  borderRadius: 1,
-                  overflow: 'hidden',
-                  boxShadow: 3,
-                  // border: isCurrentPage ? '3px solid #1976d2' : '1px solid #e0e0e0',
-                  transition: 'border 0.2s ease',
-                  '&:hover': {
-                    boxShadow: 4
-                  }
-                }}
-              >
-                <Page
-                  pageNumber={pdfPageNumber}
-                  scale={scale}
-                  width={BASE_WIDTH}
-                  height={BASE_HEIGHT}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  loading={
-                    <Box sx={{ 
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%'
-                    }}>
-                      <CircularProgress size={24} />
-                    </Box>
-                  }
-                />
-                
-                {/* Page label */}
-                {/* <Box sx={{
+        );
+      }
+
+      // SINGLE DOCUMENT WRAPPER with multiple pages inside
+      return (
+        <Document
+          file={pdfUrl}
+          // onLoadSuccess={handlePdfLoadSuccess}
+          // onLoadError={handlePdfLoadError}
+          loading={
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%'
+            }}>
+              {/* <CircularProgress /> */}
+            </Box>
+          }
+          error={
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              gap: 2,
+              p: 3
+            }}>
+              <ErrorIcon sx={{ fontSize: 48, color: 'error.main' }} />
+              <Typography color="error" align="center">
+                Failed to load PDF
+              </Typography>
+            </Box>
+          }
+          options={{
+            cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+            cMapPacked: true,
+            standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`
+          }}
+        >
+          {/* Multiple pages inside single Document */}
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: `${pageGap}px`,
+            padding: `${pageGap}px 0`
+          }}>
+            {Array.from({ length: numPages }, (_, pageIndex) => {
+              const pdfPageNumber = pageIndex + 1;
+              const isCurrentPage = pageIndex === currentPage;
+
+              return (
+                <Box
+                  key={`page-${pageIndex}`}
+                  sx={{
+                    width: `${scaledWidth}px`,
+                    height: `${scaledHeight}px`,
+                    position: 'relative',
+                    backgroundColor: 'white',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    boxShadow: 3,
+                    // border: isCurrentPage ? '3px solid #1976d2' : '1px solid #e0e0e0',
+                    transition: 'border 0.2s ease',
+                    '&:hover': {
+                      boxShadow: 4
+                    }
+                  }}
+                >
+                  <Page
+                    pageNumber={pdfPageNumber}
+                    scale={scale}
+                    width={BASE_WIDTH}
+                    height={BASE_HEIGHT}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    loading={
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%'
+                      }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    }
+                  />
+
+                  {/* Page label */}
+                  {/* <Box sx={{
                   position: 'absolute',
                   top: 8,
                   right: 8,
@@ -6120,153 +6122,153 @@ const DocumentCanvas = React.memo(({
                   )}
                   Page {pageIndex + 1}
                 </Box> */}
-              </Box>
-            );
-          })}
-        </Box>
-      </Document>
-    );
-  }, [
-    pdfUrl, 
-    pdfError, 
-    numPages, 
-    currentPage, 
-    scaledWidth, 
-    scaledHeight, 
-    pageGap, 
-    scale,
-    // handlePdfLoadSuccess,
-    // handlePdfLoadError
-  ]);
+                </Box>
+              );
+            })}
+          </Box>
+        </Document>
+      );
+    }, [
+      pdfUrl,
+      pdfError,
+      numPages,
+      currentPage,
+      scaledWidth,
+      scaledHeight,
+      pageGap,
+      scale,
+      // handlePdfLoadSuccess,
+      // handlePdfLoadError
+    ]);
 
-  // Memoize Konva stage rendering
-  const renderKonvaStage = useMemo(() => {
+    // Memoize Konva stage rendering
+    const renderKonvaStage = useMemo(() => {
+      return (
+        <Stage
+          ref={stageRef}
+          width={scaledWidth}
+          height={(scaledHeight + pageGap) * numPages}
+          onClick={handleCanvasClick}
+          onTap={handleCanvasClick}
+          style={{
+            cursor: 'default',
+            backgroundColor: 'transparent',
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1
+          }}
+        >
+          <Layer>
+            {fields.map((field) => {
+              const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
+
+              // Calculate Y offset for each page
+              const pageOffsetY = field.page * (scaledHeight + pageGap) + (pageGap / 2);
+
+              return (
+                <MemoizedCanvasField
+                  key={field.id}
+                  field={field}
+                  isSelected={selectedFieldId === field.id}
+                  onSelect={onSelectField}
+                  onDragEnd={onFieldDragEnd}
+                  onTransform={onFieldTransform}
+                  scale={scale}
+                  validationError={validationError}
+                  currentPage={currentPage}
+                  showAllFields={true}
+                  pageOffsetY={pageOffsetY}
+                />
+              );
+            })}
+          </Layer>
+        </Stage>
+      );
+    }, [
+      fields,
+      scaledWidth,
+      scaledHeight,
+      pageGap,
+      numPages,
+      handleCanvasClick,
+      selectedFieldId,
+      onSelectField,
+      onFieldDragEnd,
+      onFieldTransform,
+      scale,
+      getFieldValidationError,
+      currentPage
+    ]);
+
+    // Handle scroll to update current page
+    const handleScroll = useCallback(() => {
+      if (!containerRef.current) return;
+
+      const scrollTop = containerRef.current.scrollTop;
+      const pageHeight = scaledHeight + pageGap;
+      const viewportMiddlePage = Math.floor((scrollTop + (containerRef.current.clientHeight / 2)) / pageHeight);
+
+      const newCurrentPage = Math.max(0, Math.min(viewportMiddlePage, numPages - 1));
+
+      if (newCurrentPage !== currentPage) {
+        onPageChange(newCurrentPage);
+      }
+    }, [scaledHeight, pageGap, numPages, currentPage, onPageChange]);
+
+    // Add scroll listener
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      let scrollTimer;
+      const debouncedHandleScroll = () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+          handleScroll();
+        }, 100);
+      };
+
+      container.addEventListener('scroll', debouncedHandleScroll);
+      return () => {
+        container.removeEventListener('scroll', debouncedHandleScroll);
+        clearTimeout(scrollTimer);
+      };
+    }, [handleScroll]);
+
+    // Maintain scroll position when fields change
+    const previousFieldsRef = useRef(fields);
+    useEffect(() => {
+      if (previousFieldsRef.current.length !== fields.length) {
+        if (containerRef.current) {
+          const scrollPos = containerRef.current.scrollTop;
+          requestAnimationFrame(() => {
+            if (containerRef.current) {
+              containerRef.current.scrollTop = scrollPos;
+            }
+          });
+        }
+      }
+      previousFieldsRef.current = fields;
+    }, [fields]);
+
     return (
-      <Stage
-        ref={stageRef}
-        width={scaledWidth}
-        height={(scaledHeight + pageGap) * numPages}
-        onClick={handleCanvasClick}
-        onTap={handleCanvasClick}
-        style={{
-          cursor: 'default',
-          backgroundColor: 'transparent',
-          position: 'absolute',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1
+      <Box
+        ref={containerRef}
+        sx={{
+          width: '100%',
+          height: '100%',
+          overflow: 'auto',
+          backgroundColor: '#f5f5f5',
+          borderRadius: 2,
+          position: 'relative',
+          border: '1px solid #e0e0e0',
+          scrollBehavior: 'smooth'
         }}
       >
-        <Layer>
-          {fields.map((field) => {
-            const validationError = getFieldValidationError ? getFieldValidationError(field) : false;
-            
-            // Calculate Y offset for each page
-            const pageOffsetY = field.page * (scaledHeight + pageGap) + (pageGap / 2);
-
-            return (
-              <MemoizedCanvasField
-                key={field.id}
-                field={field}
-                isSelected={selectedFieldId === field.id}
-                onSelect={onSelectField}
-                onDragEnd={onFieldDragEnd}
-                onTransform={onFieldTransform}
-                scale={scale}
-                validationError={validationError}
-                currentPage={currentPage}
-                showAllFields={true}
-                pageOffsetY={pageOffsetY}
-              />
-            );
-          })}
-        </Layer>
-      </Stage>
-    );
-  }, [
-    fields, 
-    scaledWidth, 
-    scaledHeight, 
-    pageGap, 
-    numPages, 
-    handleCanvasClick, 
-    selectedFieldId, 
-    onSelectField, 
-    onFieldDragEnd, 
-    onFieldTransform, 
-    scale, 
-    getFieldValidationError, 
-    currentPage
-  ]);
-
-  // Handle scroll to update current page
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return;
-    
-    const scrollTop = containerRef.current.scrollTop;
-    const pageHeight = scaledHeight + pageGap;
-    const viewportMiddlePage = Math.floor((scrollTop + (containerRef.current.clientHeight / 2)) / pageHeight);
-    
-    const newCurrentPage = Math.max(0, Math.min(viewportMiddlePage, numPages - 1));
-    
-    if (newCurrentPage !== currentPage) {
-      onPageChange(newCurrentPage);
-    }
-  }, [scaledHeight, pageGap, numPages, currentPage, onPageChange]);
-
-  // Add scroll listener
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let scrollTimer;
-    const debouncedHandleScroll = () => {
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(() => {
-        handleScroll();
-      }, 100);
-    };
-
-    container.addEventListener('scroll', debouncedHandleScroll);
-    return () => {
-      container.removeEventListener('scroll', debouncedHandleScroll);
-      clearTimeout(scrollTimer);
-    };
-  }, [handleScroll]);
-
-  // Maintain scroll position when fields change
-  const previousFieldsRef = useRef(fields);
-  useEffect(() => {
-    if (previousFieldsRef.current.length !== fields.length) {
-      if (containerRef.current) {
-        const scrollPos = containerRef.current.scrollTop;
-        requestAnimationFrame(() => {
-          if (containerRef.current) {
-            containerRef.current.scrollTop = scrollPos;
-          }
-        });
-      }
-    }
-    previousFieldsRef.current = fields;
-  }, [fields]);
-
-  return (
-    <Box
-      ref={containerRef}
-      sx={{
-        width: '100%',
-        height: '100%',
-        overflow: 'auto',
-        backgroundColor: '#f5f5f5',
-        borderRadius: 2,
-        position: 'relative',
-        border: '1px solid #e0e0e0',
-        scrollBehavior: 'smooth'
-      }}
-    >
-      {/* Canvas Controls */}
-      {/* <Box sx={{ 
+        {/* Canvas Controls */}
+        {/* <Box sx={{ 
         position: 'sticky', 
         top: 16, 
         left: '50%',
@@ -6331,36 +6333,36 @@ const DocumentCanvas = React.memo(({
         </Tooltip>
       </Box> */}
 
-      {/* Main content area */}
-      <Box sx={{ 
-        position: 'relative',
-        width: '100%',
-        minHeight: (scaledHeight + pageGap) * numPages,
-        height: 'auto',
-        display: 'flex',
-        justifyContent: 'center'
-      }}>
-        {/* Single PDF Document with all pages inside */}
-        {renderPdfPages}
-        
-        {/* Konva Overlay for fields */}
-        {renderKonvaStage}
-      </Box>
-    </Box>
-  );
-});
+        {/* Main content area */}
+        <Box sx={{
+          position: 'relative',
+          width: '100%',
+          minHeight: (scaledHeight + pageGap) * numPages,
+          height: 'auto',
+          display: 'flex',
+          justifyContent: 'center'
+        }}>
+          {/* Single PDF Document with all pages inside */}
+          {renderPdfPages}
 
-// Memoize CanvasField components
-const MemoizedCanvasField = React.memo(CanvasField);
+          {/* Konva Overlay for fields */}
+          {renderKonvaStage}
+        </Box>
+      </Box>
+    );
+  });
+
+  // Memoize CanvasField components
+  const MemoizedCanvasField = React.memo(CanvasField);
 
 
   // Get validation info for a field
-//   const getFieldValidationError = (field) => {
-//   if (!field.recipient_id) return false;
-//   const recipient = recipients.find(r => r.id === field.recipient_id);
-//   if (!recipient) return true;
-//   return !validateFieldAssignment(field.type, recipient.role);
-// };
+  //   const getFieldValidationError = (field) => {
+  //   if (!field.recipient_id) return false;
+  //   const recipient = recipients.find(r => r.id === field.recipient_id);
+  //   if (!recipient) return true;
+  //   return !validateFieldAssignment(field.type, recipient.role);
+  // };
 
 
 
@@ -6395,21 +6397,21 @@ const MemoizedCanvasField = React.memo(CanvasField);
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
-        {/* Progress bar */}
-        {/* Progress bar with save indicator */}
-       <Box
-  sx={{
-    px: 2,
-    py: 0.5,
-    display: 'flex',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    gap: 2
-  }}
->
 
-          {/* <Stepper activeStep={1} sx={{ flexGrow: 1,width: '70%' }}>
+      {/* Progress bar */}
+      {/* Progress bar with save indicator */}
+      <Box
+        sx={{
+          px: 2,
+          py: 0.5,
+          display: 'flex',
+          justifyContent: 'flex-start',
+          alignItems: 'center',
+          gap: 2
+        }}
+      >
+
+        {/* <Stepper activeStep={1} sx={{ flexGrow: 1,width: '70%' }}>
             <Step>
               <StepLabel>Upload Document</StepLabel>
             </Step>
@@ -6420,24 +6422,24 @@ const MemoizedCanvasField = React.memo(CanvasField);
               <StepLabel>Send for Signing</StepLabel>
             </Step>
           </Stepper> */}
-          
-          {/* Save status indicator */}
-          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-            {autoSaveStatus.isSaving ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <CircularProgress size={12} />
-                <Typography variant="caption" color="text.secondary">
-                  Auto-saving...
-                </Typography>
-              </Box>
-            ) : autoSaveStatus.lastSaved ? (
+
+        {/* Save status indicator */}
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+          {autoSaveStatus.isSaving ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CircularProgress size={12} />
               <Typography variant="caption" color="text.secondary">
-                Last auto-save: {new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}
+                Auto-saving...
               </Typography>
-            ) : null}
-          </Box>
+            </Box>
+          ) : autoSaveStatus.lastSaved ? (
+            <Typography variant="caption" color="text.secondary">
+              Last auto-save: {new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}
+            </Typography>
+          ) : null}
         </Box>
-        
+      </Box>
+
       {/* Header */}
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar>
@@ -6452,14 +6454,14 @@ const MemoizedCanvasField = React.memo(CanvasField);
 
           <Box sx={{ flexGrow: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="h6" noWrap>
-              {document.filename || 'Untitled Document'}
-            </Typography>
-             {/* Save indicator */}
+              <Typography variant="h6" noWrap>
+                {document.filename || 'Untitled Document'}
+              </Typography>
+              {/* Save indicator */}
               {autoSaveStatus.isSaving && (
                 <CircularProgress size={16} sx={{ ml: 1 }} />
               )}
-              
+
               {autoSaveStatus.lastSaved && !autoSaveStatus.isSaving && (
                 <Tooltip title={`Last saved: ${new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}`}>
                   <Chip
@@ -6471,7 +6473,7 @@ const MemoizedCanvasField = React.memo(CanvasField);
                   />
                 </Tooltip>
               )}
-              
+
               {autoSaveStatus.hasUnsavedChanges && (
                 <Chip
                   label="Unsaved changes"
@@ -6483,52 +6485,52 @@ const MemoizedCanvasField = React.memo(CanvasField);
               )}
             </Box>
 
-            
-              
-            
+
+
+
             <Typography variant="caption" color="text.secondary">
               Role-Based Field Assignment • {recipients.length} Recipients
             </Typography>
           </Box>
           {/* Add edit icon button for renaming */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 0.5,
-                cursor: 'pointer',
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.8
+            }
+          }}
+            onClick={() => setRenameDialogOpen(true)}
+          >
+
+            <IconButton
+              size="small"
+              sx={{
+                ml: 0.5,
+                p: 0.5,
                 '&:hover': {
-                  opacity: 0.8
+                  backgroundColor: 'rgba(0,0,0,0.04)'
                 }
               }}
-              onClick={() => setRenameDialogOpen(true)}
-              >
-                
-                <IconButton 
-                  size="small" 
-                  sx={{ 
-                    ml: 0.5,
-                    p: 0.5,
-                    '&:hover': {
-                      backgroundColor: 'rgba(0,0,0,0.04)'
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRenameDialogOpen(true);
-                  }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Box>
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenameDialogOpen(true);
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 
-             <AutoSaveIndicator
-                enabled={autoSaveEnabled}
-                onToggle={handleToggleAutoSave}
-                status={autoSaveStatus}
-                onForceSave={handleForceSave}
-              />
+            <AutoSaveIndicator
+              enabled={autoSaveEnabled}
+              onToggle={handleToggleAutoSave}
+              status={autoSaveStatus}
+              onForceSave={handleForceSave}
+            />
 
             {/* Undo/Redo buttons */}
             <Tooltip title="Undo (Ctrl+Z)">
@@ -6550,9 +6552,9 @@ const MemoizedCanvasField = React.memo(CanvasField);
                 <ArrowForward />
               </IconButton>
             </Tooltip>
-            
+
             <Divider orientation="vertical" flexItem />
-            
+
             {/* <Chip
               label={`${fields.length} fields`}
               size="small"
@@ -6589,26 +6591,26 @@ const MemoizedCanvasField = React.memo(CanvasField);
             </Button> */}
 
             {/* Updated Preview Button */}
-  <Button
-    variant="outlined"
-    size="small"
-    startIcon={<VisibilityIcon />}
-    onClick={() => setPreviewDialogOpen(true)}
-  >
-    Preview
-  </Button>
-
-            
             <Button
-  variant="outlined"
-  size="small"
-  startIcon={<SaveIcon />}
-  onClick={handleSaveFields}
-  disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
-  title={document?.status === 'sent' ? "Document is locked after sending" : ""}
->
-  {saving ? 'Saving...' : document?.status === 'sent' ? 'Locked' : 'Save Fields'}
-</Button>
+              variant="outlined"
+              size="small"
+              startIcon={<VisibilityIcon />}
+              onClick={() => setPreviewDialogOpen(true)}
+            >
+              Preview
+            </Button>
+
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveFields}
+              disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
+              title={document?.status === 'sent' ? "Document is locked after sending" : ""}
+            >
+              {saving ? 'Saving...' : document?.status === 'sent' ? 'Locked' : 'Save Fields'}
+            </Button>
             <Button
               variant="contained"
               size="small"
@@ -6625,39 +6627,39 @@ const MemoizedCanvasField = React.memo(CanvasField);
       </AppBar>
 
 
-      
+
 
       {/* Main content */}
-<Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', p: 2, position: 'relative' }}>
-  {/* Left sidebar - Field library */}
-  <Box sx={{ 
-  width: { md: 250, lg: 400 }, // Responsive widths
-  pr: 2,
-  display: 'flex',
-  flexDirection: 'column'
-}}>
-    <FieldLibrary
-      onAddField={(fieldType) => {
-        handleAddField(fieldType, 100, 100);
-      }}
-      recipients={recipients}
-      selectedRecipientId={selectedRecipientId}
-      onSelectRecipient={handleSelectRecipient}
-    />
-  </Box>
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', p: 2, position: 'relative' }}>
+        {/* Left sidebar - Field library */}
+        <Box sx={{
+          width: { md: 250, lg: 400 }, // Responsive widths
+          pr: 2,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <FieldLibrary
+            onAddField={(fieldType) => {
+              handleAddField(fieldType, 100, 100);
+            }}
+            recipients={recipients}
+            selectedRecipientId={selectedRecipientId}
+            onSelectRecipient={handleSelectRecipient}
+          />
+        </Box>
 
-  {/* Center - Canvas with expandable area */}
-  <Box sx={{ 
-    flex: 1, 
-    
-    display: 'flex', 
-    flexDirection: 'column',
-    transition: 'margin-right 0.3s ease'
-  }}>
-    
+        {/* Center - Canvas with expandable area */}
+        <Box sx={{
+          flex: 1,
 
-    {/* Page Navigation */}
-    {/* {numPages > 1 && (
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'margin-right 0.3s ease'
+        }}>
+
+
+          {/* Page Navigation */}
+          {/* {numPages > 1 && (
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'center', 
@@ -6668,7 +6670,7 @@ const MemoizedCanvasField = React.memo(CanvasField);
         borderColor: 'divider'
       }}> */}
 
-      {/* {numPages > 1 && (
+          {/* {numPages > 1 && (
         <PageNavigation
             currentPage={currentPage}
             numPages={numPages}
@@ -6679,144 +6681,144 @@ const MemoizedCanvasField = React.memo(CanvasField);
           />
         )} */}
 
-        {/* Validation Summary */}
-    <ValidationSummary fields={fields} recipients={recipients} />
-    
-    {/* Canvas - FULL WIDTH with expansion */}
-{/* Canvas - Always shows all pages */}
-<Paper sx={{ 
-  flex: 1, 
-  position: 'relative', 
-  p: 0,
-  overflow: 'hidden',
-  display: 'flex',
-  mr: rightSidebarExpanded ? 2 : 0,
-  transition: 'margin-right 0.3s ease'
-}}>
-  <Box sx={{ 
-    flex: 1, 
-    position: 'relative',
-    width: '100%',
-    height: '100%'
-  }}>
-    <DocumentCanvas
-      documentId={documentId}
-      fields={fields}
-      recipients={recipients}
-      selectedFieldId={selectedFieldId}
-      onSelectField={setSelectedFieldId}
-      onFieldDragEnd={handleFieldDragEnd}
-      onFieldTransform={handleFieldTransform}
-      scale={zoomLevel}
-      onCanvasClick={handleCanvasAction}
-      showGrid={showGrid}
-      getFieldValidationError={getFieldValidationError}
-      currentPage={currentPage}
-      // pdfUrl={getPdfUrl()}
-      onPageChange={setCurrentPage}
-      numPages={numPages}
-    />
-  </Box>
-</Paper>
-  </Box>
+          {/* Validation Summary */}
+          <ValidationSummary fields={fields} recipients={recipients} />
 
-  {/* Right sidebar toggle button - Fixed position */}
-  <Box sx={{ 
-    position: 'absolute',
-    right: rightSidebarExpanded ? 368 : 0,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    zIndex: 1000,
-    transition: 'right 0.3s ease'
-  }}>
-    <IconButton
-      onClick={toggleRightSidebar}
-      sx={{
-        backgroundColor: 'background.paper',
-        border: 1,
-        borderColor: 'divider',
-        borderRight: 0,
-        borderTopRightRadius: 0,
-        borderBottomRightRadius: 0,
-        boxShadow: 2,
-        '&:hover': {
-          backgroundColor: 'grey.100',
-          transform: 'translateX(-2px)'
-        },
-        transition: 'all 0.2s'
-      }}
-    >
-      {rightSidebarExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-    </IconButton>
-  </Box>
+          {/* Canvas - FULL WIDTH with expansion */}
+          {/* Canvas - Always shows all pages */}
+          <Paper sx={{
+            flex: 1,
+            position: 'relative',
+            p: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            mr: rightSidebarExpanded ? 2 : 0,
+            transition: 'margin-right 0.3s ease'
+          }}>
+            <Box sx={{
+              flex: 1,
+              position: 'relative',
+              width: '100%',
+              height: '100%'
+            }}>
+              <DocumentCanvas
+                documentId={documentId}
+                fields={fields}
+                recipients={recipients}
+                selectedFieldId={selectedFieldId}
+                onSelectField={setSelectedFieldId}
+                onFieldDragEnd={handleFieldDragEnd}
+                onFieldTransform={handleFieldTransform}
+                scale={zoomLevel}
+                onCanvasClick={handleCanvasAction}
+                showGrid={showGrid}
+                getFieldValidationError={getFieldValidationError}
+                currentPage={currentPage}
+                // pdfUrl={getPdfUrl()}
+                onPageChange={setCurrentPage}
+                numPages={numPages}
+              />
+            </Box>
+          </Paper>
+        </Box>
 
-  {/* Right sidebar - Properties & Recipients */}
-  <Box sx={{ 
-    width: rightSidebarExpanded ? 360 : 0,
-    pl: rightSidebarExpanded ? 2 : 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    overflow: 'hidden',
-    transition: 'all 0.3s ease',
-    opacity: rightSidebarExpanded ? 1 : 0,
-    visibility: rightSidebarExpanded ? 'visible' : 'hidden'
-  }}>
-    {/* Properties Panel */}
-    {rightSidebarExpanded && (
-      <Paper sx={{ 
-        flex: 1, 
-        borderRadius: 2, 
-        overflow: 'hidden',
-        animation: rightSidebarExpanded ? 'fadeInRight 0.3s ease' : 'none'
-      }}>
-        <FieldPropertiesPanel
-          field={selectedField}
-          recipients={recipients}
-          onChange={handleFieldChange}
-          onDelete={handleFieldDelete}
-          onDuplicate={handleDuplicateField}
-          numPages={numPages}
-          selectedRecipientId={selectedRecipientId}
-          onSelectRecipient={handleSelectRecipient}
-        />
-      </Paper>
-    )}
+        {/* Right sidebar toggle button - Fixed position */}
+        <Box sx={{
+          position: 'absolute',
+          right: rightSidebarExpanded ? 368 : 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          transition: 'right 0.3s ease'
+        }}>
+          <IconButton
+            onClick={toggleRightSidebar}
+            sx={{
+              backgroundColor: 'background.paper',
+              border: 1,
+              borderColor: 'divider',
+              borderRight: 0,
+              borderTopRightRadius: 0,
+              borderBottomRightRadius: 0,
+              boxShadow: 2,
+              '&:hover': {
+                backgroundColor: 'grey.100',
+                transform: 'translateX(-2px)'
+              },
+              transition: 'all 0.2s'
+            }}
+          >
+            {rightSidebarExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </IconButton>
+        </Box>
 
-    {/* Recipients Panel */}
-    {rightSidebarExpanded && (
-      <Paper sx={{ 
-        height: '40%', 
-        minHeight: 200, 
-        borderRadius: 2, 
-        overflow: 'hidden',
-        animation: rightSidebarExpanded ? 'fadeInRight 0.3s ease 0.1s' : 'none'
-      }}>
-        <RecipientsPanel 
-          recipients={recipients} 
-          fields={fields} 
-          disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
-          onAddRecipientClick={() => setAddRecipientDialogOpen(true)} 
-        />
-      </Paper>
-    )}
-  </Box>
-</Box>
+        {/* Right sidebar - Properties & Recipients */}
+        <Box sx={{
+          width: rightSidebarExpanded ? 360 : 0,
+          pl: rightSidebarExpanded ? 2 : 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          overflow: 'hidden',
+          transition: 'all 0.3s ease',
+          opacity: rightSidebarExpanded ? 1 : 0,
+          visibility: rightSidebarExpanded ? 'visible' : 'hidden'
+        }}>
+          {/* Properties Panel */}
+          {rightSidebarExpanded && (
+            <Paper sx={{
+              flex: 1,
+              borderRadius: 2,
+              overflow: 'hidden',
+              animation: rightSidebarExpanded ? 'fadeInRight 0.3s ease' : 'none'
+            }}>
+              <FieldPropertiesPanel
+                field={selectedField}
+                recipients={recipients}
+                onChange={handleFieldChange}
+                onDelete={handleFieldDelete}
+                onDuplicate={handleDuplicateField}
+                numPages={numPages}
+                selectedRecipientId={selectedRecipientId}
+                onSelectRecipient={handleSelectRecipient}
+              />
+            </Paper>
+          )}
+
+          {/* Recipients Panel */}
+          {rightSidebarExpanded && (
+            <Paper sx={{
+              height: '40%',
+              minHeight: 200,
+              borderRadius: 2,
+              overflow: 'hidden',
+              animation: rightSidebarExpanded ? 'fadeInRight 0.3s ease 0.1s' : 'none'
+            }}>
+              <RecipientsPanel
+                recipients={recipients}
+                fields={fields}
+                disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
+                onAddRecipientClick={() => setAddRecipientDialogOpen(true)}
+              />
+            </Paper>
+          )}
+        </Box>
+      </Box>
 
       {/* Finish Dialog */}
       <Dialog open={finishDialogOpen} onClose={() => setFinishDialogOpen(false)} maxWidth="md">
         <DialogTitle>Ready to Send for Signing</DialogTitle>
         <DialogContent>
-          <Alert 
+          <Alert
             severity={invalidFields.length > 0 ? "error" : (unassignedFields.length > 0 ? "warning" : "success")}
             sx={{ mb: 3 }}
           >
             <Typography variant="subtitle2">
-              {invalidFields.length > 0 
+              {invalidFields.length > 0
                 ? `${invalidFields.length} incompatible assignments found`
                 : unassignedFields.length > 0
-                ? `${unassignedFields.length} unassigned fields`
-                : 'All fields are properly assigned!'
+                  ? `${unassignedFields.length} unassigned fields`
+                  : 'All fields are properly assigned!'
               }
             </Typography>
           </Alert>
@@ -6869,47 +6871,47 @@ const MemoizedCanvasField = React.memo(CanvasField);
               {recipients.map((recipient) => {
                 const assignedFields = fields.filter(f => f.recipient_id === recipient.id);
                 const invalid = assignedFields.filter(f => getFieldValidationError(f)).length;
-                
+
                 return (
                   // In the FinishDialog recipients list
-<ListItem key={recipient.id} sx={{ py: 0.5 }}>
-  <ListItemIcon sx={{ minWidth: 36 }}>
-    <Avatar sx={{ 
-      width: 24, 
-      height: 24,
-      bgcolor: getRecipientColor(recipient),
-      fontSize: '0.75rem',
-      color: '#ffffff'
-    }}>
-      {recipient.name?.charAt(0) || 'R'}
-    </Avatar>
-  </ListItemIcon>
-  <ListItemText
-    primary={recipient.name || `Recipient`}
-    secondary={
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="caption">
-          {recipient.email}
-        </Typography>
-        <Chip
-          label={FIELD_ROLES[recipient.role]?.name}
-          size="small"
-          sx={{ 
-            height: 18,
-            fontSize: '0.6rem',
-            backgroundColor: `${getRecipientColor(recipient)}20`,
-            color: getRecipientColor(recipient),
-            borderColor: getRecipientColor(recipient)
-          }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          {assignedFields.length} field(s)
-          {invalid > 0 && ` (${invalid} invalid)`}
-        </Typography>
-      </Box>
-    }
-  />
-</ListItem>
+                  <ListItem key={recipient.id} sx={{ py: 0.5 }}>
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      <Avatar sx={{
+                        width: 24,
+                        height: 24,
+                        bgcolor: getRecipientColor(recipient),
+                        fontSize: '0.75rem',
+                        color: '#ffffff'
+                      }}>
+                        {recipient.name?.charAt(0) || 'R'}
+                      </Avatar>
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={recipient.name || `Recipient`}
+                      secondary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="caption">
+                            {recipient.email}
+                          </Typography>
+                          <Chip
+                            label={FIELD_ROLES[recipient.role]?.name}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.6rem',
+                              backgroundColor: `${getRecipientColor(recipient)}20`,
+                              color: getRecipientColor(recipient),
+                              borderColor: getRecipientColor(recipient)
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {assignedFields.length} field(s)
+                            {invalid > 0 && ` (${invalid} invalid)`}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
                 );
               })}
             </List>
@@ -6965,25 +6967,25 @@ const MemoizedCanvasField = React.memo(CanvasField);
                 Rename Document
               </Button>
             </Box>
-            
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
               <FileText sx={{ color: 'text.secondary' }} />
               <Typography variant="body2">
                 Current name: <strong>{document?.filename || 'Untitled Document'}</strong>
               </Typography>
             </Box>
-            
+
             <Typography variant="caption" color="text.secondary">
               Click "Rename Document" to change the filename before sending
             </Typography>
           </Box>
         </DialogContent>
         <DialogActions>
-          
+
           <Button onClick={() => setFinishDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={sendInvites} 
-            variant="contained" 
+          <Button
+            onClick={sendInvites}
+            variant="contained"
             disabled={saving || invalidFields.length > 0}
             color={invalidFields.length > 0 ? "error" : "primary"}
           >
@@ -6999,8 +7001,8 @@ const MemoizedCanvasField = React.memo(CanvasField);
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          severity={snackbar.severity} 
+        <Alert
+          severity={snackbar.severity}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           sx={{ width: '100%' }}
         >
@@ -7019,14 +7021,14 @@ const MemoizedCanvasField = React.memo(CanvasField);
   </Box>
 )} */}
 
-{/* Preview Dialog */}
-<PreviewDialog
-  open={previewDialogOpen}
-  onClose={() => setPreviewDialogOpen(false)}
-  documentId={documentId}
-/>
+      {/* Preview Dialog */}
+      <PreviewDialog
+        open={previewDialogOpen}
+        onClose={() => setPreviewDialogOpen(false)}
+        documentId={documentId}
+      />
 
- {/* Add Recipient Dialog */}
+      {/* Add Recipient Dialog */}
       <AddRecipientDialog
         open={addRecipientDialogOpen}
         onClose={() => setAddRecipientDialogOpen(false)}
@@ -7036,8 +7038,8 @@ const MemoizedCanvasField = React.memo(CanvasField);
         disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
       />
 
-{/* Floating Action Button for Adding Recipients */}
-{/* <Fab
+      {/* Floating Action Button for Adding Recipients */}
+      {/* <Fab
   color="primary"
   aria-label="add recipient"
   onClick={() => setAddRecipientDialogOpen(true)}
@@ -7052,54 +7054,54 @@ const MemoizedCanvasField = React.memo(CanvasField);
   <PersonAddIcon />
 </Fab> */}
 
-{/* Desktop Button Group */}
-<Box
-  sx={{
-    position: 'fixed',
-    bottom: 24,
-    right: 24,
-    zIndex: 1000,
-    display: { xs: 'none', md: 'flex' },
-    flexDirection: 'column',
-    gap: 1
-  }}
->
-  <Fab
-    size="medium"
-    color="primary"
-    aria-label="add recipient"
-    disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
-    onClick={() => setAddRecipientDialogOpen(true)}
-    sx={{
-      boxShadow: 3,
-      '&:hover': {
-        transform: 'scale(1.05)',
-        boxShadow: 6
-      },
-      transition: 'all 0.2s'
-    }}
-  >
-    <PersonAddIcon />
-  </Fab>
-  {/* <Typography variant="caption" sx={{ textAlign: 'center', color: 'text.secondary' }}>
+      {/* Desktop Button Group */}
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 1000,
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          gap: 1
+        }}
+      >
+        <Fab
+          size="medium"
+          color="primary"
+          aria-label="add recipient"
+          disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
+          onClick={() => setAddRecipientDialogOpen(true)}
+          sx={{
+            boxShadow: 3,
+            '&:hover': {
+              transform: 'scale(1.05)',
+              boxShadow: 6
+            },
+            transition: 'all 0.2s'
+          }}
+        >
+          <PersonAddIcon />
+        </Fab>
+        {/* <Typography variant="caption" sx={{ textAlign: 'center', color: 'text.secondary' }}>
     Add Recipient
   </Typography> */}
-</Box>
+      </Box>
 
 
 
-{/* Success Dialog */}
-<SuccessDialog
-  open={successDialogOpen}
-  onClose={handleStayOnPage}
-  onNavigateToDashboard={handleNavigateToDashboard}
-  onNavigateToDocuments={handleNavigateToDocuments}
-  documentName={document?.filename}
-  recipientCount={recipients.length}
-/>
+      {/* Success Dialog */}
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={handleStayOnPage}
+        onNavigateToDashboard={handleNavigateToDashboard}
+        onNavigateToDocuments={handleNavigateToDocuments}
+        documentName={document?.filename}
+        recipientCount={recipients.length}
+      />
 
 
-{/* Add Unsaved Changes Dialog */}
+      {/* Add Unsaved Changes Dialog */}
       <Dialog open={showUnsavedChangesDialog} onClose={() => setShowUnsavedChangesDialog(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
         <DialogContent>
@@ -7123,8 +7125,8 @@ const MemoizedCanvasField = React.memo(CanvasField);
           }} color="warning">
             Leave Without Saving
           </Button>
-          <Button 
-            onClick={handleForceSaveAndNavigate} 
+          <Button
+            onClick={handleForceSaveAndNavigate}
             variant="contained"
             disabled={autoSaveStatus.isSaving}
           >
@@ -7135,8 +7137,8 @@ const MemoizedCanvasField = React.memo(CanvasField);
 
 
       {/* Rename Dialog */}
-      <Dialog 
-        open={renameDialogOpen} 
+      <Dialog
+        open={renameDialogOpen}
         onClose={() => setRenameDialogOpen(false)}
         maxWidth="sm"
         fullWidth
@@ -7147,14 +7149,14 @@ const MemoizedCanvasField = React.memo(CanvasField);
             Rename Document
           </Box>
         </DialogTitle>
-        
+
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
               This will rename the document file. Recipients will see the new name.
             </Typography>
           </Alert>
-          
+
           <TextField
             autoFocus
             fullWidth
@@ -7172,16 +7174,16 @@ const MemoizedCanvasField = React.memo(CanvasField);
             sx={{ mt: 1 }}
           />
         </DialogContent>
-        
+
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setRenameDialogOpen(false)}
             disabled={renaming}
           >
             Cancel
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleRenameDocument}
             disabled={!newDocumentName.trim() || renaming}
             startIcon={renaming ? <CircularProgress size={20} /> : null}
@@ -7192,7 +7194,7 @@ const MemoizedCanvasField = React.memo(CanvasField);
       </Dialog>
 
 
-      
+
 
 
     </Box>

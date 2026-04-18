@@ -1358,4 +1358,4 @@ async def get_comprehensive_summary(
 # This router should be included in your main FastAPI app
 # Example: app.include_router(summary_router, prefix="/api")
 
-print("✅ Document Summary Router loaded successfully")
+print("Document Summary Router loaded successfully")

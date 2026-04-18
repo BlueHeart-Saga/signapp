@@ -1051,7 +1051,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
       }, 700);
 
 
-      // setSuccessMsg("✅ Login successful! Redirecting...");
+      // setSuccessMsg("Login successful! Redirecting...");
 
 
       // const decoded = jwtDecode(token);

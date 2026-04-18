@@ -155,7 +155,7 @@ async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
         if not document:
             raise HTTPException(404, "Document not found")
         
-        # ✅ ALLOW VOIDED DOCUMENTS FOR VIEWING
+        # ALLOW VOIDED DOCUMENTS FOR VIEWING
         # Only block voided documents if specifically not allowed
         if not allow_voided and document.get("status") == "voided":
             # Instead of raising error, return recipient but indicate voided status
@@ -193,7 +193,7 @@ def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
         return False
     
     if not signing_order_enabled:
-        print(f"✅ Signing order disabled for document {document_id}. Recipient {recipient_id} can sign.")
+        print(f"Signing order disabled for document {document_id}. Recipient {recipient_id} can sign.")
         return True
 
     current_order = current_recipient.get("signing_order", 1)
@@ -205,7 +205,7 @@ def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
     blocking_signers = [r for r in previous_signers if r.get("status") != "completed"]
     
     if not blocking_signers:
-        print(f"✅ Recipient {recipient_id} (Order: {current_order}) can sign now.")
+        print(f"Recipient {recipient_id} (Order: {current_order}) can sign now.")
         return True
     else:
         print(f"⏳ Recipient {recipient_id} (Order: {current_order}) is BLOCKED by: {[r.get('email') for r in blocking_signers]}")
@@ -362,7 +362,7 @@ async def get_signing_info(recipient_id: str):
                     "voided_at": document.get("voided_at"),
                     "void_reason": document.get("void_reason", "Document has been voided"),
                     "message": "This document has been voided",
-                    "can_view_voided": True,  # ✅ Add this flag
+                    "can_view_voided": True,  # Add this flag
                     "is_voided": True
                 },
                 "is_voided": True
@@ -383,7 +383,7 @@ async def get_signing_info(recipient_id: str):
         
         # Check terms status
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined"):
-            # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
+            # CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
             email = recipient.get("email", "").lower()
             always_accepted = False
             if email:
@@ -589,7 +589,7 @@ async def get_terms_status(recipient_id: str):
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
-        # ✅ CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
+        # CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
         email = recipient.get("email", "").lower()
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined") and email:
             pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
@@ -655,7 +655,7 @@ async def accept_terms(
             {"$set": update_data}
         )
 
-        # ✅ STORE IN TERMS PREFERENCES IF "ALWAYS"
+        # STORE IN TERMS PREFERENCES IF "ALWAYS"
         if terms_data.accept_always:
             email = recipient.get("email", "").lower()
             if email:
@@ -732,7 +732,7 @@ async def reaccept_terms(
             {"$set": update_data}
         )
         
-        # ✅ STORE IN TERMS PREFERENCES IF "ALWAYS"
+        # STORE IN TERMS PREFERENCES IF "ALWAYS"
         if terms_data.accept_always:
             email = recipient.get("email", "").lower()
             if email:
@@ -1156,7 +1156,7 @@ async def view_voided_document(
         if document.get("status") != "voided":
             raise HTTPException(400, "Document is not voided")
         
-        # ✅ NO OTP VERIFICATION REQUIRED FOR VOIDED DOCUMENTS
+        # NO OTP VERIFICATION REQUIRED FOR VOIDED DOCUMENTS
         
         # Use the existing load_document_pdf function
         pdf_bytes = load_document_pdf(document, str(document["_id"]))
@@ -1883,7 +1883,7 @@ async def save_field_draft(
 #         if field.get("required", True) and text_value in [None, ""]:
 #             raise HTTPException(400, f"Value required for {field_type} field")
         
-#         # ✅ ADD THIS BLOCK HERE
+#         # ADD THIS BLOCK HERE
 #         if field_type == "dropdown":
 #             options = field.get("dropdown_options", [])
 #             selected = normalized_value.get("value")
@@ -2108,7 +2108,7 @@ async def complete_field_as_recipient(
     
     
     
-    # ✅ FIX: Get document FIRST before using it
+    # FIX: Get document FIRST before using it
     document = db.documents.find_one({"_id": recipient["document_id"]})
     if not document:
         raise HTTPException(404, "Document not found")
@@ -2282,7 +2282,7 @@ async def complete_field_as_recipient(
                         }
                     }
                 )
-    # ✅ New: If dimensions were adjusted (adjustable text box length feature)
+    # New: If dimensions were adjusted (adjustable text box length feature)
     if isinstance(normalized_value, dict) and ("width" in normalized_value or "height" in normalized_value):
         if "width" in normalized_value:
             new_width = normalized_value["width"]
@@ -2334,7 +2334,7 @@ async def complete_field_as_recipient(
                 normalized_value["value"] = orig_filename
                 
                 update_data["value"] = normalized_value
-                print(f"✅ Attachment uploaded: {file_url}")
+                print(f"Attachment uploaded: {file_url}")
                 
             except Exception as e:
                 print(f"❌ Error uploading attachment: {str(e)}")
@@ -2546,7 +2546,7 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         request
     )
     
-    # ✅ TRIGGER BACKGROUND EMAILS
+    # TRIGGER BACKGROUND EMAILS
     if background_tasks:
         from routes.email_service import send_completed_document_package, send_completed_document_to_recipients
         
@@ -2783,7 +2783,7 @@ async def decline_document(
         }}
     )
     
-    # ✅ NEW: Notify owner about recipient decline
+    # NEW: Notify owner about recipient decline
     from .email_service import send_recipient_activity_notification_to_owner
     background_tasks.add_task(
         send_recipient_activity_notification_to_owner,
@@ -2944,7 +2944,7 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
         }}
     )
     
-    # ✅ NEW: Notify owner about viewer completion
+    # NEW: Notify owner about viewer completion
     from .email_service import send_recipient_activity_notification_to_owner
     background_tasks.add_task(
         send_recipient_activity_notification_to_owner,
@@ -3029,7 +3029,7 @@ async def email_signed_document(
         if document.get("status") in ["declined", "voided", "expired"]:
              raise HTTPException(400, f"Cannot email document with status: {document.get('status')}")
 
-        # ✅ USE DYNAMIC RENDERING (Matches download route)
+        # USE DYNAMIC RENDERING (Matches download route)
         # This ensures all fields and HEADERS are applied accurately
         pdf_bytes = load_document_pdf(document, str(document["_id"]))
         if not pdf_bytes:
@@ -3136,7 +3136,7 @@ async def download_signed_document(
         if not pdf_bytes:
             raise HTTPException(404, "No PDF content available for this document")
         
-        # ✅ USE UNIFIED RENDERING LOGIC (MATCHES documents.py)
+        # USE UNIFIED RENDERING LOGIC (MATCHES documents.py)
         # This fixes the missing signatures/initials from the signing side.
         try:
             print(f"Applying all completed fields dynamically for recipient download")
@@ -4744,7 +4744,7 @@ async def manually_complete_recipient(
         
     db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
     
-    # ✅ NEW: Notify owner about recipient completion
+    # NEW: Notify owner about recipient completion
     from .email_service import send_recipient_activity_notification_to_owner
     background_tasks.add_task(
         send_recipient_activity_notification_to_owner,
@@ -4773,7 +4773,7 @@ async def manually_complete_recipient(
             "recipient_status": "completed"
         }
 
-    # ✅ SEQUENTIAL FLOW: TRIGGER NEXT SIGNER
+    # SEQUENTIAL FLOW: TRIGGER NEXT SIGNER
     # Re-use the existing 'document' variable already fetched above
     if document.get("signing_order_enabled"):
         # Find current recipient's order

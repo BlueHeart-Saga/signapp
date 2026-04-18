@@ -5,7 +5,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
 
 const token = localStorage.getItem("token");
 
-// ✅ Upload local file
+// Upload local file
 export const uploadDocument = async (file, onProgress) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -46,7 +46,7 @@ export const addFileToDocument = async (documentId, file, onProgress) => {
 
 
 
-// ✅ Upload from Google Drive - CORRECTED
+// Upload from Google Drive - CORRECTED
 export const uploadFromGoogleDrive = async (fileMeta, accessToken) => {
   const res = await api.post("/google-drive/upload-file", {
     file_id: fileMeta.id,
@@ -57,7 +57,7 @@ export const uploadFromGoogleDrive = async (fileMeta, accessToken) => {
   return res.data;
 };
 
-// ✅ Select Google Drive file (metadata only) - NEW
+// Select Google Drive file (metadata only) - NEW
 export const selectGoogleDriveFile = async (fileMeta, accessToken) => {
   const res = await api.post("/google-drive/select-file", {
     file_id: fileMeta.id,
@@ -68,7 +68,7 @@ export const selectGoogleDriveFile = async (fileMeta, accessToken) => {
   return res.data;
 };
 
-// ✅ Upload from Dropbox - CORRECTED
+// Upload from Dropbox - CORRECTED
 export const uploadFromDropbox = async (fileMeta) => {
   const res = await api.post("/dropbox/upload-file", {
     file_id: fileMeta.id,
@@ -79,7 +79,7 @@ export const uploadFromDropbox = async (fileMeta) => {
   return res.data;
 };
 
-// ✅ Select Dropbox file (metadata only) - NEW
+// Select Dropbox file (metadata only) - NEW
 export const selectDropboxFile = async (fileMeta) => {
   const res = await api.post("/dropbox/select-file", {
     file_id: fileMeta.id,
@@ -90,7 +90,7 @@ export const selectDropboxFile = async (fileMeta) => {
   return res.data;
 };
 
-// ✅ Upload from OneDrive - CORRECTED
+// Upload from OneDrive - CORRECTED
 export const uploadFromOneDrive = async (fileMeta, accessToken) => {
   const res = await api.post("/onedrive/upload-file", {
     file_id: fileMeta.id,
@@ -102,7 +102,7 @@ export const uploadFromOneDrive = async (fileMeta, accessToken) => {
   return res.data;
 };
 
-// ✅ Select OneDrive file (metadata only) - NEW
+// Select OneDrive file (metadata only) - NEW
 export const selectOneDriveFile = async (fileMeta) => {
   const res = await api.post("/onedrive/select-file", {
     file_id: fileMeta.id,
@@ -113,7 +113,7 @@ export const selectOneDriveFile = async (fileMeta) => {
   return res.data;
 };
 
-// ✅ Upload from Box - CORRECTED
+// Upload from Box - CORRECTED
 export const uploadFromBox = async (fileMeta, accessToken) => {
   const res = await api.post("/box/upload-file", {
     file_id: fileMeta.id,
@@ -122,7 +122,7 @@ export const uploadFromBox = async (fileMeta, accessToken) => {
   return res.data;
 };
 
-// ✅ Select Box file (metadata only) - NEW
+// Select Box file (metadata only) - NEW
 export const selectBoxFile = async (fileMeta, accessToken) => {
   const res = await api.post("/box/select-file", {
     file_id: fileMeta.id,
@@ -132,19 +132,19 @@ export const selectBoxFile = async (fileMeta, accessToken) => {
   return res.data;
 };
 
-// ✅ Get Box folder files via backend
+// Get Box folder files via backend
 export const getBoxFiles = async (folderId, accessToken) => {
   const res = await api.get(`/box/folder/${folderId}?access_token=${accessToken}`);
   return res.data;
 };
 
-// ✅ Token exchange for all providers
+// Token exchange for all providers
 export const exchangeBoxToken = async (code) => {
   const res = await api.post("/box/token", { code });
   return res.data;
 };
 
-// ✅ Get Box folder info via backend
+// Get Box folder info via backend
 export const getBoxFolderInfo = async (folderId, accessToken) => {
   const res = await api.get(`/box/folder-info/${folderId}?access_token=${accessToken}`);
   return res.data;
@@ -168,7 +168,7 @@ export const exchangeOneDriveToken = async (code) => {
 export const renameDocument = (documentId, filename) =>
   api.put(`/documents/${documentId}/rename`, { filename });
 
-// ✅ Get user's documents
+// Get user's documents
 export const getDocuments = async () => {
   const res = await api.get("/documents");
   return res.data;
@@ -186,13 +186,13 @@ export const getDocumentsPaged = async (page = 1, pageSize = 10, status = null) 
   return res.data;
 };
 
-// ✅ Get specific document
+// Get specific document
 export const getDocument = async (docId) => {
   const res = await api.get(`/documents/${docId}`);
   return res.data;
 };
 
-// ✅ Get document processing status
+// Get document processing status
 export const getDocumentStatus = async (docId) => {
   const res = await api.get(`/documents/${docId}/status`);
   return res.data;
@@ -216,7 +216,7 @@ export async function getFileThumbnails(documentId, fileId) {
 }
 
 
-// ✅ Download document
+// Download document
 // export const downloadDocument = async (docId, filename) => {
 //   const res = await api.get(`/documents/${docId}/download`, {
 //     responseType: "blob",
@@ -277,7 +277,7 @@ export const downloadDocument = async (id, filename, type = "signed") => {
 
 
 
-// ✅ Delete document
+// Delete document
 // export const deleteDocument = async (docId) => {
 //   const res = await api.delete(`/documents/${docId}`);
 //   return res.data;
@@ -350,7 +350,7 @@ const authenticatedDownload = async (url, defaultFilename) => {
   }
 };
 
-// ✅ Export & Reports
+// Export & Reports
 export const exportRecipientsCsv = async (docId) => {
   return authenticatedDownload(`/documents/${docId}/summary/recipients-csv`, `recipients_${docId}.csv`);
 };
@@ -428,7 +428,7 @@ export const getRecentActivities = async (limit = 20) => {
 };
 
 
-// ✅ Unified upload handler - CORRECTED
+// Unified upload handler - CORRECTED
 export const uploadFromCloud = async (provider, fileMeta, additionalData = {}) => {
   const { downloadFile = true, accessToken } = additionalData;
 
@@ -458,7 +458,7 @@ export const uploadFromCloud = async (provider, fileMeta, additionalData = {}) =
   }
 };
 
-// ✅ Cloud provider token exchange - NEW
+// Cloud provider token exchange - NEW
 export const exchangeCloudToken = async (provider, code) => {
   switch (provider) {
     case "google":

@@ -236,7 +236,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
   useEffect(() => {
     const fetchDocumentData = async () => {
-      // ✅ Strict Token Validation
+      // Strict Token Validation
       const token = localStorage.getItem('token');
       if (!token) {
         console.error("[AUTH] No token found, redirecting to login");
@@ -275,7 +275,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         setNumPages(docData.page_count || 1);
         setRecipients(recipientsData);
 
-        // ✅ Auto-select first recipient if none selected
+        // Auto-select first recipient if none selected
         if (recipientsData?.length > 0 && !selectedRecipientId) {
           const sorted = [...recipientsData].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0));
           setSelectedRecipientId(sorted[0].id);
