@@ -1,3 +1,7 @@
+:root {
+  --brand-color: #0f766e;
+}
+
 * {
   font-family: "Inter", "Roboto", sans-serif;
 }

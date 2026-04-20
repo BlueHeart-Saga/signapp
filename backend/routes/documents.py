@@ -1470,11 +1470,20 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
                 signatures.append({
                     "field_id": str(field["_id"]),
                     "image": image_data,
+                    "type": field_type,
                     "page": field.get("page", 0),
                     "x": field.get("pdf_x", field.get("x", 0)),
                     "y": field.get("pdf_y", field.get("y", 0)),
                     "width": field.get("pdf_width", field.get("width", 100)),
                     "height": field.get("pdf_height", field.get("height", 30)),
+                    "canvas_x": field.get("canvas_x"),
+                    "canvas_y": field.get("canvas_y"),
+                    "canvas_width": field.get("canvas_width") or document.get("canvas_width"),
+                    "canvas_height": field.get("canvas_height") or document.get("canvas_height"),
+                    "pdf_x": field.get("pdf_x"),
+                    "pdf_y": field.get("pdf_y"),
+                    "pdf_width": field.get("pdf_width"),
+                    "pdf_height": field.get("pdf_height"),
                     "is_completed": True,
                     "_render_completed": True
                 })
@@ -1509,6 +1518,14 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
                 "y": field.get("pdf_y", field.get("y", 0)),
                 "width": field.get("pdf_width", field.get("width", 100)),
                 "height": field.get("pdf_height", field.get("height", 30)),
+                "canvas_x": field.get("canvas_x"),
+                "canvas_y": field.get("canvas_y"),
+                "canvas_width": field.get("canvas_width") or document.get("canvas_width") or 794.0,
+                "canvas_height": field.get("canvas_height") or document.get("canvas_height") or 1123.0,
+                "pdf_x": field.get("pdf_x"),
+                "pdf_y": field.get("pdf_y"),
+                "pdf_width": field.get("pdf_width"),
+                "pdf_height": field.get("pdf_height"),
                 "font_size": field.get("font_size", 12),
                 "is_completed": True,
                 "_render_completed": True
@@ -1537,6 +1554,14 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
                 "y": field.get("pdf_y", field.get("y", 0)),
                 "width": field.get("pdf_width", field.get("width", 100)),
                 "height": field.get("pdf_height", field.get("height", 30)),
+                "canvas_x": field.get("canvas_x"),
+                "canvas_y": field.get("canvas_y"),
+                "canvas_width": field.get("canvas_width") or document.get("canvas_width") or 794.0,
+                "canvas_height": field.get("canvas_height") or document.get("canvas_height") or 1123.0,
+                "pdf_x": field.get("pdf_x"),
+                "pdf_y": field.get("pdf_y"),
+                "pdf_width": field.get("pdf_width"),
+                "pdf_height": field.get("pdf_height"),
                 "is_completed": True,
                 "_render_completed": True
             })
@@ -2595,10 +2620,25 @@ async def rename_document_file(
         request
     )
 
+    # Fetch updated field to return its adjusted coordinates
+    updated_field = db.signature_fields.find_one({"_id": fid})
+    
+    # Process updated_field for JSON serialization
+    from bson import json_util
+    import json
+    updated_field_json = json.loads(json_util.dumps(updated_field))
+    for key in ["_id", "document_id", "recipient_id"]:
+        if key in updated_field_json and isinstance(updated_field_json[key], dict) and "$oid" in updated_field_json[key]:
+            updated_field_json[key] = updated_field_json[key]["$oid"]
+
     return {
-        "message": "File renamed successfully",
-        "file_id": str(file_oid),
-        "filename": new_name
+        "message": "Field completed successfully",
+        "completed": True,
+        "field_completed": True,
+        "all_fields_completed": all_fields_completed,
+        "remaining_fields": remaining_fields,
+        "field_id": field_id,
+        "field": updated_field_json
     }
 
 

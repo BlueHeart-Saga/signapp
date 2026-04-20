@@ -94,6 +94,7 @@ import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Contacts from "./User/Contacts";
 import DocumentMainLayout from "./User/editor/DocumentMainLayout";
+import ExpiredDocumentView from "./Recipient/ExpiredDocumentView";
 import PlanGuard from "./components/PlanGuard";
 
 
@@ -109,8 +110,8 @@ function AnimatedRoutes() {
 
   useEffect(() => {
     setPageTitle(
-      "AI-powered e-signature Platform",
-      "Secure digital signatures, document management, and workflow automation with Safesign."
+      "Home",
+      "Safesign is the premier AI-powered e-signature platform. Securely sign, automate, and manage your documents with enterprise-grade tools."
     );
   }, []);
 
@@ -269,6 +270,7 @@ function AnimatedRoutes() {
 
         <Route path="/sign/:recipientId/voided" element={<VoidedDocumentView />} />
         <Route path="/sign/:recipientId/declined" element={<DeclinedDocumentView />} />
+        <Route path="/sign/:recipientId/expired" element={<ExpiredDocumentView />} />
 
 
 

@@ -766,7 +766,9 @@ const EnhancedSignaturePad = ({
 
     const lines = textInput.split('\n');
     const lineHeight = fontSize * 1.2;
-    const startY = (canvas.height - (lines.length * lineHeight)) / 2 + fontSize / 2;
+
+    // Always center vertically for professional look, consistent with signatures
+    const startY = (canvas.height - (lines.length * lineHeight)) / 2 + (fontSize / 2);
 
     lines.forEach((line, index) => {
       ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
@@ -1416,9 +1418,9 @@ const EnhancedSignaturePad = ({
           borderRadius: 1,
           p: 3,
           backgroundColor: '#fafafa',
-          minHeight: fieldType === 'initials' ? 180 : 120,
+          minHeight: (fieldType === 'textbox' || fieldType === 'mail') ? 100 : (fieldType === 'initials' ? 180 : 120),
           display: 'flex',
-          alignItems: 'center',
+          alignItems: (fieldType === 'textbox' || fieldType === 'mail') && textInput ? 'flex-start' : 'center',
           justifyContent: 'center',
           mb: 2,
           width: '100%',
@@ -1447,7 +1449,7 @@ const EnhancedSignaturePad = ({
               wordBreak: 'break-word',
               lineHeight: 1.2,
               display: 'flex',
-              alignItems: 'center',
+              alignItems: (fieldType === 'textbox' || fieldType === 'mail') && textInput ? 'flex-start' : 'center',
               justifyContent: 'center',
               transition: 'all 0.2s ease-in-out'
             }}

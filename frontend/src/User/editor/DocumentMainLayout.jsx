@@ -926,7 +926,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
       await documentAPI.sendInvites(documentId, {
         recipient_ids: recipientIds,
-        message: "Please review and sign the document"
+        message: document?.common_message || "Please review and sign the document",
+        signing_order_enabled: document?.signing_order_enabled || false
       });
 
       showSnackbar('Invites sent successfully!', 'success');
@@ -1304,6 +1305,42 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             </Tooltip>
 
             <Divider orientation="vertical" flexItem />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={document?.signing_order_enabled || false}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    try {
+                      setSaving(true);
+                      await fetch(`${API_BASE_URL}/documents/${documentId}/settings`, {
+                        method: "PUT",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${localStorage.getItem("token")}`
+                        },
+                        body: JSON.stringify({ signing_order_enabled: enabled })
+                      });
+                      setDocument(prev => ({ ...prev, signing_order_enabled: enabled }));
+                      showSnackbar(`Switched to ${enabled ? 'Sequential' : 'Parallel'} signing`, 'success');
+                    } catch (err) {
+                      showSnackbar('Failed to update signing order', 'error');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 600 }}>
+                  Order
+                </Typography>
+              }
+              sx={{ mr: 1 }}
+            />
 
             <Chip
               label={`${fields.length} fields`}

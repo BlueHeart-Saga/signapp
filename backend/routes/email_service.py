@@ -2177,6 +2177,9 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     
     standard_footer = get_standard_email_footer()
     
+    # Generate individual digit boxes for OTP
+    otp_digits_html = "".join([f'<span class="otp-digit">{d}</span>' for d in str(otp)])
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -2263,24 +2266,26 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
             .otp-box {{
                 display: inline-block;
                 background-color: #f8fafc;
-                border-radius: 12px;
+                border-radius: 16px;
                 padding: 35px 25px;
-                border: 1px solid #f1f5f9;
+                border: 1px solid #e2e8f0;
                 min-width: 320px;
-            }}
-            .otp-code {{
-                font-family: 'Courier New', monospace;
-                font-size: 40px;
-                font-weight: 700;
-                color: #00A3A3;
-                letter-spacing: 10px;
-                margin: 20px 0;
-                padding: 15px;
-                background: white;
-                border-radius: 8px;
-                display: inline-block;
                 text-align: center;
-                border: 1.5px solid #cbd5e1;
+            }}
+            .otp-digit {{ 
+                display: inline-block; 
+                width: 42px; 
+                height: 50px; 
+                line-height: 50px; 
+                background: #ffffff; 
+                border: 1px solid #cbd5e1; 
+                border-radius: 8px; 
+                margin: 0 4px; 
+                font-size: 24px; 
+                font-weight: 700; 
+                color: #1e293b; 
+                text-align: center;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             }}
             .action-button {{
                 display: inline-block;
@@ -2384,7 +2389,9 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                                         <p style="margin: 0 0 15px; font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;">
                                             Your One-Time Passcode
                                         </p>
-                                        <div class="otp-code">{otp}</div>
+                                        <div class="otp-code-container" style="margin: 20px 0;">
+                                            {otp_digits_html}
+                                        </div>
                                         <p style="margin: 0; font-size: 13px; color: #64748b;">
                                             Valid for 10 Minutes &bull; Single Use Only
                                         </p>
@@ -2771,6 +2778,9 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
         "in_person_signer": "You will sign this document in person under the supervision of the sender."
     }
     
+    # Generate individual digit boxes for OTP
+    otp_digits_html = "".join([f'<span class="otp-digit">{d}</span>' for d in str(otp)])
+    
     # Format messages section
     messages_html = ""
     if common_message or personal_message:
@@ -2816,8 +2826,22 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
             .info-label {{ color: #6b7280; width: 160px; vertical-align: top; font-weight: 600; }}
             .info-value {{ color: #374151; }}
             .message-box {{ background: #f0fdfa; border-left: 4px solid #0d9488; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
-            .otp-box {{ background: #fff7ed; border: 1.5px solid #fdba74; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }}
-            .otp-code {{ font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #ea580c; letter-spacing: 6px; }}
+            .otp-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px; text-align: center; margin: 25px 0; }}
+            .otp-digit {{ 
+                display: inline-block; 
+                width: 42px; 
+                height: 50px; 
+                line-height: 50px; 
+                background: #ffffff; 
+                border: 1px solid #cbd5e1; 
+                border-radius: 8px; 
+                margin: 0 4px; 
+                font-size: 24px; 
+                font-weight: 700; 
+                color: #1e293b; 
+                text-align: center;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }}
             .action-button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 16px; margin: 20px 0; }}
         </style>
     </head>
@@ -2894,9 +2918,11 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
                                 </div>
                                 
                                 <div class="otp-box">
-                                    <p style="margin: 0 0 10px; font-size: 14px; color: #9a3412; font-weight: 600;">Your Access Code</p>
-                                    <div class="otp-code">{otp}</div>
-                                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #c2410c;">🔒 Valid for single use only</p>
+                                    <p style="margin: 0 0 20px; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Your One-Time Passcode</p>
+                                    <div class="otp-code-container">
+                                        {otp_digits_html}
+                                    </div>
+                                    <p style="margin: 20px 0 0 0; font-size: 11px; color: #94a3b8;">🔒 For your security, this code is valid for single use only</p>
                                 </div>
                                 
                                 <div style="text-align: center;">
@@ -2918,7 +2944,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
         </html>
         """
     
-    subject = f"{get_role_emoji(role)} Action Required: Please {role_description} - {document['filename']}"
+    subject = f"Action Required: Please {role_description} - {document['filename']}"
     return send_email(recipient['email'], subject, html_content)
 
 async def send_bulk_invites(
@@ -3053,7 +3079,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
             body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
             .brand-logo {{ height: 32px; width: auto; display: block; }}
             .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-            .header {{ background: #f97316; color: white; padding: 25px 30px; text-align: center; }}
+            .header {{ background: #00A3A3; color: white; padding: 25px 30px; text-align: center; }}
             .content {{ padding: 30px; background: #ffffff; }}
             .otp-box {{ background-color: #fff7ed; border: 1.5px solid #fdba74; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }}
             .otp-code {{ font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #ea580c; letter-spacing: 6px; }}
@@ -3072,6 +3098,9 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
                                 <table border="0" cellspacing="0" cellpadding="0">
                                     <tr>
                                         <td style="vertical-align: middle;">
+                                            {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
                                             <span class="brand-name">{platform_name}</span>
                                         </td>
                                     </tr>
@@ -3079,9 +3108,16 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
                             </td>
                         </tr>
                         
+                        <!-- Banner Image -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="{BACKEND_URL}/static/email/reminder-banner.png" alt="Reminder Banner" style="width: 100%; height: auto; display: block; border: 0;" />
+                            </td>
+                        </tr>
+                        
                         <tr>
                             <td class="header">
-                                <h1 style="margin:0; font-size: 20px; color: #ffffff;">🔔 Reminder: Action Required</h1>
+                                <h1 style="margin:0; font-size: 20px; color: #ffffff;">Reminder: Action Required</h1>
                             </td>
                         </tr>
                         
@@ -3121,7 +3157,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     success = send_email(recipient['email'], subject, html_content)
     
     if success:
-        print(f"🔔 Reminder sent to {recipient['email']} | New OTP: {new_otp}")
+        print(f"Reminder sent to {recipient['email']} | New OTP: {new_otp}")
     else:
         print(f"❌ Failed to send reminder to {recipient['email']}")
         
@@ -3923,7 +3959,7 @@ async def send_completed_document_package(document_id: str):
                     # Custom subject/greeting if it's the owner
                     subject = None
                     if is_owner:
-                        subject = f"🔔 All Recipients Signed: {document.get('filename')} - Final Package Ready"
+                        subject = f"All Recipients Signed: {document.get('filename')} - Final Package Ready"
                     
                     # Send email with ZIP attachment and Summary
                     success = send_package_email(
@@ -4565,6 +4601,7 @@ def send_package_email(
             <title>Document Package: {document_name}</title>
             <style>
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                .brand-logo {{ height: 32px; width: auto; display: block; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
                 .document-header {{ background: #00A3A3; color: white; padding: 30px; text-align: center; }}
                 .content {{ padding: 30px; background: #ffffff; }}
@@ -4584,8 +4621,24 @@ def send_package_email(
                         <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
                             <!-- Header -->
                             <tr>
-                                <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-                                    <span class="brand-name">SafeSign</span>
+                                <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                    <table border="0" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td style="vertical-align: middle;">
+                                                {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                            </td>
+                                            <td style="vertical-align: middle; padding-left: 10px;">
+                                                <span class="brand-name">{platform_name}</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            
+                            <!-- Banner Image -->
+                            <tr>
+                                <td style="padding: 0;">
+                                    <img src="{BACKEND_URL}/static/email/completed-document.png" alt="Completed Document Banner" style="width: 100%; height: auto; display: block; border: 0;" />
                                 </td>
                             </tr>
                             

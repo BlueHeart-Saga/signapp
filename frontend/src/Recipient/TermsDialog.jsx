@@ -72,7 +72,9 @@ const TermsDialog = ({
   recipientInfo,
   documentInfo,
   signingInfo,
-  required = true
+  required = true,
+  readOnly = false,
+  onClose
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -163,14 +165,16 @@ const TermsDialog = ({
     if (open) {
       setHasScrolled(false);
       setIsScrolledToBottom(false);
-      setAcceptedSections({
-        terms: false,
-        privacy: false,
-        consent: false,
-        legal: false,
-        security: false,
-        retention: false
-      });
+
+      // If read-only, pre-accept everything for visual consistency
+      const initialAcceptedState = readOnly ? {
+        terms: true, privacy: true, consent: true, legal: true, security: true, retention: true
+      } : {
+        terms: false, privacy: false, consent: false, legal: false, security: false, retention: false
+      };
+
+      setAcceptedSections(initialAcceptedState);
+
       setExpandedSections({
         terms: true,
         privacy: true,
@@ -181,7 +185,7 @@ const TermsDialog = ({
       });
       setDeclineReason('');
     }
-  }, [open]);
+  }, [open, readOnly]);
 
   // Scroll to bottom when all sections are accepted
   useEffect(() => {
@@ -288,10 +292,10 @@ const TermsDialog = ({
             <VerifiedIcon fontSize="small" />
             <Box>
               <Typography variant="body1" sx={{ fontWeight: 600, fontSize: { xs: '0.78rem', sm: '0.9rem' } }}>
-                Terms &amp; Conditions Agreement
+                {readOnly ? 'View Terms & Conditions' : 'Terms & Conditions Agreement'}
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.58rem', sm: '0.65rem' } }}>
-                Complete legal acceptance required for electronic signing
+                {readOnly ? 'Previously accepted legal disclosure' : 'Complete legal acceptance required for electronic signing'}
               </Typography>
             </Box>
           </Box>
@@ -317,6 +321,15 @@ const TermsDialog = ({
               }}
             />
           </Box>
+          {readOnly && (
+            <IconButton
+              size="small"
+              onClick={onClose}
+              sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       </DialogTitle>
 
@@ -398,16 +411,19 @@ const TermsDialog = ({
           </Alert>
         )}
 
-        <Alert severity="warning" sx={{
+        <Alert severity={readOnly ? "info" : "warning"} sx={{
           mb: 2,
           py: 0.75,
           '& .MuiAlert-icon': { padding: 0 },
           fontSize: '0.8rem',
-          border: '1px solid #ffb74d'
+          border: readOnly ? '1px solid #90caf9' : '1px solid #ffb74d'
         }}>
           <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.4, fontWeight: 500 }}>
-            <WarningIcon sx={{ fontSize: '0.8rem', verticalAlign: 'middle', mr: 0.5 }} />
-            LEGAL NOTICE: This document constitutes a binding legal agreement. By accepting these terms, you acknowledge that electronic signatures are legally enforceable under applicable laws worldwide.
+            {readOnly ? <InfoIcon sx={{ fontSize: '0.8rem', verticalAlign: 'middle', mr: 0.5 }} /> : <WarningIcon sx={{ fontSize: '0.8rem', verticalAlign: 'middle', mr: 0.5 }} />}
+            {readOnly
+              ? "HISTORICAL RECORD: You are viewing terms that have been previously accepted. This record is provided for your reference and serves as proof of consent."
+              : "LEGAL NOTICE: This document constitutes a binding legal agreement. By accepting these terms, you acknowledge that electronic signatures are legally enforceable under applicable laws worldwide."
+            }
           </Typography>
         </Alert>
 
@@ -456,25 +472,27 @@ const TermsDialog = ({
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={acceptedSections[key]}
-                        onChange={handleSectionChange(key)}
-                        size="small"
-                        sx={{
-                          '& .MuiSvgIcon-root': { fontSize: '0.85rem' },
-                          p: 0.5
-                        }}
-                      />
-                    }
-                    label={
-                      <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                        Accept
-                      </Typography>
-                    }
-                    sx={{ m: 0 }}
-                  />
+                  {!readOnly && (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={acceptedSections[key]}
+                          onChange={handleSectionChange(key)}
+                          size="small"
+                          sx={{
+                            '& .MuiSvgIcon-root': { fontSize: '0.85rem' },
+                            p: 0.5
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                          Accept
+                        </Typography>
+                      }
+                      sx={{ m: 0 }}
+                    />
+                  )}
                   <IconButton size="small" sx={{ p: 0.25 }}>
                     {expandedSections[key] ?
                       <ExpandLessIcon sx={{ fontSize: '0.9rem' }} /> :
@@ -661,60 +679,62 @@ const TermsDialog = ({
           </Box>
         </Paper>
 
-        {/* Decline Section */}
-        <Paper elevation={0} sx={{
-          p: 1.5,
-          mb: 2,
-          bgcolor: '#fff8e1',
-          borderRadius: 0.5,
-          border: '1px solid #ffe57f'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
-            <WarningIcon sx={{ fontSize: '0.9rem', color: '#ed6c02', mt: 0.25 }} />
-            <Box>
-              <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500, color: '#ed6c02' }}>
-                Decline Terms & Conditions
-              </Typography>
-              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#ed6c02', display: 'block' }}>
-                Important: Declining will cancel the signing process
-              </Typography>
+        {/* Decline Section - Only show if not read only */}
+        {!readOnly && (
+          <Paper elevation={0} sx={{
+            p: 1.5,
+            mb: 2,
+            bgcolor: '#fff8e1',
+            borderRadius: 0.5,
+            border: '1px solid #ffe57f'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+              <WarningIcon sx={{ fontSize: '0.9rem', color: '#ed6c02', mt: 0.25 }} />
+              <Box>
+                <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500, color: '#ed6c02' }}>
+                  Decline Terms & Conditions
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#ed6c02', display: 'block' }}>
+                  Important: Declining will cancel the signing process
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-          <Typography variant="caption" sx={{
-            fontSize: '0.7rem',
-            lineHeight: 1.4,
-            color: '#666',
-            display: 'block',
-            mb: 1
-          }}>
-            If you cannot accept these terms, you must provide a detailed reason below. This action will terminate the signing session and notify all parties involved.
-          </Typography>
-          <textarea
-            value={declineReason}
-            onChange={(e) => setDeclineReason(e.target.value)}
-            placeholder="Provide detailed reason for declining terms (required)..."
-            style={{
-              width: '100%',
-              minHeight: '80px',
-              padding: '8px',
-              borderRadius: '3px',
-              border: '1px solid #ffcc80',
-              fontSize: '0.75rem',
-              fontFamily: 'inherit',
-              resize: 'vertical',
-              backgroundColor: 'white',
-              lineHeight: '1.5'
-            }}
-          />
-          <Typography variant="caption" sx={{
-            fontSize: '0.65rem',
-            color: '#666',
-            display: 'block',
-            mt: 0.5
-          }}>
-            Note: Your decline reason will be recorded in the audit trail and shared with the document sender.
-          </Typography>
-        </Paper>
+            <Typography variant="caption" sx={{
+              fontSize: '0.7rem',
+              lineHeight: 1.4,
+              color: '#666',
+              display: 'block',
+              mb: 1
+            }}>
+              If you cannot accept these terms, you must provide a detailed reason below. This action will terminate the signing session and notify all parties involved.
+            </Typography>
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Provide detailed reason for declining terms (required)..."
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '8px',
+                borderRadius: '3px',
+                border: '1px solid #ffcc80',
+                fontSize: '0.75rem',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                backgroundColor: 'white',
+                lineHeight: '1.5'
+              }}
+            />
+            <Typography variant="caption" sx={{
+              fontSize: '0.65rem',
+              color: '#666',
+              display: 'block',
+              mt: 0.5
+            }}>
+              Note: Your decline reason will be recorded in the audit trail and shared with the document sender.
+            </Typography>
+          </Paper>
+        )}
 
         {/* Contact Information */}
         <Paper elevation={0} sx={{
@@ -809,7 +829,28 @@ const TermsDialog = ({
 
           {/* Center - Acceptance Controls */}
           <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            {!allSectionsAccepted ? (
+            {readOnly ? (
+              <Button
+                variant="contained"
+                onClick={onClose}
+                color="primary"
+                size="small"
+                startIcon={<CheckCircleIcon sx={{ fontSize: '0.8rem' }} />}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  px: 4,
+                  py: 1,
+                  borderRadius: 0.5,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  bgcolor: '#0d9488',
+                  '&:hover': { bgcolor: '#0f766e', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }
+                }}
+              >
+                Close Terms View
+              </Button>
+            ) : !allSectionsAccepted ? (
               <Button
                 variant="contained"
                 onClick={handleAcceptAll}
@@ -857,31 +898,33 @@ const TermsDialog = ({
 
           {/* Right side actions */}
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={handleDecline}
-              disabled={!declineReason.trim()}
-              size="small"
-              startIcon={<CloseIcon sx={{ fontSize: '0.8rem' }} />}
-              sx={{
-                fontSize: '0.75rem',
-                py: 0.5,
-                px: 1.5,
-                minWidth: '110px'
-              }}
-            >
-              DECLINE
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleDecline}
+                disabled={!declineReason.trim()}
+                size="small"
+                startIcon={<CloseIcon sx={{ fontSize: '0.8rem' }} />}
+                sx={{
+                  fontSize: '0.75rem',
+                  py: 0.5,
+                  px: 1.5,
+                  minWidth: '110px'
+                }}
+              >
+                DECLINE
+              </Button>
+            )}
           </Box>
         </Box>
       </DialogActions>
 
       {/* Acceptance Status Footer */}
       <Box sx={{
-        bgcolor: allSectionsAccepted ? '#e8f5e9' : '#fff3e0',
+        bgcolor: readOnly || allSectionsAccepted ? '#e8f5e9' : '#fff3e0',
         borderTop: '1px solid',
-        borderTopColor: allSectionsAccepted ? '#c8e6c9' : '#ffccbc',
+        borderTopColor: readOnly || allSectionsAccepted ? '#c8e6c9' : '#ffccbc',
         p: 1
       }}>
         <Box sx={{
@@ -892,7 +935,18 @@ const TermsDialog = ({
           mx: 'auto'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {allSectionsAccepted ? (
+            {readOnly ? (
+              <>
+                <VisibilityIcon sx={{ fontSize: '0.8rem', color: '#1976d2' }} />
+                <Typography variant="caption" sx={{
+                  fontSize: '0.7rem',
+                  color: '#1976d2',
+                  fontWeight: 500
+                }}>
+                  Viewing Accepted Terms &bull; Authorized Access
+                </Typography>
+              </>
+            ) : allSectionsAccepted ? (
               <>
                 <CheckCircleIcon sx={{ fontSize: '0.8rem', color: '#2e7d32' }} />
                 <Typography variant="caption" sx={{
@@ -920,7 +974,7 @@ const TermsDialog = ({
             fontSize: '0.65rem',
             color: '#666'
           }}>
-            Session ID: {Math.random().toString(36).substr(2, 12).toUpperCase()}
+            {readOnly ? 'AUTHORIZATION VERIFIED' : `Session ID: ${Math.random().toString(36).substr(2, 12).toUpperCase()}`}
           </Typography>
         </Box>
       </Box>

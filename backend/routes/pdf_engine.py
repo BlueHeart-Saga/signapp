@@ -92,10 +92,23 @@ class PDFEngine:
         res_w = 100
         res_h = 40
 
-        # Priority 1: Use canvas coordinates with conversion context (MOST RELIABLE)
+        # Priority 1: Use PDF coordinates if available (BACKEND-CALCULATED / SOURCE OF TRUTH)
+        # These are absolute points in the PDF's coordinate system
+        if field.get("pdf_x") is not None and field.get("pdf_y") is not None:
+            path_taken = "Priority 1 (Stored PDF Points)"
+            x_stored = safe_float(field.get("pdf_x"))
+            y_stored = safe_float(field.get("pdf_y")) # Stored as bottom-based
+            res_w = safe_float(field.get("pdf_width"), 100)
+            res_h = safe_float(field.get("pdf_height"), 40)
+            
+            # Convert bottom-based to top-based + add offset
+            res_x = x0 + x_stored
+            res_y = y0 + (page_height - y_stored - res_h)
+        
+        # Priority 2: Use canvas coordinates with conversion context (SCALING FALLBACK)
         # These are scale-independent relative to the UI canvas used to place them
-        if "canvas_x" in field and "canvas_y" in field and field.get("canvas_width") and field.get("canvas_height"):
-            path_taken = "Priority 1 (Canvas Ratio)"
+        elif "canvas_x" in field and "canvas_y" in field and field.get("canvas_width") and field.get("canvas_height"):
+            path_taken = "Priority 2 (Canvas Ratio)"
             canvas_x = safe_float(field.get("canvas_x"))
             canvas_y = safe_float(field.get("canvas_y"))
             canvas_width = safe_float(field.get("canvas_width"), 794.0)
@@ -107,20 +120,15 @@ class PDFEngine:
             # Map normalized proportions to actual page size + offset
             res_x = x0 + (canvas_x / canvas_width) * page_width
             res_y = y0 + (canvas_y / canvas_height) * page_height
-            res_w = (field_width_px / canvas_width) * page_width
-            res_h = (field_height_px / canvas_height) * page_height
-        
-        # Priority 2: Use PDF coordinates if available (BACKEND-CALCULATED)
-        elif "pdf_x" in field and "pdf_y" in field:
-            path_taken = "Priority 2 (Stored PDF Points)"
-            x_stored = safe_float(field.get("pdf_x"))
-            y_stored = safe_float(field.get("pdf_y")) # Stored as bottom-based
-            res_w = safe_float(field.get("pdf_width"), 100)
-            res_h = safe_float(field.get("pdf_height"), 40)
             
-            # Convert bottom-based to top-based + add offset
-            res_x = x0 + x_stored
-            res_y = y0 + (page_height - y_stored - res_h)
+            # 🔥 FIX: Use exact PDF units for size if provided, otherwise scale pixels
+            # This prevents "shrunken" textboxes when canvas ratio != pdf ratio
+            if field.get("pdf_width") and field.get("pdf_height"):
+                res_w = safe_float(field.get("pdf_width"))
+                res_h = safe_float(field.get("pdf_height"))
+            else:
+                res_w = (field_width_px / canvas_width) * page_width
+                res_h = (field_height_px / canvas_height) * page_height
         
         # Priority 3: Fallback to standard x/y
         else:
@@ -549,19 +557,12 @@ class PDFEngine:
         is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
         if is_completed:
-            # For completed fields, we MUST show something
+            # For completed fields, show the value if it exists, otherwise show nothing
             if not actual_text or actual_text.strip() == "":
-                # Show a default for empty completed fields
-                if field.get("type") == "mail":
-                    display_text = "Email provided"
-                elif field.get("type") == "date":
-                    display_text = "Date selected"
-                else:
-                    display_text = "Completed"
-                text_color = (0.5, 0.5, 0.5)  # Gray
-            else:
-                display_text = actual_text
-                text_color = (0, 0, 0)  # Black
+                return
+            
+            display_text = actual_text
+            text_color = (0, 0, 0)  # Black
         else:
             # Incomplete field - show placeholder
             is_placeholder = not actual_text or actual_text.strip() == ""
@@ -609,11 +610,13 @@ class PDFEngine:
             except:
                 break
         
-        # Center vertically
-        text_y = rect.y0 + (rect.height + max_font) / 2 - 2
+        # 🔥 Use insert_text for single lines (more robust, matches date field success)
+        # Use insert_textbox for actual multiline text
+        is_multiline = "\n" in str(display_text)
         
-        # Use insert_text for robust single-line rendering, fallback to textbox for multi-line
-        if rect.height < 35:
+        if not is_multiline:
+            # Use top-alignment for text fields (more standard for form fields)
+            text_y = rect.y0 + max_font - 1
             page.insert_text(
                 fitz.Point(rect.x0 + 2, text_y),
                 display_text,
@@ -629,7 +632,7 @@ class PDFEngine:
                 fontsize=max_font,
                 fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
                 color=custom_text_color,
-                align=0,
+                align=0, # Left-aligned
                 overlay=True
             )
     
@@ -646,7 +649,11 @@ class PDFEngine:
             date_text = value
         
         if not date_text:
-            date_text = field.get("placeholder", "Date")
+            # If field is completed but empty, don't show any placeholder
+            is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
+            if is_completed:
+                return
+            date_text = field.get("placeholder", "Date:")
         
         # Try to format date nicely
         try:
@@ -908,28 +915,29 @@ class PDFEngine:
         # ---------------------------------
         # COMPLETED FIELD - DESIGN: NO box, NO arrow
         # ---------------------------------
-        if is_completed and selected_text:
-            font_size = min(11, rect.height * 0.75)
-            
-            # Auto-shrink for dropdown completed values
-            while font_size > 6:
-                text_width = fitz.get_text_length(selected_text, fontname="Helvetica", fontsize=font_size)
-                if text_width <= (rect.width - 6):
-                    break
-                font_size -= 0.5
+        if is_completed:
+            if selected_text:
+                font_size = min(11, rect.height * 0.75)
+                
+                # Auto-shrink for dropdown completed values
+                while font_size > 6:
+                    text_width = fitz.get_text_length(selected_text, fontname="Helvetica", fontsize=font_size)
+                    if text_width <= (rect.width - 6):
+                        break
+                    font_size -= 0.5
 
-            # Center vertically and horizontally for completed state
-            text_y = rect.y0 + (rect.height + font_size) / 2 - 1
-            
-            page.insert_text(
-                fitz.Point(rect.x0 + 3, text_y),
-                selected_text,
-                fontsize=font_size,
-                fontname="Helvetica",
-                color=(0, 0, 0),
-                overlay=True
-            )
-            return  # 🚫 NO border, NO arrow for completed fields
+                # Center vertically and horizontally for completed state
+                text_y = rect.y0 + (rect.height + font_size) / 2 - 1
+                
+                page.insert_text(
+                    fitz.Point(rect.x0 + 3, text_y),
+                    selected_text,
+                    fontsize=font_size,
+                    fontname="Helvetica",
+                    color=(0, 0, 0),
+                    overlay=True
+                )
+            return  # 🚫 NO border, NO arrow, and NO text if empty for completed fields
 
         # ---------------------------------
         # 🟡 INCOMPLETE / PREVIEW FIELD
@@ -1456,20 +1464,12 @@ class PDFEngine:
             if not line.strip():
                 continue
                 
-            text_rect = fitz.Rect(
-                rect.x0,
-                start_y + (i * line_height),
-                rect.x1,
-                start_y + (i * line_height) + font_size
-            )
-            
-            page.insert_textbox(
-                text_rect,
+            page.insert_text(
+                fitz.Point(rect.x0 + (rect.width - fitz.get_text_length(line, fontname="Helvetica-Bold", fontsize=font_size))/2, start_y + (i * line_height) + font_size),
                 line,
                 fontsize=font_size,
                 fontname="Helvetica-Bold",
                 color=(r, g, b),
-                align=1,  # Center
                 overlay=True
             )
 

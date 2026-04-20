@@ -448,7 +448,8 @@ async def get_signing_info(recipient_id: str):
                 "document_status": doc_status,
                 "current_order": recipient.get("signing_order", 1),
                 "total_recipients": len(all_recipients),
-                "completed_recipients": len([r for r in all_recipients if r.get("status") == "completed"])
+                "completed_recipients": len([r for r in all_recipients if r.get("status") == "completed"]),
+                "recipients": [serialize_recipient(r) for r in all_recipients]
             },
             "is_voided": False
         }
@@ -952,113 +953,22 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         print(f"NO placeholders will be shown for ANY pending fields")
         
         # ============================================
-        # PREPARE ONLY COMPLETED FIELDS FOR PDF RENDERING
+        # APPLY ALL COMPLETED FIELDS (UNIFIED LOGIC)
         # ============================================
+        # This replaces the manual logic below and ensures pixel-perfect alignment 
+        # with the final signed download by using the same rendering pipeline.
+        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+        
+        # We still want to log the counts, so we'll fetch them once
+        completed_fields_count = db.signature_fields.count_documents(completed_fields_query)
+        signatures_count = db.signature_fields.count_documents({
+            **completed_fields_query, 
+            "type": {"$in": list(IMAGE_FIELDS)}
+        })
+        form_fields_count = completed_fields_count - signatures_count
+        
+        print(f"Live document: Applied {completed_fields_count} completed fields")
 
-        signatures = []
-        form_fields = []
-
-        # Process ONLY completed fields from ALL recipients
-        for raw_field in completed_raw_fields:
-            recipient_id_for_field = str(raw_field.get("recipient_id"))
-            field_recipient = all_recipients.get(recipient_id_for_field, {})
-            
-            field_type = raw_field.get("type")
-            field_value = raw_field.get("value")
-            
-            if field_type in IMAGE_FIELDS:
-                # Handle image-based fields (signatures, initials, stamps)
-                image_data = None
-                if isinstance(field_value, dict):
-                    if "image" in field_value:
-                        image_data = field_value["image"]
-                    elif "data" in field_value and field_value.get("type") == "image":
-                        image_data = field_value["data"]
-                
-                if image_data:
-                    signatures.append({
-                        "field_id": str(raw_field["_id"]),
-                        "image": image_data,
-                        "page": raw_field.get("page", 0),
-                        "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                        "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                        "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                        "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                        "opacity": 1.0,
-                        "is_completed": True,  # CRITICAL: Add this flag
-                        "_render_completed": True,  # Add this for PDFEngine
-                        "recipient_name": field_recipient.get("name", "Unknown")
-                    })
-                    print(f"  - Added completed {field_type} from {field_recipient.get('name', 'Unknown')}")
-                    
-            elif field_type not in IMAGE_FIELDS:
-                # Handle form fields (text, checkbox, etc.)
-                printable_value = None
-                
-                if isinstance(field_value, dict):
-                    printable_value = field_value.get("value")
-                else:
-                    printable_value = field_value
-                
-                if printable_value not in [None, ""]:
-                    # For approval fields, ensure we preserve the boolean value
-                    if field_type == "approval":
-                        # The value might be in different formats
-                        if isinstance(field_value, dict):
-                            if "value" in field_value:
-                                # Extract boolean from nested structure
-                                val = field_value["value"]
-                                if isinstance(val, bool):
-                                    printable_value = val
-                                elif isinstance(val, str):
-                                    printable_value = val.lower() in ["true", "yes", "1", "approved"]
-                                elif isinstance(val, dict):
-                                    printable_value = val.get("value", False)
-                            elif "approved" in field_value:
-                                printable_value = field_value["approved"]
-                        elif isinstance(field_value, bool):
-                            printable_value = field_value
-                        elif isinstance(field_value, str):
-                            printable_value = field_value.lower() in ["true", "yes", "1", "approved"]
-                        
-                        # Log for debugging
-                        print(f"  - Processing approval field: {field_value} -> {printable_value}")
-                    
-                    # CRITICAL: Ensure both completion flags are set
-                    form_fields.append({
-                        "field_id": str(raw_field["_id"]),
-                        "type": field_type,
-                        "value": printable_value,
-                        "page": raw_field.get("page", 0),
-                        "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                        "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                        "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                        "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                        "font_size": raw_field.get("font_size", 12),
-                        "color": "#000000",
-                        "opacity": 1.0,
-                        "is_completed": True,  # CRITICAL: Set this flag
-                        "_render_completed": True  # CRITICAL: Set this flag for PDFEngine
-                    })
-                    print(f"  - Added completed {field_type} from {field_recipient.get('name', 'Unknown')}: {printable_value}")
-        
-        # ============================================
-        # APPLY TO PDF - ONLY COMPLETED FIELDS, NO PLACEHOLDERS
-        # ============================================
-        
-        # Apply form fields first (text appears under signatures)
-        if form_fields:
-            print(f"Applying {len(form_fields)} completed form fields")
-            pdf_bytes = PDFEngine.apply_form_fields_with_values(pdf_bytes, form_fields)
-        
-        # Apply signatures on top
-        if signatures:
-            print(f"Applying {len(signatures)} completed signatures")
-            pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
-                pdf_bytes,
-                signatures,
-                completed_raw_fields  # Pass completed fields for coordinate context
-            )
         
         # NO PLACEHOLDERS ARE APPLIED - NOT EVEN FOR CURRENT RECIPIENT
         
@@ -1095,9 +1005,9 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
             {
                 "recipient_id": recipient_id,
                 "recipient_name": recipient.get("name"),
-                "completed_fields": len(completed_raw_fields),
-                "signatures_count": len(signatures),
-                "form_fields_count": len(form_fields),
+                "completed_fields": completed_fields_count,
+                "signatures_count": signatures_count,
+                "form_fields_count": form_fields_count,
                 "envelope_id": envelope_id,
                 "file_count": len(files) if files else 1
             },
@@ -1116,7 +1026,7 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
                 "X-Recipient-Status": recipient.get("status", "unknown"),
                 "X-Envelope-ID": envelope_id or "none",
                 "X-Recipient-Name": recipient.get("name", "unknown"),
-                "X-Completed-Fields": str(len(completed_raw_fields)),
+                "X-Completed-Fields": str(completed_fields_count),
                 "X-Placeholders-Shown": "0",
                 "X-File-Count": str(len(files) if files else 1)
             }
@@ -2294,6 +2204,22 @@ async def complete_field_as_recipient(
         
         if "height" in normalized_value:
             new_height = normalized_value["height"]
+            old_height = field.get("pdf_height") or field.get("height", 30)
+            
+            # 🔥 CRITICAL: If height increased, we must DECREASE pdf_y to expand DOWNWARDS
+            # In PDF coordinates, y=0 is bottom. Top = y + height.
+            # To keep Top fixed (Y_top = Y + H): new_y + new_height = old_y + old_height
+            # new_y = old_y - (new_height - old_height)
+            if old_height and new_height != old_height:
+                old_y = field.get("pdf_y", field.get("y", 0))
+                diff = new_height - old_height
+                if old_y is not None:
+                    update_data["pdf_y"] = old_y - diff
+                
+                # Update canvas_y accordingly if possible
+                if field.get("pdf_height") and field.get("canvas_height"):
+                    update_data["canvas_y"] = field.get("canvas_y", field.get("y", 0))
+
             update_data["pdf_height"] = new_height
             # Sync canvas height if possible
             if field.get("pdf_height") and field.get("canvas_height"):
@@ -2370,13 +2296,25 @@ async def complete_field_as_recipient(
         request
     )
 
+    # Fetch updated field to return its adjusted coordinates
+    updated_field = db.signature_fields.find_one({"_id": fid})
+    
+    # Process updated_field for JSON serialization
+    from bson import json_util
+    import json
+    updated_field_json = json.loads(json_util.dumps(updated_field))
+    for key in ["_id", "document_id", "recipient_id"]:
+        if key in updated_field_json and isinstance(updated_field_json[key], dict) and "$oid" in updated_field_json[key]:
+            updated_field_json[key] = updated_field_json[key]["$oid"]
+
     return {
         "message": "Field completed successfully",
         "completed": True,
         "field_completed": True,
         "all_fields_completed": all_fields_completed,
         "remaining_fields": remaining_fields,
-        "field_id": field_id
+        "field_id": field_id,
+        "field": updated_field_json
     }
 
 # ======================
@@ -3371,89 +3309,18 @@ async def download_signed_document_with_passkey(
             raise HTTPException(404, "PDF file not found in storage")
         
         # ============================================
-        # FIX: GET COMPLETED FIELDS AND APPLY THEM
+        # APPLY COMPLETED FIELDS (UNIFIED LOGIC)
         # ============================================
-        
-        # Get ALL completed fields for this document
-        completed_fields_query = {
+        # Get count for logging/metadata
+        completed_fields_count = db.signature_fields.count_documents({
             "document_id": recipient["document_id"],
             "completed_at": {"$exists": True}
-        }
-        completed_raw_fields = list(db.signature_fields.find(completed_fields_query))
-        
-        print(f"Download password-protected: Found {len(completed_raw_fields)} completed fields")
-        
-        if completed_raw_fields and should_reapply_fields:
-            # Prepare signatures and form fields with COMPLETION FLAGS
-            signatures = []
-            form_fields = []
-            
-            for raw_field in completed_raw_fields:
-                field_type = raw_field.get("type")
-                field_value = raw_field.get("value")
-                
-                if field_type in IMAGE_FIELDS:
-                    # Handle image-based fields
-                    image_data = None
-                    if isinstance(field_value, dict):
-                        if "image" in field_value:
-                            image_data = field_value["image"]
-                        elif "data" in field_value and field_value.get("type") == "image":
-                            image_data = field_value["data"]
-                    
-                    if image_data:
-                        signatures.append({
-                            "field_id": str(raw_field["_id"]),
-                            "image": image_data,
-                            "page": raw_field.get("page", 0),
-                            "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                            "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                            "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                            "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                            "opacity": 1.0,
-                            "is_completed": True,
-                            "_render_completed": True
-                        })
-                        
-                elif field_type not in IMAGE_FIELDS:
-                    # Handle form fields
-                    printable_value = None
-                    
-                    if isinstance(field_value, dict):
-                        printable_value = field_value.get("value")
-                    else:
-                        printable_value = field_value
-                    
-                    if printable_value not in [None, ""]:
-                        form_fields.append({
-                            "field_id": str(raw_field["_id"]),
-                            "type": field_type,
-                            "value": printable_value,
-                            "page": raw_field.get("page", 0),
-                            "x": raw_field.get("pdf_x", raw_field.get("x", 0)),
-                            "y": raw_field.get("pdf_y", raw_field.get("y", 0)),
-                            "width": raw_field.get("pdf_width", raw_field.get("width", 100)),
-                            "height": raw_field.get("pdf_height", raw_field.get("height", 30)),
-                            "font_size": raw_field.get("font_size", 12),
-                            "color": "#000000",
-                            "opacity": 1.0,
-                            "is_completed": True,
-                            "_render_completed": True
-                        })
-            
-            # Apply form fields first
-            if form_fields:
-                print(f"Applying {len(form_fields)} completed form fields to password-protected document")
-                pdf_bytes = PDFEngine.apply_form_fields_with_values(pdf_bytes, form_fields)
-            
-            # Apply signatures on top
-            if signatures:
-                print(f"Applying {len(signatures)} completed signatures to password-protected document")
-                pdf_bytes = PDFEngine.apply_signatures_with_field_positions(
-                    pdf_bytes,
-                    signatures,
-                    completed_raw_fields
-                )
+        })
+
+        if should_reapply_fields:
+            print(f"Re-applying {completed_fields_count} completed fields (unified engine)")
+            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(recipient["document_id"]), document)
+
         
         # Apply "PASSWORD PROTECTED" watermark
         try:
@@ -3515,7 +3382,7 @@ async def download_signed_document_with_passkey(
                     "encrypted": True,
                     "filename": filename,
                     "envelope_id": envelope_id,
-                    "completed_fields": len(completed_raw_fields)
+                    "completed_fields": completed_fields_count
                 },
                 request
             )
@@ -3533,7 +3400,7 @@ async def download_signed_document_with_passkey(
                 "X-Password-Protected": "true",
                 "X-Download-Type": "signed_password",
                 "X-Filename": filename,
-                "X-Completed-Fields": str(len(completed_raw_fields))
+                "X-Completed-Fields": str(completed_fields_count)
             }
         )
         
@@ -4801,13 +4668,15 @@ async def manually_complete_recipient(
                 
                 # Send invites to the next level
                 from .email_service import send_bulk_invites
+                sender_email = recipient.get("sender_info", {}).get("email") or document.get("owner_email") or "system@safesign.ai"
+                
                 background_tasks.add_task(
                     send_bulk_invites,
                     str(doc_id),
                     to_invite,
                     document.get("common_message", ""),
                     {}, # Personal messages already stored in recipient doc
-                    document.get("owner_email", "system@safesign.ai")
+                    sender_email
                 )
     
     # Log the manual completion

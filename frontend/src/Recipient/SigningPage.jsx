@@ -438,11 +438,9 @@ const FieldOverlay = React.memo(({
 
     // Get display value for completed fields
     const getDisplayValue = () => {
-        // For completed non-image fields, we want the overlay to be totally empty 
-        // to avoid overlapping with the text already drawn on the PDF
-        if (completed && !isImageField) {
-            return "";
-        }
+        // For completed fields, we usually want to show the value in the overlay 
+        // to give immediate feedback, unless it's already perfectly rendered on the PDF background.
+        // We will remove the early return "" to allow the actual values to flow through.
 
         // ===== NOT COMPLETED PLACEHOLDERS =====
         if (!completed) {
@@ -536,12 +534,13 @@ const FieldOverlay = React.memo(({
             } else if (field.type === 'attachment') {
                 return value; // value is filename
             } else {
-                // Truncate long text
+                // Return full value for textboxes to allow wrapping
+                if (field.type === 'textbox' || field.type === 'mail') return value;
+                // Truncate other long text
                 return value.length > 25 ? value.substring(0, 22) + '...' : value;
             }
         }
-
-        return displayValue || '✓ Completed';
+        return displayValue || "";
     };
 
     const displayValue = getDisplayValue();
@@ -597,32 +596,31 @@ const FieldOverlay = React.memo(({
 
 
                 {/* Field content */}
-                {!completed && (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '100%',
-                            height: '100%',
-                            fontSize: field.type === 'textbox' ? '11px' : '9px',
-                            fontWeight: 500,
-                            color: (completed && field.type === 'attachment') ? '#2563eb' : (completed ? '#000' : 'rgb(13, 148, 136)'),
-                            textDecoration: (completed && field.type === 'attachment') ? 'underline' : 'none',
-                            backgroundColor: 'transparent',
-                            borderRadius: '2px',
-                            pointerEvents: 'none',
-                            textAlign: 'center',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            padding: '2px',
-                            lineHeight: 1.1
-                        }}
-                    >
-                        {displayValue}
-                    </Box>
-                )}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        fontSize: field.type === 'textbox' ? '11px' : '9px',
+                        fontWeight: 500,
+                        color: (completed && field.type === 'attachment') ? '#2563eb' : (completed ? '#000' : 'rgb(13, 148, 136)'),
+                        textDecoration: (completed && field.type === 'attachment') ? 'underline' : 'none',
+                        backgroundColor: 'transparent',
+                        borderRadius: '2px',
+                        pointerEvents: 'none',
+                        textAlign: 'center',
+                        whiteSpace: (field.type === 'textbox' || field.type === 'mail') ? 'pre-wrap' : 'nowrap',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        padding: '2px',
+                        lineHeight: 1.1
+                    }}
+                >
+                    {displayValue}
+                </Box>
 
 
                 {/* Required indicator for incomplete fields */}
@@ -989,7 +987,7 @@ const SigningPage = () => {
 
     // More Actions menu state
     const [actionsAnchor, setActionsAnchor] = useState(null);
-    const [isAutofilling, setIsAutofilling] = useState(false);
+    const [isQuickSignMode, setIsQuickSignMode] = useState(false);
 
     // New action dialogs
     const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
@@ -1483,20 +1481,17 @@ const SigningPage = () => {
     const handleAutofillAllFields = async () => {
         handleActionsMenuClose();
 
-        // Find all incomplete signature/initials/stamp fields
-        const signatureFields = fields.filter(f =>
-            !f.completed_at &&
-            (f.type === 'signature' || f.type === 'initials' || f.type === 'stamp' || f.type === 'witness_signature')
-        );
+        // Find all incomplete fields (not just signatures)
+        const incompleteFields = fields.filter(f => !f.completed_at);
 
-        if (signatureFields.length === 0) {
-            showSnackbar('No incomplete signature fields found to autofill', 'info');
+        if (incompleteFields.length === 0) {
+            showSnackbar('All fields are already completed', 'info');
             return;
         }
 
-        // Set autofill flag and open pad for the first field
-        setIsAutofilling(true);
-        handleFieldClick(signatureFields[0]);
+        // Set quick sign mode flag and open the first incomplete field
+        setIsQuickSignMode(true);
+        handleFieldClick(incompleteFields[0]);
     };
 
     const handleDeclineDocument = async () => {
@@ -1713,8 +1708,9 @@ const SigningPage = () => {
                     f.id === activeField.id
                         ? {
                             ...f,
+                            ...result.field, // Use updated coordinates and dimensions from server
                             value: valueToSave,
-                            completed_at: new Date().toISOString(),
+                            completed_at: result.field?.completed_at || new Date().toISOString(),
                             is_completed: true
                         }
                         : f
@@ -1738,48 +1734,68 @@ const SigningPage = () => {
             setSelectedDate(null);
             setTextInput('');
 
-            // 🔥 AUTOFILL LOGIC
-            if (isAutofilling && (modalType === 'signature' || modalType === 'initials' || modalType === 'stamp')) {
-                const otherFields = fields.filter(f =>
-                    !f.completed_at &&
-                    f.id !== activeField.id &&
-                    (f.type === modalType || (modalType === 'signature' && f.type === 'initials') || (modalType === 'initials' && f.type === 'signature'))
-                );
+            // 🔥 CONTINUOUS SIGNING / AUTOFILL LOGIC
+            if (isQuickSignMode) {
+                let remainingFields = [];
 
-                if (otherFields.length > 0) {
-                    showSnackbar(`Autofilling ${otherFields.length} other field(s)...`, 'info');
+                // 1. Signature bulk-autofill logic (if applicable)
+                if (modalType === 'signature' || modalType === 'initials' || modalType === 'stamp') {
+                    const otherFields = fields.filter(f =>
+                        !f.completed_at &&
+                        f.id !== activeField.id &&
+                        (f.type === modalType || (modalType === 'signature' && f.type === 'initials') || (modalType === 'initials' && f.type === 'signature'))
+                    );
 
-                    await Promise.all(otherFields.map(field =>
-                        apiService.saveFieldValue(recipientId, field.id, valueToSave)
-                    ));
+                    if (otherFields.length > 0) {
+                        showSnackbar(`Autofilling ${otherFields.length} other signature field(s)...`, 'info');
 
-                    // Update all local fields
-                    setFields(prev => prev.map(f => {
-                        const isMatch = otherFields.find(of => of.id === f.id) || f.id === activeField.id;
-                        if (isMatch) {
-                            return {
-                                ...f,
-                                value: valueToSave,
-                                completed_at: new Date().toISOString(),
-                                is_completed: true
-                            };
-                        }
-                        return f;
-                    }));
+                        await Promise.all(otherFields.map(field =>
+                            apiService.saveFieldValue(recipientId, field.id, valueToSave)
+                        ));
 
-                    setFieldValues(prev => {
-                        const newValues = { ...prev };
-                        otherFields.forEach(f => { newValues[f.id] = valueToSave; });
-                        newValues[activeField.id] = valueToSave;
-                        return newValues;
-                    });
+                        // Update local fields state for bulk fill
+                        const bulkIds = new Set(otherFields.map(f => f.id));
+                        setFields(prev => prev.map(f => {
+                            if (bulkIds.has(f.id)) {
+                                return {
+                                    ...f,
+                                    value: valueToSave,
+                                    completed_at: new Date().toISOString(),
+                                    is_completed: true
+                                };
+                            }
+                            return f;
+                        }));
+
+                        setFieldValues(prev => {
+                            const newValues = { ...prev };
+                            bulkIds.forEach(id => { newValues[id] = valueToSave; });
+                            return newValues;
+                        });
+                    }
                 }
-                setIsAutofilling(false);
-            }
 
-            const nextPage = findNextPageWithIncompleteFields(fields, currentPage);
-            if (nextPage && nextPage !== currentPage) {
-                setTimeout(() => setCurrentPage(nextPage), 300);
+                // 2. Find the next field to sign (after potential bulk fill)
+                // We re-query the current state of completion
+                setFields(latestFields => {
+                    const nextIncomplete = latestFields.find(f => !f.completed_at && f.id !== activeField.id);
+
+                    if (nextIncomplete) {
+                        showSnackbar(`Moving to next field: ${FIELD_TYPES[nextIncomplete.type]?.label || nextIncomplete.type}...`, 'info');
+                        setTimeout(() => handleFieldClick(nextIncomplete), 600);
+                    } else {
+                        setIsQuickSignMode(false);
+                        showSnackbar('Great! All fields have been completed.', 'success');
+                        setTimeout(() => showFinishConfirmation(), 800);
+                    }
+                    return latestFields;
+                });
+            } else {
+                // Not in quick sign mode - just move page if needed
+                const nextPage = findNextPageWithIncompleteFields(fields, currentPage);
+                if (nextPage && nextPage !== currentPage) {
+                    setTimeout(() => setCurrentPage(nextPage), 300);
+                }
             }
 
         } catch (err) {
@@ -1792,7 +1808,7 @@ const SigningPage = () => {
             showSnackbar(` ${err.message}`, 'error');
         } finally {
             setSaving(false);
-            setIsAutofilling(false);
+            // Don't auto-reset isQuickSignMode here, it's handled in the success block
         }
     };
 
@@ -2242,7 +2258,8 @@ const SigningPage = () => {
                             </Button>
 
                             {/* Standalone Quick Sign Button for accessibility */}
-                            {!progress.allRequiredCompleted && fields.filter(f => !f.completed_at && ['signature', 'initials', 'stamp'].includes(f.type)).length > 1 && (
+                            {/* Standalone Quick Sign Button for accessibility */}
+                            {!progress.allRequiredCompleted && fields.filter(f => !f.completed_at).length > 0 && (
                                 <Button
                                     variant="outlined"
                                     size="small"
@@ -2260,7 +2277,7 @@ const SigningPage = () => {
                                         '&:hover': { borderColor: 'rgb(11, 130, 120)', bgcolor: 'rgba(13, 148, 136, 0.05)' }
                                     }}
                                 >
-                                    Quick Sign ({fields.filter(f => !f.completed_at && ['signature', 'initials', 'stamp'].includes(f.type)).length})
+                                    Quick Sign ({fields.filter(f => !f.completed_at).length})
                                 </Button>
                             )}
                             <Menu
@@ -2278,8 +2295,8 @@ const SigningPage = () => {
                                     <MenuItem onClick={handleAutofillAllFields} sx={{ py: 1.5 }}>
                                         <ListItemIcon><AutoFixHighIcon fontSize="small" sx={{ color: 'rgb(13, 148, 136)' }} /></ListItemIcon>
                                         <ListItemText
-                                            primary="Bulk Sign & Autofill"
-                                            secondary="Apply one signature to all matching fields"
+                                            primary="Quick Sign Wizard"
+                                            secondary="Complete all fields one by one automatically"
                                             primaryTypographyProps={{ fontWeight: 'bold' }}
                                         />
                                     </MenuItem>

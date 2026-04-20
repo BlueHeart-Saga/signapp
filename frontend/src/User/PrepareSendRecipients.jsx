@@ -1470,6 +1470,12 @@ export default function PrepareSendRecipients() {
           signing_order_enabled: signingOrderEnabled, // Added for persistence
         }),
       });
+      setDocument(prev => ({
+        ...prev,
+        expiry_days: expiryDays,
+        reminder_period: reminderPeriod,
+        signing_order_enabled: signingOrderEnabled
+      }));
       setIsEditingSettings(false);
     } catch (error) {
       console.error("Save settings failed", error);
@@ -1519,11 +1525,11 @@ export default function PrepareSendRecipients() {
         });
       }
 
-      // Automatically save common message and settings
-      await saveCommonMessage();
-
-      // Save settings
+      // Save settings (including signing_order_enabled)
       await saveDocumentSettings();
+
+      // Save common message
+      await saveCommonMessage();
 
       await loadRecipients();
 

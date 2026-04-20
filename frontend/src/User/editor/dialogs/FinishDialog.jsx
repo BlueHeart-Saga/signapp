@@ -130,9 +130,27 @@ const FinishDialog = ({
 
         {/* Document Summary */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#0d9488' }}>
-            Document Summary
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#0d9488' }}>
+              Document Summary
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">Workflow:</Typography>
+              <Chip
+                label={document?.signing_order_enabled ? "Sequential" : "Parallel"}
+                size="small"
+                color={document?.signing_order_enabled ? "primary" : "default"}
+                variant="outlined"
+                sx={{
+                  height: 24,
+                  fontSize: '0.7rem',
+                  borderColor: document?.signing_order_enabled ? '#0d9488' : undefined,
+                  color: document?.signing_order_enabled ? '#0d9488' : undefined,
+                  fontWeight: 600
+                }}
+              />
+            </Box>
+          </Box>
           <Grid container spacing={2}>
             <Grid item xs={3}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>

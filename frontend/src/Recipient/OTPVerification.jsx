@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Link,
 } from '@mui/material';
 import {
   VerifiedUser as VerifiedIcon,
@@ -128,6 +129,7 @@ const OTPVerificationPage = () => {
   const [declinedTermsDialogOpen, setDeclinedTermsDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isReadOnlyTerms, setIsReadOnlyTerms] = useState(false);
 
   const [documentVoided, setDocumentVoided] = useState(false);
   const [documentDeclined, setDocumentDeclined] = useState(false);
@@ -162,6 +164,12 @@ const OTPVerificationPage = () => {
           setDocumentDeclined(true);
           // Navigate to declined view page
           window.location.href = `/sign/${recipientId}/declined`;
+          return;
+        }
+
+        // 🔴 DOCUMENT EXPIRED
+        if (data.document?.status === 'expired' || data.signing_info?.document_status === 'expired' || data.signing_info?.is_expired) {
+          window.location.href = `/sign/${recipientId}/expired`;
           return;
         }
 
@@ -751,7 +759,18 @@ const OTPVerificationPage = () => {
                     label="Terms Accepted"
                     color="success"
                     size="small"
-                    sx={{ ml: 2 }}
+                    onClick={() => {
+                      setIsReadOnlyTerms(true);
+                      setTermsDialogOpen(true);
+                    }}
+                    sx={{
+                      ml: 2,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'success.dark',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }
+                    }}
                   />
                 )}
               </Box>
@@ -932,6 +951,11 @@ const OTPVerificationPage = () => {
                 setOtp(pasted);
               }}
               inputProps={{ maxLength: 6 }}
+              onKeyUp={(e) => {
+                if (e.key === 'Enter' && otp.length === 6) {
+                  handleVerifyOTP();
+                }
+              }}
               sx={{
                 position: 'absolute',
                 top: 0,
@@ -1151,8 +1175,38 @@ const OTPVerificationPage = () => {
               }}
             >
               <LockIcon sx={{ fontSize: 12, mr: 0.5, verticalAlign: 'middle' }} />
-              For security, this code expires in 24 hours and can only be used once
+              For security, this code expires in 24 hours and can only be used once.
             </Typography>
+
+            {termsAccepted && (
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                  To review the legal framework governing this transaction, you may{" "}
+                </Typography>
+                <Link
+                  component="button"
+                  variant="caption"
+                  onClick={() => {
+                    setIsReadOnlyTerms(true);
+                    setTermsDialogOpen(true);
+                  }}
+                  sx={{
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                    verticalAlign: 'baseline',
+                    p: 0,
+                    m: 0,
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  view the Terms and Conditions here.
+                </Link>
+              </Box>
+            )}
 
             {/* Keyboard Shortcuts Hint */}
             {/* <Typography 
@@ -1196,7 +1250,11 @@ const OTPVerificationPage = () => {
         recipientInfo={recipientInfo}
         documentInfo={documentInfo}
         signingInfo={signingInfo}
-        required={true}
+        readOnly={isReadOnlyTerms}
+        onClose={() => {
+          setTermsDialogOpen(false);
+          setIsReadOnlyTerms(false);
+        }}
       />
 
       {/* Document Voided Popup */}

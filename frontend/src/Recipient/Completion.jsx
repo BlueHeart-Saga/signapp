@@ -79,26 +79,14 @@ const Completion = () => {
         setRecipientInfo(data.recipient);
         setSigningInfo(data.signing_info);
 
+        // Extract recipients from signing_info if available
+        if (data.signing_info?.recipients) {
+          setAllRecipients(data.signing_info.recipients);
+        }
+
         // Check if document is fully completed
         const isCompleted = data.document?.status === 'completed';
         setIsDocumentCompleted(isCompleted);
-
-        // Get all recipients for the document
-        if (data.document?.id) {
-          const recipientsResponse = await fetch(
-            `${API_BASE_URL}/documents/${data.document.id}/recipients`,
-            {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              }
-            }
-          );
-
-          if (recipientsResponse.ok) {
-            const recipientsData = await recipientsResponse.json();
-            setAllRecipients(recipientsData);
-          }
-        }
 
       } catch (error) {
         console.error('Error fetching document info:', error);
