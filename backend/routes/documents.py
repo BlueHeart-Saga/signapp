@@ -919,10 +919,10 @@ def get_field_render_data(field: Dict[str, Any]) -> Dict[str, Any]:
         "id": field.get("id", str(field.get("_id", ""))),
         "type": field_type,
         "page": field.get("page", 0),
-        "x": field.get("x", field.get("pdf_x", 0)),
-        "y": field.get("y", field.get("pdf_y", 0)),
-        "width": field.get("width", field.get("pdf_width", 100)),
-        "height": field.get("height", field.get("pdf_height", 30)),
+        "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+        "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
+        "width": field.get("pdf_width") or field.get("width", 100),
+        "height": field.get("pdf_height") or field.get("height", 30),
         "label": field.get("label", ""),
         "placeholder": field.get("placeholder", ""),
         "font_size": field.get("font_size", 12),
@@ -930,7 +930,15 @@ def get_field_render_data(field: Dict[str, Any]) -> Dict[str, Any]:
         "required": field.get("required", True),
         "is_completed": field.get("is_completed", False),
         # CRITICAL: Pass through the rendering flag
-        "_render_completed": field.get("_render_completed", field.get("is_completed", False))
+        "_render_completed": field.get("_render_completed", field.get("is_completed", False)),
+        
+        # 🔑 CRITICAL: Include explicit PDF coordinate keys to trigger PDFEngine Priority 1
+        "pdf_x": field.get("pdf_x"),
+        "pdf_y": field.get("pdf_y"),
+        "pdf_width": field.get("pdf_width"),
+        "pdf_height": field.get("pdf_height"),
+        "canvas_width": field.get("canvas_width"),
+        "canvas_height": field.get("canvas_height")
     }
     
     # Add type-specific data
@@ -1206,12 +1214,16 @@ def apply_completed_fields_only(pdf_bytes: bytes, completed_fields: list, image_
                     "field_id": field["id"],
                     "image": image_data,
                     "page": field.get("page", 0),
-                    "x": field.get("pdf_x") or field.get("x", 0),
-                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+                    "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
                     "width": field.get("pdf_width") or field.get("width", 100),
                     "height": field.get("pdf_height") or field.get("height", 30),
                     "opacity": 1.0,
-                    "is_completed": True
+                    "is_completed": True,
+                    "pdf_x": field.get("pdf_x"),
+                    "pdf_y": field.get("pdf_y"),
+                    "pdf_width": field.get("pdf_width"),
+                    "pdf_height": field.get("pdf_height")
                 })
         else:
             # Handle form fields
@@ -1313,14 +1325,23 @@ def create_form_field_data(field: dict, printable_value) -> dict:
         "type": field.get("type", "textbox"),
         "value": printable_value,
         "page": field.get("page", 0),
-        "x": field.get("pdf_x") or field.get("x", 0),
-        "y": field.get("pdf_y") or field.get("y", 0),
+        "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+        "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
         "width": field.get("pdf_width") or field.get("width", 100),
         "height": field.get("pdf_height") or field.get("height", 30),
         "font_size": field.get("font_size", 12),
+        "label": field.get("label"),
+        "placeholder": field.get("placeholder"),
         "color": "#000000",
         "opacity": 1.0,
-        "is_completed": True
+        "is_completed": True,
+        # 🔑 CRITICAL: Include explicit PDF coordinate keys to trigger PDFEngine Priority 1
+        "pdf_x": field.get("pdf_x"),
+        "pdf_y": field.get("pdf_y"),
+        "pdf_width": field.get("pdf_width"),
+        "pdf_height": field.get("pdf_height"),
+        "canvas_width": field.get("canvas_width"),
+        "canvas_height": field.get("canvas_height")
     }
     
     # Add type-specific properties
@@ -4264,12 +4285,18 @@ async def owner_preview(
                             "field_id": field["id"],
                             "image": field_value["image"],
                             "page": field.get("page", 0),
-                            "x": field.get("x", field.get("pdf_x", 0)),
-                            "y": field.get("y", field.get("pdf_y", 0)),
-                            "width": field.get("width", field.get("pdf_width", 120)),
-                            "height": field.get("height", field.get("pdf_height", 40)),
+                            "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+                            "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
+                            "width": field.get("pdf_width") or field.get("width", 120),
+                            "height": field.get("pdf_height") or field.get("height", 40),
                             "opacity": 1.0,
-                            "is_completed": True
+                            "is_completed": True,
+                            "pdf_x": field.get("pdf_x"),
+                            "pdf_y": field.get("pdf_y"),
+                            "pdf_width": field.get("pdf_width"),
+                            "pdf_height": field.get("pdf_height"),
+                            "canvas_width": field.get("canvas_width"),
+                            "canvas_height": field.get("canvas_height")
                         })
 
                 # 🔹 FORM FIELDS (text / checkbox / radio / dropdown)
@@ -4658,12 +4685,18 @@ async def view_signed_preview(
                     "field_id": field["id"],
                     "image": image_data,
                     "page": field.get("page", 0),
-                    "x": field.get("pdf_x") or field.get("x", 0),
-                    "y": field.get("pdf_y") or field.get("y", 0),
+                    "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+                    "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
                     "width": field.get("pdf_width") or field.get("width", 100),
                     "height": field.get("pdf_height") or field.get("height", 30),
                     "opacity": 1.0,
-                    "is_completed": True
+                    "is_completed": True,
+                    "pdf_x": field.get("pdf_x"),
+                    "pdf_y": field.get("pdf_y"),
+                    "pdf_width": field.get("pdf_width"),
+                    "pdf_height": field.get("pdf_height"),
+                    "canvas_width": field.get("canvas_width"),
+                    "canvas_height": field.get("canvas_height")
                 })
                 print(f"  - Added {field_type} image for field {field['id']}")
             else:
