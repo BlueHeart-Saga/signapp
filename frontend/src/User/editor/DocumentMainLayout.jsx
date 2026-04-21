@@ -105,12 +105,16 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [helpGuideDialogOpen, setHelpGuideDialogOpen] = useState(false);
   const [canvasHeight, setCanvasHeight] = useState(1123); // Default A4 height
+  const [pdfPageWidth, setPdfPageWidth] = useState(612);
+  const [pdfPageHeight, setPdfPageHeight] = useState(792);
 
-  // Handle PDF load from WorkArea to get actual proportions
-  const handlePdfLoaded = useCallback((actualHeight) => {
-    console.log(`[MAIN-LAYOUT] PDF Loaded with actual height: ${actualHeight}`);
-    setCanvasHeight(actualHeight);
+  const handlePdfDetails = useCallback((height, width, ptHeight) => {
+    if (height) setCanvasHeight(height);
+    if (width) setPdfPageWidth(width);
+    if (ptHeight) setPdfPageHeight(ptHeight);
   }, []);
+
+
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
 
   // Snackbar state
@@ -451,8 +455,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         return;
       }
 
-      const PDF_PAGE_WIDTH = 612;
-      const PDF_PAGE_HEIGHT = 792;
+      const PDF_PAGE_WIDTH = pdfPageWidth || 612;
+      const PDF_PAGE_HEIGHT = pdfPageHeight || 792;
       const CANVAS_WIDTH = 794;
       const CANVAS_HEIGHT = canvasHeight || 1123; // Use dynamic height from state
 
@@ -472,7 +476,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         const normalizedHeight = field.height ?? 40;
 
         const pdfX = normalizedX * scaleX;
-        const pdfY = normalizedY * scaleY; // Remove backendPage * PDF_PAGE_HEIGHT stacking
+        const pdfY = PDF_PAGE_HEIGHT - ((normalizedY + normalizedHeight) * scaleY);
         const pdfWidth = normalizedWidth * scaleX;
         const pdfHeight = normalizedHeight * scaleY;
 
@@ -1150,7 +1154,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         }}
         styles={{
           options: {
-            primaryColor: '#0d9488',
+            primaryColor: '#0f766e',
             zIndex: 10000,
             overlayColor: 'rgba(0, 0, 0, 0.5)',
             backgroundColor: '#ffffff',
@@ -1207,7 +1211,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 onClick={() => setRenameDialogOpen(true)}
                 sx={{
                   ml: 0.5,
-                  color: '#0d9488',
+                  color: '#0f766e',
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.04)'
                   }
@@ -1216,7 +1220,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 <EditIcon fontSize="small" />
               </IconButton>
 
-              {autoSaveStatus.isSaving && <CircularProgress size={16} sx={{ ml: 1, color: '#0d9488' }} />}
+              {autoSaveStatus.isSaving && <CircularProgress size={16} sx={{ ml: 1, color: '#0f766e' }} />}
 
               {autoSaveStatus.lastSaved && !autoSaveStatus.isSaving && (
                 <Tooltip title={`Last saved: ${new Date(autoSaveStatus.lastSaved).toLocaleTimeString()}`}>
@@ -1226,9 +1230,9 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                     variant="outlined"
                     icon={<CheckCircleIcon fontSize="small" />}
                     sx={{
-                      color: '#0d9488',
-                      borderColor: '#0d9488',
-                      '& .MuiChip-icon': { color: '#0d9488' }
+                      color: '#0f766e',
+                      borderColor: '#0f766e',
+                      '& .MuiChip-icon': { color: '#0f766e' }
                     }}
                   />
                 </Tooltip>
@@ -1263,7 +1267,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 size="small"
                 onClick={() => setHelpGuideDialogOpen(true)}
                 sx={{
-                  color: '#0d9488',
+                  color: '#0f766e',
                   ml: 0.5,
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.08)'
@@ -1281,7 +1285,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 disabled={!undoRedoInfo.canUndo}
                 sx={{
                   '&:hover': {
-                    color: '#0d9488'
+                    color: '#0f766e'
                   }
                 }}
               >
@@ -1296,7 +1300,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 disabled={!undoRedoInfo.canRedo}
                 sx={{
                   '&:hover': {
-                    color: '#0d9488'
+                    color: '#0f766e'
                   }
                 }}
               >
@@ -1335,7 +1339,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 />
               }
               label={
-                <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 600 }}>
+                <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 600 }}>
                   Order
                 </Typography>
               }
@@ -1349,8 +1353,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               color={invalidFields.length > 0 ? "error" : "default"}
               sx={invalidFields.length === 0 ? {
                 '&.MuiChip-outlined': {
-                  borderColor: '#0d9488',
-                  color: '#0d9488'
+                  borderColor: '#0f766e',
+                  color: '#0f766e'
                 }
               } : {}}
             />
@@ -1372,8 +1376,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               onClick={handlePreviewClick}
               disabled={saving}
               sx={{
-                color: '#0d9488',
-                borderColor: '#0d9488',
+                color: '#0f766e',
+                borderColor: '#0f766e',
                 '&:hover': {
                   borderColor: '#0f766e',
                   backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -1391,8 +1395,8 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 onClick={handleSaveFields}
                 disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
                 sx={{
-                  color: '#0d9488',
-                  borderColor: '#0d9488',
+                  color: '#0f766e',
+                  borderColor: '#0f766e',
                   '&:hover': {
                     borderColor: '#0f766e',
                     backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -1416,7 +1420,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               disabled={saving || invalidFields.length > 0 || document?.status === 'sent'}
               color={invalidFields.length > 0 ? "warning" : "primary"}
               sx={invalidFields.length === 0 ? {
-                bgcolor: '#0d9488',
+                bgcolor: '#0f766e',
                 '&:hover': {
                   bgcolor: '#0f766e'
                 },
@@ -1435,11 +1439,11 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 size="small"
                 onClick={() => setThumbnailsVisible(!thumbnailsVisible)}
                 sx={{
-                  color: thumbnailsVisible ? '#0d9488' : 'inherit',
+                  color: thumbnailsVisible ? '#0f766e' : 'inherit',
                   transition: 'all 0.2s',
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.08)',
-                    color: '#0d9488'
+                    color: '#0f766e'
                   }
                 }}
               >
@@ -1484,7 +1488,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
           invalidFields={invalidFields}
           unassignedFields={unassignedFields}
           canvasHeight={canvasHeight}
-          onPdfLoaded={handlePdfLoaded}
+          onPdfLoaded={handlePdfDetails}
         />
 
         {/* Document Thumbnails Sidebar (Toggleable, Zoho-style) */}
@@ -1683,7 +1687,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
                 setTimeout(() => setRunTour(true), 200);
               }}
               sx={{
-                bgcolor: '#0d9488',
+                bgcolor: '#0f766e',
                 py: 1.2,
                 borderRadius: '10px',
                 textTransform: 'none',

@@ -279,13 +279,13 @@ const TermsDialog = ({
       }}
     >
       <DialogTitle sx={{
-        bgcolor: '#0d9488',
+        bgcolor: '#0f766e',
         color: 'white',
         position: 'sticky',
         top: 0,
         zIndex: 10,
         py: 1.5,
-        borderBottom: '1px solid #0d9488'
+        borderBottom: '1px solid #0f766e'
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -844,7 +844,7 @@ const TermsDialog = ({
                   borderRadius: 0.5,
                   textTransform: 'none',
                   boxShadow: 'none',
-                  bgcolor: '#0d9488',
+                  bgcolor: '#0f766e',
                   '&:hover': { bgcolor: '#0f766e', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }
                 }}
               >
@@ -865,7 +865,7 @@ const TermsDialog = ({
                   borderRadius: 0.5,
                   textTransform: 'none',
                   boxShadow: 'none',
-                  bgcolor: '#0d9488',
+                  bgcolor: '#0f766e',
                   '&:hover': { bgcolor: '#0f766e', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }
                 }}
               >
@@ -996,11 +996,11 @@ const TermsDialog = ({
           pb: 1,
           pt: 3,
           textAlign: 'center',
-          color: '#0d9488',
+          color: '#0f766e',
           fontWeight: 700
         }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <VerifiedIcon sx={{ fontSize: 50, mb: 1, color: '#0d9488' }} />
+            <VerifiedIcon sx={{ fontSize: 50, mb: 1, color: '#0f766e' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               Legal Acceptance
             </Typography>
@@ -1018,7 +1018,7 @@ const TermsDialog = ({
               onClick={() => handleFinalAccept(true)}
               startIcon={<FingerprintIcon />}
               sx={{
-                bgcolor: '#0d9488',
+                bgcolor: '#0f766e',
                 py: 1.25,
                 fontWeight: 600,
                 textTransform: 'none',

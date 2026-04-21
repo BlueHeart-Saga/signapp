@@ -9,7 +9,7 @@ export default function AboutSafeSignSection() {
       {/* TOP HERO SECTION */}
       <div
         style={{
-          backgroundColor: "#0d9488",
+          backgroundColor: "#0f766e",
           padding: "80px 100px",
           display: "flex",
           alignItems: "center",

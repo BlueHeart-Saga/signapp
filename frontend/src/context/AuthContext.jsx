@@ -17,10 +17,22 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
-  const setUser = (userData) => {
+  const setUser = (userData, activeToken = null) => {
     setUserState(userData);
     if (userData) {
       localStorage.setItem("user", JSON.stringify(userData));
+
+      const tokenToSave = activeToken || localStorage.getItem("token");
+
+      // Save lightweight version for "Fast Login" popup
+      const recentUser = {
+        full_name: userData.full_name || userData.name,
+        email: userData.email,
+        profile_image: userData.profile_image,
+        is_google: userData.is_google || !!userData.google_id,
+        remembered_token: tokenToSave // Use the passed token or fallback to localStorage
+      };
+      localStorage.setItem("recent-user", JSON.stringify(recentUser));
     } else {
       localStorage.removeItem("user");
     }
@@ -107,8 +119,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setToken(null);
-    setUser(null);
+    setUserState(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     setSubscription(null);
+    /* global google */
+    if (window.google) {
+      window.google.accounts.id.disableAutoSelect();
+    }
   };
 
   const updateOnboardingStatus = async (onboardingData) => {

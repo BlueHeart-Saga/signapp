@@ -659,7 +659,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
 
         /* Hero Section */
         .safe-policy-hero {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 4rem 0;
           position: relative;
         }
@@ -762,7 +762,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-search-input:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -787,7 +787,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-quick-link:hover {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -810,7 +810,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
           align-items: center;
           gap: 1rem;
           margin-bottom: 1.5rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-summary-title {
@@ -846,7 +846,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
           flex-shrink: 0;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
@@ -935,7 +935,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-section-icon {
-          color: #0d9488;
+          color: #0f766e;
           display: flex;
           align-items: center;
         }
@@ -952,7 +952,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-section-number {
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 700;
         }
 
@@ -973,8 +973,8 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-expand-btn:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-expand-arrow {
@@ -1043,7 +1043,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
           align-items: center;
           gap: 1rem;
           margin-bottom: 2rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-acceptance-title {
@@ -1126,7 +1126,7 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-btn-primary {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1144,8 +1144,8 @@ For legal notices, please use the above address or email legal@safesign.com.`
 
         .safe-btn-secondary:hover {
           background: #e5e7eb;
-          color: #0d9488;
-          border-color: #0d9488;
+          color: #0f766e;
+          border-color: #0f766e;
           transform: translateY(-2px);
         }
 
@@ -1195,14 +1195,14 @@ For legal notices, please use the above address or email legal@safesign.com.`
         }
 
         .safe-policy-link:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .safe-policy-link svg:first-child {
-          color: #0d9488;
+          color: #0f766e;
           margin-top: 0.25rem;
         }
 

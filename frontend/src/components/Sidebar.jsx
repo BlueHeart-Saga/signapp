@@ -195,7 +195,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                         >
                           <Circle
                             size={collapsed ? 4 : 6}
-                            fill={isActive ? "#0d9488" : "transparent"}
+                            fill={isActive ? "#0f766e" : "transparent"}
                             strokeWidth={3}
                             style={{ flexShrink: 0 }}
                           />
@@ -296,7 +296,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         }
 
         .safesign-sidebar__logo-icon {
-          color: #0d9488;
+          color: #0f766e;
           flex-shrink: 0;
         }
 
@@ -304,7 +304,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           font-size: 19px;
           font-weight: 700;
           letter-spacing: -0.02em;
-          color: #0d9488;
+          color: #0f766e;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -354,12 +354,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__link:hover {
           background: #f8fafc;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safesign-sidebar__link--active {
           background: #f0fdf9;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 600;
         }
 
@@ -435,11 +435,11 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__submenu-link:hover {
           background: #f1f5f9;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safesign-sidebar__submenu-link.active {
-          color: #0d9488;
+          color: #0f766e;
           background: #f0fdfa;
         }
 
@@ -471,12 +471,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         .safesign-sidebar__settings:hover {
           background: #f8fafc;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safesign-sidebar__settings--active {
           background: #f0fdf9;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safesign-sidebar__logout {

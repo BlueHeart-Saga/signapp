@@ -78,7 +78,7 @@
 
 /* Hover effect (Zoho / SaaS style) */
 .safesign-footer-socials button:hover svg {
-  color: #0d9488;
+  color: #0f766e;
   /* brand teal */
   opacity: 1;
   transform: translateY(-2px);

@@ -465,7 +465,8 @@ const DocumentWorkArea = ({
                       onLoadSuccess={(page) => {
                         if (pageIndex === 0) {
                           const calculatedHeight = (BASE_WIDTH / page.originalWidth) * page.originalHeight;
-                          onPdfLoaded?.(calculatedHeight);
+                          // Pass both the canvas height (pixels) and the raw PDF dimensions (points)
+                          onPdfLoaded?.(calculatedHeight, page.originalWidth, page.originalHeight);
                         }
                       }}
                       renderTextLayer={false}

@@ -243,7 +243,7 @@ const DocumentLeftBar = ({
                 transition: 'all 0.2s',
                 position: 'relative',
                 bgcolor: isSelected ? '#f0fdfa' : 'transparent',
-                borderLeft: isSelected ? '4px solid #0d9488' : '4px solid transparent',
+                borderLeft: isSelected ? '4px solid #0f766e' : '4px solid transparent',
                 '&:hover': {
                   bgcolor: isSelected ? '#f0fdfa' : '#f9f9f9'
                 }
@@ -317,8 +317,8 @@ const DocumentLeftBar = ({
             startIcon={<PersonAddIcon />}
             onClick={onAddRecipientClick}
             sx={{
-              color: '#0d9488',
-              borderColor: '#0d9488',
+              color: '#0f766e',
+              borderColor: '#0f766e',
               textTransform: 'none',
               fontSize: '0.8125rem',
               fontWeight: 600,

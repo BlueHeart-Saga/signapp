@@ -19,7 +19,7 @@
 .docusign-back-btn {
   background: none;
   border: none;
-  color: #0d9488;
+  color: #0f766e;
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
@@ -50,7 +50,7 @@
 }
 
 .docusign-view-doc-btn {
-  background: #0d9488;
+  background: #0f766e;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -65,7 +65,7 @@
 }
 
 .docusign-view-doc-btn:hover {
-  background: #0d9488;
+  background: #0f766e;
 }
 
 .docusign-document-details {
@@ -195,7 +195,7 @@
 }
 
 .docusign-recipient-count {
-  background: #0d9488;
+  background: #0f766e;
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
@@ -232,7 +232,7 @@
 
 .docusign-search input:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
@@ -301,7 +301,7 @@
 
 .docusign-recipient-role {
   background: #EEF2FF;
-  color: #0d9488;
+  color: #0f766e;
   padding: 0.125rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -503,7 +503,7 @@
 .docusign-form-group select:focus,
 .docusign-form-group textarea:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
@@ -549,8 +549,8 @@
 }
 
 .docusign-add-more-btn:hover {
-  border-color: #0d9488;
-  color: #0d9488;
+  border-color: #0f766e;
+  color: #0f766e;
   background: #F5F3FF;
 }
 
@@ -574,14 +574,14 @@
 }
 
 .docusign-btn-primary {
-  background: #0d9488;
+  background: #0f766e;
   color: white;
-  border-color: #0d9488;
+  border-color: #0f766e;
 }
 
 .docusign-btn-primary:hover:not(:disabled) {
-  background: #0d9488;
-  border-color: #0d9488;
+  background: #0f766e;
+  border-color: #0f766e;
 }
 
 .docusign-btn-outline {
@@ -930,7 +930,7 @@
 
 .zoho-common-textarea-v2:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
@@ -1355,7 +1355,7 @@
 .docusign-inline-field select:focus,
 .docusign-inline-field textarea:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
@@ -1520,7 +1520,7 @@
 .docusign-inline-field select:focus,
 .docusign-inline-field textarea:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
@@ -1604,8 +1604,8 @@
 
 .docusign-message-toggle-btn:hover {
   background: #F3F4F6;
-  border-color: #0d9488;
-  color: #0d9488;
+  border-color: #0f766e;
+  color: #0f766e;
 }
 
 .docusign-message-icon {
@@ -1618,7 +1618,7 @@
   right: -3px;
   width: 8px;
   height: 8px;
-  background: #0d9488;
+  background: #0f766e;
   border-radius: 50%;
   border: 2px solid white;
 }
@@ -1680,7 +1680,7 @@
 
 .docusign-message-textarea:focus {
   outline: none;
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
@@ -1697,7 +1697,7 @@
 }
 
 .docusign-message-preview {
-  color: #0d9488;
+  color: #0f766e;
   font-style: italic;
   max-width: 60%;
   overflow: hidden;
@@ -1797,7 +1797,7 @@
 
 .zoho-doc-preview-box:hover {
   background: #ffffff;
-  border-color: #0d9488;
+  border-color: #0f766e;
 }
 
 /* Text */
@@ -1821,7 +1821,7 @@
   margin-top: 6px;
   background: none;
   border: none;
-  color: #0d9488;
+  color: #0f766e;
   font-size: 13px;
   cursor: pointer;
   display: inline-flex;
@@ -1838,7 +1838,7 @@
   /* margin-top: 6px; */
   background: none;
   border: none;
-  color: #0d9488;
+  color: #0f766e;
   font-size: 13px;
   cursor: pointer;
   display: inline-flex;
@@ -1894,7 +1894,7 @@
 }
 
 .rename-btn-primary {
-  background: #0d9488;
+  background: #0f766e;
   color: white;
   padding: 8px 14px;
   border-radius: 4px;
@@ -2007,7 +2007,7 @@
 }
 
 .ds-doc-card:hover {
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -2086,7 +2086,7 @@
 .ds-add-doc-btn {
   margin-top: 8px;
   padding: 6px 14px;
-  background: #0d9488;
+  background: #0f766e;
   color: white;
   border: none;
   border-radius: 4px;
@@ -2141,7 +2141,7 @@
 .ds-form-inline .zoho-rename-btn {
   background: none;
   border: none;
-  color: #0d9488;
+  color: #0f766e;
   font-size: 13px;
   cursor: pointer;
   display: inline-flex;
@@ -2728,10 +2728,10 @@
 
 /* Primary action (Merge) */
 .zoho-merge-action-btn {
-  background: #0d9488;
+  background: #0f766e;
   /* Zoho green */
   color: #ffffff;
-  border: 1px solid #0d9488;
+  border: 1px solid #0f766e;
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 13px;
@@ -2776,7 +2776,7 @@
 
 /* Drag highlight */
 .zoho-doc-grid.drag-active {
-  border: 2px dashed #0d9488;
+  border: 2px dashed #0f766e;
   background: #f0fdfa;
   border-radius: 12px;
 }
@@ -2791,7 +2791,7 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 500;
-  color: #0d9488;
+  color: #0f766e;
   background: rgba(240, 253, 250, 0.85);
   pointer-events: none;
 }
@@ -2827,7 +2827,7 @@
 
 .merge-file-row.dragging {
   background: #f0fdfa;
-  border-color: #0d9488;
+  border-color: #0f766e;
 }
 
 .merge-drag {
@@ -2900,7 +2900,7 @@
 }
 
 .zoho-upload-box:hover {
-  border-color: #0d9488;
+  border-color: #0f766e;
   background: #f0fdfa;
 }
 
@@ -2928,7 +2928,7 @@
 
 .zoho-merge-progress-bar {
   height: 100%;
-  background: #0d9488;
+  background: #0f766e;
   transition: width 0.2s ease;
 }
 
@@ -2942,7 +2942,7 @@
 
 /* Buttons */
 .zoho-btn-primary {
-  background: #0d9488;
+  background: #0f766e;
   color: #ffffff;
   border: none;
   padding: 6px 16px;
@@ -3037,7 +3037,7 @@
 
 .document-merge-progress-fill {
   height: 100%;
-  background: #0d9488;
+  background: #0f766e;
   transition: width 0.3s ease;
 }
 
@@ -3224,7 +3224,7 @@
 }
 
 .zoho-settings-title svg {
-  color: #0d9488;
+  color: #0f766e;
 }
 
 .zoho-settings-toggle {
@@ -3302,7 +3302,7 @@
 }
 
 .zoho-setting-control select:focus {
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
 }
 
@@ -3329,7 +3329,7 @@
 
 .zoho-setting-chip {
   background: #f0fdfa;
-  color: #0d9488;
+  color: #0f766e;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -3353,7 +3353,7 @@
 }
 
 .zoho-setting-control input.zoho-setting-input:focus {
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
 }
 
@@ -3383,7 +3383,7 @@
 }
 
 .settings-minimal-header:hover {
-  color: #0d9488;
+  color: #0f766e;
 }
 
 .settings-minimal-arrow {
@@ -3451,7 +3451,7 @@
 }
 
 .settings-minimal-input:focus {
-  border-color: #0d9488;
+  border-color: #0f766e;
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.05);
 }
 
@@ -3466,8 +3466,8 @@
 
 .settings-minimal-save {
   background: transparent;
-  border: 1px solid #0d9488;
-  color: #0d9488;
+  border: 1px solid #0f766e;
+  color: #0f766e;
   padding: 0.4rem 1.25rem;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -3477,7 +3477,7 @@
 }
 
 .settings-minimal-save:hover:not(:disabled) {
-  background: #0d9488;
+  background: #0f766e;
   color: #fff;
 }
 
@@ -3495,7 +3495,7 @@
 .settings-minimal-status-chip {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #0d9488;
+  color: #0f766e;
   background: #f0fdfa;
   padding: 0.15rem 0.6rem;
   border-radius: 12px;
@@ -3517,7 +3517,7 @@
 }
 
 .settings-minimal-select:focus {
-  border-color: #0d9488;
+  border-color: #0f766e;
 }
 
 .settings-minimal-checkbox-label {
@@ -3535,7 +3535,7 @@
   width: 14px;
   height: 14px;
   cursor: pointer;
-  accent-color: #0d9488;
+  accent-color: #0f766e;
 }
 
 /* New Add Document Dialog (Zoho-inspired) */
@@ -3602,7 +3602,7 @@
 
 .za-title-icon {
   font-size: 20px;
-  color: #0d9488;
+  color: #0f766e;
   background: #f0fdfa;
   padding: 8px;
   border-radius: 10px;
@@ -3659,7 +3659,7 @@
 }
 
 .za-dropzone:hover .za-dropzone-inner {
-  border-color: #0d9488;
+  border-color: #0f766e;
   background: #f0fdfa;
   transform: translateY(-2px);
 }
@@ -3671,7 +3671,7 @@
 
 .za-hero-icon {
   font-size: 48px;
-  color: #0d9488;
+  color: #0f766e;
   z-index: 1;
   position: relative;
 }
@@ -3679,7 +3679,7 @@
 .za-hero-glow {
   position: absolute;
   inset: -10px;
-  background: #0d9488;
+  background: #0f766e;
   opacity: 0.1;
   filter: blur(15px);
   border-radius: 50%;
@@ -3731,7 +3731,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0d9488;
+  color: #0f766e;
   font-size: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
@@ -3794,7 +3794,7 @@
 
 .za-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+  background: linear-gradient(90deg, #0f766e, #2dd4bf);
   border-radius: 10px;
   transition: width 0.3s ease;
 }
@@ -3829,7 +3829,7 @@
   padding: 10px 28px;
   border-radius: 12px;
   border: none;
-  background: #0d9488;
+  background: #0f766e;
   color: #ffffff;
   font-weight: 700;
   font-size: 14px;
@@ -4044,7 +4044,7 @@
 .document-merge-progress-text {
   font-size: 32px;
   font-weight: 800;
-  color: #0d9488;
+  color: #0f766e;
   margin-bottom: 16px;
   font-family: 'JetBrains Mono', 'Inter', monospace;
 }
@@ -4060,7 +4060,7 @@
 
 .document-merge-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+  background: linear-gradient(90deg, #0f766e, #2dd4bf);
   border-radius: 99px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -4112,12 +4112,12 @@
 }
 
 .ds-signing-order-label-box:hover {
-  border-color: #0d9488;
+  border-color: #0f766e;
   background: #fafafa;
 }
 
 .ds-signing-order-label-box.active {
-  border-color: #0d9488;
+  border-color: #0f766e;
   background: white;
 }
 
@@ -4138,8 +4138,8 @@
 }
 
 .active .ds-checkbox-custom {
-  background: #0d9488;
-  border-color: #0d9488;
+  background: #0f766e;
+  border-color: #0f766e;
 }
 
 .ds-check-icon {
@@ -4167,8 +4167,8 @@
 }
 
 .ds-add-me-btn:hover {
-  border-color: #0d9488;
-  color: #0d9488;
+  border-color: #0f766e;
+  color: #0f766e;
   background: #f0fdfa;
 }
 
@@ -4255,7 +4255,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: #0d9488;
+  background-color: #0f766e;
   color: white;
   border: none;
   padding: 12px 24px;

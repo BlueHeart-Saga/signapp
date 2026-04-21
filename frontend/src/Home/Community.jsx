@@ -252,7 +252,7 @@ const Community = () => {
     {
       title: 'API Documentation',
       icon: <Code size={20} />,
-      color: '#0d9488',
+      color: '#0f766e',
       link: '/docs',
       description: 'Complete API reference'
     },
@@ -814,7 +814,7 @@ const Community = () => {
 
         /* Hero Section */
         .safe-community-hero {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 4rem 0;
           position: relative;
         }
@@ -973,7 +973,7 @@ const Community = () => {
           display: flex;
           align-items: center;
           gap: 0.75rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-section-title {
@@ -1000,7 +1000,7 @@ const Community = () => {
 
         .safe-view-all-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-featured-grid {
@@ -1027,7 +1027,7 @@ const Community = () => {
         .safe-featured-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-trending-badge {
@@ -1156,7 +1156,7 @@ const Community = () => {
           justify-content: center;
           gap: 0.5rem;
           padding: 0.625rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1177,7 +1177,7 @@ const Community = () => {
 
         .safe-action-secondary:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Tabs */
@@ -1219,7 +1219,7 @@ const Community = () => {
         }
 
         .safe-tab-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1264,7 +1264,7 @@ const Community = () => {
         }
 
         .safe-search-input:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -1289,8 +1289,8 @@ const Community = () => {
         }
 
         .safe-filter-btn:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-filter-arrow {
@@ -1306,7 +1306,7 @@ const Community = () => {
           align-items: center;
           gap: 0.5rem;
           padding: 0.75rem 1rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1337,7 +1337,7 @@ const Community = () => {
         }
 
         .safe-topic-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -1449,7 +1449,7 @@ const Community = () => {
 
         .safe-reply-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Sidebar */
@@ -1471,7 +1471,7 @@ const Community = () => {
           align-items: center;
           gap: 0.75rem;
           margin-bottom: 1.5rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-sidebar-title {
@@ -1499,7 +1499,7 @@ const Community = () => {
 
         .safe-event-featured {
           background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-featured-tag {
@@ -1560,7 +1560,7 @@ const Community = () => {
 
         .safe-rsvp-btn {
           padding: 0.375rem 0.75rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1593,7 +1593,7 @@ const Community = () => {
 
         .safe-view-calendar-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Contributors */
@@ -1676,7 +1676,7 @@ const Community = () => {
 
         .safe-follow-btn {
           padding: 0.375rem 0.75rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1702,7 +1702,7 @@ const Community = () => {
 
         .safe-message-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Resources */
@@ -1725,7 +1725,7 @@ const Community = () => {
 
         .safe-resource-link:hover {
           background: #f9fafb;
-          color: #0d9488;
+          color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -1812,7 +1812,7 @@ const Community = () => {
 
         /* Community CTA */
         .safe-community-cta {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           border-radius: 1rem;
           padding: 1.5rem;
           text-align: center;
@@ -1840,7 +1840,7 @@ const Community = () => {
           gap: 0.5rem;
           padding: 0.75rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.5rem;
           font-size: 0.875rem;
@@ -1863,7 +1863,7 @@ const Community = () => {
         .safe-guidelines-header {
           text-align: center;
           margin-bottom: 3rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-guidelines-title {
@@ -1946,7 +1946,7 @@ const Community = () => {
         /* Newsletter */
         .safe-newsletter-section {
           padding: 4rem 0;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           color: white;
         }
 
@@ -2001,7 +2001,7 @@ const Community = () => {
         .safe-subscribe-btn {
           padding: 0.875rem 1.5rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.5rem;
           font-size: 0.875rem;

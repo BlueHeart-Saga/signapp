@@ -188,12 +188,12 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
         }
       }}
     >
-      {/* Header with #0d9488 theme */}
+      {/* Header with #0f766e theme */}
       <DialogTitle sx={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        bgcolor: '#0d9488',
+        bgcolor: '#0f766e',
         color: 'white',
         py: 1.5,
         px: 3
@@ -215,7 +215,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
             alignItems: 'center', 
             height: '70vh' 
           }}>
-            <CircularProgress sx={{ color: '#0d9488' }} />
+            <CircularProgress sx={{ color: '#0f766e' }} />
           </Box>
         ) : error ? (
           <Box sx={{ 
@@ -236,8 +236,8 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
               onClick={loadPreview}
               sx={{ 
                 mt: 2,
-                borderColor: '#0d9488',
-                color: '#0d9488',
+                borderColor: '#0f766e',
+                color: '#0f766e',
                 '&:hover': {
                   borderColor: '#0f766e',
                   bgcolor: 'rgba(13, 148, 136, 0.04)'
@@ -274,7 +274,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
                     onClick={handleZoomOut}
                     disabled={zoom <= 0.5}
                     sx={{ 
-                      color: '#0d9488',
+                      color: '#0f766e',
                       '&:hover': { bgcolor: 'rgba(13, 148, 136, 0.08)' }
                     }}
                   >
@@ -292,7 +292,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
                     onClick={handleZoomIn}
                     disabled={zoom >= 3}
                     sx={{ 
-                      color: '#0d9488',
+                      color: '#0f766e',
                       '&:hover': { bgcolor: 'rgba(13, 148, 136, 0.08)' }
                     }}
                   >
@@ -332,7 +332,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
                 onLoadError={handlePdfLoadError}
                 loading={
                   <Box sx={{ py: 8 }}>
-                    <CircularProgress sx={{ color: '#0d9488' }} />
+                    <CircularProgress sx={{ color: '#0f766e' }} />
                   </Box>
                 }
               >
@@ -419,7 +419,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
                       borderRadius: 2,
                       bgcolor: '#e5e7eb',
                       '& .MuiLinearProgress-bar': {
-                        bgcolor: '#0d9488'
+                        bgcolor: '#0f766e'
                       }
                     }}
                   />
@@ -452,7 +452,7 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
           onClick={handleDownload}
           startIcon={<DownloadIcon />}
           sx={{ 
-            bgcolor: '#0d9488',
+            bgcolor: '#0f766e',
             '&:hover': { bgcolor: '#0f766e' }
           }}
         >

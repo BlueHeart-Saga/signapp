@@ -32,7 +32,7 @@ body {
 
 /* Hero Section with Gradient */
 .ss-init-hero {
-  background: linear-gradient(135deg, #0d9488 0%, #0d9489bc 40%, #0d948976 70%, #0d9488 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #0d9489bc 40%, #0d948976 70%, #0f766e 100%);
   padding: 40px 60px 30px;
   color: white;
   position: relative;

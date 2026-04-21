@@ -70,7 +70,7 @@ const HeroCard = () => {
         }
 
         .herocss-teal-text {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .herocss-gray-text {
@@ -123,17 +123,17 @@ const HeroCard = () => {
 
         .herocss-btn-secondary {
           background-color: white;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 600;
           padding: 0.75rem 2rem;
           border-radius: 0.5rem;
-          border: 2px solid #0d9488;
+          border: 2px solid #0f766e;
           cursor: pointer;
           transition: background-color 0.2s;
         }
 
         .herocss-btn-secondary:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.1);
           border-color: rgba(13, 148, 136, 0.5);
           transform: translateY(-2px);
@@ -151,7 +151,7 @@ const HeroCard = () => {
           right: 0;
           top: 50%;
           height: 16rem;
-          background-color: #0d9488;
+          background-color: #0f766e;
           transform: translateY(-50%);
         }
 
@@ -236,7 +236,7 @@ const HeroCard = () => {
         }
 
         .herocss-tab-btn:hover {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .herocss-dot-indicators {
@@ -250,7 +250,7 @@ const HeroCard = () => {
           border-radius: 9999px;
         }
 
-        .herocss-dot-teal { background-color: #0d9488; }
+        .herocss-dot-teal { background-color: #0f766e; }
         .herocss-dot-blue { background-color: #3b82f6; }
         .herocss-dot-red { background-color: #ef4444; }
 
@@ -270,7 +270,7 @@ const HeroCard = () => {
 
         .herocss-signature-path {
           fill: none;
-          stroke: #0d9488;
+          stroke: #0f766e;
           stroke-width: 2;
           stroke-linecap: round;
         }
@@ -289,7 +289,7 @@ const HeroCard = () => {
           color: inherit;
         }
 
-        .herocss-control-btn:hover { color: #0d9488; }
+        .herocss-control-btn:hover { color: #0f766e; }
         .herocss-delete-btn:hover { color: #ef4444; }
 
         .herocss-icon {
@@ -462,7 +462,7 @@ const HeroCard = () => {
         .herocss-badge-icon {
           width: 1.5rem;
           height: 1.5rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         @media (max-width: 768px) {

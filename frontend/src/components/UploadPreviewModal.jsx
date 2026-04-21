@@ -150,7 +150,7 @@ export default function UploadPreviewModal({ open, file, onClose, onUpload }) {
             <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", py: 2 }}>
               {renderingDocx && (
                 <Box sx={{ py: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <CircularProgress size={40} thickness={4} sx={{ color: "#0d9488" }} />
+                  <CircularProgress size={40} thickness={4} sx={{ color: "#0f766e" }} />
                   <Typography variant="body1" sx={{ color: "#475569", fontWeight: 500 }}>
                     Preparing Word preview...
                   </Typography>
@@ -209,7 +209,7 @@ export default function UploadPreviewModal({ open, file, onClose, onUpload }) {
             color="primary"
             onClick={onUpload}
             fullWidth
-            sx={{ borderRadius: "8px", textTransform: 'none', fontWeight: 600, bgcolor: "#0d9488" }}
+            sx={{ borderRadius: "8px", textTransform: 'none', fontWeight: 600, bgcolor: "#0f766e" }}
           >
             Upload
           </Button>

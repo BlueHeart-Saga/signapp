@@ -24,9 +24,11 @@ from starlette.requests import Request
 from starlette.config import Config
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from database import db
-from config import JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ADMIN_SECRET_KEY
+from config import JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ADMIN_SECRET_KEY, RECIPIENT_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -163,7 +165,7 @@ def verify_token(token: str):
 
 def create_recipient_token(recipient_id: str, email: str, document_id: str) -> str:
     """Create JWT token for recipient access"""
-    expire = datetime.utcnow() + timedelta(days=7)  # Recipient tokens last 7 days
+    expire = datetime.utcnow() + timedelta(minutes=RECIPIENT_TOKEN_EXPIRE_MINUTES)
     
     payload = {
         "type": "recipient",
@@ -232,7 +234,7 @@ async def send_otp_email(email: str, otp: str):
     subject = f"{otp} is your verification code"
     
     # 1. Fetch Branding Info
-    branding = db.branding.find_one({})
+    branding = await db_find_one(db.branding, {})
     platform_name = "SafeSign"
     if branding:
         platform_name = branding.get("platform_name", platform_name)
@@ -699,6 +701,9 @@ class ChangePasswordRequest(BaseModel):
 class OnboardingUpdate(BaseModel):
     has_completed_editor_tour: Optional[bool] = None
     onboarding_data: Optional[dict] = None
+
+class GoogleTokenRequest(BaseModel):
+    credential: str
 
 class ErrorResponse(BaseModel):
     error: str
@@ -1696,7 +1701,6 @@ async def google_callback(
             }
             
             result = await db_insert_one(db.users, user_doc)
-            user_id = str(result.inserted_id)
             
             # Trigger Welcome Email
             try:
@@ -1728,7 +1732,6 @@ async def google_callback(
                 {"email": email.lower()},
                 {"$set": update_data}
             )
-            user_id = str(user["_id"])
         
         # Create access token
         access_token, expires_at = create_access_token(
@@ -1753,6 +1756,100 @@ async def google_callback(
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
         error_redirect = f"{frontend_url}/login?error=Google+authentication+failed"
         return RedirectResponse(url=error_redirect)
+
+@router.post("/google/verify-token")
+async def google_verify_token(request: GoogleTokenRequest):
+    """Verify Google ID token (GSI)"""
+    try:
+        # Verify the ID token
+        id_info = id_token.verify_oauth2_token(
+            request.credential, 
+            google_requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer.')
+
+        email = id_info.get('email')
+        name = id_info.get('name', '')
+        google_id = id_info.get('sub')
+        picture = id_info.get('picture', '')
+
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not provided by Google"
+            )
+
+        # Re-use the same logic as callback for finding/creating user
+        user = await db_find_one(db.users, {"email": email.lower()})
+        
+        if not user:
+            # Create new user
+            user_doc = {
+                "email": email.lower(),
+                "full_name": name,
+                "role": "user",
+                "created_at": datetime.utcnow(),
+                "is_active": True,
+                "email_verified": True,
+                "auth_provider": "google",
+                "google_id": google_id,
+                "profile_picture": picture,
+                "organization_name": ""
+            }
+            
+            result = await db_insert_one(db.users, user_doc)
+            user = await db_find_one(db.users, {"_id": result.inserted_id})
+            
+            # Welcome email
+            try:
+                await send_welcome_email(email.lower(), name)
+            except:
+                pass
+        else:
+            # Update existing user
+            update_data = {
+                "auth_provider": "google",
+                "google_id": google_id,
+                "email_verified": True,
+                "updated_at": datetime.utcnow()
+            }
+            if picture and not user.get('profile_picture'):
+                update_data["profile_picture"] = picture
+            if name and not user.get('full_name'):
+                update_data["full_name"] = name
+                
+            await db_update_one(db.users, {"email": email.lower()}, {"$set": update_data})
+            user = await db_find_one(db.users, {"email": email.lower()})
+
+        # Create access token
+        access_token, expires_at = create_access_token(
+            data={
+                "id": str(user["_id"]),
+                "email": email,
+                "role": user.get("role", "user")
+            }
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": serialize_doc(user)
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Google token: {str(e)}"
+        )
+    except Exception as e:
+        print(f"Google verify error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify Google account"
+        )
 
 # ============================================
 # USER PROFILE & HEALTH ROUTES

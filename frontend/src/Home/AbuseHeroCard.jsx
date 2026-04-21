@@ -103,7 +103,7 @@ const AbuseHeroCard = () => {
         {/* Quick Tips */}
         {/* <div className="abuse-quick-tips">
           <div className="abuse-tip-header">
-            <AlertTriangle size={18} color="#0d9488" />
+            <AlertTriangle size={18} color="#0f766e" />
             <h4>Quick Identification Tips</h4>
           </div>
           <div className="abuse-tips-grid">
@@ -188,7 +188,7 @@ const AbuseHeroCard = () => {
 
       <style jsx>{`
         .abuse-hero-card {
-          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           border-radius: 24px;
           overflow: hidden;
           position: relative;
@@ -365,7 +365,7 @@ const AbuseHeroCard = () => {
 
         .abuse-primary-cta {
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
         }
 
@@ -585,7 +585,7 @@ const AbuseHeroCard = () => {
         .abuse-floating-card {
           position: absolute;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           padding: 1rem 1.5rem;
           border-radius: 12px;
           display: flex;
@@ -599,7 +599,7 @@ const AbuseHeroCard = () => {
         }
 
         .abuse-floating-card svg {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .abuse-card-1 {

@@ -471,11 +471,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 import "../../style/Register.css";
-import API_BASE_URL from "../../config/api";
+import API_BASE_URL, { GOOGLE_CLIENT_ID } from "../../config/api";
 
 import { setPageTitle } from "../../utils/pageTitle";
 // Material UI Icons
@@ -498,6 +498,7 @@ import {
 import Explore from "@mui/icons-material/Explore";
 import People from "@mui/icons-material/People";
 import Upgrade from "@mui/icons-material/Upgrade";
+import Close from "@mui/icons-material/Close";
 import {
   FaCrown,
 } from 'react-icons/fa';
@@ -516,20 +517,99 @@ const Register = ({ onRegister }) => {
     secret_key: "",
   });
 
-  // Image carousel state
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [brandName, setBrandName] = useState("SafeSign");
-  const [logoUrl, setLogoUrl] = useState(null);
-  const { setUser, setToken } = useAuth();
-
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [currentRole, setCurrentRole] = useState("user");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [savedUser, setSavedUser] = useState(null);
+  const [showFullForm, setShowFullForm] = useState(true);
+  const [showFastLogin, setShowFastLogin] = useState(true);
+
   const navigate = useNavigate();
+  const { setToken, setUser, token: currentToken, user: currentUser } = useAuth();
+  const [brandName, setBrandName] = useState("SafeSign");
+  const [logoUrl, setLogoUrl] = useState(null);
+
+  // Image carousel state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [currentRole, setCurrentRole] = useState("user");
+
+  useEffect(() => {
+    // Check for saved user or recent user in localStorage
+    const storedUser = localStorage.getItem("user");
+    const storedRecent = localStorage.getItem("recent-user");
+    const storedToken = localStorage.getItem("token");
+
+    if (storedUser && storedToken) {
+      try {
+        setSavedUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Error parsing saved user", e);
+      }
+    } else if (storedRecent) {
+      try {
+        setSavedUser(JSON.parse(storedRecent));
+      } catch (e) {
+        console.error("Error parsing recent user", e);
+      }
+    }
+  }, []);
+
+  const handleContinueAs = async () => {
+    if (!savedUser) return;
+
+    // ⚡ CASE 1: Try remembered token for "1-click Login"
+    if (savedUser.remembered_token) {
+      try {
+        setLoading(true);
+        // Verify token with backend
+        const response = await api.get("/auth/me", {
+          headers: { Authorization: `Bearer ${savedUser.remembered_token}` }
+        });
+
+        if (response.data) {
+          localStorage.setItem("token", savedUser.remembered_token);
+          setToken(savedUser.remembered_token);
+          toast.success(`Welcome back, ${savedUser.full_name || savedUser.email}!`, { id: "login-success" });
+          setTimeout(() => {
+            const role = response.data.role;
+            switch (role) {
+              case "admin": navigate("/admin/dashboard"); break;
+              case "recipient": navigate("/recipient/home"); break;
+              default: navigate("/user");
+            }
+          }, 800);
+          return;
+        }
+      } catch (err) {
+        console.warn("Remembered session expired.");
+        // Fall through to manual login redirect
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // CASE 2: No valid session - redirect to Login page
+    if (savedUser.is_google) {
+      if (window.google) {
+        window.google.accounts.id.prompt();
+      } else {
+        toast.info("Initializing Google login...");
+        goToLogin();
+      }
+    } else {
+      // Redirect to login page with prefill
+      navigate("/login", { state: { prefillEmail: savedUser.email } });
+      toast.info("Welcome back! Redirecting to login...");
+    }
+  };
+
+  const handleSwitchAccount = () => {
+    setShowFullForm(true);
+  };
 
   // Background images for carousel
   const backgroundImages = [
@@ -815,6 +895,66 @@ const Register = ({ onRegister }) => {
     }
   };
 
+  useEffect(() => {
+    /* global google */
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredentialResponse,
+        cancel_on_tap_outside: false,
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById("googleRegisterDiv"),
+        {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          logo_alignment: "left",
+          width: "100%"
+        }
+      );
+
+      // Prompt One Tap
+      window.google.accounts.id.prompt();
+    }
+  }, []);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/google/verify-token", {
+        credential: response.credential
+      });
+
+      const token = res.data?.access_token;
+      const user = res.data?.user;
+
+      if (!token || !user) throw new Error("Invalid response from server");
+
+      const userWithFlag = { ...user, is_google: true };
+      setToken(token);
+      setUser(userWithFlag);
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userWithFlag));
+
+      toast.success("Account created/logged in with Google!");
+
+      switch (user.role) {
+        case "admin": navigate("/admin/dashboard"); break;
+        case "recipient": navigate("/recipient/home"); break;
+        default: navigate("/user");
+      }
+    } catch (err) {
+      console.error("Google verify error:", err);
+      toast.error("Google authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // Google Sign In
   const handleGoogleSignIn = () => {
@@ -1042,62 +1182,40 @@ const Register = ({ onRegister }) => {
           </button>
         </div>
 
-        <div className="register-wrapper">
+        <div className="register-wrapper" style={{ marginTop: "20px" }}>
           <motion.div
             className="register-card"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
-            <div style={{ textAlign: "center", marginBottom: "20px" }}>
 
-              <div className="brand-logo" onClick={goToHome}>
-                {logoUrl ? (
-                  <div className="logo-with-name">
-                    <img src={logoUrl} alt="logo" className="hero-logo" />
-                    <span className="hero-brand-name">{brandName}</span>
-                  </div>
-                ) : (
-                  <div className="logo-placeholder">
-                    <Shield className="logo-icon" />
-                    <span className="hero-brand-name">{brandName}</span>
-                  </div>
-                )}
-              </div>
-              <h2
-                style={{
-                  fontSize: "20px",
-                  fontWeight: "600",
-                  color: "#0d9488",
-                  letterSpacing: "0.3px",
-                  marginBottom: "6px"
-                }}
-              >
-                Activate Your Workspace
-              </h2>
-
-              {/* <p
-    style={{
-      fontSize: "13px",
-      color: "#6b7280",
-      margin: 0
-    }}
-  >
-    Start signing documents securely in seconds
-  </p> */}
+            <div className="brand-logo" onClick={goToHome}>
+              {logoUrl ? (
+                <>
+                  <img src={logoUrl} alt="logo" className="hero-logo" />
+                  <span className="hero-brand-name">{brandName}</span>
+                </>
+              ) : (
+                <>
+                  <Shield className="logo-icon" style={{ fontSize: '32px', color: '#0f766e' }} />
+                  <span className="hero-brand-name">{brandName}</span>
+                </>
+              )}
             </div>
+            <h2 className="welcome-title">Activate Your Workspace</h2>
 
 
-            <button className="google-btn" onClick={handleGoogleSignIn}>
-              <Google className="google-icon" />
-              Continue with Google
-            </button>
 
+
+            <div id="googleRegisterDiv" style={{ width: "100%", marginBottom: "15px" }}></div>
             <div className="divider">
               <span>or use email</span>
             </div>
 
-            <form onSubmit={handleSubmit}>
+
+
+            <form className="register-form" onSubmit={handleSubmit}>
               {/* Account Type */}
               {/* <div className={`form-group ${isAdminMode ? "hidden" : ""}`}>
                 <label>Account Type</label>
@@ -1264,8 +1382,70 @@ const Register = ({ onRegister }) => {
             </form>
           </motion.div>
         </div>
-      </div>
-    </div>
+
+        {/* Floating Fast Login Popup (Google One Tap Style) */}
+        <AnimatePresence>
+          {savedUser && showFastLogin && (
+            <motion.div
+              className="fast-login-popup"
+              key="fast-login-popup-register"
+              initial={{ x: 380, opacity: 0, scale: 0.96 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: 380, opacity: 0, scale: 0.96 }}
+              transition={{
+                type: "spring",
+                stiffness: 260,
+                damping: 28,
+                mass: 0.8,
+              }}
+            >
+              <div className="fast-login-header">
+                <div className="header-left">
+                  <img src="/logo.png" alt="Logo" className="header-logo" onError={(e) => e.target.src = "https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png"} />
+                  <span className="header-title">Sign in back to {brandName}</span>
+                </div>
+                <button className="close-btn" onClick={() => setShowFastLogin(false)}>
+                  <Close style={{ fontSize: '18px' }} />
+                </button>
+              </div>
+
+              <div className="fast-login-body">
+                <div className="account-preview">
+                  <div className="account-avatar">
+                    {savedUser.profile_image ? (
+                      <img src={savedUser.profile_image} alt="Profile" />
+                    ) : (
+                      <div className="avatar-initials">
+                        {savedUser.full_name ? savedUser.full_name[0].toUpperCase() : (savedUser.email ? savedUser.email[0].toUpperCase() : 'U')}
+                      </div>
+                    )}
+                    {savedUser.is_google && (
+                      <div className="google-badge-small">
+                        <Google style={{ fontSize: '10px', color: '#4285F4' }} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="account-details">
+                    <span className="account-name">{savedUser.full_name || "User Account"}</span>
+                    <span className="account-email">{savedUser.email}</span>
+                  </div>
+                </div>
+
+                <button className="continue-as-btn" onClick={handleContinueAs}>
+                  Continue as {savedUser.full_name ? savedUser.full_name.split(' ')[0] : 'User'}
+                </button>
+              </div>
+
+              <div className="fast-login-footer">
+                <span className="switch-account-link" onClick={() => { handleSwitchAccount(); setShowFastLogin(false); }}>
+                  Use another account
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div >
+    </div >
   );
 };
 

@@ -2951,7 +2951,7 @@ const RecipientSigningPage = () => {
                     Download Document
                   </Button>
 
-                  {/* 📦 ADDED: ZIP Package Download Button */}
+                  {/*  ADDED: ZIP Package Download Button */}
                   <Button
                     variant="contained"
                     onClick={() => downloadDocument('package')}

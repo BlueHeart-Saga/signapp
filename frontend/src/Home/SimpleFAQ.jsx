@@ -143,12 +143,12 @@ function SimpleFAQ() {
         .testimonial-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .quote-mark {
           font-size: 48px;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 700;
           line-height: 1;
           margin-bottom: 16px;
@@ -209,7 +209,7 @@ function SimpleFAQ() {
         }
 
         .faq-item.active {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
         }
 

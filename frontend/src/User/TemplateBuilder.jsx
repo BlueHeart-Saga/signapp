@@ -2245,13 +2245,13 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
             width: 64,
             height: 64,
             borderRadius: '18px',
-            bgcolor: alpha('#0d9488', 0.1),
+            bgcolor: alpha('#0f766e', 0.1),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             mb: 3
           }}>
-            <AutoAwesomeIcon sx={{ fontSize: 32, color: '#0d9488' }} />
+            <AutoAwesomeIcon sx={{ fontSize: 32, color: '#0f766e' }} />
           </Box>
           <Typography variant="h4" fontWeight="800" sx={{
             color: '#1a1a1a',
@@ -2283,7 +2283,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
             transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
             '&:focus-within': {
-              borderColor: '#0d9488',
+              borderColor: '#0f766e',
               boxShadow: '0 8px 32px rgba(13, 148, 136, 0.12)',
               transform: 'translateY(-2px)'
             }
@@ -2339,7 +2339,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 {loading && (
-                  <Typography variant="caption" sx={{ color: '#0d9488', fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 500 }}>
                     Processing Request...
                   </Typography>
                 )}
@@ -2351,7 +2351,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                     borderRadius: '22px',
                     px: 4,
                     py: 1.2,
-                    bgcolor: '#0d9488',
+                    bgcolor: '#0f766e',
                     textTransform: 'none',
                     fontSize: '0.95rem',
                     fontWeight: 600,
@@ -2424,7 +2424,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                     sx={{
                       bgcolor: 'white',
                       border: '1px solid #e0e0e0',
-                      '&:hover': { bgcolor: '#f5faff', borderColor: '#0d9488', color: '#0d9488' },
+                      '&:hover': { bgcolor: '#f5faff', borderColor: '#0f766e', color: '#0f766e' },
                       transition: 'all 0.2s',
                       fontWeight: 500,
                       cursor: 'pointer'
@@ -2478,10 +2478,10 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
             <Box sx={{
               p: 1,
               borderRadius: '10px',
-              bgcolor: alpha('#0d9488', 0.1),
+              bgcolor: alpha('#0f766e', 0.1),
               display: 'flex'
             }}>
-              <VisibilityIcon sx={{ color: '#0d9488' }} />
+              <VisibilityIcon sx={{ color: '#0f766e' }} />
             </Box>
             <Typography variant="h6" fontWeight="700">Document Preview</Typography>
           </Box>
@@ -2514,7 +2514,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
               onTemplateGenerated(generatedDocId);
             }}
             sx={{
-              bgcolor: '#0d9488',
+              bgcolor: '#0f766e',
               borderRadius: '12px',
               px: 4,
               textTransform: 'none',
@@ -2545,7 +2545,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           pb: 2
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <AutoAwesomeIcon sx={{ color: '#0d9488' }} />
+            <AutoAwesomeIcon sx={{ color: '#0f766e' }} />
             <Typography variant="h6" fontWeight="700">Explore AI Prompts</Typography>
           </Box>
           <IconButton onClick={() => setPromptsDialogOpen(false)} size="small">
@@ -2560,7 +2560,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           <Grid container spacing={3}>
             {PROMPT_SUGGESTIONS.map((category) => (
               <Grid item xs={12} key={category.category}>
-                <Typography variant="overline" sx={{ color: '#0d9488', fontWeight: 800, letterSpacing: 1.2 }}>
+                <Typography variant="overline" sx={{ color: '#0f766e', fontWeight: 800, letterSpacing: 1.2 }}>
                   {category.category}
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
@@ -2577,9 +2577,9 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                         border: '1px solid #e0e0e0',
                         py: 2.5,
                         '&:hover': {
-                          bgcolor: alpha('#0d9488', 0.04),
-                          borderColor: '#0d9488',
-                          color: '#0d9488',
+                          bgcolor: alpha('#0f766e', 0.04),
+                          borderColor: '#0f766e',
+                          color: '#0f766e',
                           transform: 'translateY(-2px)'
                         },
                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',

@@ -155,8 +155,8 @@
 }
 
 .tc-nav:hover {
-  background: #0d9488;
-  border-color: #0d9488;
+  background: #0f766e;
+  border-color: #0f766e;
 }
 
 .tc-nav svg {
@@ -194,7 +194,7 @@
 
 .tc-dots .dot.active {
   width: 32px;
-  background: #0d9488;
+  background: #0f766e;
 }
 
 /* ===== CTA ===== */
@@ -230,12 +230,12 @@
   top: 0;
   width: 80px;
   height: 100%;
-  background:  #0d9488;
+  background:  #0f766e;
       clip-path: polygon(100% 0%, 0% 0%, 100% 20%);
 }
 
 .tc-cta-content {
-  background: #0d9488;
+  background: #0f766e;
   padding: 64px;
   display: flex;
   flex-direction: column;

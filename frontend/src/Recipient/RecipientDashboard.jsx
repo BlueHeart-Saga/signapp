@@ -657,7 +657,7 @@ const Dashboard = () => {
               sx={{
                 fontSize: 30,
                 fontWeight: 700,
-                color: "#0d9488",
+                color: "#0f766e",
                 letterSpacing: 0.3,
               }}
             >

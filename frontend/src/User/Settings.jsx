@@ -765,7 +765,7 @@ const Settings = () => {
         }
 
         .nav-item.active {
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 600;
           background: #ffffff;
         }
@@ -888,7 +888,7 @@ const Settings = () => {
         }
 
         .styled-input:focus, .styled-select:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #fff;
         }
 
@@ -963,10 +963,10 @@ const Settings = () => {
 
         .stamp-upload-btn {
           padding: 8px 16px;
-          border: 1px solid #0d9488;
+          border: 1px solid #0f766e;
           border-radius: 4px;
           background: #fff;
-          color: #0d9488;
+          color: #0f766e;
           font-size: 13px;
           font-weight: 500;
           cursor: pointer;
@@ -977,7 +977,7 @@ const Settings = () => {
         }
 
         .stamp-upload-btn:hover {
-          background: #0d948810;
+          background: #0f766e10;
         }
 
         /* Default Stamp UI */
@@ -1034,7 +1034,7 @@ const Settings = () => {
         }
 
         .edit-icon-btn:hover {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .form-actions-footer {
@@ -1052,7 +1052,7 @@ const Settings = () => {
         .forgot-link-btn {
           background: none;
           border: none;
-          color: #0d9488;
+          color: #0f766e;
           font-size: 14px;
           font-weight: 500;
           cursor: pointer;
@@ -1066,7 +1066,7 @@ const Settings = () => {
 
         .update-btn {
           padding: 10px 40px;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 4px;
@@ -1174,7 +1174,7 @@ const Settings = () => {
         }
 
         .step-dot.active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1187,7 +1187,7 @@ const Settings = () => {
         }
 
         .step-line.active {
-          background: #0d9488;
+          background: #0f766e;
         }
 
         .forgot-step-form {
@@ -1221,7 +1221,7 @@ const Settings = () => {
         }
 
         .modal-submit-btn {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           padding: 12px;

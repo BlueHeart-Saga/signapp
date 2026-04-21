@@ -81,6 +81,7 @@ import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, sig
 import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
+import { useAuth } from "../context/AuthContext";
 // import PremiumBannerSlider from "../components/PremiumBannerSlider";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
@@ -161,6 +162,9 @@ export default function MyDocuments() {
     status: "",
     source: "",
   });
+
+  const { user, subscription, logout } = useAuth();
+  const [planRestrictionOpen, setPlanRestrictionOpen] = useState(false);
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
@@ -261,6 +265,10 @@ export default function MyDocuments() {
   // =============================================
 
   const handleLocalUpload = () => {
+    if (user?.role !== "admin" && !user?.has_active_subscription) {
+      setPlanRestrictionOpen(true);
+      return;
+    }
     fileInputRef.current?.click();
     setShowUploadDropdown(false);
   };
@@ -442,6 +450,11 @@ export default function MyDocuments() {
     e.preventDefault();
     setDragOver(false);
 
+    if (user?.role !== "admin" && !user?.has_active_subscription) {
+      setPlanRestrictionOpen(true);
+      return;
+    }
+
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       const isDocx = droppedFile.name.toLowerCase().endsWith('.docx');
@@ -461,6 +474,10 @@ export default function MyDocuments() {
   // =============================================
 
   const handleCloudProviderSelect = (provider) => {
+    if (user?.role !== "admin" && !user?.has_active_subscription) {
+      setPlanRestrictionOpen(true);
+      return;
+    }
     setShowCloudProviders(false);
 
     switch (provider) {
@@ -1158,7 +1175,11 @@ export default function MyDocuments() {
                 className="dropdown-item"
                 onClick={() => {
                   setShowUploadDropdown(false);
-                  setShowTemplateBrowser(true); // Changed from setShowTemplates
+                  if (user?.role !== "admin" && !user?.has_active_subscription) {
+                    setPlanRestrictionOpen(true);
+                  } else {
+                    setShowTemplateBrowser(true);
+                  }
                 }}
               >
                 <AiOutlineFileText className="dropdown-icon" />
@@ -2537,6 +2558,57 @@ export default function MyDocuments() {
             }}
           >
             {permanentDeleting ? "Deleting…" : "Delete Permanently"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Plan Restriction Dialog */}
+      <Dialog
+        open={planRestrictionOpen}
+        onClose={() => setPlanRestrictionOpen(false)}
+        PaperProps={{
+          style: {
+            borderRadius: "16px",
+            padding: "8px",
+            maxWidth: "450px"
+          }
+        }}
+      >
+        <DialogTitle style={{ textAlign: "center", fontWeight: 700, fontSize: "1.25rem", color: "#1e293b" }}>
+          Subscription Required
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" style={{ textAlign: "center", color: "#475569", marginBottom: "16px" }}>
+            You need an active subscription plan to upload and process documents. Please upgrade your plan to continue.
+          </Typography>
+          <Typography variant="body2" style={{ textAlign: "center", color: "#64748b", fontSize: "0.875rem", fontStyle: "italic" }}>
+            If you believe this is an error, please try logging out and logging back in to refresh your session.
+          </Typography>
+        </DialogContent>
+        <DialogActions style={{ justifyContent: "center", gap: "12px", padding: "20px" }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            style={{ borderRadius: "8px", textTransform: "none", borderColor: "#cbd5e1", color: "#475569" }}
+          >
+            Logout & Login
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setPlanRestrictionOpen(false);
+              navigate("/user/subscription");
+            }}
+            style={{
+              borderRadius: "8px",
+              textTransform: "none",
+              backgroundColor: "#00A3A3",
+              boxShadow: "0 4px 6px -1px rgba(0, 163, 163, 0.2)"
+            }}
+          >
+            Upgrade Plan
           </Button>
         </DialogActions>
       </Dialog>

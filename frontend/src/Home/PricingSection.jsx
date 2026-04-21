@@ -208,7 +208,7 @@ function PricingSection() {
          <section style={{
       width: '100%',
       padding: '80px 0',
-      background: '#0d9488',
+      background: '#0f766e',
       color: 'white',
       textAlign: 'center'
     }}>
@@ -247,7 +247,7 @@ function PricingSection() {
             style={{
               padding: '16px 32px',
               background: 'white',
-              color: '#0d9488',
+              color: '#0f766e',
               border: 'none',
               borderRadius: '12px',
               fontSize: '16px',
@@ -323,7 +323,7 @@ function PricingSection() {
         .modern-title {
           font-size: 38px;
           font-weight: 700;
-          color: #0d9488;
+          color: #0f766e;
           margin-bottom: 48px;
           line-height: 1.2;
           max-width: 600px;
@@ -361,7 +361,7 @@ function PricingSection() {
 
         .billing-option.active {
           background: #ffffff;
-          border-color: #0d9488;
+          border-color: #0f766e;
           color: #111827;
           box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
         }
@@ -375,7 +375,7 @@ function PricingSection() {
         }
 
         .billing-option.active .billing-dot {
-          background: #0d9488;
+          background: #0f766e;
         }
 
         .save-label {
@@ -420,7 +420,7 @@ function PricingSection() {
         }
 
         .modern-card.popular {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.1);
         }
 
@@ -429,7 +429,7 @@ function PricingSection() {
           top: -16px;
           left: 50%;
           transform: translateX(-50%);
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           padding: 8px 24px;
           border-radius: 20px;
@@ -482,7 +482,7 @@ function PricingSection() {
         .cta-button {
           width: 100%;
           padding: 16px;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 12px;
@@ -567,7 +567,7 @@ function PricingSection() {
           .btn-primary2 {
   padding: 16px 32px;
   background: #ffffff;
-  color: #0d9488;
+  color: #0f766e;
   border: none;
   border-radius: 12px;
   font-size: 16px;

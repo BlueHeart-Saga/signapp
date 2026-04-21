@@ -287,12 +287,12 @@ export default function DocumentRecipientStatus({
                   onClick={() => handleSendReminder(recipient.id || recipient._id)}
                   disabled={reminding}
                   sx={{
-                    color: '#0d9488',
+                    color: '#0f766e',
                     border: '1px solid #ccfbf1',
                     bgcolor: '#f0fdfa',
                     '&:hover': {
                       bgcolor: '#ccfbf1',
-                      borderColor: '#0d9488'
+                      borderColor: '#0f766e'
                     },
                     '&.Mui-disabled': {
                       bgcolor: '#f9fafb',
@@ -304,7 +304,7 @@ export default function DocumentRecipientStatus({
                   }}
                 >
                   {reminding ? (
-                    <CircularProgress size={18} thickness={5} sx={{ color: '#0d9488' }} />
+                    <CircularProgress size={18} thickness={5} sx={{ color: '#0f766e' }} />
                   ) : (
                     <HiOutlinePaperAirplane size={18} style={{ transform: 'rotate(-45deg)', marginLeft: '2px', marginBottom: '2px' }} />
                   )}

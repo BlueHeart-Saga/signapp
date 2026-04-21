@@ -163,7 +163,7 @@ function FeatureComparisonTable() {
                   padding: '20px 24px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  color: '#0d9488',
+                  color: '#0f766e',
                   textAlign: 'center',
                   borderBottom: '2px solid #e5e7eb',
                   width: '25%'

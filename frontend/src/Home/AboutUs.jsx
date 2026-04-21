@@ -174,7 +174,7 @@ export default function About() {
 
 .hero-points svg,
 .content-points svg {
-  color: #0d9488;
+  color: #0f766e;
   font-size: 18px;
 }
 

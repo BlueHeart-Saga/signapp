@@ -889,7 +889,7 @@ const UserDashboard = () => {
                           contentStyle={{ borderRadius: 12, border: "none" }}
                           wrapperClassName="signapp-chart-tooltip"
                         />
-                        <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#0d9488" />
+                        <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#0f766e" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -917,9 +917,9 @@ const UserDashboard = () => {
                         <Line
                           type="monotone"
                           dataKey="count"
-                          stroke="#0d9488"
+                          stroke="#0f766e"
                           strokeWidth={3}
-                          dot={{ r: 4, strokeWidth: 2, fill: "#0d9488" }}
+                          dot={{ r: 4, strokeWidth: 2, fill: "#0f766e" }}
                           activeDot={{ r: 6 }}
                         />
                       </LineChart>
@@ -941,7 +941,7 @@ const UserDashboard = () => {
                           dataKey="value"
                           nameKey="name"
                           outerRadius={80}
-                          fill="#0d9488"
+                          fill="#0f766e"
                           label
                         >
                           {[
@@ -982,8 +982,8 @@ const UserDashboard = () => {
                         />
                         <defs>
                           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0d9488" stopOpacity={0.4} />
-                            <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
+                            <stop offset="0%" stopColor="#0f766e" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#0f766e" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
@@ -993,7 +993,7 @@ const UserDashboard = () => {
                         <Area
                           name="Total Documents"
                           dataKey="documents"
-                          stroke="#0d9488"
+                          stroke="#0f766e"
                           fill="url(#areaGradient)"
                           strokeWidth={3}
                         />
@@ -1025,8 +1025,8 @@ const UserDashboard = () => {
                         <PolarAngleAxis dataKey="type" />
                         <Radar
                           dataKey="value"
-                          stroke="#0d9488"
-                          fill="#0d9488"
+                          stroke="#0f766e"
+                          fill="#0f766e"
                           fillOpacity={0.15}
                           strokeWidth={2}
                         />

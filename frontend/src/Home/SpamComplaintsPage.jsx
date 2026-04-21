@@ -882,7 +882,7 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-tab-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -945,7 +945,7 @@ const SpamComplaintsPage = () => {
         .safe-step-number {
           width: 2rem;
           height: 2rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border-radius: 50%;
           display: flex;
@@ -982,11 +982,11 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-complaint-type:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-type-selected {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #f0fdfa;
         }
 
@@ -1003,7 +1003,7 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-type-selected .safe-type-icon {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1025,7 +1025,7 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-type-check {
-          color: #0d9488;
+          color: #0f766e;
           flex-shrink: 0;
         }
 
@@ -1072,7 +1072,7 @@ const SpamComplaintsPage = () => {
 
         .safe-form-group input:focus,
         .safe-form-group textarea:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -1101,7 +1101,7 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-upload-area:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #f0fdfa;
         }
 
@@ -1452,7 +1452,7 @@ const SpamComplaintsPage = () => {
         }
 
         .safe-faq-item:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateY(-2px);
         }
 

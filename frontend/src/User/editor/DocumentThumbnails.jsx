@@ -86,7 +86,7 @@ const DocumentThumbnails = ({
         >
             <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={700} color="#0d9488">
+                    <Typography variant="subtitle2" fontWeight={700} color="#0f766e">
                         PAGES
                     </Typography>
                     <Tooltip title="Refresh Thumbnails">
@@ -136,7 +136,7 @@ const DocumentThumbnails = ({
                                         height: thumbHeight,
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        border: isActive ? '3px solid #0d9488' : '1px solid #e5e7eb',
+                                        border: isActive ? '3px solid #0f766e' : '1px solid #e5e7eb',
                                         transition: 'all 0.3s ease',
                                         borderRadius: '10px',
                                         display: 'flex',
@@ -159,7 +159,7 @@ const DocumentThumbnails = ({
                                             loading="lazy"
                                         />
                                     ) : (
-                                        <CircularProgress size={20} thickness={3} sx={{ color: '#0d9488' }} />
+                                        <CircularProgress size={20} thickness={3} sx={{ color: '#0f766e' }} />
                                     )}
 
                                     {/* Mini-Map: Fields position tracking */}
@@ -220,7 +220,7 @@ const DocumentThumbnails = ({
                                         pointerEvents: 'none'
                                     }}>
                                         <Box sx={{
-                                            bgcolor: isActive ? '#0d9488' : 'rgba(0,0,0,0.6)',
+                                            bgcolor: isActive ? '#0f766e' : 'rgba(0,0,0,0.6)',
                                             color: '#fff',
                                             px: 1,
                                             py: 0.2,
@@ -234,7 +234,7 @@ const DocumentThumbnails = ({
 
                                         {hasFields && (
                                             <Box sx={{
-                                                bgcolor: '#0d9488',
+                                                bgcolor: '#0f766e',
                                                 color: '#fff',
                                                 px: 0.8,
                                                 py: 0.2,

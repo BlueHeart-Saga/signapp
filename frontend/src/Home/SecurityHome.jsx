@@ -28,7 +28,7 @@ const SecurityHome = () => {
       icon: <Lock size={24} />,
       title: "End-to-End Encryption",
       description: "256-bit AES encryption for data at rest and TLS 1.3 for data in transit",
-      color: "#0d9488"
+      color: "#0f766e"
     },
     {
       icon: <ShieldCheck size={24} />,
@@ -418,7 +418,7 @@ const SecurityHome = () => {
         /* Hero Section - Fixed Layout */
         .security-hero {
           padding: 6rem 0;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           position: relative;
           overflow: hidden;
         }
@@ -512,7 +512,7 @@ const SecurityHome = () => {
 
         .security-btn-primary {
           background: white;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .security-btn-primary:hover {
@@ -671,7 +671,7 @@ const SecurityHome = () => {
         }
 
         .security-feature-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
         }
@@ -794,7 +794,7 @@ const SecurityHome = () => {
           align-items: center;
           gap: 0.5rem;
           background: #f0fdfa;
-          color: #0d9488;
+          color: #0f766e;
           padding: 0.5rem 1rem;
           border-radius: 2rem;
           font-size: 0.875rem;
@@ -829,7 +829,7 @@ const SecurityHome = () => {
         }
 
         .security-point svg {
-          color: #0d9488;
+          color: #0f766e;
           margin-top: 0.125rem;
           flex-shrink: 0;
         }
@@ -877,11 +877,11 @@ const SecurityHome = () => {
           height: 3.5rem;
           border-radius: 1rem;
           background: white;
-          border: 2px solid #0d9488;
+          border: 2px solid #0f766e;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .security-encryption-arrow {
@@ -911,7 +911,7 @@ const SecurityHome = () => {
           padding: 1.5rem;
           font-size: 1.25rem;
           font-weight: 700;
-          color: #0d9488;
+          color: #0f766e;
           text-align: center;
         }
 
@@ -950,7 +950,7 @@ const SecurityHome = () => {
           width: 1rem;
           height: 1rem;
           border-radius: 50%;
-          background: #0d9488;
+          background: #0f766e;
           border: 3px solid white;
           flex-shrink: 0;
           position: relative;
@@ -977,7 +977,7 @@ const SecurityHome = () => {
         /* CTA Section */
         .security-cta {
           padding: 6rem 0;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           text-align: center;
         }
 

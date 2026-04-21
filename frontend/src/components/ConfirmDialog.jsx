@@ -11,6 +11,7 @@ export default function ConfirmDialog({
   onCancel,
   loading = false,
   showCancel = true,
+  children,
 }) {
   if (!open) return null;
 
@@ -69,6 +70,8 @@ export default function ConfirmDialog({
         >
           {message}
         </p>
+
+        {children}
 
         <div
           style={{

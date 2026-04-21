@@ -1064,162 +1064,154 @@ const Subscription = () => {
     const { plan_name, status, start_date, expiry_date, days_remaining, auto_renew, price } = currentSubscription;
 
     return (
-      <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Avatar
-                sx={{
-                  bgcolor: `${getStatusColor(status)}.light`,
-                  color: `${getStatusColor(status)}.main`,
-                  width: 56,
-                  height: 56
-                }}
-              >
-                {getPlanIcon(currentSubscription.plan_type)}
-              </Avatar>
-              <Box>
-                <Typography variant="h5" gutterBottom>
-                  {plan_name}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <StatusChip
-                    size="small"
-                    icon={getStatusIcon(status)}
-                    label={status.toUpperCase()}
-                    status={status}
-                  />
-                  {auto_renew && status === 'active' && (
-                    <Chip
-                      size="small"
-                      icon={<RefreshIcon />}
-                      label="Auto-renew enabled"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  )}
-                  <Chip
-                    size="small"
-                    icon={<PaymentIcon />}
-                    label={formatCurrency(price)}
-                    variant="outlined"
-                  />
-                </Box>
-              </Box>
-            </Box>
-
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Start Date
-                </Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {formatDate(start_date)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Expiry Date
-                </Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {formatDate(expiry_date)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Days Remaining
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body1" fontWeight={500}>
-                    {days_remaining} days
-                  </Typography>
-                  {days_remaining <= 7 && (
-                    <WarningIcon color="warning" fontSize="small" />
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-
-            {status === 'active' && (
-              <Box sx={{ mt: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Subscription Progress
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {Math.round(expiryProgress)}% used
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={expiryProgress}
-                  color={expiryProgress > 80 ? 'warning' : 'primary'}
-                  sx={{ height: 8, borderRadius: 4 }}
+      <Paper elevation={0} variant="outlined" sx={{ p: 4, mb: 4, borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+        {/* Header Row */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Avatar
+              sx={{
+                bgcolor: '#f0fdf4',
+                color: '#10b981',
+                width: 64,
+                height: 64,
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              {getPlanIcon(currentSubscription.plan_type)}
+            </Avatar>
+            <Box>
+              <Typography variant="h5" fontWeight={700} sx={{ color: '#1a202c', mb: 0.5 }}>
+                {plan_name}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <StatusChip
+                  size="small"
+                  icon={getStatusIcon(status)}
+                  label={status.toUpperCase()}
+                  status={status}
+                />
+                <Chip
+                  size="small"
+                  icon={<PaymentIcon />}
+                  label={formatCurrency(price)}
+                  variant="outlined"
+                  sx={{ borderColor: '#e2e8f0', fontWeight: 600 }}
                 />
               </Box>
-            )}
-          </Grid>
+            </Box>
+          </Box>
 
-          <Grid item xs={12} md={4}>
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              height: '100%',
-              justifyContent: 'center',
-              alignItems: { xs: 'flex-start', md: 'flex-end' }
-            }}>
-              {status === 'active' && (
-                <>
-                  <Button
-                    fullWidth={isMobile}
-                    variant="outlined"
-                    color="warning"
-                    onClick={handleCancel}
-                    startIcon={<CancelIcon />}
-                    sx={{ minWidth: 140 }}
-                  >
-                    Cancel Subscription
-                  </Button>
-                  <Button
-                    fullWidth={isMobile}
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => setActiveTab(0)}
-                    startIcon={<SwapHorizIcon />}
-                    sx={{ minWidth: 140 }}
-                  >
-                    Change Plan
-                  </Button>
-                  {auto_renew && (
-                    <Button
-                      fullWidth={isMobile}
-                      variant="contained"
-                      color="primary"
-                      onClick={handleRenew}
-                      startIcon={<RefreshIcon />}
-                      sx={{ minWidth: 140 }}
-                    >
-                      Renew Now
-                    </Button>
-                  )}
-                </>
-              )}
-              {status === 'expired' && (
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {status === 'active' && (
+              <>
                 <Button
-                  fullWidth={isMobile}
-                  variant="contained"
-                  color="primary"
-                  onClick={handleRenew}
-                  startIcon={<RefreshIcon />}
-                  sx={{ minWidth: 140 }}
+                  variant="outlined"
+                  color="warning"
+                  onClick={handleCancel}
+                  startIcon={<CancelIcon />}
+                  sx={{
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3,
+                    borderColor: '#fbd38d',
+                    '&:hover': { bgcolor: '#fffaf0', borderColor: '#f6ad55' }
+                  }}
                 >
-                  Renew Subscription
+                  Cancel Subscription
                 </Button>
-              )}
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => setActiveTab(0)}
+                  startIcon={<SwapHorizIcon />}
+                  sx={{
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3,
+                    borderColor: '#bee3f8',
+                    '&:hover': { bgcolor: '#ebf8ff', borderColor: '#63b3ed' }
+                  }}
+                >
+                  Change Plan
+                </Button>
+              </>
+            )}
+            {status === 'expired' && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleRenew}
+                startIcon={<RefreshIcon />}
+                sx={{ borderRadius: '12px', px: 4 }}
+              >
+                Renew Subscription
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        <Divider sx={{ my: 3, opacity: 0.6 }} />
+
+        {/* Info Grid */}
+        <Grid container spacing={4}>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '1px', color: '#718096', fontWeight: 700, display: 'block', mb: 1 }}>
+              Start Date
+            </Typography>
+            <Typography variant="body1" fontWeight={600} sx={{ color: '#2d3748' }}>
+              {formatDate(start_date)}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '1px', color: '#718096', fontWeight: 700, display: 'block', mb: 1 }}>
+              Expiry Date
+            </Typography>
+            <Typography variant="body1" fontWeight={600} sx={{ color: '#2d3748' }}>
+              {formatDate(expiry_date)}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '1px', color: '#718096', fontWeight: 700, display: 'block', mb: 1 }}>
+              Time Remaining
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body1" fontWeight={600} sx={{ color: days_remaining <= 7 ? '#e53e3e' : '#2d3748' }}>
+                {days_remaining} days
+              </Typography>
+              {days_remaining <= 7 && <WarningIcon size={18} sx={{ color: '#e53e3e' }} />}
             </Box>
           </Grid>
         </Grid>
+
+        {/* Full-width Progress Bar */}
+        {status === 'active' && (
+          <Box sx={{ mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+              <Typography variant="body2" fontWeight={600} sx={{ color: '#4a5568' }}>
+                Subscription Usage
+              </Typography>
+              <Typography variant="body2" fontWeight={700} sx={{ color: '#0f766e' }}>
+                {Math.round(expiryProgress)}% used
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={expiryProgress}
+              sx={{
+                height: 10,
+                borderRadius: 5,
+                bgcolor: '#edf2f7',
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 5,
+                  background: `linear-gradient(90deg, #0f766e, #2dd4bf)`
+                }
+              }}
+            />
+          </Box>
+        )}
       </Paper>
     );
   };
@@ -1265,7 +1257,7 @@ const Subscription = () => {
       },
       {
         type: 'enterprise',
-        title: 'PREMIUM',
+        title: 'ENTERPRISE',
         price: '99.99',
         accentColor: '#00c25a', // Green
         features: [
@@ -1299,6 +1291,7 @@ const Subscription = () => {
             // Find corresponding backend plan
             const backendPlan = plans.find(p => p.plan_type === planInfo.type) || { price: planInfo.price, plan_type: planInfo.type };
             const isCurrent = currentSubscription?.plan_type === backendPlan.plan_type;
+            const isEnterprise = planInfo.type === 'enterprise';
 
             return (
               <Grid item xs={12} sm={6} md={4} key={planInfo.type} sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -1316,17 +1309,34 @@ const Subscription = () => {
 
                   {/* Overlapping Price Box */}
                   <PriceBox elevation={0}>
-                    <Typography
-                      variant="h4"
-                      fontWeight={800}
-                      sx={{ color: planInfo.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Box component="span" sx={{ fontSize: '1.2rem', mt: -1.5, mr: 0.5 }}>$</Box>
-                      {backendPlan.price || planInfo.price}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
-                      Per {planInfo.type === 'monthly' ? 'Month' : planInfo.type === 'yearly' ? 'Year' : 'User'}
-                    </Typography>
+                    {isEnterprise ? (
+                      <Box sx={{ py: 0.5 }}>
+                        <Typography
+                          variant="h6"
+                          fontWeight={700}
+                          sx={{ color: planInfo.accentColor, lineHeight: 1.2 }}
+                        >
+                          Enterprise Offer
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                          for ur needs
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        <Typography
+                          variant="h4"
+                          fontWeight={800}
+                          sx={{ color: planInfo.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Box component="span" sx={{ fontSize: '1.2rem', mt: -1.5, mr: 0.5 }}>$</Box>
+                          {backendPlan.price || planInfo.price}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
+                          Per {planInfo.type === 'monthly' ? 'Month' : planInfo.type === 'yearly' ? 'Year' : 'User'}
+                        </Typography>
+                      </>
+                    )}
                   </PriceBox>
 
                   {/* Content Section */}

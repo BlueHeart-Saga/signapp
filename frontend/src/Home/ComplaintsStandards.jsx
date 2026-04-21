@@ -29,7 +29,7 @@ const ComplaintsStandards = () => {
       region: 'United Kingdom',
       standards: ['UK eIDAS', 'UK GDPR', 'DPA 2018'],
       icon: <Building size={20} />,
-      color: '#0d9488',
+      color: '#0f766e',
       status: 'Compliant'
     },
     {
@@ -52,7 +52,7 @@ const ComplaintsStandards = () => {
     {
       type: 'Service Quality',
       icon: <Headphones size={20} />,
-      color: '#0d9488',
+      color: '#0f766e',
       examples: ['Platform performance issues', 'Feature malfunctions', 'Service availability'],
       resolution: '24-48 hours'
     },
@@ -565,7 +565,7 @@ const ComplaintsStandards = () => {
 
         /* Hero Section - Standards Theme */
         .safe-hero-standards {
-          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
         }
 
         .safe-policy-hero {
@@ -678,7 +678,7 @@ const ComplaintsStandards = () => {
         .safe-compliance-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-compliance-header {
@@ -834,7 +834,7 @@ const ComplaintsStandards = () => {
           content: '•';
           position: absolute;
           left: 0;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: bold;
         }
 
@@ -880,7 +880,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-search-input:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -906,8 +906,8 @@ const ComplaintsStandards = () => {
         }
 
         .safe-quick-link:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.05);
         }
 
@@ -928,7 +928,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-policy-section-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
         }
 
@@ -956,7 +956,7 @@ const ComplaintsStandards = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-section-title {
@@ -995,8 +995,8 @@ const ComplaintsStandards = () => {
         }
 
         .safe-expand-btn:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.05);
         }
 
@@ -1050,7 +1050,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-sub-section-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: rgba(13, 148, 136, 0.02);
         }
 
@@ -1129,7 +1129,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-submit-method:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: rgba(13, 148, 136, 0.05);
         }
 
@@ -1297,7 +1297,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-policy-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateY(-4px);
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
         }
@@ -1310,7 +1310,7 @@ const ComplaintsStandards = () => {
         }
 
         .safe-policy-card-header svg {
-          color: #0d9488;
+          color: #0f766e;
           margin-top: 0.25rem;
         }
 
@@ -1340,7 +1340,7 @@ const ComplaintsStandards = () => {
           gap: 0.5rem;
           font-size: 0.875rem;
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Responsive */

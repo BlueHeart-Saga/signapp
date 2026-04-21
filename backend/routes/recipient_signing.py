@@ -1297,11 +1297,11 @@ async def get_fields_for_recipient(recipient_id: str):
                 "type": f["type"],
                 "page": f["page"],
                 
-                # PDF coordinates (points) - for PDF rendering
+                # Canvas coordinates (transformed for the signing stage if needed)
                 "x": f.get("canvas_x", 0),
                 "y": f.get("canvas_y", 0),
-                "width": f.get("canvas_width", 100),
-                "height": f.get("canvas_height", 30),
+                "width": f.get("width", 100),
+                "height": f.get("height", 30),
 
                 
                 # Enhanced PDF coordinates
@@ -2500,7 +2500,7 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
             document_id=str(document_id)
         )
         
-        print(f"📦 Scheduled both Final Copy (Recipients) and Package ZIP (Owner) for document {document_id}")
+        print(f" Scheduled both Final Copy (Recipients) and Package ZIP (Owner) for document {document_id}")
     
     return signed_pdf_path
 

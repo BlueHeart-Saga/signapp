@@ -24,7 +24,7 @@ export default function BuiltForEveryoneSection() {
               fontSize: "30px",
               fontWeight: "700",
               marginBottom: "20px",
-              color: "#0d9488",
+              color: "#0f766e",
             }}
           >
             Built for everyone
@@ -102,7 +102,7 @@ export default function BuiltForEveryoneSection() {
                     width: "28px",
                     height: "28px",
                     borderRadius: "50%",
-                    background: "#0d9488",
+                    background: "#0f766e",
                     color: "#fff",
                     fontSize: "12px",
                     fontWeight: "600",
@@ -171,7 +171,7 @@ export default function BuiltForEveryoneSection() {
             fontSize: "30px",
             fontWeight: "700",
             marginBottom: "12px",
-            color: "#0d9488",
+            color: "#0f766e",
           }}
         >
           Why Businesses Choose Signd
@@ -198,7 +198,7 @@ export default function BuiltForEveryoneSection() {
         >
           {/* Card 1 */}
           <div style={cardStyle}>
-            <Lock size={32} color="#0d9488" />
+            <Lock size={32} color="#0f766e" />
             <h4 style={cardTitle}>Security First</h4>
             <p style={cardText}>
               Every signature is backed by industry-leading crypto standards and
@@ -208,7 +208,7 @@ export default function BuiltForEveryoneSection() {
 
           {/* Card 2 */}
           <div style={cardStyle}>
-            <Globe size={32} color="#0d9488" />
+            <Globe size={32} color="#0f766e" />
             <h4 style={cardTitle}>Global Compliance</h4>
             <p style={cardText}>
               Fully compliant with eIDAS, ESIGN, and UETA regulations across 180+
@@ -218,7 +218,7 @@ export default function BuiltForEveryoneSection() {
 
           {/* Card 3 */}
           <div style={cardStyle}>
-            <Plug size={32} color="#0d9488" />
+            <Plug size={32} color="#0f766e" />
             <h4 style={cardTitle}>Instant Integration</h4>
             <p style={cardText}>
               Seamlessly connect with Salesforce, Slack, or your existing tech

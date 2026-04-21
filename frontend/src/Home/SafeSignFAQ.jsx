@@ -296,7 +296,7 @@ function SafeSignFAQ() {
         .faq-title {
           font-size: 48px;
           font-weight: 800;
-          color: #0d9488;
+          color: #0f766e;
           margin-bottom: 16px;
           line-height: 1.2;
         }
@@ -309,7 +309,7 @@ function SafeSignFAQ() {
         }
 
         .contact-link {
-          color: #0d9488;
+          color: #0f766e;
           text-decoration: none;
           font-weight: 600;
           margin-left: 4px;
@@ -344,13 +344,13 @@ function SafeSignFAQ() {
 
         .search-input:focus {
           outline: none;
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .search-button {
           padding: 16px 32px;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 12px;
@@ -399,9 +399,9 @@ function SafeSignFAQ() {
         }
 
         .category-tab:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #f0fdfa;
-          color: #0d9488;
+          color: #0f766e;
           transform: translateY(-2px);
         }
 
@@ -464,7 +464,7 @@ function SafeSignFAQ() {
         }
 
         .faq-item.active {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 4px 12px rgba(13, 148, 136, 0.1);
         }
 
@@ -550,7 +550,7 @@ function SafeSignFAQ() {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 600;
           text-decoration: none;
           font-size: 15px;
@@ -567,7 +567,7 @@ function SafeSignFAQ() {
 
         .cta-card {
           background: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%);
-          border: 2px solid #0d9488;
+          border: 2px solid #0f766e;
           border-radius: 20px;
           padding: 48px;
           text-align: center;
@@ -577,7 +577,7 @@ function SafeSignFAQ() {
           width: 80px;
           height: 80px;
           margin: 0 auto 24px;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border-radius: 50%;
           display: flex;
@@ -616,7 +616,7 @@ function SafeSignFAQ() {
         }
 
         .cta-button.primary {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -628,8 +628,8 @@ function SafeSignFAQ() {
 
         .cta-button.secondary {
           background: white;
-          color: #0d9488;
-          border: 2px solid #0d9488;
+          color: #0f766e;
+          border: 2px solid #0f766e;
         }
 
         .cta-button.secondary:hover {

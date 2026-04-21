@@ -267,7 +267,7 @@ const History = () => {
           label: 'Activities',
           data: counts,
           backgroundColor: 'rgba(13, 148, 136, 0.5)',
-          borderColor: '#0d9488',
+          borderColor: '#0f766e',
           borderWidth: 1
         }
       ]
@@ -294,7 +294,7 @@ const History = () => {
       datasets: [
         {
           data: Object.values(actionCounts),
-          backgroundColor: Object.keys(actionCounts).map(key => colors[key] || '#0d9488'),
+          backgroundColor: Object.keys(actionCounts).map(key => colors[key] || '#0f766e'),
           borderWidth: 1
         }
       ]

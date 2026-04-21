@@ -101,7 +101,7 @@
 }
 
 .point-icon {
-  color: #0d9488;
+  color: #0f766e;
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -213,7 +213,7 @@
 
 .pricing-cta {
   width: 100%;
-  background: #0d9488;
+  background: #0f766e;
   margin-top: 40px;
   color: #ffffff;
 }
@@ -269,7 +269,7 @@
 .btn-primary {
   padding: 16px 32px;
   background: #ffffff;
-  color: #0d9488;
+  color: #0f766e;
   border: none;
   border-radius: 12px;
   font-size: 16px;

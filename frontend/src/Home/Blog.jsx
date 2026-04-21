@@ -18,7 +18,7 @@ const BlogPage = () => {
     {
       id: 1,
       category: 'E-Signature Guides',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589571894960-20bbe2828d0a?w=800&h=500&fit=crop',
       title: 'The Complete Guide to Legally Binding Electronic Signatures in 2025',
       excerpt: 'Learn about the latest regulations and best practices for creating legally binding e-signatures that stand up in court.',
@@ -30,7 +30,7 @@ const BlogPage = () => {
     {
       id: 2,
       category: 'Security & Privacy',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=500&fit=crop',
       title: 'Bank-Level Security: How SafeSign Protects Your Sensitive Documents',
       excerpt: 'Discover the advanced security measures we implement to keep your documents and signatures completely secure.',
@@ -42,7 +42,7 @@ const BlogPage = () => {
     {
       id: 3,
       category: 'Legal Compliance',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&h=500&fit=crop',
       title: 'GDPR & eIDAS: Navigating International E-Signature Regulations',
       excerpt: 'A comprehensive guide to understanding and complying with global e-signature regulations across different jurisdictions.',
@@ -54,7 +54,7 @@ const BlogPage = () => {
     {
       id: 4,
       category: 'Product Updates',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=500&fit=crop',
       title: 'Introducing Smart Templates: Streamline Your Document Workflows',
       excerpt: 'Learn about our new AI-powered templates that automate document creation and signing processes.',
@@ -69,7 +69,7 @@ const BlogPage = () => {
     {
       id: 5,
       category: 'E-Signature Guides',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589571894960-20bbe2828d0a?w=600&h-400&fit=crop',
       title: '10 Common E-Signature Mistakes and How to Avoid Them',
       excerpt: 'Learn about common pitfalls in electronic signature workflows and best practices to ensure compliance.',
@@ -81,7 +81,7 @@ const BlogPage = () => {
     {
       id: 6,
       category: 'Security & Privacy',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop',
       title: 'Audit Trails: The Backbone of Document Security',
       excerpt: 'How comprehensive audit trails protect your organization and provide legal evidence when needed.',
@@ -93,7 +93,7 @@ const BlogPage = () => {
     {
       id: 7,
       category: 'Legal Compliance',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
       title: 'Understanding ESIGN, UETA, and Other US E-Signature Laws',
       excerpt: 'A breakdown of key US legislation governing electronic signatures and their requirements.',
@@ -105,7 +105,7 @@ const BlogPage = () => {
     {
       id: 8,
       category: 'Product Updates',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop',
       title: 'New Feature: Bulk Send for Enterprise Workflows',
       excerpt: 'Send hundreds of documents simultaneously with our new bulk sending capabilities.',
@@ -117,7 +117,7 @@ const BlogPage = () => {
     {
       id: 9,
       category: 'E-Signature Guides',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
       title: 'Mobile-First Signing: Optimizing for Smartphone Users',
       excerpt: 'Best practices for creating signing experiences that work perfectly on mobile devices.',
@@ -129,7 +129,7 @@ const BlogPage = () => {
     {
       id: 10,
       category: 'Security & Privacy',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop',
       title: 'End-to-End Encryption: What It Means for Your Documents',
       excerpt: 'Understanding how end-to-end encryption protects your documents from creation to storage.',
@@ -141,7 +141,7 @@ const BlogPage = () => {
     {
       id: 11,
       category: 'Legal Compliance',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589571894960-20bbe2828d0a?w=600&h=400&fit=crop',
       title: 'Cross-Border Signatures: Legal Considerations for International Business',
       excerpt: 'Navigating the complexities of electronic signatures across different countries and legal systems.',
@@ -153,7 +153,7 @@ const BlogPage = () => {
     {
       id: 12,
       category: 'Product Updates',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop',
       title: 'Enhanced API: New Webhook Features for Developers',
       excerpt: 'Explore the latest additions to our API that make integration even more powerful.',
@@ -165,7 +165,7 @@ const BlogPage = () => {
     {
       id: 13,
       category: 'E-Signature Guides',
-      categoryColor: '#0d9488',
+      categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
       title: 'Integrating SafeSign with Your CRM: A Step-by-Step Guide',
       excerpt: 'Learn how to seamlessly connect SafeSign with popular CRM platforms like Salesforce and HubSpot.',
@@ -476,7 +476,7 @@ const BlogPage = () => {
 
         /* Hero Section */
         .safe-blog-hero {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 4rem 0;
           position: relative;
           overflow: hidden;
@@ -558,7 +558,7 @@ const BlogPage = () => {
           top: 50%;
           transform: translateY(-50%);
           padding: 0.625rem 1.25rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -620,7 +620,7 @@ const BlogPage = () => {
         .safe-featured-card:hover {
           transform: translateY(-0.5rem);
           box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-featured-image {
@@ -706,7 +706,7 @@ const BlogPage = () => {
           width: 100%;
           padding: 0.75rem;
           background: #f0fdfa;
-          color: #0d9488;
+          color: #0f766e;
           border: 1px solid #d1fae5;
           border-radius: 0.5rem;
           font-size: 0.875rem;
@@ -717,7 +717,7 @@ const BlogPage = () => {
         }
 
         .safe-read-btn:hover {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -751,7 +751,7 @@ const BlogPage = () => {
         }
 
         .safe-tab-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -788,7 +788,7 @@ const BlogPage = () => {
         .safe-article-card:hover {
           transform: translateY(-0.25rem);
           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-article-image {
@@ -844,7 +844,7 @@ const BlogPage = () => {
         }
 
         .safe-page-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -873,7 +873,7 @@ const BlogPage = () => {
           align-items: center;
           gap: 0.5rem;
           margin-bottom: 1rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-sidebar-title {
@@ -952,7 +952,7 @@ const BlogPage = () => {
         }
 
         .safe-category-item:hover {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-category-item:last-child {
@@ -974,7 +974,7 @@ const BlogPage = () => {
 
         /* Newsletter */
         .safe-newsletter-card {
-          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 1.75rem;
           border-radius: 0.75rem;
           text-align: center;
@@ -1015,7 +1015,7 @@ const BlogPage = () => {
           width: 100%;
           padding: 0.75rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.5rem;
           font-size: 0.875rem;
@@ -1055,7 +1055,7 @@ const BlogPage = () => {
 
         .safe-author-stats {
           font-size: 0.75rem;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 500;
         }
 
@@ -1126,7 +1126,7 @@ const BlogPage = () => {
         /* Focus States */
         .safe-search-input:focus,
         .safe-newsletter-input:focus {
-          outline: 2px solid #0d9488;
+          outline: 2px solid #0f766e;
           outline-offset: 2px;
         }
 
@@ -1135,7 +1135,7 @@ const BlogPage = () => {
         .safe-read-btn:focus,
         .safe-search-btn:focus,
         .safe-newsletter-btn:focus {
-          outline: 2px solid #0d9488;
+          outline: 2px solid #0f766e;
           outline-offset: 2px;
         }
       `}</style>

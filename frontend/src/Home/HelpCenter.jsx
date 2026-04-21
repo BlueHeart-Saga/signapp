@@ -46,7 +46,7 @@ const HelpCenter = () => {
       id: 'getting-started',
       title: 'Getting Started',
       icon: <Zap size={24} />,
-      color: '#0d9488',
+      color: '#0f766e',
       description: 'Learn the basics of SafeSign'
     },
     {
@@ -174,7 +174,7 @@ const HelpCenter = () => {
       description: 'Get help via email',
       details: 'support@safesign.com',
       responseTime: 'Within 4 hours',
-      color: '#0d9488'
+      color: '#0f766e'
     },
     {
       type: 'chat',
@@ -587,7 +587,7 @@ const HelpCenter = () => {
 
         /* Header */
         .safe-help-header {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 3rem 0;
           position: relative;
         }
@@ -645,7 +645,7 @@ const HelpCenter = () => {
 
         .safe-search-input:focus {
           box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
-          outline: 2px solid #0d9488;
+          outline: 2px solid #0f766e;
         }
 
         .safe-search-btn {
@@ -654,7 +654,7 @@ const HelpCenter = () => {
           top: 50%;
           transform: translateY(-50%);
           padding: 0.625rem 1.25rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -700,7 +700,7 @@ const HelpCenter = () => {
 
         .safe-results-count {
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-results-list {
@@ -788,11 +788,11 @@ const HelpCenter = () => {
         .safe-category-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-category-active {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #f0fdfa;
         }
 
@@ -846,7 +846,7 @@ const HelpCenter = () => {
           align-items: center;
           gap: 0.75rem;
           margin-bottom: 1.5rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-popular-grid {
@@ -868,7 +868,7 @@ const HelpCenter = () => {
         }
 
         .safe-popular-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -896,7 +896,7 @@ const HelpCenter = () => {
           gap: 0.25rem;
           padding: 0.5rem 1rem;
           background: #f0fdfa;
-          color: #0d9488;
+          color: #0f766e;
           border: 1px solid #d1fae5;
           border-radius: 0.5rem;
           font-size: 0.875rem;
@@ -907,7 +907,7 @@ const HelpCenter = () => {
         }
 
         .safe-view-article-btn:hover {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -927,7 +927,7 @@ const HelpCenter = () => {
         }
 
         .safe-faq-item:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-faq-question {
@@ -963,7 +963,7 @@ const HelpCenter = () => {
 
         .safe-arrow-expanded {
           transform: rotate(180deg);
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-faq-answer {
@@ -1033,7 +1033,7 @@ const HelpCenter = () => {
 
         .safe-quick-link:hover {
           background: #f9fafb;
-          color: #0d9488;
+          color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -1061,7 +1061,7 @@ const HelpCenter = () => {
         }
 
         .safe-contact-method:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: #f9fafb;
         }
 
@@ -1112,7 +1112,7 @@ const HelpCenter = () => {
           justify-content: center;
           gap: 0.5rem;
           padding: 0.75rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1152,7 +1152,7 @@ const HelpCenter = () => {
 
         .safe-status-operational {
           background: #f0fdfa;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-status-updated {
@@ -1269,7 +1269,7 @@ const HelpCenter = () => {
         .safe-form-group input:focus,
         .safe-form-group select:focus,
         .safe-form-group textarea:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -1287,7 +1287,7 @@ const HelpCenter = () => {
         .safe-btn-primary {
           flex: 1;
           padding: 0.75rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;

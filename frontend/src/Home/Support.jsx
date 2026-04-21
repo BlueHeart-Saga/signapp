@@ -68,7 +68,7 @@ const Support = () => {
       id: 'live-chat',
       title: 'Live Chat',
       icon: <MessageCircle size={24} />,
-      color: '#0d9488',
+      color: '#0f766e',
       description: 'Instant chat with our support team',
       availability: '24/7',
       responseTime: 'Under 2 minutes',
@@ -843,7 +843,7 @@ const Support = () => {
 
         /* Hero Section */
         .safe-support-hero {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 4rem 0;
           position: relative;
         }
@@ -924,7 +924,7 @@ const Support = () => {
           top: 50%;
           transform: translateY(-50%);
           padding: 0.625rem 1.25rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1031,7 +1031,7 @@ const Support = () => {
         }
 
         .safe-tab-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1091,7 +1091,7 @@ const Support = () => {
         .safe-channel-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-channel-header {
@@ -1155,7 +1155,7 @@ const Support = () => {
           justify-content: center;
           gap: 0.5rem;
           padding: 0.75rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1203,7 +1203,7 @@ const Support = () => {
 
         .safe-quick-link:hover {
           background: #f3f4f6;
-          color: #0d9488;
+          color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -1215,7 +1215,7 @@ const Support = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
           flex-shrink: 0;
         }
 
@@ -1307,7 +1307,7 @@ const Support = () => {
         .safe-tier-price {
           font-size: 0.875rem;
           font-weight: 700;
-          color: #0d9488;
+          color: #0f766e;
           text-align: right;
         }
 
@@ -1384,7 +1384,7 @@ const Support = () => {
         }
 
         .safe-article-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateX(4px);
         }
 
@@ -1437,7 +1437,7 @@ const Support = () => {
 
         .safe-read-btn {
           padding: 0.5rem 1rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1463,7 +1463,7 @@ const Support = () => {
 
         .safe-save-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Video Tutorials */
@@ -1493,7 +1493,7 @@ const Support = () => {
 
         .safe-video-thumbnail {
           height: 120px;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           position: relative;
         }
 
@@ -1548,7 +1548,7 @@ const Support = () => {
 
         .safe-doc-link:hover {
           background: #f9fafb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-doc-icon {
@@ -1559,7 +1559,7 @@ const Support = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
           flex-shrink: 0;
         }
 
@@ -1597,7 +1597,7 @@ const Support = () => {
           align-items: center;
           gap: 1rem;
           margin-bottom: 1.5rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-category-icon {
@@ -1657,7 +1657,7 @@ const Support = () => {
 
         .safe-arrow-expanded {
           transform: rotate(180deg);
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-faq-answer {
@@ -1696,13 +1696,13 @@ const Support = () => {
         .safe-helpful-btn:hover,
         .safe-share-btn:hover {
           background: #e5e7eb;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Still Need Help */
         .safe-need-help {
           margin-top: 3rem;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           border-radius: 1rem;
           padding: 2rem;
           color: white;
@@ -1738,7 +1738,7 @@ const Support = () => {
           gap: 0.5rem;
           padding: 0.75rem 1.5rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.5rem;
           font-size: 0.875rem;
@@ -1882,7 +1882,7 @@ const Support = () => {
         }
 
         .safe-service-details {
-          color: #0d9488;
+          color: #0f766e;
           text-decoration: none;
           font-weight: 500;
         }
@@ -2070,7 +2070,7 @@ const Support = () => {
 
         .safe-form-group input:focus,
         .safe-form-group textarea:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -2102,7 +2102,7 @@ const Support = () => {
         }
 
         .safe-priority-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -2115,7 +2115,7 @@ const Support = () => {
         .safe-btn-primary {
           flex: 1;
           padding: 0.875rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -2209,7 +2209,7 @@ const Support = () => {
           transform: translate(-50%, -50%);
           width: 0;
           height: 0;
-          border-left: 12px solid #0d9488;
+          border-left: 12px solid #0f766e;
           border-top: 8px solid transparent;
           border-bottom: 8px solid transparent;
         }

@@ -48,7 +48,7 @@ const SuccessDialog = ({
       }}
     >
       <DialogTitle sx={{ 
-        bgcolor: '#0d9488', 
+        bgcolor: '#0f766e', 
         color: 'white',
         textAlign: 'center',
         py: 3
@@ -90,9 +90,9 @@ const SuccessDialog = ({
               icon={<DescriptionIcon />}
               sx={{ 
                 px: 2,
-                color: '#0d9488',
-                borderColor: '#0d9488',
-                '& .MuiChip-icon': { color: '#0d9488' },
+                color: '#0f766e',
+                borderColor: '#0f766e',
+                '& .MuiChip-icon': { color: '#0f766e' },
                 '& .MuiChip-label': { fontWeight: 500 }
               }}
             />
@@ -113,7 +113,7 @@ const SuccessDialog = ({
             <Grid item xs={6}>
               <Box sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ 
-                  bgcolor: '#0d9488', 
+                  bgcolor: '#0f766e', 
                   width: 48, 
                   height: 48,
                   mx: 'auto',
@@ -121,7 +121,7 @@ const SuccessDialog = ({
                 }}>
                   <EmailIcon />
                 </Avatar>
-                <Typography variant="h6" sx={{ color: '#0d9488' }}>
+                <Typography variant="h6" sx={{ color: '#0f766e' }}>
                   {recipientCount}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -132,7 +132,7 @@ const SuccessDialog = ({
             <Grid item xs={6}>
               <Box sx={{ textAlign: 'center' }}>
                 <Avatar sx={{ 
-                  bgcolor: '#0d9488', 
+                  bgcolor: '#0f766e', 
                   width: 48, 
                   height: 48,
                   mx: 'auto',
@@ -140,7 +140,7 @@ const SuccessDialog = ({
                 }}>
                   <CheckCircleIcon />
                 </Avatar>
-                <Typography variant="h6" sx={{ color: '#0d9488' }}>
+                <Typography variant="h6" sx={{ color: '#0f766e' }}>
                   Sent
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -158,7 +158,7 @@ const SuccessDialog = ({
           sx={{ 
             mb: 2,
             borderRadius: 2,
-            '& .MuiAlert-icon': { color: '#0d9488' },
+            '& .MuiAlert-icon': { color: '#0f766e' },
             '& .MuiAlert-message': { width: '100%' }
           }}
         >
@@ -197,8 +197,8 @@ const SuccessDialog = ({
           onClick={onClose}
           sx={{ 
             minWidth: 120,
-            color: '#0d9488',
-            borderColor: '#0d9488',
+            color: '#0f766e',
+            borderColor: '#0f766e',
             '&:hover': {
               borderColor: '#0f766e',
               backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -214,7 +214,7 @@ const SuccessDialog = ({
           startIcon={<DashboardIcon />}
           sx={{ 
             minWidth: 150,
-            bgcolor: '#0d9488',
+            bgcolor: '#0f766e',
             '&:hover': {
               bgcolor: '#0f766e'
             }
@@ -229,7 +229,7 @@ const SuccessDialog = ({
           startIcon={<DescriptionIcon />}
           sx={{ 
             minWidth: 150,
-            bgcolor: '#0d9488',
+            bgcolor: '#0f766e',
             '&:hover': {
               bgcolor: '#0f766e'
             }

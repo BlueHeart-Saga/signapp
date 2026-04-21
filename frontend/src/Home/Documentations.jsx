@@ -44,7 +44,7 @@ const Documentation = () => {
       id: 'getting-started',
       title: 'Getting Started',
       icon: <Zap size={20} />,
-      color: '#0d9488',
+      color: '#0f766e',
       description: 'Begin your SafeSign journey'
     },
     {
@@ -715,7 +715,7 @@ except Exception as e:
 
         /* Header */
         .safe-docs-header {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           position: relative;
         }
 
@@ -862,7 +862,7 @@ except Exception as e:
           top: 50%;
           transform: translateY(-50%);
           padding: 0.625rem 1.25rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -915,7 +915,7 @@ except Exception as e:
 
         .safe-results-count {
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-results-list {
@@ -1090,7 +1090,7 @@ except Exception as e:
         }
 
         .safe-section-link:hover {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Popular Guides */
@@ -1130,7 +1130,7 @@ except Exception as e:
 
         .safe-popular-link:hover {
           background: #f3f4f6;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-guide-time {
@@ -1320,8 +1320,8 @@ except Exception as e:
         }
 
         .safe-expand-btn:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-expand-arrow {
@@ -1411,7 +1411,7 @@ except Exception as e:
         }
 
         .safe-tab-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1533,7 +1533,7 @@ except Exception as e:
         }
 
         .safe-auth-icon {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-auth-none {
@@ -1588,7 +1588,7 @@ except Exception as e:
 
         /* CTA */
         .safe-docs-cta {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           border-radius: 1rem;
           padding: 2rem;
           color: white;
@@ -1635,7 +1635,7 @@ except Exception as e:
           gap: 0.5rem;
           padding: 0.75rem 1.5rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.5rem;
           font-size: 0.875rem;

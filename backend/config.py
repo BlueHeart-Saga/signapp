@@ -8,6 +8,7 @@ load_dotenv()
 JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 480))
+RECIPIENT_TOKEN_EXPIRE_MINUTES = int(os.getenv("RECIPIENT_TOKEN_EXPIRE_MINUTES", 10080))  # Default 7 days in minutes
 
 # Admin Secret
 ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "admin@123")

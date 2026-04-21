@@ -330,7 +330,7 @@ const navigate = useNavigate();
           font-size: 30px;
           font-weight: 700;
           text-align: center;
-          color: #0d9488;
+          color: #0f766e;
           margin-bottom: 20px;
           line-height: 1.2;
         }
@@ -361,7 +361,7 @@ const navigate = useNavigate();
         .visual-title {
           font-size: 24px;
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
           text-align: center;
           margin-bottom: 30px;
         }
@@ -373,7 +373,7 @@ const navigate = useNavigate();
         }
 
         .doc-upload-box {
-          border: 2px dashed #0d9488;
+          border: 2px dashed #0f766e;
           border-radius: 12px;
           padding: 30px;
           text-align: center;
@@ -383,7 +383,7 @@ const navigate = useNavigate();
         .upload-icon {
           width: 40px;
           height: 40px;
-          color: #0d9488;
+          color: #0f766e;
           margin: 0 auto 10px;
         }
 
@@ -479,7 +479,7 @@ const navigate = useNavigate();
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .feature-content {
@@ -656,7 +656,7 @@ const navigate = useNavigate();
           gap: 8px;
           font-size: 14px;
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
           text-decoration: none;
           transition: gap 0.3s ease;
         }
@@ -672,7 +672,7 @@ const navigate = useNavigate();
 
         /* Compliance Section */
         .compliance-section {
-  background: #0d9488; 
+  background: #0f766e; 
   padding: 50px 0;
 }
 

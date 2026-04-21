@@ -154,7 +154,7 @@ export default function AdminEnvelopeManagement() {
                     variant="contained"
                     startIcon={<RefreshIcon />}
                     onClick={() => fetchEnvelopes(searchTerm)}
-                    sx={{ bgcolor: '#0f766e', '&:hover': { bgcolor: '#0d9488' } }}
+                    sx={{ bgcolor: '#0f766e', '&:hover': { bgcolor: '#0f766e' } }}
                 >
                     Refresh List
                 </Button>
@@ -351,7 +351,7 @@ export default function AdminEnvelopeManagement() {
                     <Button
                         variant="contained"
                         onClick={handleUpdateCustom}
-                        sx={{ bgcolor: '#0f766e', '&:hover': { bgcolor: '#0d9488' } }}
+                        sx={{ bgcolor: '#0f766e', '&:hover': { bgcolor: '#0f766e' } }}
                     >
                         Apply Changes
                     </Button>

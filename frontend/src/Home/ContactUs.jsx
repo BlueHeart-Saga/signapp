@@ -140,7 +140,7 @@ function ContactUs() {
           <div style={styles.contactMethodsCard}>
             <div style={styles.contactMethod}>
               <div style={{ ...styles.methodIcon, backgroundColor: '#e3f2fd00' }}>
-                <span style={styles.methodEmoji}><Mail size={28} color="#0d9488" /></span>
+                <span style={styles.methodEmoji}><Mail size={28} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
                 <h4 style={styles.methodTitle}>MAIL</h4>
@@ -152,7 +152,7 @@ function ContactUs() {
 
             <div style={styles.contactMethod}>
               <div style={{ ...styles.methodIcon, backgroundColor: '#e8f5e900' }}>
-                <span style={styles.methodEmoji}><Phone size={28} color="#0d9488" /></span>
+                <span style={styles.methodEmoji}><Phone size={28} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
                 <h4 style={styles.methodTitle}>PHONE</h4>
@@ -164,7 +164,7 @@ function ContactUs() {
 
             <div style={styles.contactMethod}>
               <div style={{ ...styles.methodIcon, backgroundColor: '#f3e5f500' }}>
-                <span style={styles.methodEmoji}><MessageCircle size={28} color="#0d9488" /></span>
+                <span style={styles.methodEmoji}><MessageCircle size={28} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
                 <h4 style={styles.methodTitle}>LIVE MESSAGE</h4>
@@ -490,9 +490,9 @@ function ContactUs() {
     margin-bottom: 16px;
     padding: 12px 16px;
     border-radius: 10px;
-    border: 1.5px solid #0d9488;
+    border: 1.5px solid #0f766e;
     background: #f0fdfa;
-    color: #0d9488;
+    color: #0f766e;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -738,7 +738,7 @@ const styles = {
   formTitle: {
     fontSize: '32px',
     fontWeight: '700',
-    color: '#0d9488',
+    color: '#0f766e',
     margin: '0 0 8px 0',
   },
   formSubtitle: {
@@ -795,7 +795,7 @@ const styles = {
     height: '18px',
     marginTop: '2px',
     cursor: 'pointer',
-    accentColor: '#0d9488',
+    accentColor: '#0f766e',
   },
   checkboxLabel: {
     fontSize: '14px',

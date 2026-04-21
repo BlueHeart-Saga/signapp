@@ -159,7 +159,7 @@ export default function TrustedOrganizations() {
         <h2 style={{
           fontSize: '30px',
           fontWeight: '500',
-          color: '#0d9488',
+          color: '#0f766e',
           margin: '0 0 16px'
         }}>
           Leading Organizations Worldwide

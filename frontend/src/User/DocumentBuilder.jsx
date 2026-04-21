@@ -279,7 +279,7 @@ const getRoleColor = (recipient, roleId) => {
     viewer: '#795548'
   };
 
-  return fallbackColors[roleId] || '#0d9488';
+  return fallbackColors[roleId] || '#0f766e';
 };
 
 // Updated color helpers for UI consistency

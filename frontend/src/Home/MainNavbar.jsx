@@ -56,7 +56,7 @@ const MainNavbar = () => {
       label: 'E-Signature',
       href: '/e-signature',
       icon: <FaSignature />,
-      color: '#0d9488',
+      color: '#0f766e',
       desc: 'Secure digital signing solutions'
     },
     {
@@ -160,7 +160,7 @@ const MainNavbar = () => {
             ) : (
               <div className="safe-logo-icon">
                 {/* <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                  <rect width="32" height="32" rx="9" fill="#0d9488"/>
+                  <rect width="32" height="32" rx="9" fill="#0f766e"/>
                   <path d="M9 16L13 20L17 16M9 12L13 8L17 12M15 8V24" 
                         stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg> */}
@@ -271,7 +271,7 @@ const MainNavbar = () => {
           <div className="safe-nav-logo" onClick={() => { navigate('/'); setIsMenuOpen(false); }}>
             <div className="safe-logo-icon">
               <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="9" fill="#0d9488" />
+                <rect width="32" height="32" rx="9" fill="#0f766e" />
                 <path d="M9 16L13 20L17 16M9 12L13 8L17 12M15 8V24"
                   stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -423,7 +423,7 @@ const MainNavbar = () => {
         .safe-logo-text {
           font-size: 1.75rem;
           font-weight: 800;
-          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -462,13 +462,13 @@ const MainNavbar = () => {
         }
 
         .safe-nav-link:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.08);
           transform: translateY(-1px);
         }
 
         .safe-link-active {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.12);
           font-weight: 700;
         }
@@ -495,7 +495,7 @@ const MainNavbar = () => {
 
         .safe-nav-btn:hover,
         .safe-nav-active {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.08);
           transform: translateY(-1px);
         }
@@ -660,7 +660,7 @@ const MainNavbar = () => {
         }
 
         .safe-btn-ghost:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.1);
           border-color: rgba(13, 148, 136, 0.5);
           transform: translateY(-2px);
@@ -675,14 +675,14 @@ const MainNavbar = () => {
         }
 
         .safe-btn-primary:hover {
-        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+        background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           transform: translateY(-2px);
           box-shadow: 0 12px 32px rgba(13, 148, 136, 0.5);
         }
 
         .safe-btn-outline {
           background: transparent;
-          color: #0d9488;
+          color: #0f766e;
           border-color: rgba(13, 148, 136, 0.3);
           width: 100%;
         }
@@ -713,7 +713,7 @@ const MainNavbar = () => {
 
         .safe-mobile-toggle:hover {
           background: #f3f4f6;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         @media (min-width: 1024px) {
@@ -786,7 +786,7 @@ const MainNavbar = () => {
 
         .safe-mobile-close:hover {
           background: #f3f4f6;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-mobile-nav {
@@ -816,7 +816,7 @@ const MainNavbar = () => {
         }
 
         .safe-mobile-nav-btn:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.08);
         }
 
@@ -834,12 +834,12 @@ const MainNavbar = () => {
         }
 
         .safe-mobile-nav-link:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.08);
         }
 
         .safe-mobile-link-active {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.12);
           font-weight: 700;
         }

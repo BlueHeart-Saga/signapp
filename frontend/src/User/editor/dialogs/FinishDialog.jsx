@@ -87,7 +87,7 @@ const FinishDialog = ({
       }}
     >
       <DialogTitle sx={{
-        bgcolor: hasIssues ? '#f44336' : '#0d9488',
+        bgcolor: hasIssues ? '#f44336' : '#0f766e',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -112,7 +112,7 @@ const FinishDialog = ({
           sx={{
             mb: 3,
             '& .MuiAlert-icon': {
-              color: severity === 'success' ? '#0d9488' : undefined
+              color: severity === 'success' ? '#0f766e' : undefined
             }
           }}
         >
@@ -131,7 +131,7 @@ const FinishDialog = ({
         {/* Document Summary */}
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#0d9488' }}>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#0f766e' }}>
               Document Summary
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -144,8 +144,8 @@ const FinishDialog = ({
                 sx={{
                   height: 24,
                   fontSize: '0.7rem',
-                  borderColor: document?.signing_order_enabled ? '#0d9488' : undefined,
-                  color: document?.signing_order_enabled ? '#0d9488' : undefined,
+                  borderColor: document?.signing_order_enabled ? '#0f766e' : undefined,
+                  color: document?.signing_order_enabled ? '#0f766e' : undefined,
                   fontWeight: 600
                 }}
               />
@@ -154,13 +154,13 @@ const FinishDialog = ({
           <Grid container spacing={2}>
             <Grid item xs={3}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ color: '#0d9488' }}>{fields.length}</Typography>
+                <Typography variant="h6" sx={{ color: '#0f766e' }}>{fields.length}</Typography>
                 <Typography variant="caption" color="text.secondary">Total Fields</Typography>
               </Paper>
             </Grid>
             <Grid item xs={3}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ color: '#0d9488' }}>
+                <Typography variant="h6" sx={{ color: '#0f766e' }}>
                   {fields.filter(f => f.recipient_id).length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">Assigned</Typography>
@@ -187,12 +187,12 @@ const FinishDialog = ({
 
         {/* Recipients Summary */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#0d9488' }}>
+          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#0f766e' }}>
             Recipients Summary ({recipients.length})
           </Typography>
 
           {recipients.length === 0 ? (
-            <Alert severity="info" sx={{ '& .MuiAlert-icon': { color: '#0d9488' } }}>
+            <Alert severity="info" sx={{ '& .MuiAlert-icon': { color: '#0f766e' } }}>
               No recipients added yet. Add recipients before sending.
             </Alert>
           ) : (
@@ -312,7 +312,7 @@ const FinishDialog = ({
         {/* Document Name */}
         <Box sx={{ mb: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#0d9488' }}>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#0f766e' }}>
               Document Details
             </Typography>
             <Tooltip title="Rename Document">
@@ -320,7 +320,7 @@ const FinishDialog = ({
                 size="small"
                 onClick={onRenameClick}
                 sx={{
-                  color: '#0d9488',
+                  color: '#0f766e',
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.04)'
                   }
@@ -347,7 +347,7 @@ const FinishDialog = ({
         <Button
           onClick={onClose}
           sx={{
-            color: '#0d9488',
+            color: '#0f766e',
             '&:hover': {
               backgroundColor: 'rgba(13, 148, 136, 0.04)'
             }
@@ -362,7 +362,7 @@ const FinishDialog = ({
           color={(invalidFields.length > 0 || recipientsMissingFields.length > 0) ? "error" : "primary"}
           startIcon={saving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <SendIcon />}
           sx={invalidFields.length === 0 ? {
-            bgcolor: '#0d9488',
+            bgcolor: '#0f766e',
             '&:hover': {
               bgcolor: '#0f766e'
             },

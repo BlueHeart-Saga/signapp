@@ -623,7 +623,7 @@ const CaseStudies = () => {
 
         /* Hero Section */
         .safe-cs-hero {
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           padding: 4rem 0;
           position: relative;
           overflow: hidden;
@@ -831,7 +831,7 @@ const CaseStudies = () => {
           align-items: center;
           gap: 0.5rem;
           padding: 0.875rem 1.5rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -864,8 +864,8 @@ const CaseStudies = () => {
 
         .safe-btn-secondary:hover {
           background: #f9fafb;
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-featured-image {
@@ -912,7 +912,7 @@ const CaseStudies = () => {
         .safe-testimonials-header {
           text-align: center;
           margin-bottom: 3rem;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-section-title {
@@ -946,12 +946,12 @@ const CaseStudies = () => {
         .safe-testimonial-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-testimonial-quote {
           font-size: 3rem;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 700;
           line-height: 1;
           margin-bottom: 1rem;
@@ -1038,7 +1038,7 @@ const CaseStudies = () => {
         }
 
         .safe-search-input:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
@@ -1062,8 +1062,8 @@ const CaseStudies = () => {
         }
 
         .safe-filters-toggle:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-filter-arrow {
@@ -1113,7 +1113,7 @@ const CaseStudies = () => {
         }
 
         .safe-filter-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
         }
 
@@ -1147,14 +1147,14 @@ const CaseStudies = () => {
         }
 
         .safe-filter-chip:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .safe-chip-active {
-          background: #0d9488;
+          background: #0f766e;
           color: white;
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-chip-count {
@@ -1206,7 +1206,7 @@ const CaseStudies = () => {
         .safe-case-study-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-featured-tag {
@@ -1363,7 +1363,7 @@ const CaseStudies = () => {
           justify-content: center;
           gap: 0.5rem;
           padding: 0.625rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1410,7 +1410,7 @@ const CaseStudies = () => {
         .safe-reset-filters {
           margin-top: 1.5rem;
           padding: 0.75rem 1.5rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.5rem;
@@ -1427,7 +1427,7 @@ const CaseStudies = () => {
         /* CTA Section */
         .safe-cs-cta {
           padding: 4rem 0;
-          background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           color: white;
         }
 
@@ -1463,7 +1463,7 @@ const CaseStudies = () => {
           gap: 0.5rem;
           padding: 1rem 2rem;
           background: white;
-          color: #0d9488;
+          color: #0f766e;
           border: none;
           border-radius: 0.75rem;
           font-size: 1rem;
@@ -1643,7 +1643,7 @@ const CaseStudies = () => {
         }
 
         .safe-stat-icon {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-stat-content {
@@ -1713,7 +1713,7 @@ const CaseStudies = () => {
         }
 
         .safe-result-icon {
-          color: #0d9488;
+          color: #0f766e;
           margin-bottom: 0.75rem;
         }
 
@@ -1747,7 +1747,7 @@ const CaseStudies = () => {
 
         .safe-modal-tag {
           padding: 0.5rem 1rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border-radius: 2rem;
           font-size: 0.875rem;
@@ -1766,7 +1766,7 @@ const CaseStudies = () => {
           justify-content: center;
           gap: 0.5rem;
           padding: 0.875rem;
-          background: #0d9488;
+          background: #0f766e;
           color: white;
           border: none;
           border-radius: 0.75rem;

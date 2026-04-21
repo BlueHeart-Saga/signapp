@@ -1514,10 +1514,10 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
                 "type": field_type,
                 "value": actual_value or "",
                 "page": field.get("page", 0),
-                "x": field.get("pdf_x", field.get("x", 0)),
-                "y": field.get("pdf_y", field.get("y", 0)),
-                "width": field.get("pdf_width", field.get("width", 100)),
-                "height": field.get("pdf_height", field.get("height", 30)),
+                "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+                "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
+                "width": field.get("pdf_width") if field.get("pdf_width") is not None else field.get("width", 100),
+                "height": field.get("pdf_height") if field.get("pdf_height") is not None else field.get("height", 30),
                 "canvas_x": field.get("canvas_x"),
                 "canvas_y": field.get("canvas_y"),
                 "canvas_width": field.get("canvas_width") or document.get("canvas_width") or 794.0,
@@ -1550,10 +1550,10 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
                 "type": field_type,
                 "value": boolean_value,
                 "page": field.get("page", 0),
-                "x": field.get("pdf_x", field.get("x", 0)),
-                "y": field.get("pdf_y", field.get("y", 0)),
-                "width": field.get("pdf_width", field.get("width", 100)),
-                "height": field.get("pdf_height", field.get("height", 30)),
+                "x": field.get("pdf_x") if field.get("pdf_x") is not None else field.get("x", 0),
+                "y": field.get("pdf_y") if field.get("pdf_y") is not None else field.get("y", 0),
+                "width": field.get("pdf_width") if field.get("pdf_width") is not None else field.get("width", 100),
+                "height": field.get("pdf_height") if field.get("pdf_height") is not None else field.get("height", 30),
                 "canvas_x": field.get("canvas_x"),
                 "canvas_y": field.get("canvas_y"),
                 "canvas_width": field.get("canvas_width") or document.get("canvas_width") or 794.0,
@@ -1774,6 +1774,16 @@ async def upload_document(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
+    # Restriction: Only allow upload if user has an active plan (Admins bypass)
+    if current_user.get("role") != "admin":
+        # We fetch the latest user data from DB to ensure subscription status is current
+        user_data = db.users.find_one({"_id": ObjectId(current_user["id"])})
+        if not user_data or not user_data.get("has_active_subscription", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Active subscription required to upload documents. Please upgrade your plan."
+            )
+
     # Validate file type
     ext = file.filename.split(".")[-1].lower()
     allowed = [
@@ -2790,6 +2800,15 @@ async def create_document_from_template(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
+    # Restriction: Only allow if user has an active plan (Admins bypass)
+    if current_user.get("role") != "admin":
+        user_data = db.users.find_one({"_id": ObjectId(current_user["id"])})
+        if not user_data or not user_data.get("has_active_subscription", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Active subscription required to use templates. Please upgrade your plan."
+            )
+
     # 1️⃣ Validate template ID
     try:
         template_oid = ObjectId(payload.template_id)
@@ -3499,13 +3518,14 @@ async def extend_document_expiry(
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: str, 
-    current_user: dict = Depends(get_current_user), 
-    request: Request = None
+    request: Request
 ):
     """
     Download the original uploaded file (not the converted PDF).
     Owner-only by default.
     """
+    current_user = await get_user_from_request(request)
+
     doc = db.documents.find_one({
         "_id": ObjectId(document_id), 
         "owner_id": ObjectId(current_user["id"])
@@ -3513,28 +3533,61 @@ async def download_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    original_path = doc.get("original_file_path")
-    if not original_path:
-        raise HTTPException(status_code=404, detail="Original file missing")
+    # Use converted PDF if original is not a PDF, to ensure compatibility with viewers
+    # as mentioned by user: "filename use as owner-preview convert pdf"
+    use_pdf = False
+    original_filename = doc.get("filename", "document")
+    
+    if not original_filename.lower().endswith(".pdf") and doc.get("pdf_file_path"):
+        use_pdf = True
+        # Convert extension to .pdf
+        base_name = original_filename.rsplit('.', 1)[0]
+        filename = f"{base_name}.pdf"
+    else:
+        filename = original_filename
+
+    # Prefer PDF version for preview downloads if it's a non-PDF original
+    target_path = doc.get("pdf_file_path") if use_pdf else (doc.get("original_file_path") or doc.get("pdf_file_path"))
+    
+    if not target_path:
+        raise HTTPException(status_code=404, detail="Document file missing")
 
     try:
-        file_bytes = storage.download(original_path)
+        file_bytes = storage.download(target_path)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Original file not found in storage: {str(e)}")
+        # Fallback to original if PDF fails for some reason
+        if use_pdf and doc.get("original_file_path"):
+            try:
+                file_bytes = storage.download(doc.get("original_file_path"))
+                filename = original_filename
+                use_pdf = False
+            except:
+                raise HTTPException(status_code=404, detail=f"File not found in storage: {str(e)}")
+        else:
+            raise HTTPException(status_code=404, detail=f"File not found in storage: {str(e)}")
 
     # Log download
     _log_event(
         document_id, 
         current_user, 
         "download_original", 
-        {"filename": doc.get("filename")}, 
+        {
+            "filename": filename,
+            "original_filename": original_filename,
+            "is_converted": use_pdf
+        }, 
         request
     )
 
+    media_type = "application/pdf" if use_pdf else doc.get("mime_type", "application/octet-stream")
+
     return StreamingResponse(
         io.BytesIO(file_bytes),
-        media_type=doc.get("mime_type", "application/octet-stream"),
-        headers={"Content-Disposition": f'attachment; filename="{doc["filename"]}"'}
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(file_bytes))
+        }
     )
 
 

@@ -486,61 +486,13 @@ const FieldOverlay = React.memo(({
             }
         }
 
-        // For completed fields, show the actual value
-        const value = field.value || fieldValues[field.id];
-
-        if (!value) return '✓ Completed';
-
-        // Extract value from different formats
-        let displayValue = '';
-
-        if (field.type === 'radio') {
-            const val = (typeof value === 'object' ? (value.value || value.selected || '') : value).toString().toLowerCase().trim();
-            if (val === 'yes' || val === 'true' || val === '1' || val === 'selected') return '●';
-            if (val === 'no' || val === 'false' || val === '0') return '○';
-            if (val === 'maybe') return '-';
-            if (val === 'not applicable' || val === 'n/a' || val === 'na') return 'X';
-            return '●';
+        // For completed fields, return empty string per user request.
+        // The background PDF will be refreshed to show the actual value.
+        if (completed) {
+            return "";
         }
 
-        if (typeof value === 'object') {
-            // Priority 1: Direct 'filename' property
-            if (value.filename) {
-                return value.filename;
-            }
-            // Priority 2: 'value' property (often stores filename for attachments)
-            if (value.value !== undefined && field.type === 'attachment') {
-                return value.value;
-            }
-            // Other object handlers
-            if (value.text !== undefined) {
-                displayValue = value.text;
-            } else if (value.date !== undefined) {
-                displayValue = value.date;
-            } else if (value.data !== undefined && field.type === 'attachment') {
-                return value.filename || 'Attached File';
-            }
-        } else if (typeof value === 'string') {
-            // Handle string values
-            if (field.type === 'date') {
-                try {
-                    const date = new Date(value);
-                    return date.toLocaleDateString();
-                } catch {
-                    return value;
-                }
-            } else if (field.type === 'signature' || field.type === 'initials') {
-                return '✓ Signed';
-            } else if (field.type === 'attachment') {
-                return value; // value is filename
-            } else {
-                // Return full value for textboxes to allow wrapping
-                if (field.type === 'textbox' || field.type === 'mail') return value;
-                // Truncate other long text
-                return value.length > 25 ? value.substring(0, 22) + '...' : value;
-            }
-        }
-        return displayValue || "";
+        return "";
     };
 
     const displayValue = getDisplayValue();
@@ -783,7 +735,7 @@ const DocumentPageThumbnail = React.memo(({
                     height: 190,
                     position: 'relative',
                     overflow: 'hidden',
-                    border: isActive ? '3px solid #0d9488' : '1px solid #e5e7eb',
+                    border: isActive ? '3px solid #0f766e' : '1px solid #e5e7eb',
                     transition: 'all 0.3s ease',
                     borderRadius: '10px',
                     display: 'flex',
@@ -815,7 +767,7 @@ const DocumentPageThumbnail = React.memo(({
                             />
                         </Document>
                     ) : (
-                        <CircularProgress size={20} thickness={3} sx={{ color: '#0d9488' }} />
+                        <CircularProgress size={20} thickness={3} sx={{ color: '#0f766e' }} />
                     )}
                 </Box>
 
@@ -858,7 +810,7 @@ const DocumentPageThumbnail = React.memo(({
                             const height = (h / PDF_H) * 100;
 
                             const isDone = f.completed_at || f.is_completed;
-                            const color = recipientColors[f.recipient_id] || '#0d9488';
+                            const color = recipientColors[f.recipient_id] || '#0f766e';
 
                             return (
                                 <Box
@@ -896,7 +848,7 @@ const DocumentPageThumbnail = React.memo(({
                 >
                     <Box
                         sx={{
-                            bgcolor: isActive ? '#0d9488' : 'rgba(0,0,0,0.6)',
+                            bgcolor: isActive ? '#0f766e' : 'rgba(0,0,0,0.6)',
                             color: '#fff',
                             px: 1,
                             py: 0.2,
@@ -913,9 +865,9 @@ const DocumentPageThumbnail = React.memo(({
                     {hasFields && (
                         <Box
                             sx={{
-                                bgcolor: completedFields === totalFields ? '#0d9488' : '#fff',
-                                color: completedFields === totalFields ? '#fff' : '#0d9488',
-                                border: `1px solid ${completedFields === totalFields ? '#0d9488' : '#e5e7eb'}`,
+                                bgcolor: completedFields === totalFields ? '#0f766e' : '#fff',
+                                color: completedFields === totalFields ? '#fff' : '#0f766e',
+                                border: `1px solid ${completedFields === totalFields ? '#0f766e' : '#e5e7eb'}`,
                                 px: 0.8,
                                 py: 0.2,
                                 borderRadius: '4px',
@@ -1743,7 +1695,7 @@ const SigningPage = () => {
                     const otherFields = fields.filter(f =>
                         !f.completed_at &&
                         f.id !== activeField.id &&
-                        (f.type === modalType || (modalType === 'signature' && f.type === 'initials') || (modalType === 'initials' && f.type === 'signature'))
+                        f.type === modalType
                     );
 
                     if (otherFields.length > 0) {

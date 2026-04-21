@@ -23,8 +23,8 @@ const BlockContainer = styled(Box)(({ theme }) => ({
     right: '20px',
     bottom: '20px',
     borderRadius: '20px',
-    backgroundColor: '#0d9488',
-    background: 'linear-gradient(135deg, #0d9488 0%, #0d9489bc 40%, #0d948976 70%, #0d9488 100%)',
+    backgroundColor: '#0f766e',
+    background: 'linear-gradient(135deg, #0f766e 0%, #0d9489bc 40%, #0d948976 70%, #0f766e 100%)',
     zIndex: 10,
     display: 'flex',
     flexDirection: 'column',
@@ -160,7 +160,7 @@ const ActionButton = styled(Button)(({ theme, primary }) => ({
     background: primary 
         ? 'rgba(255, 255, 255, 1)' 
         : 'rgba(255, 255, 255, 0.1)',
-    color: primary ? '#0d9488' : 'white',
+    color: primary ? '#0f766e' : 'white',
     border: primary ? 'none' : '1px solid rgba(255, 255, 255, 0.3)',
     '&:hover': {
         transform: 'translateY(-3px)',

@@ -341,7 +341,7 @@ export default function ProfileSetupModal({ onComplete }) {
               padding: "12px",
               borderRadius: "9px",
               border: "none",
-              background: "linear-gradient(135deg,#0d9488,#14b8a6)",
+              background: "linear-gradient(135deg,#0f766e,#14b8a6)",
               color: "#fff",
               fontWeight: "600",
               fontSize: "14px",

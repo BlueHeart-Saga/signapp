@@ -321,6 +321,15 @@ const EnhancedSignaturePad = ({
     // Auto-fill signature with recipient name if available
     if (fieldType === 'signature' && recipientData?.name) {
       setTextInput(recipientData.name);
+    } else if (fieldType === 'initials' && recipientData?.name) {
+      // Generate initials from name
+      const initials = recipientData.name
+        .split(' ')
+        .filter(part => part.length > 0)
+        .map(part => part[0])
+        .join('')
+        .toUpperCase();
+      setTextInput(initials);
     }
 
     // Load existing value if provided
@@ -1232,8 +1241,8 @@ const EnhancedSignaturePad = ({
 
       <TextField
         fullWidth
-        multiline={fieldType !== 'initials'}
-        rows={fieldType === 'initials' ? 1 : 2}
+        multiline={!['initials', 'textbox'].includes(fieldType)}
+        rows={['initials', 'textbox'].includes(fieldType) ? 1 : 2}
         value={textInput}
         onChange={(e) => {
           if (fieldType === 'initials') {
@@ -1241,6 +1250,10 @@ const EnhancedSignaturePad = ({
             const cleaned = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
             // Limit to 3 characters
             setTextInput(cleaned.substring(0, 3));
+          } else if (fieldType === 'textbox') {
+            // Limit to 60 characters and avoid /n next line
+            const cleaned = e.target.value.replace(/[\r\n]/g, '').substring(0, 60);
+            setTextInput(cleaned);
           } else {
             setTextInput(e.target.value);
           }
@@ -1248,11 +1261,13 @@ const EnhancedSignaturePad = ({
         placeholder={
           fieldType === 'initials'
             ? 'AB'  // Simple placeholder, no auto-fill
-            : FIELD_CONFIG[fieldType]?.placeholder || 'Enter text...'
+            : fieldType === 'textbox'
+              ? 'Enter text (max 60 characters)...'
+              : FIELD_CONFIG[fieldType]?.placeholder || 'Enter text...'
         }
         sx={{ mb: 2 }}
         inputProps={{
-          maxLength: fieldType === 'initials' ? 3 : undefined,
+          maxLength: fieldType === 'initials' ? 3 : (fieldType === 'textbox' ? 60 : undefined),
           style: {
             textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
             fontSize: fieldType === 'initials' ? '32px' : 'inherit',

@@ -79,7 +79,7 @@ const RenameDialog = ({
       }}
     >
       <DialogTitle sx={{ 
-        bgcolor: '#0d9488', 
+        bgcolor: '#0f766e', 
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -99,7 +99,7 @@ const RenameDialog = ({
           severity="info" 
           sx={{ 
             mb: 3,
-            '& .MuiAlert-icon': { color: '#0d9488' }
+            '& .MuiAlert-icon': { color: '#0f766e' }
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
@@ -137,14 +137,14 @@ const RenameDialog = ({
           sx={{
             '& .MuiOutlinedInput-root': {
               '&:hover fieldset': {
-                borderColor: '#0d9488',
+                borderColor: '#0f766e',
               },
               '&.Mui-focused fieldset': {
-                borderColor: '#0d9488',
+                borderColor: '#0f766e',
               },
             },
             '& .MuiInputLabel-root.Mui-focused': {
-              color: '#0d9488',
+              color: '#0f766e',
             },
           }}
         />
@@ -162,7 +162,7 @@ const RenameDialog = ({
           disabled={renaming}
           sx={{ 
             minWidth: 100,
-            color: '#0d9488',
+            color: '#0f766e',
             '&:hover': {
               backgroundColor: 'rgba(13, 148, 136, 0.04)'
             }
@@ -177,7 +177,7 @@ const RenameDialog = ({
           startIcon={renaming ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <SaveIcon />}
           sx={{ 
             minWidth: 120,
-            bgcolor: '#0d9488',
+            bgcolor: '#0f766e',
             '&:hover': {
               bgcolor: '#0f766e'
             },

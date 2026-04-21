@@ -397,7 +397,7 @@ export default function PrepareSendRecipients() {
               view_instructions: 'Please review the document carefully before signing'
             },
             isNew: true,
-            color: '#0d9488'
+            color: '#0f766e'
           }
         ];
       }
@@ -507,7 +507,7 @@ export default function PrepareSendRecipients() {
       view_instructions: 'Please review the document carefully before signing'
     },
     isNew: true,
-    color: '#0d9488' // Default indigo color for new recipient
+    color: '#0f766e' // Default indigo color for new recipient
   }]);
 
   const [detailsForm, setDetailsForm] = useState({
@@ -1964,7 +1964,7 @@ export default function PrepareSendRecipients() {
                   {...provided.draggableProps}
                   style={{
                     ...provided.draggableProps.style,
-                    borderLeft: `5px solid ${recipient.color || '#0d9488'}`
+                    borderLeft: `5px solid ${recipient.color || '#0f766e'}`
                   }}
                   className={`docusign-recipient-card ${
                     activeRecipientId === recipient.id ? 'docusign-active' : ''
@@ -2213,7 +2213,7 @@ export default function PrepareSendRecipients() {
                     <div className="docusign-inline-avatar-wrapper">
                       <div
                         className="docusign-inline-avatar"
-                        style={{ backgroundColor: form.color || '#0d9488' }}
+                        style={{ backgroundColor: form.color || '#0f766e' }}
                         title={form.name || 'New recipient'}
                       >
                         {form.name ? getInitials(form.name) : '?'}

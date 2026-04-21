@@ -162,20 +162,6 @@ function AnimatedRoutes() {
 
 
     <AnimatePresence mode="wait">
-
-
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-        }}
-      />
-
-
-
-
-
-
       <ScrollToTop />
       <Routes location={location} key={location.pathname}>
 
@@ -408,6 +394,12 @@ function AnimatedRoutes() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+        }}
+      />
       <Router>
         <AnimatedRoutes />
       </Router>

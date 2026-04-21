@@ -532,7 +532,7 @@ const FieldPropertiesPanel = ({
           mb: 2,
           color: '#0f172a'
         }}>
-          <PersonIcon fontSize="small" sx={{ color: '#0d9488' }} />
+          <PersonIcon fontSize="small" sx={{ color: '#0f766e' }} />
           Assigned Recipient
         </Typography>
 

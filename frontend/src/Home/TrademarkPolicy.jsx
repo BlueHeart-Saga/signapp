@@ -24,7 +24,7 @@ const TrademarkPolicy = () => {
     {
       type: 'Word Marks',
       icon: <FileText size={20} />,
-      color: '#0d9488',
+      color: '#0f766e',
       examples: ['SafeSign', 'SafeSign Pro', 'SafeSign Business'],
       description: 'Registered names and product identifiers'
     },
@@ -71,7 +71,7 @@ const TrademarkPolicy = () => {
     {
       scenario: 'Integration Partners',
       icon: <Link size={18} />,
-      color: '#0d9488',
+      color: '#0f766e',
       description: 'Partners showcasing integration with SafeSign',
       examples: ['Integration documentation', 'Partner marketing'],
       requirements: ['Written permission', 'Brand guidelines']
@@ -626,7 +626,7 @@ const TrademarkPolicy = () => {
 
         /* Hero Section - Trademark Theme */
         .safe-hero-trademark {
-          background: #0d9488;
+          background: #0f766e;
         }
 
         .safe-policy-hero {
@@ -736,7 +736,7 @@ const TrademarkPolicy = () => {
         .safe-trademark-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-          border-color: #0d9488;
+          border-color: #0f766e;
         }
 
         .safe-trademark-header {
@@ -1011,7 +1011,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-search-input:focus {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
         }
 
@@ -1037,8 +1037,8 @@ const TrademarkPolicy = () => {
         }
 
         .safe-quick-link:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
           background: rgba(139, 92, 246, 0.05);
         }
 
@@ -1059,7 +1059,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-policy-section-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
         }
 
@@ -1087,7 +1087,7 @@ const TrademarkPolicy = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         .safe-section-title {
@@ -1126,8 +1126,8 @@ const TrademarkPolicy = () => {
         }
 
         .safe-expand-btn:hover {
-          border-color: #0d9488;
-          color: #0d9488;
+          border-color: #0f766e;
+          color: #0f766e;
           background: rgba(139, 92, 246, 0.05);
         }
 
@@ -1181,7 +1181,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-sub-section-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: rgba(139, 92, 246, 0.02);
         }
 
@@ -1268,7 +1268,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-download-item:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           background: rgba(139, 92, 246, 0.05);
         }
 
@@ -1316,7 +1316,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-contact-method:hover {
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Third-Party Notice */
@@ -1436,7 +1436,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-policy-card:hover {
-          border-color: #0d9488;
+          border-color: #0f766e;
           transform: translateY(-4px);
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
         }
@@ -1449,7 +1449,7 @@ const TrademarkPolicy = () => {
         }
 
         .safe-policy-card-header svg {
-          color: #0d9488;
+          color: #0f766e;
           margin-top: 0.25rem;
         }
 
@@ -1479,7 +1479,7 @@ const TrademarkPolicy = () => {
           gap: 0.5rem;
           font-size: 0.875rem;
           font-weight: 600;
-          color: #0d9488;
+          color: #0f766e;
         }
 
         /* Responsive */

@@ -348,7 +348,7 @@ const Completion = () => {
           sx={{
             fontSize: { xs: 18, sm: 24, md: 30 },
             fontWeight: 700,
-            color: "#0d9488",
+            color: "#0f766e",
             letterSpacing: 0.3,
           }}
         >
@@ -562,7 +562,7 @@ const Completion = () => {
               onClick={(e) => setAnchorEl(e.currentTarget)}
               sx={{
                 minWidth: { xs: '100%', sm: 140 },
-                bgcolor: '#0d9488',
+                bgcolor: '#0f766e',
                 '&:hover': {
                   bgcolor: '#0f766e'
                 }

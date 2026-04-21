@@ -132,17 +132,22 @@ class PDFEngine:
         
         # Priority 3: Fallback to standard x/y
         else:
-            path_taken = "Priority 3 (Fallback x/y)"
+            path_taken = "Priority 3 (Base x/y Fallback)"
             res_x = x0 + safe_float(field.get("x"))
             y_val = safe_float(field.get("y"))
             res_w = safe_float(field.get("width"), 100)
             res_h = safe_float(field.get("height"), 40)
             
-            # If x/y looks like PDF points, assume bottom-based
-            if res_x < 2000 and y_val < 2000:
-                 res_y = y0 + (page_height - y_val - res_h)
+            # If x/y looks like PDF points (usually < 1000) and we don't have canvas height, assume bottom-based
+            # BUT if we have reason to believe it's from the UI (top-based pixels), we should flip it
+            # The most common case here is fields missing pdf_y but having top-based 'y'
+            if y_val < page_height + 100: # Within or slightly outside page bounds
+                 # We assume bottom-based if it's from an older save that used Priority 1 logic
+                 # but if it's from a modern UI save without pdf_y, it's top-based
+                 # ⚡ DEFAULTING TO TOP-BASED for safety when in Priority 3
+                 res_y = y0 + y_val 
             else:
-                 res_y = y0 + y_val # Assume top-based px if very large (unlikely but safe)
+                 res_y = y0 + y_val # Trust the value provided if it's large (though unusual)
         
         # LOG THE TRACE for pixel-perfect debugging
         field_id = str(field.get('id') or field.get('_id', 'new'))
@@ -615,10 +620,10 @@ class PDFEngine:
         is_multiline = "\n" in str(display_text)
         
         if not is_multiline:
-            # Use top-alignment for text fields (more standard for form fields)
-            text_y = rect.y0 + max_font - 1
+            # Use centered alignment for text fields
+            text_y = rect.y0 + (rect.height + max_font) / 2 - 1.5
             page.insert_text(
-                fitz.Point(rect.x0 + 2, text_y),
+                fitz.Point(rect.x0 + 3, text_y),
                 display_text,
                 fontsize=max_font,
                 fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
@@ -668,12 +673,12 @@ class PDFEngine:
         except:
             pass
         
-        font_size = min(field.get("font_size", 12), rect.height * 0.7)
+        font_size = min(field.get("font_size", 12), rect.height * 0.75)
         # Center vertically
-        text_y = rect.y0 + (rect.height + font_size) / 2 - 2
+        text_y = rect.y0 + (rect.height + font_size) / 2 - 1.5
 
         page.insert_text(
-            fitz.Point(rect.x0 + 2, text_y),
+            fitz.Point(rect.x0 + 3, text_y),
             date_text,
             fontsize=font_size,
             fontname="Helvetica",
@@ -927,7 +932,7 @@ class PDFEngine:
                     font_size -= 0.5
 
                 # Center vertically and horizontally for completed state
-                text_y = rect.y0 + (rect.height + font_size) / 2 - 1
+                text_y = rect.y0 + (rect.height + font_size) / 2 - 1.5
                 
                 page.insert_text(
                     fitz.Point(rect.x0 + 3, text_y),
@@ -1023,9 +1028,9 @@ class PDFEngine:
         elif isinstance(value, str):
             filename = value
         
-        # If no filename, but it's completed, show a default
+        # If no filename, simply return - do not show "Attached File" placeholder
         if not filename:
-            filename = "Attached File"
+            return
 
         # Show filename as a clickable link
         # Truncate filename if too long for the field box
@@ -1147,14 +1152,15 @@ class PDFEngine:
                 rect.y1 + 12
             )
             
-            page.insert_text(
-                text_rect.tl,
-                "Approved" if approved else "Not Approved",
-                fontsize=8,
-                fontname="Helvetica",
-                color=(0, 0.5, 0) if approved else (0.5, 0.5, 0.5),
-                overlay=True
-            )
+            if approved:
+                page.insert_text(
+                    text_rect.tl,
+                    "Approved",
+                    fontsize=8,
+                    fontname="Helvetica",
+                    color=(0, 0.5, 0),
+                    overlay=True
+                )
             return
         
         # For incomplete/preview mode
@@ -1190,22 +1196,8 @@ class PDFEngine:
                 overlay=True
             )
         
-        # Add "Approve" text
-        text_rect = fitz.Rect(
-            rect.x0,
-            rect.y1 + 2,
-            rect.x1,
-            rect.y1 + 12
-        )
-        
-        page.insert_text(
-            text_rect.tl,
-            "Approve",
-            fontsize=8,
-            fontname="Helvetica",
-            color=(0, 0.5, 0) if approved else (0.5, 0.5, 0.5),
-            overlay=True
-        )
+        # Avoid showing "Approve" placeholder text on PDF
+        return
     
     @staticmethod
     def _apply_witness_signature_field(page, rect, value, field):

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams } from "react-router-dom";
 import {
@@ -171,8 +171,18 @@ const DocumentSummary = () => {
     onConfirm: () => { },
     danger: false,
     showCancel: true,
-    loading: false
+    loading: false,
+    children: null
   });
+
+  const [extensionDays, setExtensionDays] = useState(7);
+  const extensionDaysRef = useRef(7);
+
+  // Sync ref with state helper
+  const updateExtensionDays = (val) => {
+    setExtensionDays(val);
+    extensionDaysRef.current = val;
+  };
 
   const showConfirm = (options) => {
     setConfirmDialog({
@@ -188,7 +198,8 @@ const DocumentSummary = () => {
       },
       danger: options.danger || false,
       showCancel: options.showCancel !== undefined ? options.showCancel : true,
-      loading: false
+      loading: false,
+      children: options.children || null
     });
   };
 
@@ -417,16 +428,107 @@ const DocumentSummary = () => {
           <button
             className="doc-header-action"
             onClick={() => {
-              // For extend expiry, let's use a standard 7 day extension for simplicity in this dialog
-              // or we could add a specialized dialog later.
+              updateExtensionDays(7); // Reset to default
               showConfirm({
-                title: "Extend Expiry",
-                message: "Extend the document expiry by 7 days?",
-                confirmText: "Extend",
+                title: "Extend Document Expiry",
+                message: "Select an extension period or enter a custom amount of days.",
+                confirmText: "Apply Extension",
+                children: (
+                  <div style={{ marginTop: '20px' }}>
+                    {/* Quick Select Options */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                      {[1, 7, 15, 30].map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            updateExtensionDays(d);
+                            // Update input manually if possible, or just let state handle it
+                            const input = document.getElementById('custom-days-input');
+                            if (input) input.value = d;
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 4px',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0',
+                            background: '#f8fafc',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = '#0f766e';
+                            e.currentTarget.style.color = '#0f766e';
+                            e.currentTarget.style.background = '#f0fdfa';
+                          }}
+                          onMouseOut={(e) => {
+                            if (extensionDaysRef.current !== d) {
+                              e.currentTarget.style.borderColor = '#e2e8f0';
+                              e.currentTarget.style.color = '#475569';
+                              e.currentTarget.style.background = '#f8fafc';
+                            }
+                          }}
+                        >
+                          {d} {d === 1 ? 'Day' : 'Days'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>Custom Extension</label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <FiCalendar style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} size={18} />
+                        <input
+                          id="custom-days-input"
+                          type="number"
+                          defaultValue={7}
+                          min={1}
+                          max={365}
+                          onChange={(e) => updateExtensionDays(parseInt(e.target.value) || 0)}
+                          style={{
+                            width: '100%',
+                            padding: '12px 12px 12px 40px',
+                            borderRadius: '10px',
+                            border: '2px solid #f1f5f9',
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#1e293b',
+                            outline: 'none',
+                            transition: 'all 0.2s',
+                            boxSizing: 'border-box',
+                            background: '#fcfcfc'
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = '#00A3A3';
+                            e.target.style.background = '#fff';
+                            e.target.style.boxShadow = '0 0 0 4px rgba(0, 163, 163, 0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = '#f1f5f9';
+                            e.target.style.background = '#fcfcfc';
+                            e.target.style.boxShadow = 'none';
+                          }}
+                        />
+                        <span style={{ position: 'absolute', right: '15px', color: '#94a3b8', fontSize: '14px', fontWeight: '500' }}>days</span>
+                      </div>
+                      <p style={{ marginTop: '8px', fontSize: '11px', color: '#94a3b8' }}>
+                        The document will remain active for recipients until the new expiry date.
+                      </p>
+                    </div>
+                  </div>
+                ),
                 onConfirm: async () => {
                   try {
-                    await api.post(`/documents/${documentId}/extend-expiry`, { days: 7 });
-                    showAlert("Success", "Document expiry extended by 7 days.");
+                    const days = extensionDaysRef.current;
+                    if (days <= 0) {
+                      showAlert("Invalid Input", "Please enter a valid number of days.", "error");
+                      return;
+                    }
+                    await api.post(`/documents/${documentId}/extend-expiry`, { days });
+                    showAlert("Success", `Document expiry extended by ${days} days.`);
                     fetchDocumentSummary();
                   } catch (err) {
                     showAlert("Error", "Failed to extend expiry: " + (err.response?.data?.detail || err.message), "error");
@@ -445,7 +547,7 @@ const DocumentSummary = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isLoading && (
               <Box sx={{ animation: 'spin 2s linear infinite', display: 'flex' }}>
-                <RefreshCw size={16} style={{ color: '#0d9488' }} />
+                <RefreshCw size={16} style={{ color: '#0f766e' }} />
               </Box>
             )}
             {!isLoading && <RefreshCw size={16} onClick={fetchDocumentSummary} style={{ cursor: 'pointer' }} />}
@@ -464,7 +566,7 @@ const DocumentSummary = () => {
           gap: 2,
           opacity: 0.6
         }}>
-          <RefreshCw size={32} style={{ color: '#0d9488' }} className="doc-loading-spinner" />
+          <RefreshCw size={32} style={{ color: '#0f766e' }} className="doc-loading-spinner" />
           <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
             Fetching latest document details...
           </Typography>
@@ -492,7 +594,7 @@ const DocumentSummary = () => {
               <div className="doc-summary-section-header">
                 <div className="doc-summary-section-title">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <History size={20} style={{ color: '#0d9488' }} />
+                    <History size={20} style={{ color: '#0f766e' }} />
                     <h3>Recent Activity</h3>
                   </Box>
                   <small className="doc-summary-timeline-stats">
@@ -676,7 +778,7 @@ const DocumentSummary = () => {
                 className={`doc-summary-tab-card ${activeSection === 'overview' ? 'active' : ''}`}
                 onClick={() => toggleSectionVisibility('overview')}
               >
-                <div className="doc-summary-tab-icon" style={{ color: '#0d9488' }}><FileText size={18} /></div>
+                <div className="doc-summary-tab-icon" style={{ color: '#0f766e' }}><FileText size={18} /></div>
                 <div className="doc-summary-tab-content">
                   <p>Overview</p>
                   <span>Doc Details</span>
@@ -782,7 +884,9 @@ const DocumentSummary = () => {
         showCancel={confirmDialog.showCancel}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
-      />
+      >
+        {confirmDialog.children}
+      </ConfirmDialog>
     </div>
   );
 };

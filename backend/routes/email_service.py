@@ -777,32 +777,17 @@ class SafeSignSummaryEngine:
         
         timeline = summary_data.get('recent_activity', [])
         if timeline:
-            # Split into chunks
-            MAX_TIMELINE_PER_TABLE = 10
-            timeline_chunks = [timeline[i:i + MAX_TIMELINE_PER_TABLE] for i in range(0, len(timeline), MAX_TIMELINE_PER_TABLE)]
+            timeline_data = [
+                ["Date", "Event", "Participant", "Details"]
+            ]
             
-            for chunk_index, timeline_chunk in enumerate(timeline_chunks):
-                if chunk_index > 0:
-                    # story.append(Spacer(1, 15))
-                    story.append(PageBreak())
-
-                    story.append(Paragraph(
-                        f"<font name='Helvetica-Bold' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>Activity (continued)</font>",
-                        styles['Normal']
-                    ))
-                    story.append(Spacer(1, 8))
-                
-                timeline_data = [
-                    ["Date", "Event", "Participant", "Details"]
-                ]
-                
-                for event in timeline_chunk:
-                    timeline_data.append([
-                        Paragraph(f"<font name='Helvetica' size='8'>{event.get('date', '')}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica-Bold' size='8'>{event.get('event', '')}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{event.get('participant', '')}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{event.get('details', '')}</font>", styles['DocuSignBody']),
-                    ])
+            for event in timeline:
+                timeline_data.append([
+                    Paragraph(f"<font name='Helvetica' size='8'>{event.get('date', '')}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica-Bold' size='8'>{event.get('event', '')}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{event.get('participant', '')}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{event.get('details', '')}</font>", styles['DocuSignBody']),
+                ])
                 
                 timeline_table = Table(timeline_data, colWidths=[80, 100, 120, 200], hAlign='LEFT', repeatRows=1)
                 timeline_table.setStyle(TableStyle([
@@ -908,9 +893,8 @@ class SafeSignSummaryEngine:
             story.append(Paragraph(content, auth_style))
             story.append(Spacer(1, 5))
             
-            # Professional Page Break for better distribution
+            # Spacer instead of page break for continuity
             if i == 4:
-                story.append(PageBreak())
                 story.append(Spacer(1, 10))
 
         story.append(Spacer(1, 15))
@@ -1578,7 +1562,7 @@ class SafeSignCertificateEngine:
                         Paragraph(f"<font name='Helvetica' size='8'>{signer.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
                     ])
                 
-                signer_table = Table(signer_data, colWidths=[90, 110, 70, 70, 110, 100], hAlign='CENTER', repeatRows=1)
+                signer_table = Table(signer_data, colWidths=[80, 110, 60, 60, 100, 70], hAlign='LEFT', repeatRows=1)
                 signer_table.setStyle(TableStyle([
                     # Header
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
@@ -1652,7 +1636,7 @@ class SafeSignCertificateEngine:
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('terms_accepted_date', '—')[:10] if recipient.get('terms_accepted_date') else '—'}</font>", styles['CertBody']),
                 ])
             
-            disclosure_table = Table(disclosure_data, colWidths=[120, 160, 80, 140], hAlign='LEFT', repeatRows=1)
+            disclosure_table = Table(disclosure_data, colWidths=[110, 150, 80, 140], hAlign='LEFT', repeatRows=1)
             disclosure_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
@@ -1689,7 +1673,7 @@ class SafeSignCertificateEngine:
                     Paragraph(f"<font name='Helvetica' size='8'>{event.get('details', '')}</font>", styles['CertBody']),
                 ])
             
-            activity_table = Table(activity_data, colWidths=[100, 100, 100, 250], hAlign='LEFT', repeatRows=1)
+            activity_table = Table(activity_data, colWidths=[80, 100, 100, 200], hAlign='LEFT', repeatRows=1)
             activity_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
@@ -1739,7 +1723,7 @@ class SafeSignCertificateEngine:
                         Paragraph(f"<font name='Helvetica' size='7'>{field.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
                     ])
                 
-                history_table = Table(field_history_data, colWidths=[100, 120, 50, 130, 100], hAlign='LEFT', repeatRows=1)
+                history_table = Table(field_history_data, colWidths=[90, 110, 50, 130, 100], hAlign='LEFT', repeatRows=1)
                 history_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
@@ -1825,8 +1809,6 @@ class SafeSignCertificateEngine:
         
         story.append(Spacer(1, 10))
         
-        # Professional Page Break to ensure 2-page legal depth
-        story.append(PageBreak())
         story.append(Spacer(1, 10))
         
         # New page title for continuation
@@ -2207,10 +2189,11 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                 letter-spacing: -0.5px;
             }}
             .document-header {{
-                background: #0d9488;
-                color: white;
+                background: #ffffff;
+                color: #00A3A3;
                 padding: 24px 30px;
                 text-align: center;
+                border-bottom: 2px solid #f1f5f9;
             }}
             .document-title {{
                 font-size: 20px;
@@ -2219,11 +2202,13 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
             }}
             .role-badge {{
                 display: inline-block;
-                background: rgba(255, 255, 255, 0.2);
+                background: #f1f5f9;
+                color: #00A3A3;
                 padding: 6px 16px;
                 border-radius: 20px;
                 font-size: 14px;
                 text-transform: capitalize;
+                font-weight: 600;
             }}
             .content-section {{
                 padding: 40px 30px;
@@ -2347,7 +2332,7 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                         <!-- Document Context Header -->
                         <tr>
                             <td class="document-header">
-                                <h1 class="document-title" style="margin: 0; color: #ffffff;">Document Verification</h1>
+                                <h1 class="document-title" style="margin: 0; color: #00A3A3;">Document Verification</h1>
                                 <div class="role-badge">{role.replace('_', ' ').title()}</div>
                             </td>
                         </tr>
@@ -2556,7 +2541,7 @@ def send_recipient_activity_notification_to_owner(
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
                 .brand-logo {{ height: 32px; width: auto; display: block; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-                .header {{ background: #0d9488; color: white; padding: 25px 30px; text-align: center; }}
+                .header {{ background: #ffffff; color: #00A3A3; padding: 25px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
                 .banner-img {{ width: 100%; height: auto; display: block; margin: 0; }}
                 .content {{ padding: 30px; background: #ffffff; }}
                 .status-badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-weight: 500; font-size: 14px; background-color: {color}; margin-bottom: 20px; }}
@@ -2597,7 +2582,7 @@ def send_recipient_activity_notification_to_owner(
                             
                             <tr>
                                 <td class="header">
-                                    <h1 style="margin:0; font-size: 20px; color: #ffffff;">Signing Progress Update</h1>
+                                    <h1 style="margin:0; font-size: 20px; color: #00A3A3;">Signing Progress Update</h1>
                                 </td>
                             </tr>
                             
@@ -2817,8 +2802,8 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
             body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
             .brand-logo {{ height: 32px; width: auto; display: block; }}
             .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-            .document-header {{ background: #0d9488; color: white; padding: 24px 30px; text-align: center; }}
-            .role-badge {{ display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-top: 8px; }}
+            .document-header {{ background: #ffffff; color: #00A3A3; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
+            .role-badge {{ display: inline-block; background: #f1f5f9; color: #00A3A3; padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-top: 8px; font-weight: 600; }}
             .content {{ padding: 30px; background: #ffffff; }}
             .info-grid {{ background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0; }}
             .info-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
@@ -2876,7 +2861,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
                         <!-- Document Header -->
                         <tr>
                             <td class="document-header">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">Action Required: Please Sign Document</h1>
+                                <h1 style="margin: 0; color: #111827; font-size: 20px;">Action Required: Please Sign Document</h1>
                                 <div class="role-badge">{role.replace('_', ' ').title()}</div>
                             </td>
                         </tr>
@@ -3048,6 +3033,9 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     new_otp = generate_otp()
     new_expiry = datetime.utcnow() + timedelta(hours=24)
     
+    # Generate individual digit boxes for OTP
+    otp_digits_html = "".join([f'<span class="otp-digit">{d}</span>' for d in str(new_otp)])
+    
     # Update recipient with new OTP
     db.recipients.update_one(
         {"_id": recipient["_id"]},
@@ -3079,10 +3067,24 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
             body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
             .brand-logo {{ height: 32px; width: auto; display: block; }}
             .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-            .header {{ background: #00A3A3; color: white; padding: 25px 30px; text-align: center; }}
+            .header {{ background: #ffffff; color: #00A3A3; padding: 25px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
             .content {{ padding: 30px; background: #ffffff; }}
-            .otp-box {{ background-color: #fff7ed; border: 1.5px solid #fdba74; border-radius: 12px; padding: 25px; text-align: center; margin: 25px 0; }}
-            .otp-code {{ font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; color: #ea580c; letter-spacing: 6px; }}
+            .otp-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 40px 30px; text-align: center; margin: 30px 0; }}
+            .otp-digit {{ 
+                display: inline-block; 
+                width: 46px; 
+                height: 54px; 
+                line-height: 54px; 
+                background: #ffffff; 
+                border: 1px solid #e2e8f0; 
+                border-radius: 12px; 
+                margin: 0 4px; 
+                font-size: 26px; 
+                font-weight: 800; 
+                color: #1e293b; 
+                text-align: center;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+            }}
             .button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
             .note {{ background: #f8fafc; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; font-size: 14px; }}
         </style>
@@ -3117,7 +3119,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
                         
                         <tr>
                             <td class="header">
-                                <h1 style="margin:0; font-size: 20px; color: #ffffff;">Reminder: Action Required</h1>
+                                <h1 style="margin:0; font-size: 20px; color: #00A3A3;">Reminder: Action Required</h1>
                             </td>
                         </tr>
                         
@@ -3133,9 +3135,12 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
                                 </div>
                                 
                                 <div class="otp-box">
-                                    <p style="margin: 0 0 10px; font-size: 14px; color: #9a3412; font-weight: 600;">Your New One-Time Passcode</p>
-                                    <div class="otp-code">{new_otp}</div>
-                                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #c2410c;">Note: This replaces any previous code sent to you.</p>
+                                    <p style="margin: 0 0 20px; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Your One-Time Passcode</p>
+                                    <div style="margin: 25px 0;">
+                                        {otp_digits_html}
+                                    </div>
+                                    <p style="margin: 20px 0 0 0; font-size: 12px; color: #94a3b8; font-weight: 500;">🔒 For your security, this code is valid for single use only</p>
+                                    <p style="margin: 10px 0 0 0; font-size: 10px; color: #cbd5e1; font-style: italic;">Note: This replaces any previous code sent to you.</p>
                                 </div>
                                 
                                 <div style="text-align: center;">
@@ -3184,7 +3189,7 @@ def send_signed_document_email(
             <style>
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-                .document-header {{ background: #00A3A3; color: white; padding: 40px 30px; text-align: center; }}
+                .document-header {{ background: #ffffff; color: #00A3A3; padding: 40px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
                 .content {{ padding: 30px; background: #ffffff; }}
                 .info-box {{ background: #f8fafc; border-radius: 12px; padding: 25px; margin: 25px 0; border: 1.5px solid #e2e8f0; border-style: dashed; text-align: center; }}
             </style>
@@ -3204,8 +3209,8 @@ def send_signed_document_email(
                             <!-- Document Header -->
                             <tr>
                                 <td class="document-header">
-                                    <h1 style="margin: 0; color: #ffffff; font-size: 24px;">Your Document is Signed!</h1>
-                                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Securely delivered to your inbox</p>
+                                    <h1 style="margin: 0; color: #00A3A3; font-size: 24px;">Your Document is Signed!</h1>
+                                    <p style="margin: 10px 0 0 0; color: #64748b;">Securely delivered to your inbox</p>
                                 </td>
                             </tr>
                             
@@ -3282,7 +3287,7 @@ def send_document_email(
             <style>
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-                .document-header {{ background: #008a8a; color: white; padding: 30px; text-align: center; }}
+                .document-header {{ background: #ffffff; color: #111827; padding: 30px; text-align: center; }}
                 .content {{ padding: 30px; background: #ffffff; }}
                 .message-box {{ background: #f8fafc; border-left: 4px solid #00A3A3; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
             </style>
@@ -3302,7 +3307,7 @@ def send_document_email(
                             <!-- Document Header -->
                             <tr>
                                 <td class="document-header">
-                                    <h1 style="margin: 0; color: #ffffff; font-size: 20px;">Document Shared With You</h1>
+                                    <h1 style="margin: 0; color: #111827; font-size: 20px;">Document Shared With You</h1>
                                 </td>
                             </tr>
                             
@@ -3623,11 +3628,11 @@ async def send_document_completion_email(
                 }}
                 .header-banner {{
                     text-align: center;
-                    background: #059669;
+                    background: #ffffff;
                 }}
                 .document-header {{
-                    background: #00a3a3;
-                    color: white;
+                    background: #ffffff;
+                    color: #111827;
                     padding: 24px 30px;
                     text-align: center;
                 }}
@@ -3638,10 +3643,12 @@ async def send_document_completion_email(
                 }}
                 .success-badge {{
                     display: inline-block;
-                    background: rgba(255, 255, 255, 0.2);
+                    background: #00A3A3;
+                    color: #ffffff;
                     padding: 6px 16px;
                     border-radius: 20px;
                     font-size: 14px;
+                    font-weight: 600;
                 }}
                 .content-section {{
                     padding: 30px;
@@ -3726,7 +3733,7 @@ async def send_document_completion_email(
                             
                             <!-- Banner Image -->
                             <tr>
-                                <td style="padding: 0; background: #059669;">
+                                <td style="padding: 0; background: #ffffff;">
                                     <img 
                                         src="cid:banner" 
                                         alt="Document Completed" 
@@ -3738,7 +3745,7 @@ async def send_document_completion_email(
                             <!-- Document Header -->
                             <tr>
                                 <td class="document-header">
-                                    <h1 class="document-title" style="margin: 0; color: #ffffff;">Document Executed Successfully</h1>
+                                    <h1 class="document-title" style="margin: 0; color: #111827;">Document Executed Successfully</h1>
                                     <div class="success-badge">All Signatures Captured</div>
                                 </td>
                             </tr>
@@ -3865,7 +3872,7 @@ async def send_document_completion_email(
                     filename=package_data["zip_filename"]
                 )
                 msg.attach(zip_attachment)
-                print(f"📦 Attached full ZIP package to completion email for {recipient_email}")
+                print(f" Attached full ZIP package to completion email for {recipient_email}")
         except Exception as ze:
             print(f"⚠️ Warning: Could not generate/attach ZIP package to completion email: {str(ze)}")
         
@@ -4169,7 +4176,7 @@ async def generate_document_package(
                 }))
                 
                 if attachment_fields:
-                    print(f"📦 Found {len(attachment_fields)} attachments to include")
+                    print(f" Found {len(attachment_fields)} attachments to include")
                     for attr in attachment_fields:
                         val = attr.get("value")
                         if isinstance(val, dict) and val.get("data"):
@@ -4325,7 +4332,9 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
                 "role": r.get("role", "signer"),
                 "status": r.get("status", "pending"),
                 "completed_at": completion_time,
-                "signing_order": r.get("signing_order", 1)
+                "signing_order": r.get("signing_order", 1),
+                "otp_verified": r.get("otp_verified", False),
+                "terms_accepted": r.get("terms_accepted", False)
             })
         
         # Prepare activity timeline
@@ -4336,13 +4345,27 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
             
             event_date = event.get("timestamp")
             if event_date:
-                event_date = event_date.strftime("%Y-%m-%d %H:%M")
+                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
             
+            # Improve details if description is empty
+            details = event.get("description", "")
+            if not details:
+                meta = event.get("metadata", {})
+                action = event.get("type", event.get("action", ""))
+                if action == "recipient_viewed":
+                    details = f"Viewed by {participant_name}"
+                elif action == "document_downloaded":
+                    details = f"Downloaded {meta.get('filename', 'document')}"
+                elif action == "otp_verified":
+                    details = "Security verification completed"
+                else:
+                    details = event.get("title", action.replace("_", " ").title())
+
             recent_activity.append({
                 "date": event_date,
                 "event": event.get("title", event.get("action", "Activity")),
                 "participant": participant_name,
-                "details": event.get("description", "")
+                "details": details
             })
         
         # Current recipient completion
@@ -4453,6 +4476,42 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
         
+        # Get document timeline for audit trail
+        timeline = list(db.document_timeline.find({
+            "document_id": document_id
+        }).sort("timestamp", -1).limit(30))
+        
+        # Prepare activity timeline (enriched)
+        recent_activity = []
+        for event in timeline:
+            actor = event.get("actor", {})
+            participant_name = actor.get("name") or actor.get("email") or "System"
+            
+            event_date = event.get("timestamp")
+            if event_date:
+                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Improve details if description is empty
+            details = event.get("description", "")
+            if not details:
+                meta = event.get("metadata", {})
+                action = event.get("type", event.get("action", ""))
+                if action == "recipient_viewed":
+                    details = f"Viewed by {participant_name}"
+                elif action == "document_downloaded":
+                    details = f"Downloaded {meta.get('filename', 'document')}"
+                elif action == "otp_verified":
+                    details = "Security verification completed"
+                else:
+                    details = event.get("title", action.replace("_", " ").title())
+
+            recent_activity.append({
+                "date": event_date,
+                "event": event.get("title", event.get("action", "Activity")),
+                "participant": participant_name,
+                "details": details
+            })
+        
         # Get document owner
         owner = db.users.find_one({"_id": document.get("owner_id")})
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
@@ -4490,7 +4549,23 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             elif role == "approver":
                 completion_timestamp = r.get("approved_at")
                 completion_ip = r.get("approved_ip", r.get("completed_ip", "Unknown"))
-            
+            elif role == "form_filler":
+                completion_timestamp = r.get("form_completed_at")
+                completion_ip = r.get("completed_ip", "Unknown")
+            elif role == "witness":
+                completion_timestamp = r.get("witnessed_at")
+                completion_ip = r.get("witnessed_ip", r.get("completed_ip", "Unknown"))
+            elif role == "viewer":
+                completion_timestamp = r.get("viewer_at")
+                completion_ip = r.get("viewed_ip", r.get("completed_ip", "Unknown"))
+
+            # Get terms acceptance info
+            terms_accepted_date = None
+            if r.get("terms_accepted_at"):
+                terms_accepted_date = r["terms_accepted_at"].strftime("%Y-%m-%d %H:%M:%S")
+            elif r.get("terms_accepted_date"): # Fallback for string format
+                terms_accepted_date = r["terms_accepted_date"]
+
             recipients_data.append({
                 "name": r.get("name", "Unknown"),
                 "email": r.get("email", "No email"),
@@ -4499,8 +4574,27 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
                 "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else None,
                 "ip_address": completion_ip,
                 "signing_order": r.get("signing_order", 0),
-                "otp_verified": r.get("otp_verified", False)
+                "otp_verified": r.get("otp_verified", False),
+                "terms_accepted": r.get("terms_accepted", False),
+                "terms_accepted_date": terms_accepted_date
             })
+
+        # Prepare field completion history
+        field_history = []
+        for field in completed_fields[:30]:  # Limit to 30 most recent for certificate
+            field_recipient = next((r for r in all_recipients if str(r["_id"]) == str(field.get("recipient_id"))), None)
+            if field_recipient:
+                completion_time = field.get("completed_at")
+                field_history.append({
+                    "type": field.get("type", "unknown"),
+                    "signer_name": field_recipient.get("name", "Unknown"),
+                    "completed_at": completion_time.strftime("%Y-%m-%d %H:%M:%S") if completion_time else None,
+                    "ip_address": field.get("completed_ip") or field_recipient.get("completed_ip") or "Unknown",
+                    "page": field.get("page", 0) + 1
+                })
+        
+        # Sort history by date
+        field_history.sort(key=lambda x: x.get("completed_at", ""), reverse=True)
         
         # Generate certificate ID
         certificate_id = f"CERT-{document.get('envelope_id', uuid.uuid4().hex[:8])}-{datetime.utcnow().strftime('%Y%m%d')}"
@@ -4530,7 +4624,8 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             },
             
             "recipients": recipients_data,
-            "field_history": [],
+            "field_history": field_history,
+            "recent_activity": recent_activity,
             
             "certificate_id": certificate_id,
             "generated_at": datetime.utcnow().isoformat(),
@@ -4553,6 +4648,7 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             "owner_email": document.get("owner_email", "Unknown"),
             "statistics": {},
             "recipients": [],
+            "recent_activity": [],
             "certificate_id": f"CERT-{uuid.uuid4().hex[:8]}",
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
@@ -4603,7 +4699,7 @@ def send_package_email(
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
                 .brand-logo {{ height: 32px; width: auto; display: block; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-                .document-header {{ background: #00A3A3; color: white; padding: 30px; text-align: center; }}
+                .document-header {{ background: #ffffff; color: #00A3A3; padding: 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
                 .content {{ padding: 30px; background: #ffffff; }}
                 .info-grid {{ background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0; }}
                 .info-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
@@ -4645,7 +4741,7 @@ def send_package_email(
                             <!-- Document Header -->
                             <tr>
                                 <td class="document-header">
-                                    <h1 style="margin: 0; color: #ffffff; font-size: 22px;">Document Package Ready</h1>
+                                    <h1 style="margin: 0; color: #111827; font-size: 22px;">Document Package Ready</h1>
                                     <p style="margin: 8px 0 0 0; opacity: 0.9;">All parties have signed successfully</p>
                                 </td>
                             </tr>
@@ -4673,7 +4769,7 @@ def send_package_email(
                                     {summary_html if summary_html else ""}
                                     
                                     <div class="package-box">
-                                        <h3 style="margin: 0 0 15px 0; color: #064e3b; text-align: center;">📦 Package Contents:</h3>
+                                        <h3 style="margin: 0 0 15px 0; color: #064e3b; text-align: center;"> Package Contents:</h3>
                                         <div style="font-size: 14px; color: #065f46;">
                                             • Signed Document (Final Version)<br>
                                             • Original Document<br>

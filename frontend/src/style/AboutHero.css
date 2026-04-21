@@ -49,7 +49,7 @@ background-color: #ea580c;
         }
 .btn-primary1:hover{
 
-          background: #0d9488;
+          background: #0f766e;
           border-color: rgba(13, 148, 136, 0.5);
           transform: translateY(-2px);
           box-shadow: 0 8px 20px rgba(13, 148, 136, 0.15);
@@ -65,7 +65,7 @@ background-color: #ea580c;
 }
 
 .btn-outline:hover{
-color: #0d9488;
+color: #0f766e;
           background: rgba(13, 148, 136, 0.1);
           border-color: rgba(13, 148, 136, 0.5);
           transform: translateY(-2px);
@@ -116,18 +116,18 @@ color: #0d9488;
 
 .herocss-btn-secondary {
           background-color: white;
-          color: #0d9488;
+          color: #0f766e;
           font-weight: 600;
           padding: 0.75rem 2rem;
           
           border-radius: 0.5rem;
-          border: 2px solid #0d9488;
+          border: 2px solid #0f766e;
           cursor: pointer;
           transition: background-color 0.2s;
         }
 
         .herocss-btn-secondary:hover {
-          color: #0d9488;
+          color: #0f766e;
           background: rgba(13, 148, 136, 0.1);
           border-color: rgba(13, 148, 136, 0.5);
           transform: translateY(-2px);
