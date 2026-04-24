@@ -623,85 +623,72 @@ class SafeSignSummaryEngine:
         other_fields = [f for f in fields if f.get('type') not in ['signature', 'initials', 'witness_signature']]
         
         if other_fields:
-            # Split into chunks for multi-page handling
-            MAX_FIELDS_PER_TABLE = 15
-            field_chunks = [other_fields[i:i + MAX_FIELDS_PER_TABLE] for i in range(0, len(other_fields), MAX_FIELDS_PER_TABLE)]
+            field_data = [
+                ["Field Type", "Page", "Status", "Value", "Completed"]
+            ]
             
-            for chunk_index, field_chunk in enumerate(field_chunks):
-                if chunk_index > 0:
-                    story.append(Spacer(1, 15))
-                    story.append(Paragraph(
-                        f"<font name='Helvetica-Bold' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>Fields (continued)</font>",
-                        styles['Normal']
-                    ))
-                    story.append(Spacer(1, 5))
+            for field in other_fields:
+                field_type = field.get('type', '').replace('_', ' ').title()
+                page = str(field.get('page', 0) + 1)
                 
-                field_data = [
-                    ["Field Type", "Page", "Status", "Value", "Completed"]
-                ]
+                # Status with color
+                if field.get('completed'):
+                    status = "✓ Completed"
+                    status_color = SafeSignSummaryEngine.SUCCESS
+                else:
+                    status = "○ Pending"
+                    status_color = SafeSignSummaryEngine.WARNING
                 
-                for field in field_chunk:
-                    field_type = field.get('type', '').replace('_', ' ').title()
-                    page = str(field.get('page', 0) + 1)
-                    
-                    # Status with color
-                    if field.get('completed'):
-                        status = "✓ Completed"
-                        status_color = SafeSignSummaryEngine.SUCCESS
+                # Format value
+                value = field.get('value', '—')
+                if isinstance(value, dict):
+                    if 'value' in value:
+                        value = value['value']
+                    elif 'image' in value:
+                        value = '[Signature]'
                     else:
-                        status = "○ Pending"
-                        status_color = SafeSignSummaryEngine.WARNING
-                    
-                    # Format value
-                    value = field.get('value', '—')
-                    if isinstance(value, dict):
-                        if 'value' in value:
-                            value = value['value']
-                        elif 'image' in value:
-                            value = '[Signature]'
-                        else:
-                            value = str(value)[:30]
-                    
-                    # Truncate if needed
-                    if len(str(value)) > 25:
-                        value = str(value)[:22] + "..."
-                    
-                    completed_at = field.get('completed_at', '—')
-                    if completed_at != '—' and len(completed_at) > 10:
-                        completed_at = completed_at[:10]
-                    
-                    field_data.append([
-                        Paragraph(f"<font name='Helvetica' size='9'>{field_type}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{page}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'>{status}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{value}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{completed_at}</font>", styles['DocuSignBody']),
-                    ])
+                        value = str(value)[:30]
                 
-                field_table = Table(field_data, colWidths=[100, 50, 100, 150, 80], hAlign='LEFT', repeatRows=1)
-                field_table.setStyle(TableStyle([
-                    # Header
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                    ('TOPPADDING', (0, 0), (-1, 0), 8),
-                    
-                    # Data rows
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                     [colors.HexColor(SafeSignSummaryEngine.WHITE), 
-                      colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-                    ('TOPPADDING', (0, 1), (-1, -1), 6),
-                ]))
+                # Truncate if needed
+                if len(str(value)) > 25:
+                    value = str(value)[:22] + "..."
                 
-                story.append(field_table)
-                story.append(Spacer(1, 10))
+                completed_at = field.get('completed_at', '—')
+                if completed_at != '—' and len(completed_at) > 10:
+                    completed_at = completed_at[:10]
+                
+                field_data.append([
+                    Paragraph(f"<font name='Helvetica' size='9'>{field_type}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{page}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'>{status}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{value}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{completed_at}</font>", styles['DocuSignBody']),
+                ])
+            
+            field_table = Table(field_data, colWidths=[100, 50, 100, 150, 80], hAlign='LEFT', repeatRows=1)
+            field_table.setStyle(TableStyle([
+                # Header
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                
+                # Data rows
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                 [colors.HexColor(SafeSignSummaryEngine.WHITE), 
+                  colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ]))
+            
+            story.append(field_table)
+            story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
                 f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No additional fields assigned.</font>",
@@ -715,55 +702,42 @@ class SafeSignSummaryEngine:
         
         participants = summary_data.get('all_recipients', [])
         if participants:
-            # Split into chunks
-            MAX_PARTICIPANTS_PER_TABLE = 15
-            participant_chunks = [participants[i:i + MAX_PARTICIPANTS_PER_TABLE] for i in range(0, len(participants), MAX_PARTICIPANTS_PER_TABLE)]
+            participant_data = [
+                ["Name", "Email", "Role", "Status", "Completed"]
+            ]
             
-            for chunk_index, participant_chunk in enumerate(participant_chunks):
-                if chunk_index > 0:
-                    story.append(Spacer(1, 15))
-                    story.append(Paragraph(
-                        f"<font name='Helvetica-Bold' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>Participants (continued)</font>",
-                        styles['Normal']
-                    ))
-                    story.append(Spacer(1, 5))
+            for p in participants:
+                status = p.get('status', 'pending').upper()
+                status_color = SafeSignSummaryEngine.SUCCESS if status == 'COMPLETED' else SafeSignSummaryEngine.WARNING
                 
-                participant_data = [
-                    ["Name", "Email", "Role", "Status", "Completed"]
-                ]
+                completed_date = p.get('completed_at', '—')
+                if completed_date != '—' and len(completed_date) > 10:
+                    completed_date = completed_date[:10]
                 
-                for p in participant_chunk:
-                    status = p.get('status', 'pending').upper()
-                    status_color = SafeSignSummaryEngine.SUCCESS if status == 'COMPLETED' else SafeSignSummaryEngine.WARNING
-                    
-                    completed_date = p.get('completed_at', '—')
-                    if completed_date != '—' and len(completed_date) > 10:
-                        completed_date = completed_date[:10]
-                    
-                    participant_data.append([
-                        Paragraph(f"<font name='Helvetica' size='9'>{p.get('name', 'N/A')}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{p.get('email', 'N/A')}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{p.get('role', 'signer').replace('_', ' ').title()}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'>{status}</font>", styles['DocuSignBody']),
-                        Paragraph(f"<font name='Helvetica' size='9'>{completed_date}</font>", styles['DocuSignBody']),
-                    ])
-                
-                participant_table = Table(participant_data, colWidths=[100, 130, 80, 80, 90], hAlign='LEFT', repeatRows=1)
-                participant_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                     [colors.HexColor(SafeSignSummaryEngine.WHITE), 
-                      colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-                
-                story.append(participant_table)
-                story.append(Spacer(1, 10))
+                participant_data.append([
+                    Paragraph(f"<font name='Helvetica' size='9'>{p.get('name', 'N/A')}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{p.get('email', 'N/A')}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{p.get('role', 'signer').replace('_', ' ').title()}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'>{status}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{completed_date}</font>", styles['DocuSignBody']),
+                ])
+            
+            participant_table = Table(participant_data, colWidths=[100, 130, 80, 80, 90], hAlign='LEFT', repeatRows=1)
+            participant_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                 [colors.HexColor(SafeSignSummaryEngine.WHITE), 
+                  colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            story.append(participant_table)
+            story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
                 f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No participants found.</font>",
@@ -789,21 +763,21 @@ class SafeSignSummaryEngine:
                     Paragraph(f"<font name='Helvetica' size='8'>{event.get('details', '')}</font>", styles['DocuSignBody']),
                 ])
                 
-                timeline_table = Table(timeline_data, colWidths=[80, 100, 120, 200], hAlign='LEFT', repeatRows=1)
-                timeline_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 8),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ]))
-                
-                story.append(timeline_table)
-                story.append(Spacer(1, 10))
+            timeline_table = Table(timeline_data, colWidths=[80, 100, 120, 200], hAlign='LEFT', repeatRows=1)
+            timeline_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            
+            story.append(timeline_table)
+            story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
                 f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No recent activity recorded.</font>",
@@ -1306,10 +1280,10 @@ class SafeSignCertificateEngine:
         doc = SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            rightMargin=54,   # 0.75"
-            leftMargin=54,    # 0.75"
-            topMargin=120,    # Prevent header overlap
-            bottomMargin=54,  # 0.75"
+            rightMargin=45,
+            leftMargin=45,
+            topMargin=100,    # Reduced to optimize space
+            bottomMargin=45,
             title=f"SafeSign Certificate - {certificate_data.get('envelope_id', 'Document')}",
             author="SafeSign",
             subject="Certificate of Completion"
@@ -1340,11 +1314,11 @@ class SafeSignCertificateEngine:
             fontSize=13,
             textColor=colors.HexColor(SafeSignCertificateEngine.BLACK),
             alignment=TA_LEFT,
-            spaceBefore=10,
-            spaceAfter=4,
+            spaceBefore=6,
+            spaceAfter=3,
             fontName='Helvetica-Bold',
             leading=16,
-            keepWithNext=True
+            keepWithNext=False
         ))
         
         # Sub-section headers - Compressed
@@ -1515,75 +1489,62 @@ class SafeSignCertificateEngine:
         
         recipients = certificate_data.get('recipients', [])
         if recipients:
-            # Split into chunks for better page handling
-            MAX_SIGNERS_PER_TABLE = 12
-            signer_chunks = [recipients[i:i + MAX_SIGNERS_PER_TABLE] for i in range(0, len(recipients), MAX_SIGNERS_PER_TABLE)]
+            signer_data = [["Signer", "Email", "Role", "Action", "Date/Time", "IP Address"]]
             
-            for chunk_index, signer_chunk in enumerate(signer_chunks):
-                if chunk_index > 0:
-                    story.append(Spacer(1, 15))
-                    story.append(Paragraph(
-                        f"<font name='Helvetica-Bold' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>Signer Events (continued)</font>",
-                        styles['Normal']
-                    ))
-                    story.append(Spacer(1, 5))
+            for signer in recipients:
+                status = signer.get('status', '').upper()
                 
-                signer_data = [["Signer", "Email", "Role", "Action", "Date/Time", "IP Address"]]
-                
-                for signer in signer_chunk:
-                    status = signer.get('status', '').upper()
-                    
-                    # Determine action text
-                    role = signer.get('role', 'signer')
-                    if status == 'COMPLETED':
-                        if role in ['signer', 'in_person_signer']:
-                            action = "Signed"
-                        elif role == 'approver':
-                            action = "Approved"
-                        elif role == 'form_filler':
-                            action = "Filled"
-                        elif role == 'witness':
-                            action = "Witnessed"
-                        elif role == 'viewer':
-                            action = "Viewed"
-                        else:
-                            action = "Completed"
-                        action_color = SafeSignCertificateEngine.SUCCESS
+                # Determine action text
+                role = signer.get('role', 'signer')
+                if status == 'COMPLETED':
+                    if role in ['signer', 'in_person_signer']:
+                        action = "Signed"
+                    elif role == 'approver':
+                        action = "Approved"
+                    elif role == 'form_filler':
+                        action = "Filled"
+                    elif role == 'witness':
+                        action = "Witnessed"
+                    elif role == 'viewer':
+                        action = "Viewed"
                     else:
-                        action = "Pending"
-                        action_color = SafeSignCertificateEngine.GRAY_600
-                    
-                    signer_data.append([
-                        Paragraph(f"<font name='Helvetica-Bold' size='8'>{signer.get('name', 'N/A')}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{signer.get('email', 'N/A')}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{role.replace('_', ' ').title()}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica-Bold' size='8' color='{action_color}'>{action}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{signer.get('completed_at', '—')}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='8'>{signer.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
-                    ])
+                        action = "Completed"
+                    action_color = SafeSignCertificateEngine.SUCCESS
+                else:
+                    action = "Pending"
+                    action_color = SafeSignCertificateEngine.GRAY_600
                 
-                signer_table = Table(signer_data, colWidths=[80, 110, 60, 60, 100, 70], hAlign='LEFT', repeatRows=1)
-                signer_table.setStyle(TableStyle([
-                    # Header
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 8),
-                    ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-                    
-                    # Data rows
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                     [colors.HexColor(SafeSignCertificateEngine.WHITE), 
-                      colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ]))
+                signer_data.append([
+                    Paragraph(f"<font name='Helvetica-Bold' size='8'>{signer.get('name', 'N/A')}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{signer.get('email', 'N/A')}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{role.replace('_', ' ').title()}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica-Bold' size='8' color='{action_color}'>{action}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{signer.get('completed_at', '—')}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{signer.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
+                ])
+            
+            signer_table = Table(signer_data, colWidths=[80, 110, 60, 60, 100, 70], hAlign='LEFT', repeatRows=1)
+            signer_table.setStyle(TableStyle([
+                # Header
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
                 
-                story.append(signer_table)
-                story.append(Spacer(1, 10))
+                # Data rows
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                 [colors.HexColor(SafeSignCertificateEngine.WHITE), 
+                  colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            
+            story.append(signer_table)
+            story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
                 f"<font name='Helvetica' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>No signer events recorded.</font>",
@@ -1628,7 +1589,7 @@ class SafeSignCertificateEngine:
                 ["Recipient", "Email", "Action", "Date"],
             ]
             
-            for recipient in disclosure_recipients[:15]:  # Limit to 15
+            for recipient in disclosure_recipients:
                 disclosure_data.append([
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('name', 'N/A')}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('email', 'N/A')}</font>", styles['CertBody']),
@@ -1656,7 +1617,7 @@ class SafeSignCertificateEngine:
                 styles['Normal']
             ))
         
-        story.append(Spacer(1, 15))
+        story.append(Spacer(1, 6))
         
         # ========== DOCUMENT ACTIVITY (RECENT ACTIVITY) ==========
         story.append(Paragraph("Document Audit History", styles['CertSection']))
@@ -1665,7 +1626,7 @@ class SafeSignCertificateEngine:
         if timeline:
             activity_data = [["Date/Time", "Event", "Participant", "Details"]]
             
-            for event in timeline[:25]:  # Show top 25 events in certificate
+            for event in timeline:
                 activity_data.append([
                     Paragraph(f"<font name='Helvetica' size='8'>{event.get('date', '')}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica-Bold' size='8'>{event.get('event', '')}</font>", styles['CertBody']),
@@ -1700,44 +1661,32 @@ class SafeSignCertificateEngine:
         if field_history:
             story.append(Paragraph("Field Completion History", styles['CertSection']))
             
-            MAX_FIELDS_PER_TABLE = 15
-            field_chunks = [field_history[i:i + MAX_FIELDS_PER_TABLE] for i in range(0, len(field_history), MAX_FIELDS_PER_TABLE)]
+            field_history_data = [["Field Type", "Signer", "Page", "Completed At", "IP Address"]]
             
-            for chunk_index, field_chunk in enumerate(field_chunks):
-                if chunk_index > 0:
-                    story.append(Spacer(1, 15))
-                    story.append(Paragraph(
-                        f"<font name='Helvetica-Bold' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>Field History (continued)</font>",
-                        styles['Normal']
-                    ))
-                    story.append(Spacer(1, 5))
-                
-                field_history_data = [["Field Type", "Signer", "Page", "Completed At", "IP Address"]]
-                
-                for field in field_chunk:
-                    field_history_data.append([
-                        Paragraph(f"<font name='Helvetica' size='7'>{field.get('type', '').replace('_', ' ').title()}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='7'>{field.get('signer_name', 'Unknown')}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='7'>{field.get('page', 1)}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='7'>{field.get('completed_at', '')[:16] if field.get('completed_at') else '—'}</font>", styles['CertBody']),
-                        Paragraph(f"<font name='Helvetica' size='7'>{field.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
-                    ])
-                
-                history_table = Table(field_history_data, colWidths=[90, 110, 50, 130, 100], hAlign='LEFT', repeatRows=1)
-                history_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 8),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                     [colors.HexColor(SafeSignCertificateEngine.WHITE), 
-                      colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-                
-                story.append(history_table)
-                story.append(Spacer(1, 10))
+            for field in field_history:
+                field_history_data.append([
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('type', '').replace('_', ' ').title()}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('signer_name', 'Unknown')}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('page', 1)}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('completed_at', '')[:16] if field.get('completed_at') else '—'}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='7'>{field.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
+                ])
+            
+            history_table = Table(field_history_data, colWidths=[90, 110, 50, 130, 100], hAlign='LEFT', repeatRows=1)
+            history_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
+                 [colors.HexColor(SafeSignCertificateEngine.WHITE), 
+                  colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            story.append(history_table)
+            story.append(Spacer(1, 10))
         
         story.append(PageBreak())
         

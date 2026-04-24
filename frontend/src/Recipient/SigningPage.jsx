@@ -2735,6 +2735,8 @@ const SigningPage = () => {
                             ? activeField.dropdown_options
                             : []
                     }
+                    fieldWidth={activeField?.pdf_width || activeField?.width || 100}
+                    fieldHeight={activeField?.pdf_height || activeField?.height || 40}
                 />
 
                 {/* Snackbar for notifications */}

@@ -167,6 +167,7 @@ export default function MyDocuments() {
   const [planRestrictionOpen, setPlanRestrictionOpen] = useState(false);
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null); // Track which action menu is open via click
 
 
 
@@ -201,6 +202,11 @@ export default function MyDocuments() {
       // Close Filter Dropdown
       if (filterRef.current && !filterRef.current.contains(event.target)) {
         setShowAdvancedFilters(false);
+      }
+
+      // Close Action Menus if clicking outside any dropdown
+      if (!event.target.closest('.dropdown')) {
+        setOpenMenuId(null);
       }
     };
 
@@ -1682,7 +1688,7 @@ export default function MyDocuments() {
 
                       {/* Three-dot dropdown menu */}
                       <div
-                        className="dropdown"
+                        className={`dropdown ${openMenuId === doc.id ? 'show' : ''}`}
                         ref={el => {
                           if (el) {
                             // Check space below on hover
@@ -1707,7 +1713,14 @@ export default function MyDocuments() {
                           }
                         }}
                       >
-                        <button className="btn btn-sm" title="More actions">
+                        <button
+                          className="btn btn-sm"
+                          title="More actions"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === doc.id ? null : doc.id);
+                          }}
+                        >
                           <MoreVertIcon />
                         </button>
 

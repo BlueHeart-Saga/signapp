@@ -1,5 +1,11 @@
 import asyncio
+import sys
+import os
 from datetime import datetime
+
+# Add parent directory to sys.path to allow importing from 'database' and 'routes'
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database import db
 from routes.email_service import send_expiration_email_to_owner, send_expiration_email_to_recipient
 

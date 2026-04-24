@@ -7,13 +7,95 @@ from routes import email_service, recipient_documents, recipient_history, recipi
 from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, template_generator, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, aidoc, summary, ai_workflow_builder
 from fastapi.staticfiles import StaticFiles
 
+import asyncio
+from datetime import datetime
+from database import db
+# Import cron tasks
+from cron.send_reminders import send_reminders
+from cron.expire_documents import expire_documents
+
+async def run_automated_tasks():
+    """
+    Background loop to run reminders and expiration checks.
+    Uses a distributed lock in MongoDB to ensure only one worker 
+    runs these tasks in multi-worker production environments.
+    """
+    while True:
+        try:
+            # Atomic lock check/set using MongoDB
+            # We use a lock that expires every 50 minutes (slightly less than the 1h sleep)
+            lock_name = "automated_tasks_lock"
+            now = datetime.utcnow()
+            
+            # Find the lock or create it
+            lock = db.locks.find_one({"name": lock_name})
+            
+            should_run = False
+            if not lock:
+                # Create lock
+                try:
+                    db.locks.insert_one({
+                        "name": lock_name,
+                        "last_run": now,
+                        "locked_by": os.getpid()
+                    })
+                    should_run = True
+                except: # Duplicate key error
+                    should_run = False
+            else:
+                # Check if lock is old enough (at least 55 mins since last run)
+                last_run = lock.get("last_run")
+                if last_run and (now - last_run).total_seconds() > 3300:
+                    result = db.locks.update_one(
+                        {"name": lock_name, "last_run": last_run}, # Atomic check
+                        {"$set": {"last_run": now, "locked_by": os.getpid()}}
+                    )
+                    if result.modified_count > 0:
+                        should_run = True
+
+            if should_run:
+                print(f"🕒 [AUTO-TASKS] Lock acquired by PID {os.getpid()}. Starting tasks...")
+                
+                print("🕒 [AUTO-TASKS] Running expiration check...")
+                await expire_documents()
+                
+                print("🕒 [AUTO-TASKS] Running reminder scanner...")
+                await send_reminders()
+                
+                print("🕒 [AUTO-TASKS] Tasks finished. Lock maintained.")
+            else:
+                # print(f"🕒 [AUTO-TASKS] Worker {os.getpid()} skipped (lock held by another worker).")
+                pass
+                
+        except Exception as e:
+            print(f"❌ [AUTO-TASKS] Error in background loop: {e}")
+            
+        # Check every 5 minutes if we can acquire the lock
+        await asyncio.sleep(300)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 eSign App Backend Starting...")
+    
+    # Ensure distributed lock collection has unique index
+    try:
+        db.locks.create_index("name", unique=True)
+    except:
+        pass
+    
+    # Start the background task loop
+    task = asyncio.create_task(run_automated_tasks())
+    
     yield
+    
     # Shutdown
     print("eSign App Backend Shutting Down...")
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 app = FastAPI(
     title="SignApp API",

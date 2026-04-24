@@ -999,6 +999,11 @@
   display: block;
 }
 
+/* Show on click (via state) */
+.dropdown.show .dropdown-menu {
+  display: block;
+}
+
 /* Dropdown items */
 .dropdown-item {
   display: flex;

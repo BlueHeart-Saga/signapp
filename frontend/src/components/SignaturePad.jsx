@@ -1241,8 +1241,8 @@ const EnhancedSignaturePad = ({
 
       <TextField
         fullWidth
-        multiline={!['initials', 'textbox'].includes(fieldType)}
-        rows={['initials', 'textbox'].includes(fieldType) ? 1 : 2}
+        multiline={!['initials'].includes(fieldType)}
+        rows={['initials'].includes(fieldType) ? 1 : (fieldType === 'textbox' ? 4 : 2)}
         value={textInput}
         onChange={(e) => {
           if (fieldType === 'initials') {
@@ -1251,9 +1251,8 @@ const EnhancedSignaturePad = ({
             // Limit to 3 characters
             setTextInput(cleaned.substring(0, 3));
           } else if (fieldType === 'textbox') {
-            // Limit to 60 characters and avoid /n next line
-            const cleaned = e.target.value.replace(/[\r\n]/g, '').substring(0, 60);
-            setTextInput(cleaned);
+            // Allow multiline and no char limit for textbox
+            setTextInput(e.target.value);
           } else {
             setTextInput(e.target.value);
           }
