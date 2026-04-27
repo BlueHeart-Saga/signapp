@@ -244,7 +244,7 @@
 //               <Shield size={32} className="logo-icon" />
 //               <span className="logo-text">SignApp</span>
 //             </div>
-            
+
 //             <nav className={`nav ${isMobileMenuOpen ? 'nav-open' : ''}`}>
 //               <div className="nav-main">
 //                 <a href="#features">Features</a>
@@ -281,12 +281,12 @@
 //                 <Award size={16} />
 //                 <span>Trusted by 50,000+ companies worldwide</span>
 //               </div>
-              
+
 //               <h1 className="hero-title">
 //                 The Most Secure Platform for
 //                 <span className="hero-gradient"> Electronic Signatures</span>
 //               </h1>
-              
+
 //               <p className="hero-subtitle">
 //                 Streamline your document workflow with legally binding e-signatures. 
 //                 Join millions who trust SignApp for fast, secure, and compliant 
@@ -365,7 +365,7 @@
 //                     </div>
 //                   </div>
 //                 </div>
-                
+
 //                 <div className="floating-cards">
 //                   <div className="floating-card security">
 //                     <ShieldCheck size={20} />
@@ -450,7 +450,7 @@
 //             <h2>Enterprise-Grade Features</h2>
 //             <p>Everything you need for secure, efficient document signing at scale</p>
 //           </div>
-          
+
 //           {features.map((category, categoryIndex) => (
 //             <div key={categoryIndex} className="feature-category">
 //               <h3 className="category-title">{category.category}</h3>
@@ -640,7 +640,7 @@
 //                   {/* Social icons would go here */}
 //                 </div>
 //               </div>
-              
+
 //               <div className="footer-links">
 //                 <div className="footer-column">
 //                   <h4>Product</h4>
@@ -649,7 +649,7 @@
 //                   <a href="#integrations">Integrations</a>
 //                   <a href="#pricing">Pricing</a>
 //                 </div>
-                
+
 //                 <div className="footer-column">
 //                   <h4>Resources</h4>
 //                   <a href="#documentation">Documentation</a>
@@ -657,7 +657,7 @@
 //                   <a href="#webinars">Webinars</a>
 //                   <a href="#support">Support</a>
 //                 </div>
-                
+
 //                 <div className="footer-column">
 //                   <h4>Company</h4>
 //                   <a href="#about">About</a>
@@ -665,7 +665,7 @@
 //                   <a href="#contact">Contact</a>
 //                   <a href="#legal">Legal</a>
 //                 </div>
-                
+
 //                 <div className="footer-column">
 //                   <h4>Contact</h4>
 //                   <div className="contact-info">
@@ -683,7 +683,7 @@
 //                 </div>
 //               </div>
 //             </div>
-            
+
 //             <div className="footer-bottom">
 //               <div className="footer-copyright">
 //                 © 2024 SignApp. All rights reserved.
@@ -716,41 +716,41 @@ import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
 
-const Home = () => {  
+const Home = () => {
 
 
 
-    
-useEffect(() => {
-  setPageTitle(
-    "E-Sign Platform",
-    "Secure digital signatures, document management, and workflow automation with SafeSign."
-  );
-}, []);
+
+  useEffect(() => {
+    setPageTitle(
+      "SafeSign | Enterprise E-Signature & Document Management Platform",
+      "Experience the most secure enterprise-grade electronic signatures, AI-powered document management, and automated workflows. Legally binding and HIPAA compliant signing for global teams."
+    );
+  }, []);
 
   return (
     <>
 
-    <HeroCard />
+      <HeroCard />
 
-    <IntegrationsScroll />
+      <IntegrationsScroll />
 
-    <PlatformOverview />
-    
-    <TestimonialsAndCTA />
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+      <PlatformOverview />
+
+      <TestimonialsAndCTA />
+
+
+
+
+
+
+
+
+
+
+
+
+
     </>
   );
 }

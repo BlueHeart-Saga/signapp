@@ -2,7 +2,16 @@ import React from "react";
 import "../style/WorkflowAutomationHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const WorkflowAutomationHome = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Automated Document Workflows & Tracking | SafeSign",
+      "Streamline your document processes with SafeSign's workflow automation. Track real-time document status, manage recipient actions, and automate follow-ups for faster completions."
+    );
+  }, []);
   return (
     <div className="wfa-container">
 
@@ -12,9 +21,9 @@ const WorkflowAutomationHome = () => {
           <p className="wfa-breadcrumb">Sent Documents</p>
 
           <h1 className="wfa-hero-title">
-            Track and manage documents after
+            Advanced Document Tracking &
             <br />
-            sending
+            AI-Powered Workflow Automation
           </h1>
 
           <p className="wfa-hero-subtext">

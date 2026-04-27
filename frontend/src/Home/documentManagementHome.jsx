@@ -2,7 +2,16 @@ import React from "react";
 import "../style/DocumentManagementHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const DocumentManagementHome = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Recipient & Document Lifecycle Management | SafeSign",
+      "Manage document recipients, assign roles, and control the signing order with SafeSign. Our enterprise document management tools ensure a secure and compliant signing process."
+    );
+  }, []);
   return (
     <div className="dmh-container">
 
@@ -12,9 +21,9 @@ const DocumentManagementHome = () => {
           <p className="dmh-breadcrumb">Choose Recipients</p>
 
           <h1 className="dmh-hero-title">
-            Add people, assign roles, and control
+            Enterprise Recipient Management &
             <br />
-            the signing flow
+            Secure Document Signing Flows
           </h1>
 
           <p className="dmh-hero-subtext">

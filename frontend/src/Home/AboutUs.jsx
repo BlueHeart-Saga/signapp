@@ -4,11 +4,11 @@ import AboutHero from './AboutHero';
 import AboutSafeSignSection from './AboutSafeSignSection';
 import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
-import { 
-  FiCheckCircle, 
-  FiLock, 
-  FiClock, 
-  FiShield 
+import {
+  FiCheckCircle,
+  FiLock,
+  FiClock,
+  FiShield
 } from "react-icons/fi";
 
 
@@ -16,11 +16,11 @@ export default function About() {
 
 
   useEffect(() => {
-  setPageTitle(
-    "About Us",
-    "Learn about SafeSign’s mission to simplify digital signatures, document workflows, and secure online collaboration."
-  );
-}, []); 
+    setPageTitle(
+      "About SafeSign | Our Mission for Secure Digital Signatures",
+      "Discover SafeSign's mission to provide the world's most secure and user-friendly digital signature platform. Learn how we empower businesses with legally binding e-signatures and automated document workflows."
+    );
+  }, []);
   return (
     <div className="about-page">
       <AboutHero />
@@ -34,15 +34,15 @@ export default function About() {
               Trusted Everywhere.
             </h1>
             <p className="hero-description">
-  SafeSign is a secure, cloud-based digital signature platform that helps
-  businesses sign, send, and manage documents faster—without paperwork or delays.
-</p>
+              SafeSign is a secure, cloud-based digital signature platform that helps
+              businesses sign, send, and manage documents faster—without paperwork or delays.
+            </p>
 
-<ul className="hero-points">
-  <li><FiCheckCircle /> Legally binding & audit-ready signatures</li>
-  <li><FiClock /> Faster turnaround with automated workflows</li>
-  <li><FiLock /> Enterprise-grade security & encryption</li>
-</ul>
+            <ul className="hero-points">
+              <li><FiCheckCircle /> Legally binding & audit-ready signatures</li>
+              <li><FiClock /> Faster turnaround with automated workflows</li>
+              <li><FiLock /> Enterprise-grade security & encryption</li>
+            </ul>
 
             {/* <div className="hero-buttons">
               <button className="btn-primary">Get Started</button>
@@ -50,9 +50,9 @@ export default function About() {
             </div> */}
           </div>
           <div className="hero-image">
-            <img 
-              src="/images/about1.png" 
-              alt="Professional with documents" 
+            <img
+              src="/images/about1.png"
+              alt="Professional with documents"
               className="hero-img"
             />
           </div>
@@ -99,23 +99,23 @@ export default function About() {
         <div className="simple-container">
           <div className="simple-content">
             <h2 className="simple-title">Simple, Fast, and Paperless</h2>
-           <p className="simple-description">
-  SafeSign removes friction from document signing by digitizing every step
-  of the process.
-</p>
+            <p className="simple-description">
+              SafeSign removes friction from document signing by digitizing every step
+              of the process.
+            </p>
 
-<ul className="content-points">
-  <li><FiCheckCircle /> Upload documents in seconds</li>
-  <li><FiCheckCircle /> Add signature, date, and approval fields easily</li>
-  <li><FiCheckCircle /> Complete signing from desktop or mobile</li>
-  <li><FiCheckCircle /> No software installation required</li>
-</ul>
+            <ul className="content-points">
+              <li><FiCheckCircle /> Upload documents in seconds</li>
+              <li><FiCheckCircle /> Add signature, date, and approval fields easily</li>
+              <li><FiCheckCircle /> Complete signing from desktop or mobile</li>
+              <li><FiCheckCircle /> No software installation required</li>
+            </ul>
 
           </div>
           <div className="simple-image">
-            <img 
-              src="/images/about2.png" 
-              alt="Woman working on tablet" 
+            <img
+              src="/images/about2.png"
+              alt="Woman working on tablet"
               className="section-img"
             />
           </div>
@@ -126,24 +126,24 @@ export default function About() {
       <section className="create-section">
         <div className="create-container">
           <div className="create-image">
-            <img 
-              src="/images/about3.png" 
-              alt="Man working on laptop" 
+            <img
+              src="/images/about3.png"
+              alt="Man working on laptop"
               className="section-img"
             />
           </div>
           <div className="create-content">
             <h2 className="create-title">Create once. Send anytime.</h2>
             <p className="create-description">
-  Build reusable document templates that save time and ensure consistency
-  across your organization.
-</p>
+              Build reusable document templates that save time and ensure consistency
+              across your organization.
+            </p>
 
-<ul className="content-points">
-  <li><FiShield /> Standardized and compliant document workflows</li>
-  <li><FiClock /> Faster document preparation and reuse</li>
-  <li><FiCheckCircle /> Reduced errors with predefined fields</li>
-</ul>
+            <ul className="content-points">
+              <li><FiShield /> Standardized and compliant document workflows</li>
+              <li><FiClock /> Faster document preparation and reuse</li>
+              <li><FiCheckCircle /> Reduced errors with predefined fields</li>
+            </ul>
 
           </div>
         </div>

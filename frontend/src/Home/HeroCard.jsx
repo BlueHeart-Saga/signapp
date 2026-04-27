@@ -10,14 +10,13 @@ const HeroCard = () => {
         {/* Main Heading */}
         <section className="herocss-hero-section">
           <h1 className="herocss-main-heading">
-            <span className="herocss-teal-text">Future-Ready E-Signatures</span>
-            <span className="herocss-gray-text"> for </span>
-            {/* <br /> */}
-            <span className="herocss-gray-text">Modern Business</span>
+            <span className="herocss-teal-text">Enterprise Electronic Signatures</span>
+            <span className="herocss-gray-text"> & </span>
+            <span className="herocss-gray-text">Document Automation</span>
           </h1>
           
           <p className="herocss-subtitle">
-            Fast, secure & automated document signing. Powered by intelligent workflows and real-time verification
+            Secure, legally-binding electronic signatures and AI-powered document management. Streamline your enterprise workflow with automated signing, real-time tracking, and bank-level security.
           </p>
           
           {/* CTA Buttons */}

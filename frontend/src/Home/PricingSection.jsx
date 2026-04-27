@@ -7,11 +7,20 @@ import SimpleFAQ from './SimpleFAQ';
 import PricingHero from './PricingHero';
 import FeatureComparisonTable from './FeatureComparisonTable';
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 function PricingSection() {
+  useEffect(() => {
+    setPageTitle(
+      "Transparent E-Signature Pricing & Plans | SafeSign",
+      "Find the perfect plan for your business with SafeSign's transparent pricing. From individual pros to large enterprises, we offer scalable e-signature and document management solutions."
+    );
+  }, []);
   const [billingCycle, setBillingCycle] = useState('monthly');
   const navigate = useNavigate();
 
-  
+
 
   const plans = [
     {
@@ -78,18 +87,18 @@ function PricingSection() {
       <div className="modern-pricing-header">
         <div className="modern-container">
           <h1 className="modern-title">Simple & transparent pricing for all business sizes</h1>
-          
+
           {/* Billing Toggle */}
           <div className="billing-options">
-            <button 
+            <button
               className={`billing-option ${billingCycle === 'monthly' ? 'active' : ''}`}
               onClick={() => setBillingCycle('monthly')}
             >
               <div className="billing-dot"></div>
               <span>Monthly billing</span>
             </button>
-            
-            <button 
+
+            <button
               className={`billing-option ${billingCycle === 'annually' ? 'active' : ''}`}
               onClick={() => setBillingCycle('annually')}
             >
@@ -112,7 +121,7 @@ function PricingSection() {
                     <span>Most Popular</span>
                   </div>
                 )}
-                
+
                 <div className="card-content">
                   <div className="card-header">
                     <h3 className="plan-name">{plan.name} plan</h3>
@@ -122,10 +131,10 @@ function PricingSection() {
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     className="cta-button"
                     onClick={() => navigate("/login")}
-                    
+
                   >
                     {plan.cta}
                   </button>
@@ -135,7 +144,7 @@ function PricingSection() {
                       <span className="features-label">FEATURES</span>
                       <p className="features-description">{plan.description}</p>
                     </div>
-                    
+
                     <ul className="features-list">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="feature-item">
@@ -155,56 +164,56 @@ function PricingSection() {
 
         <IntegrationsScroll />
 
-         <FeatureComparisonTable />
+        <FeatureComparisonTable />
 
         <SimpleFAQ />
 
         <section className="pricing-cta">
-  <div className="pricing-cta-container">
+          <div className="pricing-cta-container">
 
-    {/* LEFT IMAGE */}
-    <div className="pricing-cta-image">
-      <img
-        src="/images/demo-person.png"   // 🔁 put your image here
-        alt="Schedule a demo"
-      />
-    </div>
+            {/* LEFT IMAGE */}
+            <div className="pricing-cta-image">
+              <img
+                src="/images/demo-person.png"   // 🔁 put your image here
+                alt="Schedule a demo"
+              />
+            </div>
 
-    {/* RIGHT CONTENT */}
-    <div className="pricing-cta-content">
-      <h2>Still not sure which plan is right for you?</h2>
+            {/* RIGHT CONTENT */}
+            <div className="pricing-cta-content">
+              <h2>Still not sure which plan is right for you?</h2>
 
-      <p>
-        Our team is happy to provide a personalized demo and help you choose
-        the best fit for your team’s unique requirements.
-      </p>
+              <p>
+                Our team is happy to provide a personalized demo and help you choose
+                the best fit for your team’s unique requirements.
+              </p>
 
-      <div className="pricing-cta-actions">
-        <button
-          className="btn-primary2"
-          onClick={() => navigate("/demo")}
-        >
-          Schedule a Demo
-        </button>
+              <div className="pricing-cta-actions">
+                <button
+                  className="btn-primary2"
+                  onClick={() => navigate("/demo")}
+                >
+                  Schedule a Demo
+                </button>
 
-        <button
-          className="btn-outline1"
-          onClick={() => navigate("/login")}
-        >
-          Get Started Free
-        </button>
-      </div>
+                <button
+                  className="btn-outline1"
+                  onClick={() => navigate("/login")}
+                >
+                  Get Started Free
+                </button>
+              </div>
 
-      <small>
-        No credit card required · 14-day free trial · Cancel anytime
-      </small>
-    </div>
+              <small>
+                No credit card required · 14-day free trial · Cancel anytime
+              </small>
+            </div>
 
-  </div>
-</section>
+          </div>
+        </section>
 
 
-{/* 
+        {/* 
          <section style={{
       width: '100%',
       padding: '80px 0',

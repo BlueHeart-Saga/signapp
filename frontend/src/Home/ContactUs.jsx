@@ -21,8 +21,8 @@ function ContactUs() {
 
   useEffect(() => {
     setPageTitle(
-      "Contact Us",
-      "Get in touch with the SafeSign team for sales, support, or partnership inquiries. We’re here to help you succeed."
+      "Contact SafeSign | Sales, Support & Partnership Inquiries",
+      "Contact the SafeSign team for enterprise sales, customer support, or partnership opportunities. We provide secure e-signature solutions and dedicated support for global teams."
     );
   }, []);
 

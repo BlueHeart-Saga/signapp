@@ -2,7 +2,16 @@ import React from "react";
 import "../style/TemplatesHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const TemplatesHome = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Document Templates & Real-Time Tracking | SafeSign",
+      "Access professional document templates and track document status in real-time with SafeSign. Our platform provides live updates and activity timelines for all your signed documents."
+    );
+  }, []);
   return (
     <div className="tmh-container">
 
@@ -12,12 +21,14 @@ const TemplatesHome = () => {
           <p className="tmh-breadcrumb">Track & Manage</p>
 
           <h1 className="tmh-hero-title">
-            Stay in control of every document
+            Enterprise Document Control &
+            <br />
+            Real-Time Activity Management
           </h1>
 
           <p className="tmh-hero-subtext">
             Easily monitor and manage all sent documents from one dashboard.
-            Stay informed at every stage, take quick actions, and ensure timely 
+            Stay informed at every stage, take quick actions, and ensure timely
             completion without confusion or follow-ups.
           </p>
 
@@ -58,7 +69,7 @@ const TemplatesHome = () => {
 
       {/* FEATURE 2 */}
       <section className="tmh-feature tmh-feature-reverse">
-         <div className="tmh-feature-image">
+        <div className="tmh-feature-image">
           <img src="/images/activity-timeline.png" alt="activity timeline" />
         </div>
 
@@ -72,7 +83,7 @@ const TemplatesHome = () => {
           </p>
         </div>
 
-       
+
       </section>
 
       {/* FEATURE 3 */}

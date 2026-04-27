@@ -21,7 +21,16 @@ import {
 import { useNavigate } from "react-router-dom";
 import IntegrationsScroll from "./IntegrationsScroll";
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const SecurityHome = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Enterprise-Grade Data Security & Compliance | SafeSign",
+      "SafeSign protects your sensitive documents with bank-level 256-bit AES encryption, SOC 2 Type II compliance, and global legal validity (eIDAS, HIPAA, GDPR). Trust the most secure e-signature platform."
+    );
+  }, []);
   const navigate = useNavigate();
   const securityFeatures = [
     {
@@ -75,17 +84,17 @@ const SecurityHome = () => {
                   <Shield size={20} />
                   <span>Enterprise Security</span>
                 </div>
-                
+
                 <h1 className="security-hero-title">
                   Protect every document with{" "}
                   <span className="security-highlight">enterprise-grade</span> security
                 </h1>
-                
+
                 <p className="security-hero-subtitle">
                   Your documents and signatures are protected with military-grade encryption,
                   secure infrastructure, and globally recognized compliance standards.
                 </p>
-                
+
                 <div className="security-hero-actions">
                   <button onClick={() => navigate("/login")} className="security-btn security-btn-primary">
                     Request a Demo
@@ -95,7 +104,7 @@ const SecurityHome = () => {
                     Start Free Trial
                   </button>
                 </div>
-                
+
                 <div className="security-hero-stats">
                   <div className="security-stat">
                     <div className="security-stat-number">99.9%</div>
@@ -114,7 +123,7 @@ const SecurityHome = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="security-hero-right">
               <div className="security-hero-visual">
                 <img
@@ -144,11 +153,11 @@ const SecurityHome = () => {
               Comprehensive security measures designed for business-critical documents
             </p>
           </div>
-          
+
           <div className="security-features-grid">
             {securityFeatures.map((feature, index) => (
               <div key={index} className="security-feature-card">
-                <div 
+                <div
                   className="security-feature-icon"
                   style={{ backgroundColor: `${feature.color}15`, color: feature.color }}
                 >
@@ -172,7 +181,7 @@ const SecurityHome = () => {
               Meet regulatory requirements across industries and jurisdictions
             </p>
           </div>
-          
+
           <div className="security-compliance-grid">
             {complianceStandards.map((standard, index) => (
               <div key={index} className="security-compliance-badge">
@@ -197,10 +206,10 @@ const SecurityHome = () => {
               <h2 className="security-detailed-title">Advanced Data Encryption</h2>
               <p className="security-detailed-description">
                 All documents and signatures are encrypted both in transit and at rest.
-                Bank-level 256-bit AES encryption ensures only authorized users can access 
+                Bank-level 256-bit AES encryption ensures only authorized users can access
                 document data, preventing tampering and unauthorized viewing.
               </p>
-              
+
               <div className="security-detailed-points">
                 <div className="security-point">
                   <Key size={18} />
@@ -225,7 +234,7 @@ const SecurityHome = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="security-detailed-visual">
               <div className="security-encryption-visual">
                 <div className="security-encryption-layer">
@@ -264,7 +273,7 @@ const SecurityHome = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="security-detailed-content">
               <div className="security-detailed-badge">
                 <Globe size={20} />
@@ -276,7 +285,7 @@ const SecurityHome = () => {
                 and UETA. Your documents hold full legal validity across jurisdictions
                 and meet strict regulatory requirements.
               </p>
-              
+
               <div className="security-detailed-points">
                 <div className="security-point">
                   <FileCheck size={18} />
@@ -316,7 +325,7 @@ const SecurityHome = () => {
                 IP tracking, and identity verification logs. Ensure accountability
                 and transparency for every signature event.
               </p>
-              
+
               <div className="security-detailed-points">
                 <div className="security-point">
                   <Clock size={18} />
@@ -341,7 +350,7 @@ const SecurityHome = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="security-detailed-visual">
               <div className="security-audit-visual">
                 <div className="security-audit-timeline">

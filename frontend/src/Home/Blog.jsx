@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { Search, Calendar, Clock, User, ChevronRight, Mail, TrendingUp, FileText } from 'lucide-react';
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const BlogPage = () => {
+  useEffect(() => {
+    setPageTitle(
+      "SafeSign E-Signature Blog | Expert Insights & Legal Guides",
+      "Stay updated with the latest in electronic signatures, document security, and legal compliance. Expert guides and industry insights from the SafeSign team."
+    );
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Articles');
@@ -235,7 +244,7 @@ const BlogPage = () => {
             <p className="safe-hero-subtitle">
               Expert articles on electronic signatures, document security, legal compliance, and digital transformation
             </p>
-            
+
             {/* Search Bar */}
             <div className="safe-blog-search">
               <Search className="safe-search-icon" />
@@ -262,24 +271,24 @@ const BlogPage = () => {
               <div className="safe-featured-section">
                 <h2 className="safe-section-title">Featured Articles</h2>
                 <p className="safe-section-subtitle">Essential reading for e-signature professionals</p>
-                
+
                 <div className="safe-featured-grid">
                   {featuredArticles.map((article) => (
                     <article key={article.id} className="safe-featured-card">
                       <div className="safe-featured-image">
                         <img src={article.image} alt={article.title} />
-                        <span 
+                        <span
                           className="safe-article-category"
                           style={{ backgroundColor: article.categoryColor }}
                         >
                           {article.category}
                         </span>
                       </div>
-                      
+
                       <div className="safe-featured-content">
                         <h3 className="safe-article-title">{article.title}</h3>
                         <p className="safe-article-excerpt">{article.excerpt}</p>
-                        
+
                         <div className="safe-article-meta">
                           <div className="safe-author-info">
                             <div className="safe-author-name">{article.author}</div>
@@ -296,7 +305,7 @@ const BlogPage = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <button className="safe-read-btn">Read Article</button>
                       </div>
                     </article>
@@ -326,18 +335,18 @@ const BlogPage = () => {
                     <article key={article.id} className="safe-article-card">
                       <div className="safe-article-image">
                         <img src={article.image} alt={article.title} />
-                        <span 
+                        <span
                           className="safe-article-category"
                           style={{ backgroundColor: article.categoryColor }}
                         >
                           {article.category}
                         </span>
                       </div>
-                      
+
                       <div className="safe-article-content">
                         <h3 className="safe-article-title">{article.title}</h3>
                         <p className="safe-article-excerpt">{article.excerpt}</p>
-                        
+
                         <div className="safe-article-meta">
                           <div className="safe-author-info">
                             <div className="safe-author-name">{article.author}</div>
@@ -378,8 +387,8 @@ const BlogPage = () => {
               <div className="safe-sidebar-card">
                 <h3 className="safe-sidebar-title">About SafeSign Blog</h3>
                 <p className="safe-sidebar-text">
-                  Welcome to the official SafeSign blog. We publish expert insights on electronic signatures, 
-                  document security, legal compliance, and digital transformation strategies to help businesses 
+                  Welcome to the official SafeSign blog. We publish expert insights on electronic signatures,
+                  document security, legal compliance, and digital transformation strategies to help businesses
                   succeed in the digital age.
                 </p>
               </div>

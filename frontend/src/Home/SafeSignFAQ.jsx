@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, FileText, Shield, Clock, Users, Zap } from 'lucide-react';
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 function SafeSignFAQ() {
+  useEffect(() => {
+    setPageTitle(
+      "Frequently Asked Questions | SafeSign E-Signature Support",
+      "Find answers to common questions about SafeSign electronic signatures, security, pricing, and compliance. Get the help you need to streamline your document workflows."
+    );
+  }, []);
   const [activeIndex, setActiveIndex] = useState(null);
 
   const faqCategories = [
@@ -156,7 +165,7 @@ function SafeSignFAQ() {
         <div className="faq-header">
           <h1 className="faq-title">Frequently Asked Questions</h1>
           <p className="faq-subtitle">
-            Find answers to common questions about SafeSign. Can't find what you're looking for? 
+            Find answers to common questions about SafeSign. Can't find what you're looking for?
             <a href="/contact" className="contact-link"> Contact our support team</a>.
           </p>
         </div>
@@ -164,9 +173,9 @@ function SafeSignFAQ() {
         {/* Search Bar */}
         <div className="faq-search">
           <div className="search-wrapper">
-            <input 
-              type="text" 
-              placeholder="Search questions..." 
+            <input
+              type="text"
+              placeholder="Search questions..."
               className="search-input"
             />
             <button className="search-button">
@@ -181,7 +190,7 @@ function SafeSignFAQ() {
         {/* Category Navigation */}
         <div className="faq-categories">
           {faqCategories.map((category, catIndex) => (
-            <button 
+            <button
               key={catIndex}
               className="category-tab"
               onClick={() => {
@@ -209,7 +218,7 @@ function SafeSignFAQ() {
                   const isActive = activeIndex === `${catIndex}-${qIndex}`;
                   return (
                     <div key={qIndex} className={`faq-item ${isActive ? 'active' : ''}`}>
-                      <button 
+                      <button
                         className="faq-question"
                         onClick={() => toggleQuestion(catIndex, qIndex)}
                         aria-expanded={isActive}
@@ -226,7 +235,7 @@ function SafeSignFAQ() {
                           {isActive ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </div>
                       </button>
-                      
+
                       <div className="faq-answer-wrapper">
                         <div className="faq-answer">
                           <p>{faq.a}</p>

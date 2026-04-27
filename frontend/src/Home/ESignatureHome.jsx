@@ -2,7 +2,16 @@ import React from "react";
 import "../style/ESignatureHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
+import { setPageTitle } from "../utils/pageTitle";
+import { useEffect } from "react";
+
 const ESignatureHome = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Create & Sign Documents Online | SafeSign E-Signature",
+      "Easily create, upload, and sign documents online with SafeSign. Our intuitive drag-and-drop builder and secure upload system make e-signatures simple and legally binding."
+    );
+  }, []);
   return (
     <div className="esig-container">
 
@@ -12,9 +21,9 @@ const ESignatureHome = () => {
           <p className="esig-breadcrumb">Build / Upload Documents</p>
 
           <h1 className="esig-hero-title">
-            Create documents your way — build
+            Smart Document Creation &
             <br />
-            from scratch or upload existing files
+            Secure E-Signature Uploads
           </h1>
 
           <p className="esig-hero-subtext">
