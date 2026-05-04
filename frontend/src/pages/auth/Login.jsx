@@ -968,7 +968,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
       if (window.google) {
         window.google.accounts.id.prompt();
       } else {
-        toast.info("Initializing Google login...");
+        toast("Initializing Google login...");
       }
     } else {
       // For Email users: pre-fill and focus password
@@ -1715,7 +1715,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
         {/* Floating Fast Login Popup (Google One Tap Style) */}
         <AnimatePresence>
-          {savedUser && showFastLogin && (
+          {savedUser && showFastLogin && (savedUser.is_google || savedUser.remembered_token) && (
             <motion.div
               className="fast-login-popup"
               key="fast-login-popup"

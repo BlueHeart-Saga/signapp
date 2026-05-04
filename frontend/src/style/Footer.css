@@ -129,21 +129,35 @@
 }
 
 .safesign-footer-policies {
-  margin-top: 8px;
+  margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  color: #d1d5db;
+  gap: 12px;
+  row-gap: 8px;
 }
 
-.safesign-footer-policies span {
-  cursor: pointer;
-  transition: color .2s ease;
+.safesign-footer-policies a {
+  font-size: 13px;
+  color: #94a3b8;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
 }
 
-.safesign-footer-policies span:hover {
+.safesign-footer-policies a:not(:last-child)::after {
+  content: "•";
+  margin-left: 12px;
+  color: #475569;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.safesign-footer-policies a:hover {
   color: #fff;
+  text-decoration: underline;
 }
 
 /* =======================================
@@ -196,8 +210,13 @@
   }
 
   .safesign-footer-policies {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .safesign-footer-policies a::after {
+    display: none;
   }
 
   .safesign-footer-contact {

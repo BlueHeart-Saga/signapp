@@ -41,7 +41,7 @@ import { FaPen, FaExchangeAlt } from "react-icons/fa";
 import { FaGripVertical } from 'react-icons/fa';
 import { recipientAPI, RecipientRoles, RoleDescriptions } from '../services/api';
 import DocumentViewerModal from '../components/DocumentViewerModal';
-import { viewDocumentUrl, addFileToDocument } from '../services/DocumentAPI';
+import { viewDocumentUrl, addFileToDocument, getDocumentStatus } from '../services/DocumentAPI';
 import '../style/PrepareSendRecipients.css';
 import DocumentThumbnail from "../components/DocumentThumbnail";
 import { FaPaperPlane, FaEnvelopeOpenText } from 'react-icons/fa';
@@ -139,7 +139,8 @@ function ZohoFileCard({
   selectedFiles,
   setSelectedFiles,
   onPreview,
-  setConfirmDialog
+  setConfirmDialog,
+  onReplace
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -307,21 +308,21 @@ function ZohoFileCard({
         type="file"
         accept=".pdf,.doc,.docx,.png,.jpg"
         hidden
-        onChange={async (e) => {
-          const form = new FormData();
-          form.append("file", e.target.files[0]);
+        onChange={(e) => {
+          const selectedFile = e.target.files[0];
+          if (!selectedFile) return;
 
-          await fetch(
-            `${API_BASE_URL}/documents/${documentId}/files/${file.id}/replace`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: form,
+          setConfirmDialog({
+            open: true,
+            title: "Replace Document?",
+            message: `Are you sure you want to replace "${file.filename}" with "${selectedFile.name}"? Existing signature fields on this file will be maintained.`,
+            confirmText: "Replace Now",
+            danger: false,
+            onConfirm: () => {
+              setConfirmDialog(prev => ({ ...prev, open: false }));
+              onReplace(file.id, selectedFile);
             }
-          );
-          onReload();
+          });
         }}
       />
     </div>
@@ -464,6 +465,7 @@ export default function PrepareSendRecipients() {
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
   const [mergedFilename, setMergedFilename] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [mergeDragActive, setMergeDragActive] = useState(false);
   const [commonMessage, setCommonMessage] = useState("");
   const [isSavingMessages, setIsSavingMessages] = useState(false);
 
@@ -479,6 +481,9 @@ export default function PrepareSendRecipients() {
   const [isCustomReminder, setIsCustomReminder] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const [replaceLoading, setReplaceLoading] = useState(false);
+  const [replaceProgress, setReplaceProgress] = useState(0);
 
 
   const [snackbar, setSnackbar] = useState({
@@ -736,10 +741,38 @@ export default function PrepareSendRecipients() {
     // 👉 Option A: open merge dialog with first file
     setMergeFile(valid[0]);
     setMergeOpen(true);
+  };
 
-    // 👉 Option B (direct upload instead)
-    // await addFileToDocument(document.id, valid[0], setMergeProgress);
-    // reloadFiles();
+  const handleMergeDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMergeDragActive(true);
+  };
+
+  const handleMergeDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMergeDragActive(false);
+  };
+
+  const handleMergeDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMergeDragActive(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (!droppedFiles.length) return;
+
+    const file = droppedFiles[0];
+    if (/\.(pdf|doc|docx|png|jpg|jpeg)$/i.test(file.name)) {
+      setMergeFile(file);
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Unsupported file type",
+        severity: "error",
+      });
+    }
   };
 
   const handleSearch = async (q) => {
@@ -844,6 +877,96 @@ export default function PrepareSendRecipients() {
 
     const data = await res.json();
     setFiles(Array.isArray(data) ? data : data.files || []);
+  };
+
+  const refreshDocument = async () => {
+    if (!document?.id && !documentId) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/documents/${document?.id || documentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await res.json();
+      if (data) {
+        setDocument({
+          ...data,
+          id: data.id || data._id
+        });
+      }
+    } catch (e) { console.warn("Refresh doc err", e); }
+  };
+
+  const handleReplaceFile = async (fileId, selectedFile) => {
+    try {
+      setReplaceLoading(true);
+      setReplaceProgress(0);
+      setProcessingMsg("Uploading replacement file...");
+
+      const form = new FormData();
+      form.append("file", selectedFile);
+
+      // 1. Upload (0-80%)
+      await api.put(
+        `/documents/${document.id}/files/${fileId}/replace`,
+        form,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (p) => {
+            const percent = Math.round((p.loaded * 100) / p.total);
+            setReplaceProgress(percent * 0.8);
+            if (percent >= 100) setProcessingMsg("Transfer complete! Re-processing pages...");
+          }
+        }
+      );
+
+      // 2. Poll for Status (80-100%)
+      let isDone = false;
+      let pollCount = 0;
+      while (!isDone && pollCount < 120) {
+        pollCount++;
+        await new Promise(r => setTimeout(r, 1000));
+        try {
+          const statusRes = await getDocumentStatus(document.id);
+          const backendProgress = statusRes.progress || 0;
+          const backendMsg = statusRes.processing_status || "Processing replacement...";
+
+          // Map backend 0-100 to 80-100
+          const mapped = 80 + (backendProgress * 0.2);
+          setReplaceProgress(Math.min(mapped, 99));
+          setProcessingMsg(backendMsg);
+
+          if (statusRes.status !== "processing" || backendProgress >= 100) {
+            isDone = true;
+          }
+        } catch (e) {
+          console.warn("Replace status poll failed", e);
+        }
+      }
+
+      setReplaceProgress(100);
+      setProcessingMsg("Complete");
+
+      setSnackbar({
+        open: true,
+        message: "File replaced successfully",
+        severity: "success",
+      });
+
+      await reloadFiles();
+      await refreshDocument();
+    } catch (err) {
+      console.error("Replace failed:", err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.detail || "Replacement failed",
+        severity: "error",
+      });
+    } finally {
+      setTimeout(() => {
+        setReplaceLoading(false);
+        setReplaceProgress(0);
+        setProcessingMsg("");
+      }, 500);
+    }
   };
 
 
@@ -1783,6 +1906,7 @@ export default function PrepareSendRecipients() {
                           selectedFiles={selectedFiles}
                           setSelectedFiles={setSelectedFiles}
                           setConfirmDialog={setConfirmDialog}
+                          onReplace={handleReplaceFile}
                           onPreview={(page) => {
                             setActivePage(page);
                             setViewerOpen(true);
@@ -2876,7 +3000,12 @@ export default function PrepareSendRecipients() {
 
               <div className="za-add-content">
                 {!mergeFile ? (
-                  <label className="za-dropzone">
+                  <label
+                    className={`za-dropzone ${mergeDragActive ? "drag-active" : ""}`}
+                    onDragOver={handleMergeDragOver}
+                    onDragLeave={handleMergeDragLeave}
+                    onDrop={handleMergeDrop}
+                  >
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.png,.jpg"
@@ -2999,6 +3128,7 @@ export default function PrepareSendRecipients() {
                       });
 
                       await reloadFiles();
+                      await refreshDocument();
                       setMergeOpen(false);
                       setMergeFile(null);
                       setMergeDoc(null);
@@ -3369,6 +3499,39 @@ export default function PrepareSendRecipients() {
       }
 
 
-    </div >
+      {/* Success Dialog */}
+      {/* ... Success dialog logic ... */}
+
+      {/* Processing / Replace Dialog */}
+      {replaceLoading && (
+        <div className="ss-usd-backdrop" style={{ zIndex: 9999 }}>
+          <div className="ss-usd-modal" style={{ maxWidth: '400px' }}>
+            <div className="ss-usd-head">
+              <div className="ss-loading-spinner" style={{ margin: '0 auto 20px', width: '40px', height: '40px' }}></div>
+              <div className="ss-usd-title">Processing File</div>
+              <div className="ss-usd-subtitle">{processingMsg || "Please wait while we update your document..."}</div>
+            </div>
+
+            <div className="ss-usd-body" style={{ padding: '20px' }}>
+              <div className="zoho-merge-progress" style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                <div
+                  className="zoho-merge-progress-bar"
+                  style={{
+                    width: `${replaceProgress}%`,
+                    height: '100%',
+                    background: '#0f766e',
+                    transition: 'width 0.4s ease-out'
+                  }}
+                />
+              </div>
+              <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+                {Math.round(replaceProgress)}% Complete
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

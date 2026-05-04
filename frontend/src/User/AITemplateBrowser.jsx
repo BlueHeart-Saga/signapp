@@ -8,7 +8,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails, Switch, FormControlLabel,
   Snackbar, Alert, List, ListItem, ListItemIcon, ListItemText,
   InputAdornment, Pagination, CardActionArea, Stepper, Step, StepLabel,
-  Collapse
+  Collapse, Fade, Grow, Zoom, AlertTitle, alpha
 } from '@mui/material';
 import {
   Search, FilterList, AutoFixHigh, Download, Edit, Preview,
@@ -24,6 +24,130 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { debounce } from 'lodash';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import {
+  EmojiObjects as EmojiObjectsIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Visibility as VisibilityIcon,
+  Description as DescriptionIcon,
+  ArrowBack as BackIcon,
+  Close as CloseIcon
+} from '@mui/icons-material';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
+
+// ============================================
+// API Service Layer
+// ============================================
+
+class TemplateAPIService {
+  static async getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+  }
+
+  static async generateAITemplate(data) {
+    const response = await fetch(`${API_BASE_URL}/api/ai/templates/generate`, {
+      method: 'POST',
+      headers: await this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Generation failed');
+    }
+
+    return await response.json();
+  }
+
+  static async generateAIWorkflow(data) {
+    const response = await fetch(`${API_BASE_URL}/api/ai/workflow/generate`, {
+      method: 'POST',
+      headers: await this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Workflow generation failed');
+    }
+
+    return await response.json();
+  }
+}
+
+const PROMPT_SUGGESTIONS = [
+  {
+    category: "Employment & HR", prompts: [
+      "Full-time Employment Contract with salary, benefits, and termination clauses.",
+      "Mutual Non-Disclosure Agreement (NDA) for business partnership exploration.",
+      "Independent Contractor Agreement for a freelance developer with IP clauses.",
+      "Job Offer Letter including base salary, stock options, and start date.",
+      "Employee Resignation Letter with notice period and hand-over details.",
+      "Work for Hire Agreement for creative assets ownership.",
+      "Employee Handbook with conduct, leave, and safety policies.",
+      "Formal Warning Letter for performance or conduct issues.",
+      "Internship Agreement including learning goals and stipend details.",
+      "Mutual Separation Agreement with severance package terms."
+    ]
+  },
+  {
+    category: "Real Estate & Lease", prompts: [
+      "Residential Lease Agreement with security deposit and pet policies.",
+      "Commercial Lease Agreement for retail space in a shopping mall.",
+      "Property Management Agreement between homeowner and agency.",
+      "Sublet Agreement for a residential apartment unit.",
+      "Notice to Quit or Eviction Notice for late rent payments.",
+      "Quitclaim Deed for property transfer as a family gift.",
+      "Residential Rental Application with credit check authorization.",
+      "Real Estate Purchase Agreement for a single-family home.",
+      "Storage Unit Rental Agreement with liability limitations.",
+      "Parking Space Lease Agreement for a dedicated spot."
+    ]
+  },
+  {
+    category: "Business & Sales", prompts: [
+      "Service Level Agreement (SLA) with uptime and support guarantees.",
+      "Sales Agreement for commercial equipment with warranty and delivery.",
+      "Loan Agreement between individuals with fixed interest rates.",
+      "Consulting Agreement for strategy services and liability terms.",
+      "Partnership Agreement describing capital and profit sharing.",
+      "Software Licensing Agreement for internal corporate use.",
+      "Website Development Agreement with milestones and payments.",
+      "Privacy Policy for e-commerce compliant with GDPR and CCPA.",
+      "Generic Release of Liability waiver for recreational activities.",
+      "Marketing Agency Agreement for social media management.",
+      "Board of Directors Resolution for bank account opening.",
+      "Power of Attorney for legal and financial matters.",
+      "Promissory Note for personal loans with repayment dates.",
+      "Equipment Rental Agreement for heavy machinery including insurance.",
+      "Joint Venture Agreement for a real estate development project.",
+      "Bill of Sale for a motor vehicle including VIN and title.",
+      "Cease and Desist letter for copyright infringement.",
+      "Vendor Service Agreement for event catering services.",
+      "Affidatvid of Residency for legal address verification.",
+      "Legal Retainer Agreement for professional accounting services.",
+      "Terms of Service agreement for a SaaS product.",
+      "Gift Deed for non-consideration property transfer.",
+      "Professional Quotation or Proposal for architectural design.",
+      "Purchase Order (PO) with itemized lists and delivery terms.",
+      "Content License Agreement for professional photography.",
+      "Letter of Intent (LOI) for a business acquisition.",
+      "Incident Report form for workplace safety emergencies.",
+      "Scholarship Application with academic history and essays.",
+      "Stock Option Grant Agreement for startup employees.",
+      "Logistics and Transport agreement for regular shipping.",
+      "Sponsorship Agreement for community events.",
+      "Demand Letter for unpaid professional service invoices.",
+      "Board Meeting Minutes template with motions and actions."
+    ]
+  }
+];
 
 // -----------------------------
 // Tab Panel Component
@@ -60,262 +184,54 @@ const ErrorDisplay = ({ error, onRetry }) => {
 // Real-time Template Generation Modal
 // -----------------------------
 const RealTimeTemplateGenerator = ({ open, onClose, onTemplateGenerated }) => {
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [tags, setTags] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [promptsDialogOpen, setPromptsDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [generatedDocId, setGeneratedDocId] = useState(null);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
-  const [generationStep, setGenerationStep] = useState(0);
-  const [templateData, setTemplateData] = useState({
-    name: '',
-    document_type: 'letters',
-    template_type: 'Business Letter',
-    description: '',
-    instructions: '',
-    placeholders: {},
-    enhance_placeholders: true,
-    format: 'pdf'
-  });
-  const [loading, setLoading] = useState(false);
-  const [generatedTemplate, setGeneratedTemplate] = useState(null);
-  const [documentTypes, setDocumentTypes] = useState({});
-  const [suggestions, setSuggestions] = useState({ placeholders: [], properties: [], sections: [] });
-  const [error, setError] = useState(null);
-  const [apiStatus, setApiStatus] = useState('checking');
 
-  const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
-
-  // Check API status
-  const checkApiStatus = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/templates/test`, {
-        timeout: 5000
-      });
-      setApiStatus('online');
-      setError(null);
-      return true;
-    } catch (err) {
-      setApiStatus('offline');
-      setError('Backend server is not responding. Please make sure your server is running on port 9000.');
-      return false;
-    }
-  };
-
-  // Load document types from backend
-  const loadDocumentTypes = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/templates/document-types`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000
-      });
-      setDocumentTypes(response.data.document_types || {});
-      setError(null);
-    } catch (error) {
-      console.error('Error loading document types:', error);
-      setError('Failed to load document types. Using fallback data.');
-      // Fallback to default types
-      setDocumentTypes(getFallbackDocumentTypes());
-    }
-  };
-
-  // Load placeholder suggestions
-  const loadPlaceholderSuggestions = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/templates/suggest-placeholders`, {
-        template_type: templateData.template_type,
-        document_type: templateData.document_type,
-        industry: "",
-        custom_requirements: templateData.instructions
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 15000
-      });
-      
-      if (response.data.suggestions) {
-        setSuggestions(response.data.suggestions);
-        
-        // Initialize placeholders with empty values
-        const emptyPlaceholders = {};
-        response.data.suggestions.placeholders?.forEach(ph => {
-          emptyPlaceholders[ph.key] = "";
-        });
-        setTemplateData(prev => ({ ...prev, placeholders: emptyPlaceholders }));
-      }
-      setError(null);
-    } catch (error) {
-      console.error('Error loading suggestions:', error);
-      setSuggestions(getFallbackSuggestions(templateData.template_type, templateData.document_type));
-    }
-  };
-
-  // Generate template with real backend
   const generateTemplate = async () => {
+    if (!description.trim()) return;
+
     setLoading(true);
-    setGenerationStep(1);
     setError(null);
-    
     try {
-      const token = localStorage.getItem('token');
-      
-      // Convert properties for backend
-      const properties = suggestions.properties?.map(prop => ({
-        key: prop.key,
-        value: "",
-        type: prop.type,
-        options: prop.options || [],
-        required: prop.required || false,
-        description: prop.description || ""
-      })) || [];
-
       const requestData = {
-        template_type: templateData.template_type,
-        document_type: templateData.document_type,
-        placeholders: templateData.placeholders,
-        custom_prompt: templateData.instructions,
-        format: templateData.format,
-        name: templateData.name,
-        properties: properties,
-        enhance_placeholders: templateData.enhance_placeholders
+        prompt: description,
+        document_type: 'Contract',
+        category: category,
+        tags: tags,
+        language: 'English',
+        country: 'India'
       };
 
-      const response = await axios.post(`${API_URL}/templates/generate`, requestData, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000
-      });
+      const response = await TemplateAPIService.generateAIWorkflow(requestData);
 
-      const newTemplate = {
-        id: response.data.id,
-        name: response.data.name,
-        content: response.data.template,
-        template_type: response.data.template_type,
-        document_type: response.data.document_type,
-        format: response.data.format,
-        placeholders: response.data.placeholders,
-        isAIgenerated: true,
-        usage_count: 0,
-        rating: "4.5",
-        tags: [response.data.template_type.toLowerCase().replace(' ', '_'), response.data.document_type],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        preview_html: response.data.preview_html,
-        sections: response.data.sections || [],
-        suggested_fields: response.data.suggested_fields || []
-      };
-
-      setGeneratedTemplate(newTemplate);
-      setGenerationStep(2);
-      
+      if (response.success && response.document_id) {
+        onTemplateGenerated(response.document_id);
+      } else {
+        throw new Error(response.message || 'Workflow generation failed');
+      }
     } catch (error) {
-      console.error('Error generating template:', error);
-      setError(
-        error.response?.data?.detail || 
-        error.message || 
-        'Failed to generate template. Please try again.'
-      );
-      setGenerationStep(0);
+      console.error('Generation failed:', error);
+      setError(error.message || 'Generation failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUseGeneratedTemplate = () => {
-    if (generatedTemplate && onTemplateGenerated) {
-      onTemplateGenerated(generatedTemplate);
-    }
-    onClose();
-  };
-
   const resetGenerator = () => {
-    setGenerationStep(0);
-    setTemplateData({
-      name: '',
-      document_type: 'letters',
-      template_type: 'Business Letter',
-      description: '',
-      instructions: '',
-      placeholders: {},
-      enhance_placeholders: true,
-      format: 'pdf'
-    });
-    setGeneratedTemplate(null);
-    setSuggestions({ placeholders: [], properties: [], sections: [] });
+    setDescription('');
+    setCategory('');
+    setTags('');
     setError(null);
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    checkApiStatus().then(isOnline => {
-      if (isOnline) {
-        loadDocumentTypes();
-      }
-    });
-  };
-
-  // Fallback data functions
-  const getFallbackDocumentTypes = () => ({
-    letters: {
-      name: "Letters",
-      icon: "✉️",
-      description: "Professional correspondence documents",
-      templates: {
-        "Business Letter": { description: "Professional business correspondence", category: "business" },
-        "Offer Letter": { description: "Employment offer documents", category: "employment" },
-        "Cover Letter": { description: "Job application cover letters", category: "employment" },
-        "Recommendation Letter": { description: "Professional recommendations", category: "professional" }
-      }
-    },
-    forms: {
-      name: "Forms",
-      icon: "📋",
-      description: "Structured forms and applications",
-      templates: {
-        "Application Form": { description: "General application form", category: "application" },
-        "Registration Form": { description: "Event or service registration", category: "registration" }
-      }
-    }
-  });
-
-  const getFallbackSuggestions = (templateType, documentType) => ({
-    placeholders: [
-      { key: "document_title", description: "Document title", type: "text", required: true, default_value: "", section: "header" },
-      { key: "date", description: "Document date", type: "date", required: true, default_value: "", section: "header" },
-      { key: "content", description: "Main content", type: "text", required: true, default_value: "", section: "body" },
-      { key: "signature", description: "Signature", type: "signature", required: true, default_value: "", section: "closing" }
-    ],
-    properties: [],
-    sections: [
-      { name: "header", description: "Document header", required: true, order: 1 },
-      { name: "body", description: "Main content", required: true, order: 2 },
-      { name: "closing", description: "Closing section", required: true, order: 3 }
-    ]
-  });
-
-  // Load document types when modal opens
-  useEffect(() => {
-    if (open) {
-      checkApiStatus().then(isOnline => {
-        if (isOnline) {
-          loadDocumentTypes();
-        }
-      });
-    }
-  }, [open]);
-
-  // Load suggestions when template type changes
-  useEffect(() => {
-    if (open && templateData.template_type && templateData.document_type && apiStatus === 'online') {
-      loadPlaceholderSuggestions();
-    }
-  }, [templateData.template_type, templateData.document_type, open, apiStatus]);
-
-  const getDocumentIcon = (docType) => {
-    const icons = {
-      letters: <Description color="primary" />,
-      forms: <Assignment color="secondary" />,
-      contracts: <Ballot color="warning" />,
-      reports: <Feed color="info" />
-    };
-    return icons[docType] || <Description />;
+    setGeneratedDocId(null);
   };
 
   return (
@@ -326,262 +242,173 @@ const RealTimeTemplateGenerator = ({ open, onClose, onTemplateGenerated }) => {
       fullWidth
       fullScreen={isMobile}
       onExited={resetGenerator}
+      PaperProps={{
+        sx: { borderRadius: '24px', minHeight: '60vh' }
+      }}
     >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoFixHigh color="primary" />
-          <Typography variant="h6">AI Template Generator</Typography>
-          <Chip 
-            label={apiStatus === 'online' ? 'Online' : 'Offline'} 
-            color={apiStatus === 'online' ? 'success' : 'error'} 
-            size="small" 
-          />
+      <DialogTitle sx={{ p: 3, pb: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '12px',
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <AutoAwesomeIcon color="primary" />
+            </Box>
+            <Typography variant="h6" fontWeight="700">AI Template Assistant</Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent dividers>
-        <Stepper activeStep={generationStep} sx={{ mb: 3 }}>
-          <Step><StepLabel>Configure</StepLabel></Step>
-          <Step><StepLabel>Generate</StepLabel></Step>
-          <Step><StepLabel>Complete</StepLabel></Step>
-        </Stepper>
+      <DialogContent sx={{ p: 3, pt: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+          Describe your document needs, and our professional AI will generate a structured template with intelligent fields.
+        </Typography>
 
-        {/* Error Display */}
+        <Box sx={{ position: 'relative' }}>
+          <Paper elevation={0} sx={{
+            p: '8px',
+            borderRadius: '20px',
+            border: '1px solid #e0e0e0',
+            bgcolor: '#fcfcfc',
+            display: 'flex',
+            flexDirection: 'column',
+            '&:focus-within': {
+              borderColor: 'primary.main',
+              bgcolor: 'white',
+              boxShadow: '0 8px 32px rgba(13, 148, 136, 0.08)'
+            }
+          }}>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder="How can I help you create a document today?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              variant="standard"
+              disabled={loading}
+              InputProps={{
+                disableUnderline: true,
+                sx: {
+                  px: 2.5,
+                  py: 2,
+                  fontSize: '1.1rem',
+                  color: '#1a1a1a'
+                }
+              }}
+            />
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              px: 1,
+              pb: 1,
+              pt: 0.5
+            }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Tooltip title="Example Prompts">
+                  <IconButton
+                    size="small"
+                    onClick={() => setPromptsDialogOpen(true)}
+                  >
+                    <EmojiObjectsIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              <Button
+                variant="contained"
+                onClick={generateTemplate}
+                disabled={loading || !description.trim()}
+                sx={{
+                  borderRadius: '16px',
+                  px: 4,
+                  textTransform: 'none',
+                  fontWeight: 600
+                }}
+                startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <AutoAwesomeIcon />}
+              >
+                {loading ? 'Generating...' : 'Generate'}
+              </Button>
+            </Box>
+          </Paper>
+
+          <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Category"
+              size="small"
+              placeholder="e.g. Legal, HR"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+            <TextField
+              fullWidth
+              label="Tags"
+              size="small"
+              placeholder="e.g. urgent"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+          </Box>
+        </Box>
+
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} action={
-            <Button color="inherit" size="small" onClick={handleRetry}>
-              RETRY
-            </Button>
-          }>
+          <Alert severity="error" sx={{ mt: 3, borderRadius: '12px' }}>
             {error}
           </Alert>
         )}
-
-        {generationStep === 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Template Name"
-              value={templateData.name}
-              onChange={(e) => setTemplateData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Professional Business Letter Template"
-              disabled={apiStatus === 'offline'}
-            />
-            
-            <FormControl fullWidth disabled={apiStatus === 'offline'}>
-              <InputLabel>Document Type</InputLabel>
-              <Select
-                value={templateData.document_type}
-                label="Document Type"
-                onChange={(e) => {
-                  const newDocType = e.target.value;
-                  const newTemplates = Object.keys(documentTypes[newDocType]?.templates || {});
-                  setTemplateData(prev => ({ 
-                    ...prev, 
-                    document_type: newDocType,
-                    template_type: newTemplates[0] || ''
-                  }));
-                }}
-              >
-                {Object.entries(documentTypes).map(([key, docType]) => (
-                  <MenuItem key={key} value={key}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {getDocumentIcon(key)}
-                      <Box>
-                        <Typography variant="body2">{docType.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {docType.description}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth disabled={apiStatus === 'offline'}>
-              <InputLabel>Template Type</InputLabel>
-              <Select
-                value={templateData.template_type}
-                label="Template Type"
-                onChange={(e) => setTemplateData(prev => ({ ...prev, template_type: e.target.value }))}
-              >
-                {Object.keys(documentTypes[templateData.document_type]?.templates || {}).map((template) => (
-                  <MenuItem key={template} value={template}>
-                    <Box>
-                      <Typography variant="body2">{template}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {documentTypes[templateData.document_type]?.templates[template]?.description}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Output Format</InputLabel>
-              <Select
-                value={templateData.format}
-                label="Output Format"
-                onChange={(e) => setTemplateData(prev => ({ ...prev, format: e.target.value }))}
-              >
-                <MenuItem value="pdf">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PictureAsPdf />
-                    PDF Document
-                  </Box>
-                </MenuItem>
-                <MenuItem value="docx">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Article />
-                    Word Document
-                  </Box>
-                </MenuItem>
-                <MenuItem value="txt">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TextFields />
-                    Plain Text
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label="AI Instructions"
-              value={templateData.instructions}
-              onChange={(e) => setTemplateData(prev => ({ ...prev, instructions: e.target.value }))}
-              multiline
-              rows={3}
-              placeholder="Provide specific instructions for the AI to generate your template..."
-              helperText="Be specific about the content, structure, and style you want"
-              disabled={apiStatus === 'offline'}
-            />
-
-            {/* Placeholder Suggestions */}
-            {suggestions.placeholders.length > 0 && (
-              <Accordion disabled={apiStatus === 'offline'}>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography>AI-Suggested Fields ({suggestions.placeholders.length})</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {suggestions.placeholders.map((ph, index) => (
-                      <Box key={ph.key} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" fontWeight="bold">
-                            {ph.key.replace(/_/g, ' ').toUpperCase()}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {ph.description} • {ph.type} • {ph.required ? 'Required' : 'Optional'}
-                          </Typography>
-                        </Box>
-                        <Chip 
-                          label={ph.section} 
-                          size="small" 
-                          color={ph.required ? "primary" : "default"}
-                          variant={ph.required ? "filled" : "outlined"}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
-            )}
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={templateData.enhance_placeholders}
-                  onChange={(e) => setTemplateData(prev => ({ ...prev, enhance_placeholders: e.target.checked }))}
-                  color="primary"
-                  disabled={apiStatus === 'offline'}
-                />
-              }
-              label="Use AI to enhance placeholders and structure"
-            />
-          </Box>
-        )}
-
-        {generationStep === 1 && (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            {loading ? (
-              <>
-                <CircularProgress size={60} sx={{ mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Generating Your Template...
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  AI is creating a professional {templateData.template_type} template
-                </Typography>
-                <LinearProgress sx={{ mt: 2 }} />
-              </>
-            ) : (
-              <Typography>Ready to generate...</Typography>
-            )}
-          </Box>
-        )}
-
-        {generationStep === 2 && generatedTemplate && (
-          <Box sx={{ textAlign: 'center', py: 2 }}>
-            <CheckCircle color="success" sx={{ fontSize: 60, mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
-              Template Generated Successfully!
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Your AI-generated "{generatedTemplate.name}" template is ready to use.
-            </Typography>
-            
-            <Card variant="outlined" sx={{ textAlign: 'left', mb: 2 }}>
-              <CardContent>
-                <Typography variant="h6">{generatedTemplate.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {templateData.document_type} • {templateData.template_type}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                  <Chip label={generatedTemplate.document_type} size="small" />
-                  <Chip label={generatedTemplate.template_type} size="small" variant="outlined" />
-                  <Chip label="AI Generated" size="small" color="primary" />
-                  <Chip label={generatedTemplate.format.toUpperCase()} size="small" color="secondary" />
-                </Box>
-                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  {Object.keys(generatedTemplate.placeholders || {}).length} placeholders • {generatedTemplate.sections?.length || 0} sections
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
       </DialogContent>
 
-      <DialogActions>
-        {generationStep === 0 && (
-          <>
-            <Button onClick={onClose}>Cancel</Button>
-            <Button 
-              variant="contained" 
-              onClick={generateTemplate}
-              disabled={!templateData.name || !templateData.template_type || apiStatus === 'offline'}
-              startIcon={<AutoFixHigh />}
-            >
-              {apiStatus === 'offline' ? 'Server Offline' : 'Generate Template'}
-            </Button>
-          </>
-        )}
-        
-        {generationStep === 1 && loading && (
-          <Button disabled>Generating...</Button>
-        )}
-        
-        {generationStep === 2 && (
-          <>
-            <Button onClick={resetGenerator}>Create Another</Button>
-            <Button variant="contained" onClick={handleUseGeneratedTemplate}>
-              Use This Template
-            </Button>
-          </>
-        )}
-      </DialogActions>
+      {/* Example Prompts Sub-Dialog */}
+      <Dialog
+        open={promptsDialogOpen}
+        onClose={() => setPromptsDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '20px' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" fontWeight="700">Explore Prompts</Typography>
+          <IconButton onClick={() => setPromptsDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <List>
+            {PROMPT_SUGGESTIONS.map((cat) => (
+              <Box key={cat.category} sx={{ mb: 2 }}>
+                <Typography variant="overline" color="primary" fontWeight="700">{cat.category}</Typography>
+                {cat.prompts.slice(0, 3).map((p) => (
+                  <ListItem 
+                    button 
+                    key={p} 
+                    onClick={() => {
+                      setDescription(`Create a professional ${p.toLowerCase()}`);
+                      setPromptsDialogOpen(false);
+                    }}
+                    sx={{ borderRadius: '8px', mb: 0.5 }}
+                  >
+                    <ListItemIcon><DescriptionIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText primary={p} primaryTypographyProps={{ variant: 'body2' }} />
+                  </ListItem>
+                ))}
+              </Box>
+            ))}
+          </List>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
@@ -1119,6 +946,7 @@ const TemplatePreviewModal = ({ template, open, onClose, onUse }) => {
 const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
   
   // State Management
   const [activeTab, setActiveTab] = useState(0);
@@ -1139,15 +967,15 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
 
   const API_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
-  // Categories for filtering
+  // Categories for filtering - Matched with backend TemplateType enum
   const categories = [
     { value: 'all', label: 'All Templates', count: 0 },
-    { value: 'letters', label: 'Letters', count: 0 },
-    { value: 'forms', label: 'Forms', count: 0 },
-    { value: 'contracts', label: 'Contracts', count: 0 },
-    { value: 'reports', label: 'Reports', count: 0 },
-    { value: 'ai_generated', label: 'AI Generated', count: 0 },
-    { value: 'manual', label: 'Manual', count: 0 }
+    { value: 'contract', label: 'Contracts', count: 0 },
+    { value: 'agreement', label: 'Agreements', count: 0 },
+    { value: 'letter', label: 'Letters', count: 0 },
+    { value: 'form', label: 'Forms', count: 0 },
+    { value: 'invoice', label: 'Invoices', count: 0 },
+    { value: 'report', label: 'Reports', count: 0 },
   ];
 
   // Sort options
@@ -1165,76 +993,49 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
     try {
       const token = localStorage.getItem('token');
       
-      // Load user's templates
+      // Load user's templates and types from the new AI Builder endpoints
       const [templatesResponse, documentTypesResponse] = await Promise.all([
-        axios.get(`${API_URL}/templates/my-templates`, {
+        axios.get(`${API_URL}/api/ai/templates/user-templates`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API_URL}/templates/document-types`, {
+        axios.get(`${API_URL}/api/ai/templates/template-types`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
       
-      // Ensure we have an array, even if API returns null/undefined
-      const templatesData = Array.isArray(templatesResponse.data) ? templatesResponse.data : [];
+      // The new endpoint returns { templates: [], total: X, ... }
+      const templatesData = Array.isArray(templatesResponse.data?.templates) 
+        ? templatesResponse.data.templates 
+        : [];
+        
       setTemplates(templatesData);
       setFilteredTemplates(templatesData);
-      setDocumentTypes(documentTypesResponse.data.document_types || {});
+      
+      // Map the array of types to a dictionary for easier lookup if needed
+      const typesList = Array.isArray(documentTypesResponse.data) ? documentTypesResponse.data : [];
+      const typesMap = {};
+      typesList.forEach(type => {
+        typesMap[type.value] = type;
+      });
+      setDocumentTypes(typesMap);
       
       // Update category counts
       updateCategoryCounts(templatesData);
       
     } catch (error) {
       console.error('Error loading templates:', error);
-      // Fallback to sample data
-      const sampleTemplates = generateSampleTemplates();
-      setTemplates(sampleTemplates);
-      setFilteredTemplates(sampleTemplates);
-      updateCategoryCounts(sampleTemplates);
+      setTemplates([]);
+      setFilteredTemplates([]);
+      setToast({ 
+        open: true, 
+        message: 'Failed to load templates from AI Service. Please check your connection.', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate sample templates for demo
-  const generateSampleTemplates = () => {
-    return [
-      {
-        id: '1',
-        name: 'Professional Business Letter',
-        description: 'Formal business correspondence template with company branding',
-        document_type: 'letters',
-        template_type: 'Business Letter',
-        isAIgenerated: true,
-        usage_count: 45,
-        rating: '4.8',
-        tags: ['business', 'professional', 'corporate'],
-        content: '<div>Business Letter Template Content</div>',
-        placeholders: { sender_name: '', recipient_name: '', date: '', subject: '', body_content: '' },
-        sections: ['header', 'recipient', 'subject', 'body', 'closing'],
-        format: 'pdf',
-        created_at: '2024-01-15T10:30:00Z',
-        updated_at: '2024-01-15T10:30:00Z'
-      },
-      {
-        id: '2',
-        name: 'Employment Contract',
-        description: 'Comprehensive employment agreement template',
-        document_type: 'contracts',
-        template_type: 'Employment Contract',
-        isAIgenerated: false,
-        usage_count: 32,
-        rating: '4.6',
-        tags: ['legal', 'employment', 'contract'],
-        content: '<div>Employment Contract Template Content</div>',
-        placeholders: { employee_name: '', employer_name: '', start_date: '', salary: '', position: '' },
-        sections: ['parties', 'terms', 'compensation', 'responsibilities'],
-        format: 'pdf',
-        created_at: '2024-01-10T14:20:00Z',
-        updated_at: '2024-01-10T14:20:00Z'
-      }
-    ];
-  };
 
   // Update category counts
   const updateCategoryCounts = (templateList) => {
@@ -1243,12 +1044,8 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
     categories.forEach(cat => {
       if (cat.value === 'all') {
         cat.count = templateArray.length;
-      } else if (cat.value === 'ai_generated') {
-        cat.count = templateArray.filter(t => t?.isAIgenerated).length;
-      } else if (cat.value === 'manual') {
-        cat.count = templateArray.filter(t => t && !t.isAIgenerated).length;
       } else {
-        cat.count = templateArray.filter(t => t?.document_type === cat.value).length;
+        cat.count = templateArray.filter(t => t?.template_type === cat.value).length;
       }
     });
   };
@@ -1272,13 +1069,7 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
 
     // Apply category filter
     if (selectedCategory !== 'all') {
-      if (selectedCategory === 'ai_generated') {
-        filtered = filtered.filter(t => t.isAIgenerated);
-      } else if (selectedCategory === 'manual') {
-        filtered = filtered.filter(t => !t.isAIgenerated);
-      } else {
-        filtered = filtered.filter(t => t.document_type === selectedCategory);
-      }
+      filtered = filtered.filter(t => t?.template_type === selectedCategory);
     }
 
     // Apply sorting
@@ -1356,16 +1147,19 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
   };
 
   // Handle AI template generation
-  const handleAITemplateGenerated = (template) => {
-    if (template) {
-      // Add the new template to the beginning of the list
-      setTemplates(prev => [template, ...prev]);
+  const handleAITemplateGenerated = (documentId) => {
+    if (documentId) {
       setToast({
         open: true,
-        message: 'AI template generated successfully!',
+        message: 'AI template generated successfully! Redirecting to editor...',
         type: 'success'
       });
-      handleTemplateUse(template);
+      
+      // Close browser and navigate to editor
+      setTimeout(() => {
+        onClose();
+        navigate(`/user/documentbuilder/${documentId}`);
+      }, 1500);
     }
   };
 

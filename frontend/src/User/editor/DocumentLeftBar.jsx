@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -29,7 +30,8 @@ import {
   AccountCircle as FullNameIcon,
   Image as ImageIcon,
   TaskAlt as ApprovalIcon,
-  Group as WitnessIcon
+  Group as WitnessIcon,
+  People as ManageIcon
 } from '@mui/icons-material';
 import { FIELD_TYPES, FIELD_ROLES, getRecipientColor, ROLE_FIELD_RULES } from '../../config/fieldConfig';
 
@@ -85,6 +87,8 @@ const DocumentLeftBar = ({
   onAddRecipientClick,
   zoomLevel = 1.0
 }) => {
+  const navigate = useNavigate();
+  const { documentId } = useParams();
   const handleDragStart = (e, fieldType, fieldLabel, fieldColor) => {
     e.dataTransfer.setData('text/plain', fieldType);
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -309,7 +313,7 @@ const DocumentLeftBar = ({
           );
         })}
 
-        <Box sx={{ p: 1.5 }}>
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Button
             fullWidth
             size="small"
@@ -331,6 +335,26 @@ const DocumentLeftBar = ({
             }}
           >
             Add Recipient
+          </Button>
+
+          <Button
+            fullWidth
+            size="small"
+            variant="text"
+            startIcon={<ManageIcon />}
+            onClick={() => navigate(`/user/prepare-send/${documentId}`)}
+            sx={{
+              color: '#64748b',
+              textTransform: 'none',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              '&:hover': {
+                bgcolor: '#f1f5f9',
+                color: '#334155'
+              }
+            }}
+          >
+            Manage Recipients
           </Button>
         </Box>
       </Box>

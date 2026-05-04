@@ -552,9 +552,9 @@ export const getContactAnalytics = async () => {
 };
 
 // Get complete analytics data
-export const getCompleteAnalytics = async () => {
+export const getCompleteAnalytics = async (days = 30) => {
   try {
-    const response = await api.get('/documents/analytics/complete');
+    const response = await api.get(`/documents/analytics/complete?days=${days}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching analytics:', error);

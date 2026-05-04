@@ -3049,7 +3049,8 @@ async def email_signed_document(
 @router.get("/recipient/{recipient_id}/download/signed")
 async def download_signed_document(
     recipient_id: str,
-    request: Request
+    request: Request,
+    disposition: str = Query("attachment", description="Content-disposition: attachment or inline")
 ):
     """
     Main download endpoint for signed document.
@@ -3176,7 +3177,7 @@ async def download_signed_document(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Disposition": f'{disposition}; filename="{filename}"',
                 "Content-Length": str(len(pdf_bytes)),
                 "X-Document-ID": str(document["_id"]),
                 "X-Completed-Fields": str(completed_count)

@@ -73,7 +73,14 @@ EVENT_TITLES = {
     "recipient_signed_preview": "Signed Preview Viewed",
     "document_finalized": "Document Finalized",
     "document_voided": "Document Voided",
-    "recipient_delegated": "Document Delegated"
+    "recipient_delegated": "Document Delegated",
+    "download_original": "Original Document Downloaded",
+    "download_signed_document": "Signed Document Downloaded",
+    "download_certificate": "Certificate Downloaded",
+    "download_package": "Document Package Downloaded",
+    "package_downloaded": "Document Package Downloaded",
+    "download_signed": "Signed Document Downloaded",
+    "download_professional_summary": "Professional Summary Downloaded"
 }
 
 EVENT_DESCRIPTIONS = {
@@ -1772,14 +1779,9 @@ async def get_active_subscription(email: str) -> Optional[Dict]:
     Returns None if no active subscription.
     """
     try:
-        # First try to find user by email
-        user = db.users.find_one({"email": email})
-        if not user:
-            return None
-        
-        # Find active subscription
+        # Find active subscription by user_email
         subscription = db.subscriptions.find_one({
-            "user_id": user["_id"],
+            "user_email": email,
             "status": "active",
             "expiry_date": {"$gte": datetime.utcnow()}
         })
@@ -1790,12 +1792,14 @@ async def get_active_subscription(email: str) -> Optional[Dict]:
         return None
 
 # Add PLAN_CONFIG if it's used
+# PLAN_CONFIG synced with subscription.py
 PLAN_CONFIG = {
     "free": {"name": "Free Plan", "price": 0},
-    "basic": {"name": "Basic Plan", "price": 9.99},
-    "pro": {"name": "Professional Plan", "price": 29.99},
-    "enterprise": {"name": "Enterprise Plan", "price": 99.99},
-    "free_trial": {"name": "Free Trial", "price": 0}
+    "free_trial": {"name": "Free Trial", "price": 0},
+    "monthly": {"name": "Monthly Plan", "price": 9.99},
+    "yearly": {"name": "Yearly Plan", "price": 99.99},
+    "enterprise": {"name": "Enterprise Plan", "price": 0},
+    "lifetime": {"name": "Lifetime Plan", "price": 499.00}
 }
 
 
@@ -2143,7 +2147,7 @@ async def process_add_file_task(
 
         db.documents.update_one(
             {"_id": doc_oid},
-            {"$set": {"progress": 100, "processing_status": "Complete"}}
+            {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
         )
 
         _log_event(
@@ -2655,6 +2659,12 @@ async def replace_document_file(
     old_pages = existing["page_count"]
     old_filename = existing["filename"]
 
+    # Set to processing
+    db.documents.update_one(
+        {"_id": doc_oid},
+        {"$set": {"status": "processing", "progress": 30, "processing_status": "Replacing file..."}}
+    )
+
     # Convert new file to PDF
     content = await file.read()
     pdf_bytes = convert_to_pdf(content, file.filename)
@@ -2709,6 +2719,12 @@ async def replace_document_file(
 
     # Update overall document summary (metadata)
     update_document_summary_metadata(document_id)
+
+    # Return to draft
+    db.documents.update_one(
+        {"_id": doc_oid},
+        {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
+    )
 
     # Timeline log
     _log_event(
@@ -2864,6 +2880,12 @@ async def merge_selected_files(
     if not doc:
         raise HTTPException(404, "Document not found or not editable")
 
+    # Set to processing
+    db.documents.update_one(
+        {"_id": doc_oid},
+        {"$set": {"status": "processing", "progress": 20, "processing_status": "Merging files..."}}
+    )
+
     # Fetch selected files IN USER ORDER
     selected_files = []
     for fid in file_ids:
@@ -2953,6 +2975,12 @@ async def merge_selected_files(
 
     # Refresh document global metadata
     update_document_summary_metadata(document_id)
+
+    # Return to draft
+    db.documents.update_one(
+        {"_id": doc_oid},
+        {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
+    )
 
     # Timeline log
     _log_event(
@@ -6571,6 +6599,7 @@ async def search_documents(
 @router.get("/analytics/complete")
 async def get_complete_analytics(
     current_user: dict = Depends(get_current_user),
+    days: int = Query(30),
     request: Request = None
 ):
     """
@@ -6678,6 +6707,10 @@ async def get_complete_analytics(
         recip_stats["total"] = total_recips
         recip_stats["avg_signing_time"] = round(sum_hours / max(total_comp, 1), 1)
         recip_stats["completion_rate"] = round((total_comp / max(total_recips, 1)) * 100, 1)
+        
+        # Map for frontend labels
+        recip_stats["invited"] = recip_stats.get("sent", 0)
+        recip_stats["in_progress"] = recip_stats.get("viewed", 0)
 
         for item in agg_results.get("role_distribution", []):
             role = item["_id"] or "signer"
@@ -6758,8 +6791,14 @@ async def get_complete_analytics(
         # Get list of user's document IDs for timeline queries
         doc_ids_list = [d["_id"] for d in db.documents.find({"owner_id": owner_id, "status": {"$ne": "deleted"}}, {"_id": 1})]
         
+        # Build timeline match query with date filtering
+        timeline_match = {"document_id": {"$in": doc_ids_list}}
+        if days > 0:
+            start_date = now - timedelta(days=days)
+            timeline_match["timestamp"] = {"$gte": start_date}
+
         timeline_agg = list(db.document_timeline.aggregate([
-            {"$match": {"document_id": {"$in": doc_ids_list}}},
+            {"$match": timeline_match},
             {"$facet": {
                 "events": [{"$sort": {"timestamp": -1}}, {"$limit": 500}],
                 "type_counts": [
@@ -6776,13 +6815,41 @@ async def get_complete_analytics(
         ]))[0]
 
         # Activity Intelligence
+        raw_counts = {str(i.get("_id", "unknown")): int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])}
         act_stats: Dict[str, Any] = {
-            "total": sum(int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])),
-            "counts": {str(i.get("_id", "unknown")): int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])},
+            "total": sum(raw_counts.values()),
+            "counts": raw_counts,
             "timeline": [], 
             "hourly": [0]*24, 
             "platforms": {}
         }
+        
+        # Normalize keys for frontend "Real-time Operations" dashboard
+        act_stats["counts"]["viewed"] = (
+            raw_counts.get("document_viewed", 0) + 
+            raw_counts.get("recipient_viewed", 0) + 
+            raw_counts.get("view_live_document", 0)
+        )
+        act_stats["counts"]["signed"] = (
+            raw_counts.get("recipient_completed", 0) + 
+            raw_counts.get("recipient_signed", 0) +
+            raw_counts.get("field_completed", 0) +
+            raw_counts.get("manual_recipient_completion", 0)
+        )
+        act_stats["counts"]["downloaded"] = (
+            raw_counts.get("document_downloaded", 0) + 
+            raw_counts.get("download_original", 0) + 
+            raw_counts.get("download_signed_document", 0) +
+            raw_counts.get("download_certificate", 0) +
+            raw_counts.get("download_package", 0) +
+            raw_counts.get("package_downloaded", 0) +
+            raw_counts.get("download_signed", 0) +
+            raw_counts.get("download_professional_summary", 0)
+        )
+        act_stats["counts"]["declined"] = (
+            raw_counts.get("decline_terms", 0) + 
+            raw_counts.get("document_declined", 0)
+        )
         
         # Process hourly and daily trends
         day_counts: Dict[str, int] = {}
@@ -6856,6 +6923,7 @@ async def get_complete_analytics(
             sub_info.update({
                 "has_active": True, "status": str(sub_record.get("status", "active")),
                 "plan": str(PLAN_CONFIG.get(str(sub_record.get("plan_type")), {}).get("name", "Active Plan")),
+                "plan_type": str(sub_record.get("plan_type", "free")),
                 "days_left": max(0, (exp_date - now).days) if isinstance(exp_date, datetime) else 0
             })
 

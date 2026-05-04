@@ -306,7 +306,7 @@ const BlogPage = () => {
                           </div>
                         </div>
 
-                        <button className="safe-read-btn">Read Article</button>
+
                       </div>
                     </article>
                   ))}

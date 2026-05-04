@@ -13,7 +13,8 @@ import {
   AlertCircle, Clock, Mail, Download, Eye, Edit,
   DollarSign, CreditCard, UserPlus, Star, Activity,
   Shield, Target, Zap, PieChart as PieChartIcon,
-  ChevronDown, ChevronUp, Calendar, Award, Briefcase
+  ChevronDown, ChevronUp, Calendar, Award, Briefcase,
+  Crown, Gem
 } from 'lucide-react';
 import '../style/DashboardAnalyticsInline.css';
 
@@ -30,7 +31,9 @@ const DashboardAnalyticsInline = ({
   analyticsData,
   loading,
   expandedSections,
-  onToggleSection
+  onToggleSection,
+  timeRange = '30',
+  onTimeRangeChange
 }) => {
 
   // Prepare chart data from real analytics
@@ -372,7 +375,7 @@ const DashboardAnalyticsInline = ({
         <div className="kpi-card small">
           <div className="kpi-icon blue"><Activity size={20} /></div>
           <div className="kpi-content">
-            <span className="kpi-label">Total</span>
+            <span className="kpi-label">Total Ops</span>
             <span className="kpi-value">{analyticsData.activities?.total || 0}</span>
           </div>
         </div>
@@ -440,24 +443,58 @@ const DashboardAnalyticsInline = ({
   );
 
   // Subscription Analytics Section
-  const SubscriptionSection = () => (
-    <div className="analytics-section-content">
-      <div className="subscription-mini-card" data-active={analyticsData.subscription?.has_active}>
-        <div className="plan-info">
-          <span className="plan-badge">
-            {analyticsData.subscription?.has_active ? 'ACTIVE' : 'INACTIVE'}
-          </span>
-          <span className="plan-name">{analyticsData.subscription?.plan || 'Free Account'}</span>
-        </div>
-        {analyticsData.subscription?.days_left > 0 && (
-          <div className="days-remaining">
-            <Clock size={14} />
-            <span>{analyticsData.subscription.days_left} days remaining</span>
+  const SubscriptionSection = () => {
+    const planType = analyticsData.subscription?.plan_type || 'free';
+    const isActive = analyticsData.subscription?.has_active;
+    
+    const getPlanIcon = () => {
+      switch(planType) {
+        case 'enterprise': return <Award size={24} />;
+        case 'yearly': return <Crown size={24} />;
+        case 'monthly': return <Zap size={24} />;
+        case 'lifetime': return <Gem size={24} />;
+        default: return <Star size={24} />;
+      }
+    };
+
+    return (
+      <div className="analytics-section-content">
+        <div className={`subscription-premium-card ${planType}`} data-active={isActive}>
+          <div className="premium-card-header">
+            <div className="plan-icon-wrapper">
+              {getPlanIcon()}
+            </div>
+            <div className="plan-main-info">
+              <span className="plan-badge">
+                {isActive ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+              <h3 className="plan-display-name">{analyticsData.subscription?.plan || 'Free Account'}</h3>
+            </div>
           </div>
-        )}
+          
+          <div className="premium-card-details">
+            {analyticsData.subscription?.days_left > 0 && (
+              <div className="detail-item">
+                <Clock size={14} />
+                <span>{analyticsData.subscription.days_left} days remaining</span>
+              </div>
+            )}
+            <div className="detail-item">
+              <Calendar size={14} />
+              <span>Status: {analyticsData.subscription?.status || 'Inactive'}</span>
+            </div>
+          </div>
+          
+          {planType === 'enterprise' && (
+            <div className="enterprise-feature-tag">
+              <Shield size={12} />
+              <span>Enterprise Grade Security Enabled</span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Contacts Analytics Section
   const ContactsSection = () => (
@@ -526,9 +563,24 @@ const DashboardAnalyticsInline = ({
           <h2 className="dashboard-title">System Insights</h2>
         </div>
         <div className="time-range-selector">
-          <button className="range-btn active">Last 30 Days</button>
-          <button className="range-btn">90 Days</button>
-          <button className="range-btn">All Time</button>
+          <button 
+            className={`range-btn ${timeRange === '30' ? 'active' : ''}`}
+            onClick={() => onTimeRangeChange && onTimeRangeChange('30')}
+          >
+            Last 30 Days
+          </button>
+          <button 
+            className={`range-btn ${timeRange === '90' ? 'active' : ''}`}
+            onClick={() => onTimeRangeChange && onTimeRangeChange('90')}
+          >
+            90 Days
+          </button>
+          <button 
+            className={`range-btn ${timeRange === 'all' ? 'active' : ''}`}
+            onClick={() => onTimeRangeChange && onTimeRangeChange('all')}
+          >
+            All Time
+          </button>
         </div>
       </div>
 

@@ -17,68 +17,62 @@ function PricingSection() {
       "Find the perfect plan for your business with SafeSign's transparent pricing. From individual pros to large enterprises, we offer scalable e-signature and document management solutions."
     );
   }, []);
-  const [billingCycle, setBillingCycle] = useState('monthly');
+  
   const navigate = useNavigate();
-
-
 
   const plans = [
     {
-      name: 'Basic',
-      price: 22,
-      description: 'Everything in our free plan plus....',
+      name: 'BASIC',
+      price: '9.99',
+      description: 'Perfect for individuals & small projects',
       features: [
-        '200+ integrations',
-        'Advanced reporting and analytics',
-        'Up to 10 individual users',
-        '20GB individual data each user',
-        'Basic chat and email support'
+        'Unlimited Document Uploads',
+        'Professional Document Builder',
+        'Real-time Email Notifications',
+        'Standard Audit Trails',
+        'Basic Document Analytics',
+        'Email Support'
       ],
-      cta: 'Get started',
-      color: '#4ba6f1'
+      cta: 'Start Monthly',
+      color: '#ff6a34', // Orange
+      period: 'per month'
     },
     {
-      name: 'Business',
-      price: 40,
-      description: 'Everything in Basic plus....',
+      name: 'STANDARD',
+      price: '99.99',
+      description: 'Ideal for growing teams & professionals',
       features: [
-        '200+ integrations',
-        'Advanced reporting and analytics',
-        'Up to 20 individual users',
-        '40GB individual data each user',
-        'Priority chat and email support'
+        'Everything in Basic',
+        'AI-Powered Template Generation',
+        'Custom Branding (Logos)',
+        'AI Field Auto-Positioning',
+        'Advanced Analytics Dashboard',
+        'Priority Chat Support'
       ],
-      cta: 'Get started',
-      color: '#10b981',
-      popular: true
+      cta: 'Go Standard',
+      color: '#1e6afb', // Blue
+      popular: true,
+      period: 'per year'
     },
     {
-      name: 'Enterprise',
-      price: 64,
-      description: 'Everything in Business plus....',
+      name: 'ENTERPRISE',
+      price: '0',
+      description: 'For large organizations with complex needs',
       features: [
-        '200+ integrations',
-        'Advanced reporting and analytics',
-        'Unlimited individual users',
-        'Unlimited individual data',
-        'Personalized + priority service'
+        'Everything in Standard',
+        'Dedicated Account Manager',
+        'Custom SLA & API Access',
+        'In-person Signing Support',
+        'White-label Document Portal',
+        'Single Sign-On (SSO)'
       ],
-      cta: 'Get started',
-      color: '#f6da5c'
+      cta: 'Contact Enterprise',
+      color: '#00c25a', // Green
+      isEnterprise: true
     }
   ];
 
-  const getPrice = (plan) => {
-    if (billingCycle === 'annually') {
-      const annualPrice = Math.round(plan.price * 12 * 0.8); // 20% discount
-      return `$${annualPrice}`;
-    }
-    return `$${plan.price}`;
-  };
 
-  const getPeriod = () => {
-    return billingCycle === 'monthly' ? 'per month' : 'per year';
-  };
 
   return (
     <div className="modern-pricing">
@@ -86,27 +80,8 @@ function PricingSection() {
       {/* Header */}
       <div className="modern-pricing-header">
         <div className="modern-container">
-          <h1 className="modern-title">Simple & transparent pricing for all business sizes</h1>
-
-          {/* Billing Toggle */}
-          <div className="billing-options">
-            <button
-              className={`billing-option ${billingCycle === 'monthly' ? 'active' : ''}`}
-              onClick={() => setBillingCycle('monthly')}
-            >
-              <div className="billing-dot"></div>
-              <span>Monthly billing</span>
-            </button>
-
-            <button
-              className={`billing-option ${billingCycle === 'annually' ? 'active' : ''}`}
-              onClick={() => setBillingCycle('annually')}
-            >
-              <div className="billing-dot"></div>
-              <span>Annual billing</span>
-              <span className="save-label">Save 20%</span>
-            </button>
-          </div>
+          <h1 className="modern-title">Choose the perfect plan for your business</h1>
+          <p className="modern-subtitle">Simple, transparent pricing. No hidden fees.</p>
         </div>
       </div>
 
@@ -123,11 +98,29 @@ function PricingSection() {
                 )}
 
                 <div className="card-content">
-                  <div className="card-header">
-                    <h3 className="plan-name">{plan.name} plan</h3>
-                    <div className="price-section">
-                      <span className="price">{getPrice(plan)}</span>
-                      <span className="period">{getPeriod()}</span>
+                  <div className="card-header-v2">
+                    <div className="plan-badge" style={{ backgroundColor: `${plan.color}15`, color: plan.color }}>
+                      {plan.name}
+                    </div>
+                    <div className="price-container">
+                      {plan.isEnterprise ? (
+                        <div className="enterprise-price-box">
+                          <span className="enterprise-title" style={{ color: plan.color }}>Custom Plan</span>
+                          <span className="enterprise-desc">Talk to Sales</span>
+                        </div>
+                      ) : (
+                        <div className="standard-price-box">
+                          {plan.originalPrice && (
+                            <span className="strikethrough-price">${plan.originalPrice}</span>
+                          )}
+                          <div className="price-main">
+                            <span className="currency">$</span>
+                            <span className="amount">{plan.price.split('.')[0]}</span>
+                            <span className="decimal">.{plan.price.split('.')[1]}</span>
+                          </div>
+                          <span className="price-period">{plan.period}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -330,74 +323,23 @@ function PricingSection() {
         }
 
         .modern-title {
-          font-size: 38px;
-          font-weight: 700;
-          color: #0f766e;
+          font-size: 48px;
+          font-weight: 800;
+          color: #1e293b;
+          margin-bottom: 16px;
+          line-height: 1.1;
+          letter-spacing: -1.5px;
+        }
+
+        .modern-subtitle {
+          font-size: 20px;
+          color: #64748b;
           margin-bottom: 48px;
-          line-height: 1.2;
-          max-width: 600px;
-          margin-left: auto;
-          margin-right: auto;
+          font-weight: 400;
         }
 
         .billing-options {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
-          margin-top: 40px;
-        }
-
-        .billing-option {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 16px 24px;
-          background: #f9fafb;
-          border: 2px solid #e5e7eb;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.3s;
-          position: relative;
-          font-size: 16px;
-          font-weight: 500;
-          color: #6b7280;
-        }
-
-        .billing-option:hover {
-          border-color: #d1d5db;
-          background: #f3f4f6;
-        }
-
-        .billing-option.active {
-          background: #ffffff;
-          border-color: #0f766e;
-          color: #111827;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
-        }
-
-        .billing-dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          background: #d1d5db;
-          transition: background 0.3s;
-        }
-
-        .billing-option.active .billing-dot {
-          background: #0f766e;
-        }
-
-        .save-label {
-          position: absolute;
-          top: -8px;
-          right: -8px;
-          background: #10b981;
-          color: white;
-          font-size: 12px;
-          font-weight: 600;
-          padding: 4px 8px;
-          border-radius: 12px;
-          white-space: nowrap;
+          display: none;
         }
 
         /* Cards Section */
@@ -454,38 +396,95 @@ function PricingSection() {
           height: 100%;
         }
 
-        .card-header {
+        /* Header V2 Styles */
+        .card-header-v2 {
           text-align: center;
           margin-bottom: 32px;
-        }
-
-        .plan-name {
-          font-size: 24px;
-          font-weight: 600;
-          color: #111827;
-          margin-bottom: 16px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .price-section {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
+          gap: 16px;
         }
 
-        .price {
-          font-size: 48px;
+        .plan-badge {
+          padding: 6px 16px;
+          border-radius: 20px;
+          font-size: 14px;
           font-weight: 800;
-          color: #111827;
-          line-height: 1;
+          text-transform: uppercase;
+          letter-spacing: 1px;
         }
 
-        .period {
+        .price-container {
+          min-height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .strikethrough-price {
           font-size: 16px;
-          color: #6b7280;
-          font-weight: 500;
+          color: #94a3b8;
+          text-decoration: line-through;
+          font-weight: 600;
+          display: block;
+          margin-bottom: 2px;
+        }
+
+        .price-main {
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          color: #1e293b;
+        }
+
+        .currency {
+          font-size: 20px;
+          font-weight: 700;
+          margin-top: 6px;
+          margin-right: 2px;
+        }
+
+        .amount {
+          font-size: 56px;
+          font-weight: 800;
+          line-height: 1;
+          letter-spacing: -2px;
+        }
+
+        .decimal {
+          font-size: 20px;
+          font-weight: 700;
+          margin-top: 6px;
+        }
+
+        .price-period {
+          font-size: 13px;
+          color: #64748b;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-top: 4px;
+          display: block;
+        }
+
+        .enterprise-price-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .enterprise-title {
+          font-size: 32px;
+          font-weight: 800;
+          letter-spacing: -1px;
+        }
+
+        .enterprise-desc {
+          font-size: 15px;
+          color: #64748b;
+          font-weight: 600;
+          margin-top: 4px;
         }
 
         .cta-button {
@@ -494,12 +493,23 @@ function PricingSection() {
           background: #0f766e;
           color: white;
           border: none;
-          border-radius: 12px;
+          border-radius: 14px;
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 700;
           cursor: pointer;
           transition: all 0.3s;
           margin-bottom: 32px;
+          box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .cta-button:hover {
+          background: #115e59;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(15, 118, 110, 0.3);
         }
 
         .cta-button:hover {

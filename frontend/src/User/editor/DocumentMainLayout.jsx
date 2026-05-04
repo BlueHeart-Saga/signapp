@@ -1310,41 +1310,58 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
             <Divider orientation="vertical" flexItem />
 
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={document?.signing_order_enabled || false}
-                  onChange={async (e) => {
-                    const enabled = e.target.checked;
-                    try {
-                      setSaving(true);
-                      await fetch(`${API_BASE_URL}/documents/${documentId}/settings`, {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json",
-                          "Authorization": `Bearer ${localStorage.getItem("token")}`
-                        },
-                        body: JSON.stringify({ signing_order_enabled: enabled })
-                      });
-                      setDocument(prev => ({ ...prev, signing_order_enabled: enabled }));
-                      showSnackbar(`Switched to ${enabled ? 'Sequential' : 'Parallel'} signing`, 'success');
-                    } catch (err) {
-                      showSnackbar('Failed to update signing order', 'error');
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
-                  color="primary"
-                />
+            <Tooltip 
+              title={
+                <Box sx={{ p: 0.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    {document?.signing_order_enabled ? 'Sequential Signing' : 'Parallel Signing'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block', opacity: 0.9 }}>
+                    {document?.signing_order_enabled 
+                      ? 'Recipients sign one by one in the order specified.' 
+                      : 'All recipients can sign the document at the same time.'}
+                  </Typography>
+                </Box>
               }
-              label={
-                <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 600 }}>
-                  Order
-                </Typography>
-              }
-              sx={{ mr: 1 }}
-            />
+              arrow
+              placement="bottom"
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={document?.signing_order_enabled || false}
+                    onChange={async (e) => {
+                      const enabled = e.target.checked;
+                      try {
+                        setSaving(true);
+                        await fetch(`${API_BASE_URL}/documents/${documentId}/settings`, {
+                          method: "PUT",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${localStorage.getItem("token")}`
+                          },
+                          body: JSON.stringify({ signing_order_enabled: enabled })
+                        });
+                        setDocument(prev => ({ ...prev, signing_order_enabled: enabled }));
+                        showSnackbar(`Switched to ${enabled ? 'Sequential' : 'Parallel'} signing`, 'success');
+                      } catch (err) {
+                        showSnackbar('Failed to update signing order', 'error');
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 600 }}>
+                    Order
+                  </Typography>
+                }
+                sx={{ mr: 1 }}
+              />
+            </Tooltip>
 
             <Chip
               label={`${fields.length} fields`}

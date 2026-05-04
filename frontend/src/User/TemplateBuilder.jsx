@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -165,6 +165,9 @@ import {
 import { DndProvider } from 'react-dnd';
 import { useNavigate } from 'react-router-dom';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Joyride, STATUS } from 'react-joyride';
 import DocumentMainLayout from './editor/DocumentMainLayout';
 import { useAuth } from '../context/AuthContext';
 import SubscriptionExpiredBlock from '../components/SubscriptionExpiredBlock';
@@ -2177,6 +2180,114 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
   const [promptsDialogOpen, setPromptsDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [generatedDocId, setGeneratedDocId] = useState(null);
+  const [htmlContent, setHtmlContent] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingWord, setUploadingWord] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Joyride Tour State (Main Page)
+  const [runTour, setRunTour] = useState(false);
+  const tourSteps = useMemo(() => [
+    {
+      target: '#ai-input-container',
+      title: 'Draft Your Idea',
+      content: 'Simply describe the document you want to create. Our AI handles the legal structure and formatting for you.',
+      disableBeacon: true,
+      placement: 'bottom',
+    },
+    {
+      target: '#ai-prompt-button',
+      title: 'Need Inspiration?',
+      content: 'Click here to see a list of professional prompts and document ideas to get you started quickly.',
+      disableBeacon: true,
+    },
+    {
+      target: '#ai-generate-button',
+      title: 'Generate Instantly',
+      content: 'Once you\'re ready, click generate to let the AI build your first draft in seconds.',
+      disableBeacon: true,
+    }
+  ], []);
+
+  // Joyride Tour State (Preview Dialog)
+  const [runPreviewTour, setRunPreviewTour] = useState(false);
+  const previewTourSteps = useMemo(() => [
+    {
+      target: '#ai-editor-content',
+      title: '✍️ Professional Rich Text Editing',
+      content: 'Your document is ready for refinement! Use our built-in editor to polish the text. We\'ve pre-configured it with professional legal formatting (Times New Roman, 16px) to match enterprise standards.',
+      disableBeacon: true,
+      placement: 'top',
+    },
+    {
+      target: '#ai-download-word',
+      title: '📥 Seamless Word Integration',
+      content: 'Need to use Microsoft Word\'s advanced features? No problem. Download this draft as a .docx file and keep editing with your favorite local tools.',
+      disableBeacon: true,
+    },
+    {
+      target: '#ai-upload-word',
+      title: '📤 Sync Your Changes',
+      content: 'Once you\'ve finished editing in Word, simply upload it back. Our system will automatically convert it into a clean, digital format and regenerate your PDF instantly.',
+      disableBeacon: true,
+    },
+    {
+      target: '#ai-preview-pdf',
+      title: '👁️ Verify Final Layout',
+      content: 'Confidence is key! Click here to see exactly how your document will look in its final PDF form. This is the precise version your recipients will sign.',
+      disableBeacon: true,
+    },
+    {
+      target: '#ai-finish-button',
+      title: '🚀 Seal & Send',
+      content: 'Happy with the result? Clicking this will finalize your template and whisk you away to our Document Builder, where you can add signature fields and invite recipients!',
+      disableBeacon: true,
+    },
+  ], []);
+
+  useEffect(() => {
+    const tourCompleted = localStorage.getItem('ss_builder_tour_completed');
+    if (!tourCompleted) {
+      setRunTour(true);
+    }
+  }, []);
+
+  // Trigger preview tour when dialog opens for the first time
+  useEffect(() => {
+    if (previewDialogOpen) {
+      const previewTourCompleted = localStorage.getItem('ss_preview_tour_completed');
+      if (!previewTourCompleted) {
+        setTimeout(() => setRunPreviewTour(true), 500);
+      }
+    }
+  }, [previewDialogOpen]);
+
+  const handleTourCallback = (data) => {
+    const { status } = data;
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      localStorage.setItem('ss_builder_tour_completed', 'true');
+      setRunTour(false);
+    }
+  };
+
+  const handlePreviewTourCallback = (data) => {
+    const { status } = data;
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      localStorage.setItem('ss_preview_tour_completed', 'true');
+      setRunPreviewTour(false);
+    }
+  };
+
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: '',
+  });
+
+  useEffect(() => {
+    if (editor && htmlContent) {
+      editor.commands.setContent(htmlContent);
+    }
+  }, [editor, htmlContent]);
 
   const navigate = useNavigate();
 
@@ -2199,6 +2310,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
 
       if (response.success && response.document_id) {
         setGeneratedDocId(response.document_id);
+        setHtmlContent(response.html_content || '');
         setPreviewDialogOpen(true);
       } else {
         throw new Error(response.message || 'Workflow generation failed');
@@ -2211,18 +2323,117 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
     }
   };
 
+  const handleFinishAndBuild = async () => {
+    if (!editor || !generatedDocId) return;
+
+    setSavingEdit(true);
+    try {
+      const editedHTML = editor.getHTML();
+      const response = await fetch(`${API_BASE_URL}/api/ai/templates/update-from-html/${generatedDocId}`, {
+        method: 'POST',
+        headers: await TemplateAPIService.getAuthHeaders(),
+        body: JSON.stringify({ html_content: editedHTML })
+      });
+
+      if (!response.ok) throw new Error('Failed to update document');
+
+      setPreviewDialogOpen(false);
+      onTemplateGenerated(generatedDocId);
+    } catch (err) {
+      console.error('Update failed:', err);
+      setError('Failed to save your edits. Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    if (!generatedDocId) return;
+    window.open(`${API_BASE_URL}/api/ai/templates/download-docx/${generatedDocId}?token=${localStorage.getItem('token')}`, '_blank');
+  };
+
+  const handleUploadWord = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !generatedDocId) return;
+
+    setUploadingWord(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai/templates/upload-docx/${generatedDocId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      if (data.success) {
+        setHtmlContent(data.html_content);
+        editor.commands.setContent(data.html_content);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setError('Failed to upload and process the Word file.');
+    } finally {
+      setUploadingWord(false);
+    }
+  };
+
+  const handlePreviewPDF = () => {
+    if (!generatedDocId) return;
+    window.open(`${API_BASE_URL}/documents/${generatedDocId}/builder-pdf?token=${localStorage.getItem('token')}`, '_blank');
+  };
+
   return (
     <Box sx={{
-      height: '100%',
+      minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       textAlign: 'center',
-      px: 3,
+      px: { xs: 2, sm: 3 },
+      py: { xs: 4, sm: 0 },
       background: 'radial-gradient(circle at 50% 50%, #f8faff 0%, #ffffff 100%)',
-      position: 'relative'
+      position: 'relative',
+      overflowX: 'hidden',
+      '&::-webkit-scrollbar': { display: 'none' },
+      msOverflowStyle: 'none',
+      scrollbarWidth: 'none',
     }}>
+      <Joyride
+        steps={tourSteps}
+        run={runTour}
+        continuous
+        showProgress
+        showSkipButton
+        callback={handleTourCallback}
+        styles={{
+          options: {
+            primaryColor: '#0f766e',
+            zIndex: 10000,
+          },
+        }}
+      />
+      <Joyride
+        steps={previewTourSteps}
+        run={runPreviewTour}
+        continuous
+        showProgress
+        showSkipButton
+        callback={handlePreviewTourCallback}
+        styles={{
+          options: {
+            primaryColor: '#0f766e',
+            zIndex: 20000,
+          },
+        }}
+      />
       {/* Back button positioned floating top-left */}
       <IconButton
         onClick={onBack}
@@ -2240,22 +2451,23 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
 
       {/* Hero Section */}
       <Fade in={true} timeout={800}>
-        <Box sx={{ mb: 6, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box sx={{ mb: { xs: 4, sm: 6 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Box sx={{
-            width: 64,
-            height: 64,
+            width: { xs: 48, sm: 64 },
+            height: { xs: 48, sm: 64 },
             borderRadius: '18px',
             bgcolor: alpha('#0f766e', 0.1),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            mb: 3
+            mb: { xs: 2, sm: 3 }
           }}>
-            <AutoAwesomeIcon sx={{ fontSize: 32, color: '#0f766e' }} />
+            <AutoAwesomeIcon sx={{ fontSize: { xs: 24, sm: 32 }, color: '#0f766e' }} />
           </Box>
           <Typography variant="h4" fontWeight="800" sx={{
             color: '#1a1a1a',
             mb: 2,
+            fontSize: { xs: '1.75rem', sm: '2.125rem' },
             letterSpacing: '-0.5px',
             background: 'linear-gradient(45deg, #1a1a1a 30%, #4a4a4a 90%)',
             WebkitBackgroundClip: 'text',
@@ -2263,7 +2475,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           }}>
             AI Template Assistant
           </Typography>
-          <Typography variant="body1" sx={{ color: '#666', maxWidth: 540, lineHeight: 1.6, fontSize: '1.1rem' }}>
+          <Typography variant="body1" sx={{ color: '#666', maxWidth: 540, lineHeight: 1.6, fontSize: { xs: '0.95rem', sm: '1.1rem' } }}>
             Transform your document ideas into professional templates instantly.
             Just describe what you need, and I'll handle the rest.
           </Typography>
@@ -2273,7 +2485,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
       {/* Gemini Style Input Box */}
       <Grow in={true} timeout={1000}>
         <Box sx={{ width: '100%', maxWidth: 760, position: 'relative' }}>
-          <Paper elevation={0} sx={{
+          <Paper id="ai-input-container" elevation={0} sx={{
             p: '8px',
             borderRadius: '28px',
             border: '1px solid #e0e0e0',
@@ -2300,9 +2512,9 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
               InputProps={{
                 disableUnderline: true,
                 sx: {
-                  px: 3.5,
-                  py: 2.5,
-                  fontSize: '1.15rem',
+                  px: { xs: 2.5, sm: 3.5 },
+                  py: { xs: 2, sm: 2.5 },
+                  fontSize: { xs: '1rem', sm: '1.15rem' },
                   color: '#1a1a1a',
                   className: 'no-scrollbar',
                   '& textarea': {
@@ -2328,6 +2540,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                 </Tooltip> */}
                 <Tooltip title="Example Prompts">
                   <IconButton
+                    id="ai-prompt-button"
                     size="small"
                     sx={{ color: '#666' }}
                     onClick={() => setPromptsDialogOpen(true)}
@@ -2344,6 +2557,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
                   </Typography>
                 )}
                 <Button
+                  id="ai-generate-button"
                   variant="contained"
                   onClick={generateTemplate}
                   disabled={loading || !description.trim()}
@@ -2376,7 +2590,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           {/* Metadata Section */}
           <Grow in={true} timeout={1200}>
             <Box sx={{ mt: 3, width: '100%', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Box sx={{ display: 'flex', gap: 2, width: '100%' }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, width: '100%' }}>
                 <TextField
                   fullWidth
                   label="Category (optional)"
@@ -2460,11 +2674,21 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
       {/* Document Preview Dialog */}
       <Dialog
         open={previewDialogOpen}
-        onClose={() => setPreviewDialogOpen(false)}
+        onClose={(event, reason) => {
+          if (reason !== 'backdropClick' && reason !== 'escapeKeyDown') {
+            setPreviewDialogOpen(false);
+          }
+        }}
+        disableEscapeKeyDown
         maxWidth="lg"
         fullWidth
+        fullScreen={window.innerWidth < 600}
         PaperProps={{
-          sx: { borderRadius: '20px', height: '90vh' }
+          sx: { 
+            borderRadius: { xs: '0px', sm: '20px' }, 
+            height: { xs: '100%', sm: '90vh' },
+            bgcolor: '#fcfcfc'
+          }
         }}
       >
         <DialogTitle sx={{
@@ -2485,44 +2709,106 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
             </Box>
             <Typography variant="h6" fontWeight="700">Document Preview</Typography>
           </Box>
-          <IconButton onClick={() => setPreviewDialogOpen(false)} size="small">
+          <IconButton onClick={() => setPreviewDialogOpen(false)} size="small" id="ai-close-preview">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 0, bgcolor: '#f4f4f4', overflow: 'hidden' }}>
+        <DialogContent sx={{ p: 0, bgcolor: 'white', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           {generatedDocId && (
-            <iframe
-              src={`${API_BASE_URL}/documents/${generatedDocId}/builder-pdf?token=${localStorage.getItem('token')}`}
-              width="100%"
-              height="100%"
-              style={{ border: 'none' }}
-              title="Document Preview"
-            />
+            <Box id="ai-editor-content" sx={{ 
+              flexGrow: 1, 
+              p: 4, 
+              maxWidth: 800, 
+              mx: 'auto', 
+              width: '100%',
+              '& .ProseMirror': {
+                outline: 'none',
+                minHeight: '60vh',
+                fontFamily: '"Times New Roman", Times, serif',
+                fontSize: '16px',
+                lineHeight: 1.6,
+                color: '#333'
+              },
+              '& h1': { fontSize: '24px', fontWeight: 'bold', mb: 2, textAlign: 'center' },
+              '& h2': { fontSize: '20px', fontWeight: 'bold', mt: 3, mb: 1.5 },
+              '& p': { mb: 1.5 }
+            }}>
+              <EditorContent editor={editor} />
+            </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, borderTop: '1px solid #eee', bgcolor: 'white' }}>
+        <DialogActions sx={{ 
+          p: 2.5, 
+          borderTop: '1px solid #eee', 
+          bgcolor: 'white', 
+          gap: 1.5,
+          flexWrap: 'wrap',
+          justifyContent: { xs: 'center', sm: 'flex-end' }
+        }}>
           <Button
             onClick={() => setPreviewDialogOpen(false)}
-            sx={{ color: '#666', textTransform: 'none', fontWeight: 600 }}
+            sx={{ color: '#666', textTransform: 'none', fontWeight: 600, order: { xs: 5, sm: 0 } }}
           >
             Cancel
           </Button>
+          
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }} />
+
           <Button
+            id="ai-download-word"
+            variant="outlined"
+            onClick={handleDownloadWord}
+            startIcon={<DownloadIcon />}
+            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600, borderColor: '#eee', color: '#444' }}
+          >
+            Download Word
+          </Button>
+
+          <input
+            type="file"
+            accept=".docx"
+            hidden
+            ref={fileInputRef}
+            onChange={handleUploadWord}
+          />
+          
+          <Button
+            id="ai-upload-word"
+            variant="outlined"
+            onClick={() => fileInputRef.current.click()}
+            disabled={uploadingWord}
+            startIcon={uploadingWord ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600, borderColor: '#eee', color: '#444' }}
+          >
+            {uploadingWord ? 'Uploading...' : 'Upload Edited Word'}
+          </Button>
+
+          <Button
+            id="ai-preview-pdf"
+            variant="outlined"
+            onClick={handlePreviewPDF}
+            startIcon={<PictureInPictureIcon />}
+            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600, borderColor: '#eee', color: '#444' }}
+          >
+            Preview PDF
+          </Button>
+
+          <Button
+            id="ai-finish-button"
             variant="contained"
-            onClick={() => {
-              setPreviewDialogOpen(false);
-              onTemplateGenerated(generatedDocId);
-            }}
+            onClick={handleFinishAndBuild}
+            disabled={savingEdit || uploadingWord}
+            startIcon={savingEdit ? <CircularProgress size={16} /> : <CheckCircleIcon />}
             sx={{
               bgcolor: '#0f766e',
               borderRadius: '12px',
               px: 4,
               textTransform: 'none',
               fontWeight: 600,
-              '&:hover': { bgcolor: '#0f766e' }
+              '&:hover': { bgcolor: '#0b7e74' }
             }}
           >
-            Continue to Editor
+            {savingEdit ? 'Building...' : 'Finish & Build Page'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2613,12 +2899,12 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
 
 const TemplateBuilderApp = () => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState('ai-generator');
   const [generatedDocumentId, setGeneratedDocumentId] = useState(null);
 
   const handleAITemplateGenerated = (documentId) => {
-    setGeneratedDocumentId(documentId);
-    setCurrentView('builder');
+    navigate(`/user/documentbuilder/${documentId}`);
   };
 
   const handleBackToAI = () => {

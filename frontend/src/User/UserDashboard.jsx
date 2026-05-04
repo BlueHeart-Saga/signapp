@@ -102,6 +102,7 @@ const UserDashboard = () => {
     subscription: {},
     contacts: {}
   });
+  const [timeRange, setTimeRange] = useState('30');
 
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -135,7 +136,8 @@ const UserDashboard = () => {
   // Load real data
   useEffect(() => {
     loadDashboardData();
-  }, []);
+    fetchAnalyticsData(timeRange);
+  }, [timeRange]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -647,11 +649,12 @@ const UserDashboard = () => {
     }
   };
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = async (range = timeRange) => {
     setAnalyticsLoading(true);
     try {
       const { getCompleteAnalytics } = await import('../services/DocumentAPI');
-      const completeData = await getCompleteAnalytics();
+      const daysParam = range === 'all' ? 0 : parseInt(range);
+      const completeData = await getCompleteAnalytics(daysParam);
       setAnalyticsData(completeData);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -860,6 +863,8 @@ const UserDashboard = () => {
                 loading={analyticsLoading}
                 expandedSections={expandedSections}
                 onToggleSection={toggleSection}
+                timeRange={timeRange}
+                onTimeRangeChange={setTimeRange}
               />
 
               {/* Chart Grid Section */}
@@ -899,12 +904,8 @@ const UserDashboard = () => {
                     <h4>Activity Timeline</h4>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart
-                        data={analyticsData.activities?.daily_timeline?.length ? analyticsData.activities.daily_timeline : [
-                          { date: 'Day 1', count: 0 },
-                          { date: 'Day 2', count: 0 },
-                          { date: 'Day 3', count: 0 },
-                          { date: 'Day 4', count: 0 },
-                          { date: 'Day 5', count: 0 }
+                        data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : [
+                          { date: 'No data', count: 0 }
                         ]}
                         margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                       >
@@ -992,7 +993,7 @@ const UserDashboard = () => {
                         </defs>
                         <Area
                           name="Total Documents"
-                          dataKey="documents"
+                          dataKey="total"
                           stroke="#0f766e"
                           fill="url(#areaGradient)"
                           strokeWidth={3}

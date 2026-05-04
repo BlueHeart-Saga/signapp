@@ -216,56 +216,100 @@ const Completion = () => {
     );
   };
 
+  const [mailing, setMailing] = useState(false);
   /* ---------------- EMAIL ---------------- */
   const handleEmail = async () => {
-
     try {
-      await fetch(
+      setMailing(true);
+      const response = await fetch(
         `${API_BASE_URL}/signing/recipient/${recipientId}/email-signed`,
         { method: 'POST' }
       );
+
+      if (!response.ok) throw new Error('Failed to send email');
 
       setSnackbar({
         open: true,
         msg: '📧 Signed document has been sent to your email.',
         severity: 'success'
       });
-    } catch {
+    } catch (error) {
       setSnackbar({
         open: true,
         msg: 'Failed to send email. Please try again.',
         severity: 'error'
       });
+    } finally {
+      setMailing(false);
     }
   };
 
+  const [printing, setPrinting] = useState(false);
   /* ---------------- PRINT ---------------- */
   const handlePrint = async () => {
     try {
+      setPrinting(true);
+      setSnackbar({ open: true, msg: 'Preparing document for printing...', severity: 'info' });
+      
       const res = await fetch(
-        `${API_BASE_URL}/signing/recipient/${recipientId}/download/signed`
+        `${API_BASE_URL}/signing/recipient/${recipientId}/download/signed?disposition=inline`
       );
+
+      if (!res.ok) throw new Error('Failed to fetch document');
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
       const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
       iframe.src = url;
 
       document.body.appendChild(iframe);
 
-      iframe.onload = () => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-
+      const finishPrint = () => {
+        let printTriggered = false;
+        try {
+          // Attempt to focus and print
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            printTriggered = true;
+          }
+        } catch (e) {
+          console.error('Print blocked by browser security (cross-origin iframe):', e);
+          // Fallback: If blocked, open in new tab as a last resort
+          window.open(url, '_blank');
+          printTriggered = true;
+        }
+        
+        setPrinting(false);
         setTimeout(() => {
           URL.revokeObjectURL(url);
-          document.body.removeChild(iframe);
-        }, 1000);
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 3000);
       };
+
+      iframe.onload = () => {
+        setTimeout(finishPrint, 1000);
+      };
+
+      // Fallback for cases where onload might not fire (PDF plugins)
+      setTimeout(() => {
+        if (printing) {
+          finishPrint();
+        }
+      }, 5000);
     } catch (err) {
       console.error('Print failed', err);
+      setPrinting(false);
+      setSnackbar({ open: true, msg: 'Failed to prepare document for printing.', severity: 'error' });
     }
   };
 
@@ -539,20 +583,22 @@ const Completion = () => {
             <Button
               fullWidth={false}
               variant="outlined"
-              startIcon={<EmailIcon />}
+              startIcon={mailing ? <CircularProgress size={18} color="inherit" /> : <EmailIcon />}
               onClick={handleEmail}
+              disabled={mailing}
               sx={{ minWidth: { xs: '100%', sm: 140 } }}
             >
-              Email to me
+              {mailing ? 'Sending...' : 'Email to me'}
             </Button>
 
             <Button
               variant="outlined"
-              startIcon={<PrintIcon />}
+              startIcon={printing ? <CircularProgress size={18} color="inherit" /> : <PrintIcon />}
               onClick={handlePrint}
+              disabled={printing}
               sx={{ minWidth: { xs: '100%', sm: 110 } }}
             >
-              Print
+              {printing ? 'Printing...' : 'Print'}
             </Button>
 
             <Button

@@ -4,25 +4,31 @@ import { Check, X } from 'lucide-react';
 function FeatureComparisonTable() {
   const features = [
     {
-      category: 'FEATURE',
+      category: 'DOCUMENT FEATURES',
       items: [
         {
           name: 'Monthly Envelopes',
-          starter: '10',
-          professional: 'Unlimited',
+          basic: 'Unlimited',
+          standard: 'Unlimited',
           enterprise: 'Unlimited'
         },
         {
           name: 'Templates',
-          starter: 'Basic (3)',
-          professional: 'Shared & Custom',
+          basic: 'Basic (5)',
+          standard: 'Unlimited',
           enterprise: 'Advanced Library'
         },
         {
           name: 'Reusable Fields',
-          starter: 'Limited',
-          professional: 'Unlimited',
-          enterprise: 'Unlimited'
+          basic: <Check size={16} color="#10b981" />,
+          standard: <Check size={16} color="#10b981" />,
+          enterprise: <Check size={16} color="#10b981" />
+        },
+        {
+          name: 'AI Document Parsing',
+          basic: <X size={16} color="#ef4444" />,
+          standard: <Check size={16} color="#10b981" />,
+          enterprise: <Check size={16} color="#10b981" />
         }
       ]
     },
@@ -31,26 +37,26 @@ function FeatureComparisonTable() {
       items: [
         {
           name: 'Real-time Audit Trails',
-          starter: <Check size={16} color="#10b981" />,
-          professional: <Check size={16} color="#10b981" />,
+          basic: <Check size={16} color="#10b981" />,
+          standard: <Check size={16} color="#10b981" />,
           enterprise: <Check size={16} color="#10b981" />
         },
         {
-          name: 'SOC2 / HIPAA Compliance',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
+          name: 'SOC2 Compliance',
+          basic: <Check size={16} color="#10b981" />,
+          standard: <Check size={16} color="#10b981" />,
           enterprise: <Check size={16} color="#10b981" />
         },
         {
           name: 'Two-Factor Authentication',
-          starter: <Check size={16} color="#10b981" />,
-          professional: <Check size={16} color="#10b981" />,
+          basic: <Check size={16} color="#10b981" />,
+          standard: <Check size={16} color="#10b981" />,
           enterprise: <Check size={16} color="#10b981" />
         },
         {
           name: 'SSO Integration (SAML)',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
+          basic: <X size={16} color="#ef4444" />,
+          standard: <X size={16} color="#ef4444" />,
           enterprise: <Check size={16} color="#10b981" />
         }
       ]
@@ -60,26 +66,20 @@ function FeatureComparisonTable() {
       items: [
         {
           name: 'Bulk Send',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
+          basic: <X size={16} color="#ef4444" />,
+          standard: <Check size={16} color="#10b981" />,
           enterprise: <Check size={16} color="#10b981" />
         },
         {
-          name: 'Signer Attachments',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
+          name: 'Custom Branding (Logos)',
+          basic: <X size={16} color="#ef4444" />,
+          standard: <Check size={16} color="#10b981" />,
           enterprise: <Check size={16} color="#10b981" />
         },
         {
           name: 'API Access',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
-        },
-        {
-          name: 'CRM Integrations',
-          starter: <X size={16} color="#ef4444" />,
-          professional: <Check size={16} color="#10b981" />,
+          basic: <X size={16} color="#ef4444" />,
+          standard: <X size={16} color="#ef4444" />,
           enterprise: <Check size={16} color="#10b981" />
         }
       ]
@@ -89,21 +89,21 @@ function FeatureComparisonTable() {
       items: [
         {
           name: 'Customer Support',
-          starter: 'Email Support (48h)',
-          professional: 'Standard',
-          enterprise: 'Premium & Custom'
+          basic: 'Standard Email',
+          standard: 'Priority Chat',
+          enterprise: 'Dedicated Manager'
         },
         {
-          name: 'Priority Support',
-          starter: '—',
-          professional: '●',
-          enterprise: '●'
+          name: 'Response Time',
+          basic: '48 Hours',
+          standard: '24 Hours',
+          enterprise: '< 1 Hour'
         },
         {
-          name: 'Dedicated Success Manager',
-          starter: '—',
-          professional: '—',
-          enterprise: '24/7 Dedicated Support'
+          name: 'SLA Guarantee',
+          basic: <X size={16} color="#ef4444" />,
+          standard: <X size={16} color="#ef4444" />,
+          enterprise: <Check size={16} color="#10b981" />
         }
       ]
     }
@@ -162,35 +162,35 @@ function FeatureComparisonTable() {
                 <th style={{
                   padding: '20px 24px',
                   fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#0f766e',
+                  fontWeight: '700',
+                  color: '#ff6a34',
                   textAlign: 'center',
                   borderBottom: '2px solid #e5e7eb',
                   width: '25%'
                 }}>
-                  Starter
+                  BASIC
                 </th>
                 <th style={{
                   padding: '20px 24px',
                   fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#10b981',
+                  fontWeight: '700',
+                  color: '#1e6afb',
                   textAlign: 'center',
                   borderBottom: '2px solid #e5e7eb',
                   width: '25%'
                 }}>
-                  Professional
+                  STANDARD
                 </th>
                 <th style={{
                   padding: '20px 24px',
                   fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#f6cc36',
+                  fontWeight: '700',
+                  color: '#00c25a',
                   textAlign: 'center',
                   borderBottom: '2px solid #e5e7eb',
                   width: '25%'
                 }}>
-                  Enterprise
+                  ENTERPRISE
                 </th>
               </tr>
             </thead>
@@ -254,25 +254,25 @@ function FeatureComparisonTable() {
                         fontSize: '14px',
                         color: '#4b5563',
                         textAlign: 'center',
-                        fontWeight: item.name.includes('SUPPORT') ? '400' : '500'
+                        fontWeight: '500'
                       }}>
-                        {item.starter}
+                        {item.basic}
                       </td>
                       <td style={{
                         padding: '16px 24px',
                         fontSize: '14px',
                         color: '#4b5563',
                         textAlign: 'center',
-                        fontWeight: item.name.includes('SUPPORT') ? '400' : '500'
+                        fontWeight: '500'
                       }}>
-                        {item.professional}
+                        {item.standard}
                       </td>
                       <td style={{
                         padding: '16px 24px',
                         fontSize: '14px',
                         color: '#4b5563',
                         textAlign: 'center',
-                        fontWeight: item.name.includes('SUPPORT') ? '400' : '500'
+                        fontWeight: '500'
                       }}>
                         {item.enterprise}
                       </td>

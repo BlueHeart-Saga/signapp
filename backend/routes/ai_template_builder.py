@@ -7,8 +7,14 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
 from enum import Enum
 import base64
+import io
 from io import BytesIO
 import cohere
+import fitz  # PyMuPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY
 try:
     from cohere import CohereAPIError
 except ImportError:
@@ -17,11 +23,12 @@ except ImportError:
     except ImportError:
         CohereAPIError = Exception
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query, Request
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import pypdf
 from docx import Document as DocxDocument
+import mammoth
 from bson import ObjectId
 
 from database import (
@@ -33,8 +40,16 @@ from database import (
     user_actions_collection
 )
 from .auth import get_current_user
-from .documents import serialize_document, serialize_field_with_recipient
+from .documents import (
+    serialize_document, 
+    serialize_field_with_recipient,
+    generate_envelope_id,
+    generate_file_thumbnail,
+    generate_all_page_thumbnails,
+    get_user_from_request
+)
 from .fields import normalize_field_value
+from storage import storage
 
 # Configuration
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
@@ -135,6 +150,12 @@ class TemplateFieldSchema(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(use_enum_values=True)
+
+class WorkflowGenerateRequest(BaseModel):
+    prompt: str
+    document_type: str = "Contract"
+    language: str = "English"
+    country: str = "India"
 
 class AITemplateRequest(BaseModel):
     description: str
@@ -349,6 +370,45 @@ async def extract_document_text(file: UploadFile) -> Tuple[str, int]:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading file: {str(e)}")
 
+def clean_html_for_reportlab(html: str) -> str:
+    """Simple cleanup of HTML for reportlab Paragraph"""
+    # Remove unsupported tags but keep basic ones
+    html = re.sub(r'<(?!/?(b|i|u|strong|em|p|br|h1|h2|h3|h4|h5|h6|li|ul|ol|font))[^>]+>', '', html)
+    return html
+
+def find_markers_in_pdf(pdf_bytes: bytes) -> List[Dict[str, Any]]:
+    """Find {{field_name}} markers in PDF and return their coordinates"""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    markers = []
+    
+    # Pattern to match {{...}}
+    pattern = r"\{\{([^{}]+)\}\}"
+    
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        all_text = page.get_text("dict")
+        for block in all_text["blocks"]:
+            if "lines" in block:
+                for line in block["lines"]:
+                    for span in line["spans"]:
+                        match = re.search(pattern, span["text"])
+                        if match:
+                            marker_name = match.group(1).strip()
+                            bbox = span["bbox"] # (x0, y0, x1, y1)
+                            
+                            markers.append({
+                                "name": marker_name,
+                                "page": page_num + 1,
+                                "x": bbox[0],
+                                "y": bbox[1],
+                                "width": bbox[2] - bbox[0],
+                                "height": bbox[3] - bbox[1],
+                                "text": span["text"]
+                            })
+                            
+    doc.close()
+    return markers
+
 def get_default_field_dimensions(field_type: str) -> Tuple[float, float]:
     """Get default width and height for field types"""
     dimensions = {
@@ -422,6 +482,429 @@ def normalize_field_names(content: str) -> Tuple[str, List[str]]:
                 normalized_content = normalized_content.replace(pattern, f"{{{{{field_name}}}}}")
     
     return normalized_content, list(field_names)
+
+# ========== ROUTES ==========
+workflow_router = APIRouter(prefix="/api/ai/workflow", tags=["AI Workflow Builder"])
+
+@workflow_router.post("/generate")
+async def generate_workflow_document(
+    data: WorkflowGenerateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Reworked AI Builder from workflow:
+    1. Generates professional content.
+    2. Creates a real PDF.
+    3. Maps internal markers to coordinates.
+    4. Creates a document + fields + recipients.
+    """
+    if not cohere_client:
+        raise HTTPException(500, "AI Service not initialized")
+
+    try:
+        # 1. Generate content with Markers
+        # Use existing prompt logic from aidoc if available, or build here
+        prompt = f"Create a professional {data.document_type} in {data.language} for {data.country}. Prompt: {data.prompt}"
+        prompt += "\n\nCRITICAL: You MUST include markers for signatures and dates using double curly braces, e.g., {{signer_1_signature}}, {{signer_1_date}}, {{signer_1_name}}."
+        
+        messages = [
+            {"role": "system", "content": "You are a legal document drafting assistant. Use {{marker_name}} for all fillable fields."},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = await _safe_cohere_call("command-r-plus-08-2024", messages, "text")
+        
+        if co_version == 2:
+            html_content = response.message.content[0].text.strip()
+        else:
+            html_content = response.text.strip()
+
+        # 2. Convert HTML/Text to PDF using ReportLab
+        # Wrap markers in white font so they are invisible but detectable for coordinate mapping
+        invisible_content = re.sub(r'(\{\{[^{}]+\}\})', r'<font color="white">\1</font>', html_content)
+        
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72)
+        styles = getSampleStyleSheet()
+        
+        # Custom style for justification
+        styles.add(ParagraphStyle(name='Justify', parent=styles['Normal'], alignment=TA_JUSTIFY))
+        
+        elements = []
+        paragraphs = invisible_content.split('\n\n')
+        for p in paragraphs:
+            clean_p = clean_html_for_reportlab(p)
+            if clean_p.strip():
+                elements.append(Paragraph(clean_p, styles['Justify']))
+                elements.append(Spacer(1, 12))
+        
+        doc.build(elements)
+        pdf_bytes = pdf_buffer.getvalue()
+        
+        # 3. Find Markers and map to coordinates
+        detected_markers = find_markers_in_pdf(pdf_bytes)
+        
+        # 4. Create Core Document Record
+        filename = f"{data.document_type.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        envelope_id = generate_envelope_id(prefix="AI", user_id=current_user["id"])
+        
+        pdf_path = storage.upload(pdf_bytes, filename, folder=f"users/{current_user['id']}/pdfs")
+        
+        preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
+        preview_thumb_path = storage.upload(
+            preview_thumb_bytes,
+            f"{filename}_preview.png",
+            folder=f"users/{current_user['id']}/thumbnails/previews"
+        )
+        
+        all_thumbnails = generate_all_page_thumbnails(pdf_bytes)
+        page_thumb_refs = []
+        for pnum, tbytes in all_thumbnails.items():
+            tpath = storage.upload(
+                tbytes,
+                f"{filename}_page_{pnum}_thumb.png",
+                folder=f"users/{current_user['id']}/thumbnails/pages"
+            )
+            page_thumb_refs.append({"page": pnum, "thumbnail_path": tpath, "is_preview": False})
+
+        doc_record = {
+            "filename": filename,
+            "uploaded_at": datetime.now(timezone.utc),
+            "owner_id": ObjectId(current_user["id"]),
+            "owner_email": current_user["email"],
+            "status": "draft",
+            "pdf_file_path": pdf_path,
+            "original_file_path": pdf_path,
+            "preview_thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumb_refs,
+            "page_count": len(all_thumbnails),
+            "size": len(pdf_bytes),
+            "source": "ai_builder",
+            "envelope_id": envelope_id,
+            "html_content": html_content,
+            "common_message": f"Please review and sign this {data.document_type} generated by AI."
+        }
+        
+        result = db.documents.insert_one(doc_record)
+        document_id = result.inserted_id
+        
+        db.document_files.insert_one({
+            "document_id": document_id,
+            "file_path": pdf_path,
+            "thumbnail_path": preview_thumb_path,
+            "page_thumbnails": page_thumb_refs,
+            "filename": filename,
+            "page_count": len(all_thumbnails),
+            "order": 1,
+            "uploaded_at": datetime.now(timezone.utc),
+            "source": "ai_builder",
+            "html_content": html_content
+        })
+
+        # Generate initial DOCX
+        docx_bytes = convert_html_to_docx(html_content)
+        docx_filename = filename.replace(".pdf", ".docx")
+        docx_path = storage.upload(docx_bytes, docx_filename, folder=f"users/{current_user['id']}/docx")
+        
+        db.documents.update_one({"_id": document_id}, {"$set": {"docx_file_path": docx_path}})
+
+        # 5. Create Recipients and Fields based on Markers
+        recipients_map = {}
+        
+        owner_recipient = {
+            "document_id": document_id,
+            "name": current_user.get("full_name") or current_user.get("name") or "Owner",
+            "email": current_user.get("email"),
+            "role": "signer",
+            "signing_order": 0,
+            "status": "created",
+            "added_at": datetime.now(timezone.utc),
+            "is_owner": True
+        }
+        res = db.recipients.insert_one(owner_recipient)
+        recipients_map["owner"] = res.inserted_id
+        
+        for marker in detected_markers:
+            marker_name = marker["name"].lower()
+            recipient_key = "signer_1"
+            if "signer_2" in marker_name: recipient_key = "signer_2"
+            elif "signer_3" in marker_name: recipient_key = "signer_3"
+            
+            if recipient_key not in recipients_map:
+                recipient_data = {
+                    "document_id": document_id,
+                    "name": recipient_key.replace('_', ' ').title(),
+                    "email": "",
+                    "role": "signer",
+                    "signing_order": int(recipient_key.split('_')[-1]),
+                    "status": "created",
+                    "added_at": datetime.now(timezone.utc)
+                }
+                rec_result = db.recipients.insert_one(recipient_data)
+                recipients_map[recipient_key] = rec_result.inserted_id
+            
+            field_type = "textbox"
+            if "signature" in marker_name: field_type = "signature"
+            elif "date" in marker_name: field_type = "date"
+            elif "initial" in marker_name: field_type = "initials"
+            
+            field_record = {
+                "document_id": document_id,
+                "recipient_id": recipients_map[recipient_key],
+                "type": field_type,
+                "page": marker["page"],
+                "x": marker["x"],
+                "y": marker["y"],
+                "width": max(marker["width"], 120 if field_type == "signature" else 80),
+                "height": max(marker["height"], 60 if field_type == "signature" else 30),
+                "required": True,
+                "added_at": datetime.now(timezone.utc),
+                "ai_marker": marker["name"]
+            }
+            db.signature_fields.insert_one(field_record)
+
+        return {
+            "success": True,
+            "document_id": str(document_id),
+            "html_content": html_content,
+            "message": "AI Document generated and workflow initialized."
+        }
+
+    except Exception as e:
+        print(f"Workflow Generation Error: {str(e)}")
+        raise HTTPException(500, f"Failed to generate document workflow: {str(e)}")
+
+def convert_html_to_docx(html_content: str) -> bytes:
+    """Helper to convert basic HTML to a professional DOCX file"""
+    doc = DocxDocument()
+    
+    # Simple block-level parsing
+    # Handle headings and paragraphs
+    blocks = re.split(r'(<(?:h1|h2|h3|p|li|br)[^>]*>)', html_content, flags=re.IGNORECASE)
+    
+    current_para = None
+    
+    for block in blocks:
+        if not block.strip(): continue
+        
+        lower_block = block.lower()
+        if '<h1' in lower_block:
+            doc.add_heading(re.sub(r'<[^>]+>', '', block).strip(), level=0)
+            current_para = None
+        elif '<h2' in lower_block:
+            doc.add_heading(re.sub(r'<[^>]+>', '', block).strip(), level=1)
+            current_para = None
+        elif '<h3' in lower_block:
+            doc.add_heading(re.sub(r'<[^>]+>', '', block).strip(), level=2)
+            current_para = None
+        elif '<p' in lower_block or '<li' in lower_block:
+            text = re.sub(r'<[^>]+>', '', block).strip()
+            if text:
+                current_para = doc.add_paragraph(text)
+        elif '<br' in lower_block:
+            if current_para:
+                current_para.add_run().add_break()
+        else:
+            # Plain text or inline content
+            text = re.sub(r'<[^>]+>', '', block).strip()
+            if text:
+                if not current_para:
+                    current_para = doc.add_paragraph(text)
+                else:
+                    current_para.add_run(f" {text}")
+                    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+class UpdateFromHTMLRequest(BaseModel):
+    html_content: str
+
+@router.post("/update-from-html/{document_id}")
+async def update_from_html(
+    document_id: str, 
+    request: UpdateFromHTMLRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update document content from edited HTML and regenerate PDF/DOCX"""
+    try:
+        html_content = request.html_content
+        
+        # 1. Regenerate PDF
+        invisible_content = re.sub(r'(\{\{[^{}]+\}\})', r'<font color="white">\1</font>', html_content)
+        
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72)
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='Justify', parent=styles['Normal'], alignment=TA_JUSTIFY))
+        
+        elements = []
+        # Split by <p> or <br/> for ReportLab elements
+        paragraphs = re.split(r'<(?:p|br|div)[^>]*>', invisible_content, flags=re.IGNORECASE)
+        for p in paragraphs:
+            clean_p = clean_html_for_reportlab(p)
+            if clean_p.strip():
+                elements.append(Paragraph(clean_p, styles['Justify']))
+                elements.append(Spacer(1, 12))
+        
+        doc.build(elements)
+        pdf_bytes = pdf_buffer.getvalue()
+        
+        # 2. Generate DOCX
+        docx_bytes = convert_html_to_docx(html_content)
+        
+        # 3. Update Storage
+        # Find existing document
+        existing_doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+        if not existing_doc:
+            raise HTTPException(404, "Document not found")
+            
+        filename = existing_doc["filename"]
+        pdf_path = storage.upload(pdf_bytes, filename, folder=f"users/{current_user['id']}/pdfs")
+        docx_filename = filename.replace(".pdf", ".docx")
+        docx_path = storage.upload(docx_bytes, docx_filename, folder=f"users/{current_user['id']}/docx")
+        
+        # 4. Update Thumbnails
+        preview_thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)
+        preview_thumb_path = storage.upload(
+            preview_thumb_bytes,
+            f"{filename}_preview.png",
+            folder=f"users/{current_user['id']}/thumbnails/previews"
+        )
+        
+        all_thumbnails = generate_all_page_thumbnails(pdf_bytes)
+        page_thumb_refs = []
+        for pnum, tbytes in all_thumbnails.items():
+            tpath = storage.upload(
+                tbytes,
+                f"{filename}_page_{pnum}_thumb.png",
+                folder=f"users/{current_user['id']}/thumbnails/pages"
+            )
+            page_thumb_refs.append({"page": pnum, "thumbnail_path": tpath, "is_preview": False})
+
+        # 5. Update Database Records
+        db.documents.update_one(
+            {"_id": ObjectId(document_id)},
+            {"$set": {
+                "pdf_file_path": pdf_path,
+                "docx_file_path": docx_path,
+                "html_content": html_content,
+                "preview_thumbnail_path": preview_thumb_path,
+                "page_thumbnails": page_thumb_refs,
+                "page_count": len(all_thumbnails),
+                "size": len(pdf_bytes),
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        
+        db.document_files.update_one(
+            {"document_id": ObjectId(document_id)},
+            {"$set": {
+                "file_path": pdf_path,
+                "thumbnail_path": preview_thumb_path,
+                "page_thumbnails": page_thumb_refs,
+                "page_count": len(all_thumbnails),
+                "html_content": html_content,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+
+        # 6. Recalculate Markers/Fields if content changed significantly
+        # (This is important because field coordinates might shift)
+        detected_markers = find_markers_in_pdf(pdf_bytes)
+        
+        # Update existing fields or add new ones based on detected markers
+        # For simplicity in this step, we'll assume the user keeps the markers
+        # but we refresh their coordinates
+        for marker in detected_markers:
+            db.signature_fields.update_one(
+                {"document_id": ObjectId(document_id), "ai_marker": marker["name"]},
+                {"$set": {
+                    "page": marker["page"],
+                    "x": marker["x"],
+                    "y": marker["y"],
+                    "width": marker["width"],
+                    "height": marker["height"]
+                }}
+            )
+
+        return {
+            "success": True,
+            "message": "Document updated from edited content.",
+            "pdf_url": pdf_path,
+            "docx_url": docx_path
+        }
+
+    except Exception as e:
+        print(f"Update Error: {str(e)}")
+        raise HTTPException(500, f"Failed to update document: {str(e)}")
+
+def convert_docx_to_html(docx_bytes: bytes) -> str:
+    """Helper to convert a DOCX file to HTML using mammoth"""
+    result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+    return result.value
+
+@router.get("/download-docx/{document_id}")
+async def download_docx(request: Request, document_id: str):
+    """Download the DOCX version of a document"""
+    current_user = await get_user_from_request(request)
+    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    if not doc or "docx_file_path" not in doc:
+        # If not present, try to generate it now
+        if doc and "html_content" in doc:
+            docx_bytes = convert_html_to_docx(doc["html_content"])
+            docx_filename = doc["filename"].replace(".pdf", ".docx")
+            docx_path = storage.upload(docx_bytes, docx_filename, folder=f"users/{current_user['id']}/docx")
+            db.documents.update_one({"_id": doc["_id"]}, {"$set": {"docx_file_path": docx_path}})
+            file_bytes = docx_bytes
+        else:
+            raise HTTPException(404, "DOCX not found")
+    else:
+        file_bytes = storage.download(doc["docx_file_path"])
+    
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={doc['filename'].replace('.pdf', '.docx')}"}
+    )
+
+@router.post("/upload-docx/{document_id}")
+async def upload_docx(
+    request: Request,
+    document_id: str, 
+    file: UploadFile = File(...)
+):
+    """Upload an edited DOCX and convert it back to HTML and PDF"""
+    current_user = await get_user_from_request(request)
+    try:
+        docx_bytes = await file.read()
+        
+        # 1. Convert DOCX to HTML
+        html_content = convert_docx_to_html(docx_bytes)
+        
+        # 2. Update the document using our existing logic
+        # We can reuse the update_from_html logic by calling it or wrapping its core
+        update_request = UpdateFromHTMLRequest(html_content=html_content)
+        result = await update_from_html(document_id, update_request, current_user)
+        
+        # 3. Store the new DOCX file as well
+        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        docx_filename = doc["filename"].replace(".pdf", ".docx")
+        docx_path = storage.upload(docx_bytes, docx_filename, folder=f"users/{current_user['id']}/docx")
+        db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"docx_file_path": docx_path}})
+        
+        return {
+            "success": True,
+            "message": "Document updated from uploaded Word file.",
+            "html_content": html_content,
+            "pdf_url": result["pdf_url"],
+            "docx_url": docx_path
+        }
+        
+    except Exception as e:
+        print(f"Upload Error: {str(e)}")
+        raise HTTPException(500, f"Failed to process uploaded Word file: {str(e)}")
+
 
 def create_edit_mode_html(content: str, fields: List[Dict]) -> str:
     """Create edit mode HTML with interactive placeholders"""

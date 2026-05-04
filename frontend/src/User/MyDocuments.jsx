@@ -1615,7 +1615,7 @@ export default function MyDocuments() {
 
 
                   <tr key={doc.id}>
-                    <td className="file-cell">
+                    <td className="file-cell" data-label="Filename">
                       {getFileIcon(doc.filename)}
                       <span
                         className="file-name clickable"
@@ -1628,38 +1628,17 @@ export default function MyDocuments() {
                         {doc.filename}
                       </span>
                     </td>
-                    <td>{new Date(doc.uploaded_at).toLocaleString()}</td>
-                    <td>
+                    <td data-label="Uploaded On">{new Date(doc.uploaded_at).toLocaleString()}</td>
+                    <td data-label="Source">
                       <span className={`source-badge source-${doc.source?.toLowerCase()}`}>
                         {doc.source}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <StatusChip status={doc.status} />
                     </td>
-                    {/* <td className="action-buttons">
-                      <button
-  onClick={() => handleDownload(doc)}
-  className="btn btn-primary btn-sm"
->
-  <FaDownload className="btn-icon" />
-  Download
-</button>
 
-                      <RecipientManager 
-                        document={doc}
-                        onUpdate={loadDocs}
-                      />
-                      <button
-                        onClick={() => handleDelete(doc.id)}
-                        className="btn btn-danger btn-sm"
-                      >
-                        <FaTrash className="btn-icon" />
-                        Delete
-                      </button>
-                    </td> */}
-
-                    <td className="action-buttons">
+                    <td className="action-buttons" data-label="Actions">
 
                       {/* Prepare & Send Button - Main Action */}
                       {/* {doc.status === "draft" && ( */}
