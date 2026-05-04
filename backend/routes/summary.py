@@ -188,7 +188,7 @@ def get_complete_document_data(document_id: str) -> Dict[str, Any]:
                 "average_time_per_recipient": calculate_average_recipient_time(enriched_recipients)
             },
             "metadata": {
-                "report_generated": datetime.utcnow().isoformat(),
+                "report_generated": datetime.utcnow().isoformat() + "Z",
                 "data_points": len(timeline_events) + len(audit_logs)
             }
         }
@@ -386,8 +386,8 @@ async def get_minimal_summary(
             "filename": doc.get("filename"),
             "envelope_id": doc.get("envelope_id"),
             "status": doc.get("status"),
-            "uploaded_at": doc.get("uploaded_at").isoformat() if doc.get("uploaded_at") else None,
-            "completed_at": doc.get("completed_at").isoformat() if doc.get("completed_at") else None
+            "uploaded_at": doc.get("uploaded_at").isoformat() + "Z" if doc.get("uploaded_at") else None,
+            "completed_at": doc.get("completed_at").isoformat() + "Z" if doc.get("completed_at") else None
         },
         "statistics": {
             "recipients": {
@@ -403,7 +403,7 @@ async def get_minimal_summary(
         },
         "recent_activity": [
             {
-                "timestamp": event.get("timestamp").isoformat() if hasattr(event.get("timestamp"), 'isoformat') else str(event.get("timestamp")),
+                "timestamp": event.get("timestamp").isoformat() + "Z" if hasattr(event.get("timestamp"), 'isoformat') else str(event.get("timestamp")),
                 "title": event.get("title"),
                 "actor": event.get("actor", {}).get("name") or event.get("actor", {}).get("email")
             }

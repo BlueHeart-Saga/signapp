@@ -740,6 +740,7 @@ const Settings = () => {
           background: #eef0f2;
           flex-shrink: 0;
           height: 100%;
+          border-right: 1px solid #f0f0f0;
         }
 
         .settings-nav {
@@ -780,6 +781,7 @@ const Settings = () => {
 
         .settings-profile-content {
           max-width: 900px;
+          margin: 0 auto;
         }
 
         .profile-top-info {
@@ -793,6 +795,7 @@ const Settings = () => {
           position: relative;
           width: 80px;
           height: 80px;
+          flex-shrink: 0;
         }
 
         .profile-img-large {
@@ -858,14 +861,16 @@ const Settings = () => {
 
         .form-row {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
+          gap: 20px;
         }
 
         .row-label {
           width: 180px;
           font-size: 14px;
-          color: #333;
+          color: #666;
           flex-shrink: 0;
+          padding-top: 10px;
         }
 
         .row-input {
@@ -873,36 +878,40 @@ const Settings = () => {
           display: flex;
           align-items: center;
           gap: 15px;
+          flex-wrap: wrap;
         }
 
         .styled-input, .styled-select {
           width: 100%;
-          max-width: 350px;
-          padding: 8px 12px;
+          max-width: 450px;
+          padding: 10px 14px;
           border: 1px solid #dcdde1;
-          border-radius: 4px;
-          background: #f1f2f6;
+          border-radius: 6px;
+          background: #f8fafc;
           font-size: 14px;
-          color: #2f3640;
+          color: #1e293b;
           outline: none;
+          transition: all 0.2s;
         }
 
         .styled-input:focus, .styled-select:focus {
           border-color: #0f766e;
           background: #fff;
+          box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
         }
 
         .disabled-like {
           cursor: default;
+          background: #f1f5f9;
         }
 
         .mini {
-          width: 80px !important;
+          width: 100px !important;
         }
 
         .input-hint-text {
           font-size: 14px;
-          color: #666;
+          color: #64748b;
         }
 
         /* Signature and Stamp Previews */
@@ -910,13 +919,15 @@ const Settings = () => {
           display: flex;
           align-items: center;
           gap: 15px;
+          flex-wrap: wrap;
         }
 
         .signature-preview-box {
-          width: 350px;
+          width: 100%;
+          max-width: 350px;
           height: 80px;
-          border: 1px solid #dcdde1;
-          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -929,8 +940,8 @@ const Settings = () => {
         .initial-preview-box {
           width: 80px;
           height: 80px;
-          border: 1px solid #dcdde1;
-          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -940,14 +951,15 @@ const Settings = () => {
 
         .handwriting {
           font-family: 'Great Vibes', cursive;
-          color: #222;
+          color: #1e293b;
         }
 
         .stamp-preview-box {
-          width: 350px;
+          width: 100%;
+          max-width: 350px;
           height: 120px;
-          border: 1px solid #dcdde1;
-          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
           background: #fff;
           overflow: hidden;
           display: flex;
@@ -962,12 +974,12 @@ const Settings = () => {
         }
 
         .stamp-upload-btn {
-          padding: 8px 16px;
+          padding: 10px 18px;
           border: 1px solid #0f766e;
-          border-radius: 4px;
+          border-radius: 6px;
           background: #fff;
           color: #0f766e;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 500;
           cursor: pointer;
           display: flex;
@@ -977,14 +989,14 @@ const Settings = () => {
         }
 
         .stamp-upload-btn:hover {
-          background: #0f766e10;
+          background: #0f766e0a;
         }
 
         /* Default Stamp UI */
         .default-stamp {
           width: 110px;
           height: 110px;
-          border: 2px solid #ef4444; /* Red stamp color */
+          border: 2px solid #ef4444;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -1022,31 +1034,17 @@ const Settings = () => {
           color: #ef4444;
         }
 
-        .edit-icon-btn {
-          background: transparent;
-          border: none;
-          color: #666;
-          cursor: pointer;
-          font-size: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .edit-icon-btn:hover {
-          color: #0f766e;
-        }
-
         .form-actions-footer {
           margin-top: 30px;
           padding-top: 30px;
-          border-top: 1px solid #f0f0f0;
+          border-top: 1px solid #f1f5f9;
         }
 
         .password-actions {
           display: flex;
           align-items: center;
           gap: 20px;
+          flex-wrap: wrap;
         }
 
         .forgot-link-btn {
@@ -1065,33 +1063,36 @@ const Settings = () => {
         }
 
         .update-btn {
-          padding: 10px 40px;
+          padding: 12px 40px;
           background: #0f766e;
           color: white;
           border: none;
-          border-radius: 4px;
+          border-radius: 6px;
           font-weight: 600;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: all 0.2s;
         }
 
         .update-btn:hover {
-          background: #0f766d;
+          background: #0d6d66;
+          box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
         }
 
         .update-btn:disabled {
-          background: #ccc;
+          background: #cbd5e1;
           cursor: not-allowed;
+          box-shadow: none;
         }
 
         .tab-header-title {
           font-size: 18px;
-          font-weight: 500;
+          font-weight: 600;
           margin-bottom: 25px;
+          color: #1e293b;
         }
 
         .narrow-form {
-          max-width: 600px;
+          max-width: 650px;
         }
 
         /* Modal Styles */
@@ -1101,32 +1102,33 @@ const Settings = () => {
           left: 0;
           width: 100%;
           height: 100%;
-          background: rgba(0, 0, 0, 0.5);
+          background: rgba(15, 23, 42, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
           backdrop-filter: blur(4px);
+          padding: 20px;
         }
 
         .forgot-modal {
           background: white;
           width: 100%;
-          max-width: 450px;
-          border-radius: 12px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          max-width: 480px;
+          border-radius: 16px;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
           overflow: hidden;
-          animation: modalFadeIn 0.3s ease-out;
+          animation: modalFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         @keyframes modalFadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: scale(0.95) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .modal-header {
-          padding: 20px 25px;
-          border-bottom: 1px solid #f0f0f0;
+          padding: 20px 24px;
+          border-bottom: 1px solid #f1f5f9;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -1136,132 +1138,143 @@ const Settings = () => {
           margin: 0;
           font-size: 18px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: #1e293b;
         }
 
         .close-modal-btn {
-          background: none;
+          background: #f1f5f9;
           border: none;
-          font-size: 24px;
-          color: #999;
+          font-size: 20px;
+          color: #64748b;
           cursor: pointer;
-          padding: 5px;
-        }
-
-        .modal-body {
-          padding: 25px;
-        }
-
-        .step-indicator {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 30px;
-        }
-
-        .step-dot {
-          width: 30px;
-          height: 30px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: #f0f0f0;
-          color: #999;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 0.3s;
-        }
-
-        .step-dot.active {
-          background: #0f766e;
-          color: white;
-        }
-
-        .step-line {
-          flex: 0 0 50px;
-          height: 2px;
-          background: #f0f0f0;
-          margin: 0 10px;
-          transition: all 0.3s;
-        }
-
-        .step-line.active {
-          background: #0f766e;
-        }
-
-        .forgot-step-form {
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
-        }
-
-        .forgot-step-form label {
-          font-size: 14px;
-          font-weight: 500;
-          color: #444;
-        }
-
-        .step-desc {
-          font-size: 14px;
-          color: #666;
-          line-height: 1.5;
-          margin-bottom: 10px;
-        }
-
-        .full-width {
-          max-width: none !important;
-        }
-
-        .center-text {
-          text-align: center;
-          letter-spacing: 4px;
-          font-weight: 700;
-          font-size: 18px !important;
-        }
-
-        .modal-submit-btn {
-          background: #0f766e;
-          color: white;
-          border: none;
-          padding: 12px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-top: 10px;
           transition: all 0.2s;
         }
 
-        .modal-submit-btn:hover {
-          background: #0b7a70;
+        .close-modal-btn:hover {
+          background: #e2e8f0;
+          color: #1e293b;
         }
 
-        .modal-submit-btn:disabled {
-          background: #ccc;
-          cursor: not-allowed;
+        .modal-body {
+          padding: 24px;
         }
 
-        .modal-row-actions {
-          display: flex;
-          gap: 12px;
+        /* Responsive Breakpoints */
+        @media (max-width: 900px) {
+          .settings-main {
+            padding: 30px;
+          }
+          .row-label {
+            width: 140px;
+          }
         }
 
-        .modal-row-actions .modal-submit-btn {
-          flex: 1;
-        }
+        @media (max-width: 768px) {
+          .settings-layout {
+            height: auto;
+            min-height: 100vh;
+            overflow-y: auto;
+          }
+          
+          .settings-body {
+            flex-direction: column;
+            overflow: visible;
+          }
+          
+          .settings-sidebar {
+            width: 100%;
+            height: auto;
+            border-right: none;
+            border-bottom: 1px solid #f1f5f9;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+          }
+          
+          .settings-nav {
+            flex-direction: row;
+            overflow-x: auto;
+            padding: 0 10px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          
+          .settings-nav::-webkit-scrollbar {
+            display: none;
+          }
+          
+          .nav-item {
+            padding: 15px 20px;
+            flex-shrink: 0;
+            border-bottom: 2px solid transparent;
+            font-size: 13px;
+          }
+          
+          .nav-item.active {
+            background: transparent;
+            border-bottom-color: #0f766e;
+          }
+          
+          .settings-main {
+            padding: 24px 20px;
+            overflow: visible;
+          }
+          
+          .form-row {
+            flex-direction: column;
+            gap: 8px;
+          }
+          
+          .row-label {
+            width: 100%;
+            padding-top: 0;
+            font-weight: 600;
+            color: #1e293b;
+          }
+          
+          .row-input {
+            width: 100%;
+          }
+          
+          .signature-preview-box, .stamp-preview-box, .styled-input, .styled-select {
+            max-width: none;
+          }
+          
+          .signature-container, .stamp-container {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          
+          .initial-preview-box {
+            width: 100%;
+          }
 
-        .modal-back-btn {
-          flex: 0 0 80px;
-          background: #f1f2f6;
-          color: #444;
-          border: none;
-          padding: 12px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-top: 10px;
+          .profile-top-info {
+            flex-direction: column;
+            text-align: center;
+            gap: 15px;
+          }
+
+          .update-btn {
+            width: 100%;
+          }
+
+          .password-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .forgot-link-btn {
+            text-align: center;
+            padding: 10px 0;
+          }
         }
 
         /* Scrollbar styles */

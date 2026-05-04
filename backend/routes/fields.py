@@ -166,11 +166,11 @@ def serialize_field(field: Dict) -> Dict:
         
         # Completion fields
         "is_completed": field.get("is_completed", False),
-        "completed_at": field.get("completed_at").isoformat() if field.get("completed_at") and isinstance(field.get("completed_at"), datetime) else field.get("completed_at"),
+        "completed_at": field.get("completed_at").isoformat() + "Z" if field.get("completed_at") and isinstance(field.get("completed_at"), datetime) else field.get("completed_at"),
         "value": field.get("value"),
         
-        "added_at": field["added_at"].isoformat() if isinstance(field["added_at"], datetime) else field["added_at"],
-        "modified_at": field.get("modified_at").isoformat() if field.get("modified_at") and isinstance(field.get("modified_at"), datetime) else field.get("modified_at"),
+        "added_at": field["added_at"].isoformat() + "Z" if isinstance(field["added_at"], datetime) else field["added_at"],
+        "modified_at": field.get("modified_at").isoformat() + "Z" if field.get("modified_at") and isinstance(field.get("modified_at"), datetime) else field.get("modified_at"),
     }
 
     # Canvas coordinates (for UI)
@@ -225,7 +225,7 @@ def serialize_field_with_recipient(field, recipient_info=None):
         "dropdown_options": field.get("dropdown_options"),
         "group_name": field.get("group_name"),
         "email_validation": field.get("email_validation"),
-        "added_at": field["added_at"].isoformat() if "added_at" in field else None,
+        "added_at": field["added_at"].isoformat() + "Z" if "added_at" in field and isinstance(field["added_at"], datetime) else None,
         "canvas_x": field.get("canvas_x"),
         "canvas_y": field.get("canvas_y"),
         "canvas_width": field.get("canvas_width"),
@@ -238,7 +238,7 @@ def serialize_field_with_recipient(field, recipient_info=None):
         "completed_at": field.get("completed_at"),
         # 🔴 FIX: Set is_completed based on completed_at
         "is_completed": is_completed,
-        "created_at": field.get("created_at").isoformat() if field.get("created_at") else None,
+        "created_at": field.get("created_at").isoformat() + "Z" if field.get("created_at") and isinstance(field.get("created_at"), datetime) else None,
     }
     
     # 🔴 IMPROVED: Handle recipient info in two ways:

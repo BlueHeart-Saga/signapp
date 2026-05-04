@@ -1678,3 +1678,227 @@
     display: none;
   }
 }
+
+/* ============================================================
+   BULK ACTIONS BAR
+   ============================================================ */
+.dt-bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  animation: dt-slide-down 0.2s ease-out;
+}
+
+@keyframes dt-slide-down {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.dt-bulk-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dt-checkbox-wrapper {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.dt-selected-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.dt-bulk-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Checkboxes */
+.dt-card-checkbox,
+.dt-checkbox-wrapper input {
+  width: 16px;
+  height: 16px;
+  accent-color: #0f766e;
+  cursor: pointer;
+}
+
+.dt-document-selection-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dt-document-card.selected {
+  border-color: #0f766e;
+  background: #f0fdfa;
+}
+
+.dt-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dt-select-all-label input {
+  width: 14px;
+  height: 14px;
+  accent-color: #0f766e;
+}
+
+/* List View Styles */
+.dt-documents-list-container {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  margin-top: 20px;
+}
+
+.dt-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.dt-list-table th {
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.dt-list-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.dt-list-table tr:hover {
+  background: #f9fafb;
+}
+
+.dt-list-table tr.selected {
+  background: #f0fdfa;
+}
+
+.dt-list-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dt-list-icon {
+  font-size: 20px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+}
+
+.dt-list-name {
+  font-weight: 500;
+  color: #111827;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-list-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* View Toggle Styles */
+.dt-view-toggle {
+  display: flex;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.dt-view-btn {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.dt-view-btn:hover {
+  color: #111827;
+}
+
+.dt-view-btn.active {
+  background: #fff;
+  color: #0f766e;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dt-col-selection { width: 40px; }
+.dt-col-status { width: 100px; }
+.dt-col-source { width: 100px; }
+.dt-col-date { width: 150px; }
+.dt-col-size { width: 100px; }
+.dt-col-actions { width: 180px; }
+
+/* UI Bug Fixes */
+.dt-documents-stats {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  flex: 1 !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  margin-left: auto !important;
+}
+
+.dt-search-section {
+  flex-wrap: wrap !important;
+}
+
+.dt-select-all-label {
+  margin-right: 0 !important;
+  color: #374151 !important;
+}
+
+.dt-document-card-footer {
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+
+.dt-document-card-footer .dt-btn {
+  flex: 1 1 auto !important;
+  min-width: fit-content !important;
+  padding: 5px 8px !important;
+}

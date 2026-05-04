@@ -158,6 +158,9 @@ class CreateFromTemplateRequest(BaseModel):
 class FileOrderItem(BaseModel):
     file_id: str
     order: int
+
+class BulkActionRequest(BaseModel):
+    document_ids: List[str]
     
     
     
@@ -380,10 +383,10 @@ def serialize_document(doc):
     return {
         "id": str(doc["_id"]),
         "filename": doc.get("filename"),
-        "uploaded_at": doc.get("uploaded_at").isoformat() if doc.get("uploaded_at") else None,
-        "deleted_at": doc.get("deleted_at").isoformat() if doc.get("deleted_at") else None,
-        "voided_at": doc.get("voided_at").isoformat() if doc.get("voided_at") else None,
-        "restored_at": doc.get("restored_at").isoformat() if doc.get("restored_at") else None,
+        "uploaded_at": doc.get("uploaded_at").isoformat() + "Z" if doc.get("uploaded_at") else None,
+        "deleted_at": doc.get("deleted_at").isoformat() + "Z" if doc.get("deleted_at") else None,
+        "voided_at": doc.get("voided_at").isoformat() + "Z" if doc.get("voided_at") else None,
+        "restored_at": doc.get("restored_at").isoformat() + "Z" if doc.get("restored_at") else None,
         
         # Preview URL
         "preview_url": preview_url or f"/documents/{doc_id}/preview",
@@ -418,8 +421,8 @@ def serialize_document(doc):
         # Envelope ID fields
         "envelope_id": doc.get("envelope_id"),
         "envelope_auto_generated": doc.get("envelope_auto_generated", False),
-        "envelope_regenerated_at": doc.get("envelope_regenerated_at").isoformat() if doc.get("envelope_regenerated_at") else None,
-        "envelope_generated_at": doc.get("envelope_generated_at").isoformat() if doc.get("envelope_generated_at") else None,
+        "envelope_regenerated_at": doc.get("envelope_regenerated_at").isoformat() + "Z" if doc.get("envelope_regenerated_at") else None,
+        "envelope_generated_at": doc.get("envelope_generated_at").isoformat() + "Z" if doc.get("envelope_generated_at") else None,
 
         # Signing progress
         "total_recipients": total_recipients,
@@ -446,45 +449,8 @@ def serialize_document(doc):
         "expiry_days": doc.get("expiry_days"),
         "reminder_period": doc.get("reminder_period"),
         "signing_order_enabled": doc.get("signing_order_enabled"),
-        "expires_at": doc.get("expires_at").isoformat() if doc.get("expires_at") else None
+        "expires_at": doc.get("expires_at").isoformat() + "Z" if doc.get("expires_at") else None
     }
-
-@router.get("/{document_id}/status")
-async def get_document_status(
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get real-time processing status of a document.
-    """
-    doc = db.documents.find_one({
-        "_id": ObjectId(document_id),
-        "owner_id": ObjectId(current_user["id"])
-    })
-    
-    if not doc:
-        raise HTTPException(404, "Document not found")
-        
-    return {
-        "id": document_id,
-        "status": doc.get("status", "draft"),
-        "progress": doc.get("progress", 0),
-        "processing_status": doc.get("processing_status", "Processing..."),
-        "page_count": doc.get("page_count", 0)
-    }
-    
-def log_activity(document_id, user, action):
-    try:
-        db.document_activity.insert_one({
-            "document_id": str(document_id),
-            "user_id": str(user["id"]),
-            "user_email": user["email"],
-            "action": action, 
-            "timestamp": datetime.utcnow(),
-            "ip_address": None
-        })
-    except Exception as e:
-        logging.error(f"Activity Log Failed: {str(e)}")
 
 from .audit import log_audit_event
 
@@ -535,6 +501,200 @@ def _log_event(
         log_audit_event(audit_data)
     except Exception as e:
         print(f"Warning: Failed to log audit event: {e}")
+
+@router.delete("/{document_id}/permanent")
+async def permanent_delete(
+    request: Request,
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    doc = db.documents.find_one(
+        {"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])}
+    )
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.get("status") != "deleted":
+        raise HTTPException(status_code=400, detail="Document must be in trash to permanently delete")
+
+    # ============================================
+    # Delete files from Azure Blob Storage
+    # ============================================
+    for key in ["original_file_path", "pdf_file_path", "signed_pdf_path"]:
+        if doc.get(key):
+            try:
+                storage.delete(doc[key])
+            except Exception as e:
+                print(f"Error deleting {key}: {e}")
+
+    # Delete thumbnails
+    if doc.get("preview_thumbnail_path"):
+        try:
+            storage.delete(doc["preview_thumbnail_path"])
+        except:
+            pass
+
+    if doc.get("page_thumbnails"):
+        for thumb in doc["page_thumbnails"]:
+            if thumb.get("thumbnail_path"):
+                try:
+                    storage.delete(thumb["thumbnail_path"])
+                except:
+                    pass
+
+    # Delete all document files
+    doc_files = db.document_files.find({"document_id": ObjectId(document_id)})
+    for f in doc_files:
+        if f.get("file_path"):
+            try:
+                storage.delete(f["file_path"])
+            except:
+                pass
+        if f.get("thumbnail_path"):
+            try:
+                storage.delete(f["thumbnail_path"])
+            except:
+                pass
+
+    # Delete DB dependencies
+    db.documents.delete_one({"_id": ObjectId(document_id)})
+    db.recipients.delete_many({"document_id": ObjectId(document_id)})
+    db.signatures.delete_many({"document_id": ObjectId(document_id)})
+    db.document_files.delete_many({"document_id": ObjectId(document_id)})
+
+    _log_event(document_id, current_user, "permanent_delete", request=request)
+
+    return {"message": "Document permanently deleted"}
+
+
+# -----------------------------
+# BULK OPERATIONS
+# -----------------------------
+@router.post("/bulk/delete")
+async def bulk_soft_delete(
+    request_data: BulkActionRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    user_id = ObjectId(current_user["id"])
+    try:
+        doc_oids = [ObjectId(d) for d in request_data.document_ids]
+    except:
+        raise HTTPException(400, "Invalid document IDs")
+    
+    result = db.documents.update_many(
+        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": {"$ne": "deleted"}},
+        {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}}
+    )
+    
+    for doc_id in request_data.document_ids:
+        try:
+            _log_event(doc_id, current_user, "soft_delete", request=request)
+        except:
+            pass
+        
+    return {"message": f"Moved {result.modified_count} documents to trash"}
+
+@router.post("/bulk/restore")
+async def bulk_restore(
+    request_data: BulkActionRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    user_id = ObjectId(current_user["id"])
+    try:
+        doc_oids = [ObjectId(d) for d in request_data.document_ids]
+    except:
+        raise HTTPException(400, "Invalid document IDs")
+    
+    result = db.documents.update_many(
+        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": "deleted"},
+        {"$set": {"status": "draft", "restored_at": datetime.utcnow()}}
+    )
+    
+    for doc_id in request_data.document_ids:
+        try:
+            _log_event(doc_id, current_user, "restore_document", request=request)
+        except:
+            pass
+        
+    return {"message": f"Restored {result.modified_count} documents"}
+
+@router.post("/bulk/permanent-delete")
+async def bulk_permanent_delete(
+    request_data: BulkActionRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    deleted_count = 0
+    for doc_id in request_data.document_ids:
+        try:
+            await permanent_delete(request, doc_id, current_user)
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error in bulk permanent delete for {doc_id}: {e}")
+            continue
+            
+    return {"message": f"Permanently deleted {deleted_count} documents"}
+
+@router.delete("/trash/empty")
+async def empty_trash(
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    user_id = ObjectId(current_user["id"])
+    trash_docs = list(db.documents.find({"owner_id": user_id, "status": "deleted"}, {"_id": 1}))
+    
+    deleted_count = 0
+    for doc in trash_docs:
+        try:
+            await permanent_delete(request, str(doc["_id"]), current_user)
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error emptying trash for document {doc['_id']}: {e}")
+            continue
+            
+    return {"message": f"Emptied trash: {deleted_count} documents removed"}
+
+
+@router.get("/{document_id}/status")
+async def get_document_status(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get real-time processing status of a document.
+    """
+    doc = db.documents.find_one({
+        "_id": ObjectId(document_id),
+        "owner_id": ObjectId(current_user["id"])
+    })
+    
+    if not doc:
+        raise HTTPException(404, "Document not found")
+        
+    return {
+        "id": document_id,
+        "status": doc.get("status", "draft"),
+        "progress": doc.get("progress", 0),
+        "processing_status": doc.get("processing_status", "Processing..."),
+        "page_count": doc.get("page_count", 0)
+    }
+    
+def log_activity(document_id, user, action):
+    try:
+        db.document_activity.insert_one({
+            "document_id": str(document_id),
+            "user_id": str(user["id"]),
+            "user_email": user["email"],
+            "action": action, 
+            "timestamp": datetime.utcnow(),
+            "ip_address": None
+        })
+    except Exception as e:
+        logging.error(f"Activity Log Failed: {str(e)}")
+
 
 def generate_pdf_thumbnails(
     pdf_bytes: bytes,
@@ -2414,7 +2574,7 @@ async def get_file_history(
             "title": log.get("title"),
             "description": log.get("description"),
             "actor": log.get("actor", {}),
-            "timestamp": log.get("timestamp")
+            "timestamp": log.get("timestamp").isoformat() + "Z" if isinstance(log.get("timestamp"), datetime) else log.get("timestamp")
         }
         for log in logs
     ]
@@ -3631,71 +3791,6 @@ async def soft_delete_document(document_id: str, current_user: dict = Depends(ge
 
     _log_event(document_id, current_user, "soft_delete", request=request)
     return {"message": "Document moved to trash"}
-
-@router.delete("/{document_id}/permanent")
-async def permanent_delete(
-    request: Request,
-    document_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    doc = db.documents.find_one(
-        {"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])}
-    )
-
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    if doc.get("status") != "deleted":
-        raise HTTPException(status_code=400, detail="Document must be in trash to permanently delete")
-
-    # ============================================
-    # Delete files from Azure Blob Storage
-    # ============================================
-    for key in ["original_file_path", "pdf_file_path", "signed_pdf_path"]:
-        if doc.get(key):
-            try:
-                storage.delete(doc[key])
-            except Exception as e:
-                print(f"Error deleting {key}: {e}")
-
-    # Delete thumbnails
-    if doc.get("preview_thumbnail_path"):
-        try:
-            storage.delete(doc["preview_thumbnail_path"])
-        except:
-            pass
-
-    if doc.get("page_thumbnails"):
-        for thumb in doc["page_thumbnails"]:
-            if thumb.get("thumbnail_path"):
-                try:
-                    storage.delete(thumb["thumbnail_path"])
-                except:
-                    pass
-
-    # Delete all document files
-    doc_files = db.document_files.find({"document_id": ObjectId(document_id)})
-    for f in doc_files:
-        if f.get("file_path"):
-            try:
-                storage.delete(f["file_path"])
-            except:
-                pass
-        if f.get("thumbnail_path"):
-            try:
-                storage.delete(f["thumbnail_path"])
-            except:
-                pass
-
-    # Delete DB dependencies
-    db.documents.delete_one({"_id": ObjectId(document_id)})
-    db.recipients.delete_many({"document_id": ObjectId(document_id)})
-    db.signatures.delete_many({"document_id": ObjectId(document_id)})
-    db.document_files.delete_many({"document_id": ObjectId(document_id)})
-
-    _log_event(document_id, current_user, "permanent_delete", request=request)
-
-    return {"message": "Document permanently deleted"}
 
 
 # -----------------------------

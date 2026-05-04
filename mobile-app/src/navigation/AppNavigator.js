@@ -7,7 +7,9 @@ import { useAuth } from '../store/authContext';
 import { COLORS } from '../constants/theme';
 
 // Screens
+import LandingScreen from '../screens/LandingScreen';
 import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import DocumentViewerScreen from '../screens/DocumentViewerScreen';
 import SigningScreen from '../screens/SigningScreen';
@@ -16,8 +18,13 @@ import ProfileScreen from '../screens/ProfileScreen';
 const Stack = createNativeStackNavigator();
 
 const AuthStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+        initialRouteName="Landing"
+        screenOptions={{ headerShown: false }}
+    >
+        <Stack.Screen name="Landing" component={LandingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
 );
 

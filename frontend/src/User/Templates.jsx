@@ -372,7 +372,7 @@ import {
   FaFire
 } from 'react-icons/fa';
 import { FaFolder } from "react-icons/fa";
-import { restoreDocument, permanentDeleteDocument } from "../services/DocumentAPI";
+import { restoreDocument, permanentDeleteDocument, bulkSoftDeleteDocuments, bulkRestoreDocuments, bulkPermanentDeleteDocuments, emptyTrash } from "../services/DocumentAPI";
 
 import { documentsAPI } from '../services/api';
 import { uploadDocument } from '../services/DocumentAPI';
@@ -429,6 +429,8 @@ export default function DocumentsAndTemplates() {
     onConfirm: null,
   });
 
+  const [selectedDocs, setSelectedDocs] = useState([]);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -450,6 +452,7 @@ export default function DocumentsAndTemplates() {
     const tabParam = params.get('tab');
     if (tabParam && ['templates', 'documents', 'trash'].includes(tabParam)) {
       setActiveTab(tabParam);
+      setSelectedDocs([]); // Clear selection when tab changes
     }
   }, [location.search]);
 
@@ -489,6 +492,88 @@ export default function DocumentsAndTemplates() {
     } finally {
       setTrashLoading(false);
     }
+  };
+
+  // ============ SELECTION & BULK ACTIONS ============
+  const handleToggleSelect = (id) => {
+    setSelectedDocs(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (currentList) => {
+    const ids = currentList.map(doc => doc.id || doc._id);
+    const allSelected = ids.every(id => selectedDocs.includes(id));
+
+    if (allSelected) {
+      setSelectedDocs(prev => prev.filter(id => !ids.includes(id)));
+    } else {
+      setSelectedDocs(prev => [...new Set([...prev, ...ids])]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDocs.length === 0) return;
+
+    setConfirmDialog({
+      open: true,
+      title: activeTab === 'trash' ? "Permanently delete selected?" : "Move selected to trash?",
+      message: activeTab === 'trash'
+        ? `Are you sure you want to permanently delete ${selectedDocs.length} documents? This cannot be undone.`
+        : `Are you sure you want to move ${selectedDocs.length} documents to trash?`,
+      confirmText: activeTab === 'trash' ? "Delete Forever" : "Move to Trash",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          if (activeTab === 'trash') {
+            await bulkPermanentDeleteDocuments(selectedDocs);
+            setSnackbar({ open: true, message: "Documents deleted permanently", severity: "success" });
+            loadTrashDocuments();
+          } else {
+            await bulkSoftDeleteDocuments(selectedDocs);
+            setSnackbar({ open: true, message: "Documents moved to trash", severity: "success" });
+            loadDocuments();
+          }
+          setSelectedDocs([]);
+        } catch (err) {
+          setSnackbar({ open: true, message: "Bulk action failed", severity: "error" });
+        }
+      }
+    });
+  };
+
+  const handleBulkRestore = async () => {
+    if (selectedDocs.length === 0) return;
+
+    try {
+      await bulkRestoreDocuments(selectedDocs);
+      setSnackbar({ open: true, message: "Documents restored successfully", severity: "success" });
+      loadTrashDocuments();
+      loadDocuments();
+      setSelectedDocs([]);
+    } catch (err) {
+      setSnackbar({ open: true, message: "Restore failed", severity: "error" });
+    }
+  };
+
+  const handleEmptyTrash = async () => {
+    setConfirmDialog({
+      open: true,
+      title: "Empty Trash?",
+      message: "Are you sure you want to permanently delete ALL documents in trash? This action cannot be undone.",
+      confirmText: "Empty Trash",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await emptyTrash();
+          setSnackbar({ open: true, message: "Trash emptied", severity: "success" });
+          loadTrashDocuments();
+          setSelectedDocs([]);
+        } catch (err) {
+          setSnackbar({ open: true, message: "Failed to empty trash", severity: "error" });
+        }
+      }
+    });
   };
 
   const getDeletedDate = (doc) => {
@@ -1105,8 +1190,32 @@ export default function DocumentsAndTemplates() {
               </div>
             )}
 
+            {/* Bulk Actions Bar */}
+            {selectedDocs.length > 0 && (
+              <div className="dt-bulk-actions-bar">
+                <div className="dt-bulk-info">
+                  <button className="dt-checkbox-wrapper" onClick={() => handleSelectAll(filteredDocuments)}>
+                    <input
+                      type="checkbox"
+                      checked={filteredDocuments.length > 0 && filteredDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                      readOnly
+                    />
+                  </button>
+                  <span className="dt-selected-count">{selectedDocs.length} documents selected</span>
+                </div>
+                <div className="dt-bulk-btns">
+                  <button className="dt-btn dt-btn-danger dt-btn-sm" onClick={handleBulkDelete}>
+                    <FaTrash /> Delete Selected
+                  </button>
+                  <button className="dt-btn dt-btn-secondary dt-btn-sm" onClick={() => setSelectedDocs([])}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Documents Search Bar */}
-            {documents.length > 0 && (
+            {(documents.length > 0 || searchTerm) && (
               <div className="dt-search-section">
                 <div className="dt-search-box">
                   <FaSearch className="dt-search-icon" />
@@ -1127,6 +1236,32 @@ export default function DocumentsAndTemplates() {
                   )}
                 </div>
                 <div className="dt-documents-stats">
+                  {selectedDocs.length === 0 && (
+                    <label className="dt-select-all-label">
+                      <input
+                        type="checkbox"
+                        checked={filteredDocuments.length > 0 && filteredDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                        onChange={() => handleSelectAll(filteredDocuments)}
+                      />
+                      <span>Select All</span>
+                    </label>
+                  )}
+                  <div className="dt-view-toggle">
+                    <button
+                      className={`dt-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                      onClick={() => setViewMode('list')}
+                      title="List View"
+                    >
+                      <FaList />
+                    </button>
+                    <button
+                      className={`dt-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                      onClick={() => setViewMode('grid')}
+                      title="Grid View"
+                    >
+                      <FaTh />
+                    </button>
+                  </div>
                   <span className="dt-stat-badge">
                     {filteredDocuments.length} of {documents.length} documents
                   </span>
@@ -1170,25 +1305,123 @@ export default function DocumentsAndTemplates() {
                   </>
                 )}
               </div>
+            ) : viewMode === "list" ? (
+              <div className="dt-documents-list-container">
+                <table className="dt-list-table">
+                  <thead>
+                    <tr>
+                      <th className="dt-col-selection">
+                        <input
+                          type="checkbox"
+                          checked={filteredDocuments.length > 0 && filteredDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                          onChange={() => handleSelectAll(filteredDocuments)}
+                        />
+                      </th>
+                      <th className="dt-col-name">Document Name</th>
+                      <th className="dt-col-status">Status</th>
+                      <th className="dt-col-source">Source</th>
+                      <th className="dt-col-date">Uploaded At</th>
+                      <th className="dt-col-size">Size</th>
+                      <th className="dt-col-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDocuments.map((document) => {
+                      const docId = document.id || document._id;
+                      return (
+                        <tr key={docId} className={selectedDocs.includes(docId) ? 'selected' : ''}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedDocs.includes(docId)}
+                              onChange={() => handleToggleSelect(docId)}
+                            />
+                          </td>
+                          <td>
+                            <div className="dt-list-name-wrapper">
+                              <span className="dt-list-icon">
+                                {getFileIcon(document.mime_type, document.filename)}
+                              </span>
+                              <span className="dt-list-name" title={document.filename}>{document.filename}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`dt-status-badge dt-status-${document.status?.toLowerCase() || 'active'}`}>
+                              {document.status || 'Active'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`dt-source-badge dt-source-${document.source?.toLowerCase() || 'local'}`}>
+                              {document.source || 'Local'}
+                            </span>
+                          </td>
+                          <td>{formatDate(document.uploaded_at)}</td>
+                          <td>{formatFileSize(document.size)}</td>
+                          <td className="dt-list-actions">
+                            <button
+                              className="dt-btn-icon"
+                              onClick={() => handleViewDocumentPdf(document)}
+                              title="View PDF"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              className="dt-btn-icon"
+                              onClick={() => handleDownload(docId, document.filename)}
+                              title="Download"
+                            >
+                              <FaDownload />
+                            </button>
+                            <button
+                              className="dt-btn-icon"
+                              onClick={() => handleUseDocument(document)}
+                              title="Use Document"
+                            >
+                              <FaCloudUploadAlt />
+                            </button>
+                            <button
+                              className="dt-btn-icon dt-danger"
+                              onClick={() => setDeleteConfirm(docId)}
+                              title="Delete"
+                            >
+                              <FaTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="dt-documents-grid">
-                {filteredDocuments.map((document) => (
-                  <div key={document.id} className="dt-document-card">
+                {filteredDocuments.map((document) => {
+                  const docId = document.id || document._id;
+                  return (
+                  <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
                     <div className="dt-document-card-header">
-                      <div className="dt-document-icon">
-                        {getFileIcon(document.mime_type, document.filename)}
+                      <div className="dt-document-selection-wrapper">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocs.includes(docId)}
+                          onChange={() => handleToggleSelect(docId)}
+                          className="dt-card-checkbox"
+                        />
+                        <div className="dt-document-icon">
+                          {getFileIcon(document.mime_type, document.filename)}
+                        </div>
                       </div>
                       <div className="dt-document-actions">
                         <button
                           className="dt-btn-icon"
-                          onClick={() => handleDownload(document.id, document.filename)}
+                          onClick={() => handleDownload(docId, document.filename)}
                           title="Download Document"
                         >
                           <FaDownload />
                         </button>
                         <button
                           className="dt-btn-icon dt-danger"
-                          onClick={() => setDeleteConfirm(document.id)}
+                          onClick={() => setDeleteConfirm(docId)}
                           title="Delete Document"
                         >
                           <FaTrash />
@@ -1258,7 +1491,7 @@ export default function DocumentsAndTemplates() {
                     </div>
 
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </div>
@@ -1638,7 +1871,59 @@ export default function DocumentsAndTemplates() {
         {/* TRASH TAB */}
         {activeTab === "trash" && (
           <div className="dt-documents-section">
-            <h3 style={{ marginBottom: 12 }}>Deleted Documents</h3>
+            <div className="dt-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0 }}>Deleted Documents</h3>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div className="dt-view-toggle">
+                  <button
+                    className={`dt-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                    onClick={() => setViewMode('list')}
+                    title="List View"
+                  >
+                    <FaList />
+                  </button>
+                  <button
+                    className={`dt-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                    onClick={() => setViewMode('grid')}
+                    title="Grid View"
+                  >
+                    <FaTh />
+                  </button>
+                </div>
+                {trashDocuments.length > 0 && (
+                  <button className="dt-btn dt-btn-danger dt-btn-sm" onClick={handleEmptyTrash}>
+                    <FaTrash /> Empty Trash
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bulk Actions Bar */}
+            {selectedDocs.length > 0 && (
+              <div className="dt-bulk-actions-bar">
+                <div className="dt-bulk-info">
+                  <button className="dt-checkbox-wrapper" onClick={() => handleSelectAll(trashDocuments)}>
+                    <input
+                      type="checkbox"
+                      checked={trashDocuments.length > 0 && trashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                      readOnly
+                    />
+                  </button>
+                  <span className="dt-selected-count">{selectedDocs.length} items selected</span>
+                </div>
+                <div className="dt-bulk-btns">
+                  <button className="dt-btn dt-btn-outline dt-btn-sm" onClick={handleBulkRestore}>
+                    ♻️ Restore Selected
+                  </button>
+                  <button className="dt-btn dt-btn-danger dt-btn-sm" onClick={handleBulkDelete}>
+                    <FaTrash /> Delete Forever
+                  </button>
+                  <button className="dt-btn dt-btn-secondary dt-btn-sm" onClick={() => setSelectedDocs([])}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {trashLoading ? (
               <div className="dt-loading-state">
@@ -1651,10 +1936,127 @@ export default function DocumentsAndTemplates() {
                 <h3>Trash is empty</h3>
                 <p>Deleted documents will appear here</p>
               </div>
+            ) : viewMode === "list" ? (
+              <div className="dt-documents-list-container">
+                <table className="dt-list-table">
+                  <thead>
+                    <tr>
+                      <th className="dt-col-selection">
+                        <input
+                          type="checkbox"
+                          checked={trashDocuments.length > 0 && trashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                          onChange={() => handleSelectAll(trashDocuments)}
+                        />
+                      </th>
+                      <th className="dt-col-name">Document Name</th>
+                      <th className="dt-col-date">Deleted On</th>
+                      <th className="dt-col-source">Source</th>
+                      <th className="dt-col-size">Size</th>
+                      <th className="dt-col-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trashDocuments.map((doc) => {
+                      const docId = doc.id || doc._id;
+                      return (
+                        <tr key={docId} className={selectedDocs.includes(docId) ? 'selected' : ''}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedDocs.includes(docId)}
+                              onChange={() => handleToggleSelect(docId)}
+                            />
+                          </td>
+                          <td>
+                            <div className="dt-list-name-wrapper">
+                              <span className="dt-list-icon">
+                                {getFileIcon(doc.mime_type, doc.filename)}
+                              </span>
+                              <span className="dt-list-name" title={doc.filename}>{doc.filename}</span>
+                            </div>
+                          </td>
+                          <td>{getDeletedDate(doc)}</td>
+                          <td>
+                            <span className={`dt-source-badge dt-source-${doc.source?.toLowerCase() || 'local'}`}>
+                              {doc.source || 'Local'}
+                            </span>
+                          </td>
+                          <td>{formatFileSize(doc.size)}</td>
+                          <td className="dt-list-actions">
+                            <button
+                              className="dt-btn-icon"
+                              onClick={() => handleViewDocumentPdf(doc)}
+                              title="View PDF"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              className="dt-btn-icon"
+                              title="Restore"
+                              style={{ color: '#059669' }}
+                              onClick={() =>
+                                setConfirmDialog({
+                                  open: true,
+                                  title: "Restore document?",
+                                  message: "This document will be restored to your documents list.",
+                                  confirmText: "Restore Document",
+                                  danger: false,
+                                  onConfirm: async () => {
+                                    await restoreDocument(docId);
+                                    loadTrashDocuments();
+                                    loadDocuments();
+                                  },
+                                })
+                              }
+                            >
+                              ♻️
+                            </button>
+                            <button
+                              className="dt-btn-icon dt-danger"
+                              title="Delete Permanently"
+                              onClick={() =>
+                                setConfirmDialog({
+                                  open: true,
+                                  title: "Permanently delete document?",
+                                  message: (
+                                    <>
+                                      <p>This action <strong>cannot be undone</strong>.</p>
+                                      <p>The document and its history will be removed forever.</p>
+                                    </>
+                                  ),
+                                  confirmText: "Delete Permanently",
+                                  danger: true,
+                                  onConfirm: async () => {
+                                    await permanentDeleteDocument(docId);
+                                    loadTrashDocuments();
+                                  },
+                                })
+                              }
+                            >
+                              <FaTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="dt-documents-grid">
-                {trashDocuments.map((doc) => (
-                  <div key={doc.id} className="dt-document-card">
+                {trashDocuments.map((doc) => {
+                  const docId = doc.id || doc._id;
+                  return (
+                  <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
+                    <div className="dt-document-card-header" style={{ padding: '8px 14px', borderBottom: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedDocs.includes(docId)}
+                        onChange={() => handleToggleSelect(docId)}
+                        className="dt-card-checkbox"
+                      />
+                      <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>Select item</span>
+                    </div>
                     <div className="dt-document-card-body">
                       <h3 className="dt-document-name" title={doc.filename}>
                         {doc.filename}
@@ -1716,7 +2118,7 @@ export default function DocumentsAndTemplates() {
                               confirmText: "Restore Document",
                               danger: false,
                               onConfirm: async () => {
-                                await restoreDocument(doc.id);
+                                await restoreDocument(docId);
                                 loadTrashDocuments();
                                 loadDocuments();
                               },
@@ -1749,7 +2151,7 @@ export default function DocumentsAndTemplates() {
                             confirmText: "Delete Permanently",
                             danger: true,
                             onConfirm: async () => {
-                              await permanentDeleteDocument(doc.id);
+                              await permanentDeleteDocument(docId);
                               loadTrashDocuments();
                             },
                           })
@@ -1762,7 +2164,7 @@ export default function DocumentsAndTemplates() {
 
 
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from email.mime.application import MIMEApplication 
+from email.mime.image import MIMEImage
 from email.mime.base import MIMEBase
 from email import encoders
 import io
@@ -3190,6 +3191,12 @@ def send_signed_document_email(
 
         msg.attach(MIMEText(html_content, "html"))
 
+        # Ensure filename ends with .pdf
+        if not document_name.lower().endswith(".pdf"):
+            # Remove original extension if any and add .pdf
+            base_filename = document_name.rsplit(".", 1)[0]
+            document_name = f"{base_filename}.pdf"
+
         attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
         attachment.add_header(
             "Content-Disposition",
@@ -3793,11 +3800,22 @@ async def send_document_completion_email(
             msg.attach(msg_image)
 
         # Attach PDF document
+        # Ensure filename has .pdf extension and prefix
+        bare_filename = document_name
+        if bare_filename.lower().endswith(".pdf"):
+            bare_filename = bare_filename[:-4]
+        elif bare_filename.lower().endswith(".docx"):
+            bare_filename = bare_filename[:-5]
+        elif "." in bare_filename:
+            bare_filename = bare_filename.rsplit(".", 1)[0]
+            
+        final_attachment_name = f"completed_{bare_filename}.pdf"
+
         pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
         pdf_attachment.add_header(
             "Content-Disposition",
             "attachment",
-            filename=f"completed_{document_name}"
+            filename=final_attachment_name
         )
         msg.attach(pdf_attachment)
         
@@ -4812,6 +4830,11 @@ async def send_expiration_email_to_owner(document: dict):
     doc_name = document.get("filename", "Document")
     envelope_id = document.get("envelope_id", "N/A")
     
+    # Get branding info
+    branding = db.branding.find_one({}) or {}
+    platform_name = branding.get("platform_name", "SafeSign")
+    logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
+    
     current_year = datetime.utcnow().year
     standard_footer = get_standard_email_footer()
     
@@ -4823,10 +4846,11 @@ async def send_expiration_email_to_owner(document: dict):
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
-            .brand-name {{ font-size: 24px; font-weight: 800; color: #dc2626; letter-spacing: -0.5px; }}
-            .alert-header {{ background: #dc2626; color: white; padding: 30px; text-align: center; }}
+            .brand-logo {{ height: 32px; width: auto; display: block; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+            .document-header {{ background: #ffffff; color: #00A3A3; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
             .content {{ padding: 30px; background: #ffffff; }}
-            .info-card {{ background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+            .info-card {{ background: #fff1f2; border-left: 4px solid #e11d48; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
         </style>
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff;">
@@ -4834,17 +4858,33 @@ async def send_expiration_email_to_owner(document: dict):
             <tr>
                 <td align="center">
                     <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
-                        <!-- Header -->
+                        <!-- Header: Logo -->
                         <tr>
-                            <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-                                <span class="brand-name">SafeSign</span>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span class="brand-name">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Banner Image -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="{BACKEND_URL}/static/email/banner.png" alt="{platform_name} Banner" style="width: 100%; height: auto; display: block; border: 0;" />
                             </td>
                         </tr>
                         
                         <!-- Alert Header -->
                         <tr>
-                            <td class="alert-header">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">⚠️ Document Expired</h1>
+                            <td class="document-header">
+                                <h1 style="margin: 0; color: #e11d48; font-size: 20px;">⚠️ Document Expired</h1>
                             </td>
                         </tr>
                         
@@ -4898,6 +4938,11 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
     doc_name = document.get("filename", "Document")
     owner_name = document.get("owner_name") or document.get("owner_email", "The sender")
     
+    # Get branding info
+    branding = db.branding.find_one({}) or {}
+    platform_name = branding.get("platform_name", "SafeSign")
+    logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
+    
     current_year = datetime.utcnow().year
     standard_footer = get_standard_email_footer()
     
@@ -4909,10 +4954,11 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
-            .brand-name {{ font-size: 24px; font-weight: 800; color: #dc2626; letter-spacing: -0.5px; }}
-            .alert-header {{ background: #dc2626; color: white; padding: 30px; text-align: center; }}
+            .brand-logo {{ height: 32px; width: auto; display: block; }}
+            .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
+            .document-header {{ background: #ffffff; color: #00A3A3; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
             .content {{ padding: 30px; background: #ffffff; }}
-            .info-card {{ background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+            .info-card {{ background: #f0fdfa; border-left: 4px solid #00A3A3; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
         </style>
     </head>
     <body style="margin: 0; padding: 0; background-color: #ffffff;">
@@ -4920,17 +4966,33 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
             <tr>
                 <td align="center">
                     <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
-                        <!-- Header -->
+                        <!-- Header: Logo -->
                         <tr>
-                            <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-                                <span class="brand-name">SafeSign</span>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            {f'<img src="{logo_url}" alt="{platform_name}" class="brand-logo">' if logo_url else ''}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span class="brand-name">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Banner Image -->
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="{BACKEND_URL}/static/email/banner.png" alt="{platform_name} Banner" style="width: 100%; height: auto; display: block; border: 0;" />
                             </td>
                         </tr>
                         
                         <!-- Alert Header -->
                         <tr>
-                            <td class="alert-header">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 20px;">🕒 Request Expired</h1>
+                            <td class="document-header">
+                                <h1 style="margin: 0; color: #00A3A3; font-size: 20px;">🕒 Request Expired</h1>
                             </td>
                         </tr>
                         
@@ -4941,7 +5003,7 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
                                 <p>The signature request for "<strong>{doc_name}</strong>" from {owner_name} has expired.</p>
                                 
                                 <div class="info-card">
-                                    <p style="margin: 0; font-size: 14px; color: #991b1b;">You can no longer sign or view this document.</p>
+                                    <p style="margin: 0; font-size: 14px; color: #065f46;">You can no longer sign or view this document.</p>
                                 </div>
                                 
                                 <p>If you have questions regarding this request, please contact the sender directly.</p>

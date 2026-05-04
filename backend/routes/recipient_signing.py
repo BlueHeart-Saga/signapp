@@ -129,7 +129,7 @@ def serialize_recipient(recipient):
     
     for key, field in timestamps.items():
         if recipient.get(field):
-            result[key] = recipient[field].isoformat()
+            result[key] = recipient[field].isoformat() + "Z"
     
     return result
 
@@ -138,7 +138,7 @@ def serialize_document(document):
     return {
         "id": str(document["_id"]),
         "filename": document.get("filename", "Unknown"),
-        "uploaded_at": document.get("uploaded_at", datetime.utcnow()).isoformat(),
+        "uploaded_at": document.get("uploaded_at", datetime.utcnow()).isoformat() + "Z",
         "size": document.get("size", 0),
         "mime_type": document.get("mime_type", "application/octet-stream"),
         "status": document.get("status", "draft")
@@ -3001,13 +3001,25 @@ async def email_signed_document(
         except Exception as e:
             print(f"Warning: Could not apply watermark to email: {str(e)}")
 
-        from .email_service import send_signed_document_email
+        from .email_service import send_document_completion_email
+        
+        # Get owner info for the professional template
+        owner = db.users.find_one({"_id": document.get("owner_id")})
+        sender_email = document.get("owner_email", "")
+        sender_name = owner.get("full_name") or owner.get("name") or "Sender" if owner else "Sender"
+        sender_organization = owner.get("organization_name", "") if owner else ""
 
-        success = send_signed_document_email(
-            to_email=recipient["email"],
+        # Trigger the professional completion email (includes ZIP package)
+        success = await send_document_completion_email(
+            recipient_email=recipient["email"],
             recipient_name=recipient.get("name", ""),
-            document_name=document.get("filename", "document.pdf"),
-            pdf_bytes=pdf_bytes
+            document=document,
+            pdf_bytes=pdf_bytes,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_organization=sender_organization,
+            recipient_role=recipient.get("role", "signer"),
+            recipient=recipient
         )
 
         if not success:

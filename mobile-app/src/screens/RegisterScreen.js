@@ -14,39 +14,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES, FONTS, SPACING } from '../constants/theme';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
-import { useAuth } from '../store/authContext';
-import { login } from '../services/authService';
 
-const LoginScreen = () => {
+const RegisterScreen = ({ navigation }) => {
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
 
-    const { login: authLogin } = useAuth();
-
-    const handleLogin = async () => {
-        if (!email || !password) {
-            setError('Please enter both email and password');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const data = await login(email, password);
-            authLogin(data.access_token, data.user);
-        } catch (err) {
-            console.log(err);
-            const msg = err.response?.data?.detail?.message ||
-                err.response?.data?.message ||
-                'Invalid email or password';
-            setError(msg);
-            Alert.alert('Login Failed', msg);
-        } finally {
-            setLoading(false);
-        }
+    const handleRegister = () => {
+        // Mock register
+        Alert.alert('Register', 'This feature is coming soon.');
     };
 
     return (
@@ -62,42 +39,45 @@ const LoginScreen = () => {
                             style={styles.logo}
                             resizeMode="contain"
                         />
-                        <Text style={styles.title}>Welcome Back</Text>
-                        <Text style={styles.subtitle}>Sign in to your account to continue</Text>
+                        <Text style={styles.title}>Create Account</Text>
+                        <Text style={styles.subtitle}>Join SafeSign for secure document management</Text>
                     </View>
 
                     <View style={styles.formSection}>
+                        <InputField
+                            label="Full Name"
+                            placeholder="Enter your name"
+                            value={name}
+                            onChangeText={setName}
+                        />
+
                         <InputField
                             label="Email Address"
                             placeholder="Enter your email"
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
-                            error={error && !email ? 'Email is required' : null}
                         />
 
                         <InputField
                             label="Password"
-                            placeholder="Enter your password"
+                            placeholder="Create a password"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
-                            error={error && !password ? 'Password is required' : null}
                         />
 
-                        {error && <Text style={styles.errorBanner}>{error}</Text>}
-
                         <Button
-                            title="Sign In"
-                            onPress={handleLogin}
+                            title="Sign Up"
+                            onPress={handleRegister}
                             loading={loading}
                             style={{ marginTop: 20 }}
                         />
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>New to SafeSign? </Text>
-                            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                                <Text style={styles.registerLink}>Create Account</Text>
+                            <Text style={styles.footerText}>Already have an account? </Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                                <Text style={styles.loginLink}>Sign In</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -139,12 +119,6 @@ const styles = StyleSheet.create({
     formSection: {
         width: '100%',
     },
-    errorBanner: {
-        ...FONTS.body3,
-        color: COLORS.error,
-        textAlign: 'center',
-        marginTop: 10,
-    },
     footer: {
         flexDirection: 'row',
         justifyContent: 'center',
@@ -154,11 +128,11 @@ const styles = StyleSheet.create({
         ...FONTS.body2,
         color: COLORS.textSecondary,
     },
-    registerLink: {
+    loginLink: {
         ...FONTS.body2,
         color: COLORS.primary,
         fontWeight: 'bold',
     },
 });
 
-export default LoginScreen;
+export default RegisterScreen;

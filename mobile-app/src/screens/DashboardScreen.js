@@ -6,7 +6,8 @@ import {
     FlatList,
     ActivityIndicator,
     RefreshControl,
-    TouchableOpacity
+    TouchableOpacity,
+    Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../store/authContext';
@@ -50,9 +51,16 @@ const DashboardScreen = ({ navigation }) => {
 
     const renderHeader = () => (
         <View style={styles.headerContainer}>
-            <View>
-                <Text style={styles.welcomeText}>Welcome back,</Text>
-                <Text style={styles.userName}>{user?.name || 'User'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image
+                    source={require('../../assets/logo/logo.png')}
+                    style={styles.headerLogo}
+                    resizeMode="contain"
+                />
+                <View style={{ marginLeft: 12 }}>
+                    <Text style={styles.welcomeText}>Welcome back,</Text>
+                    <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                </View>
             </View>
             <TouchableOpacity onPress={logout} style={styles.logoutButton}>
                 <Text style={styles.logoutText}>Logout</Text>
@@ -125,6 +133,10 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
+    },
+    headerLogo: {
+        width: 40,
+        height: 40,
     },
     welcomeText: {
         ...FONTS.body4,

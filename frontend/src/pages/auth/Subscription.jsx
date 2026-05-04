@@ -1219,6 +1219,23 @@ const Subscription = () => {
   // ============================================
   // UPDATED RENDER PLANS - PROFESSIONAL DESIGN
   // ============================================
+const DiscountRibbon = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '15px',
+  left: '-35px',
+  backgroundColor: '#ff4d4d',
+  color: 'white',
+  padding: '5px 40px',
+  fontSize: '0.75rem',
+  fontWeight: 800,
+  transform: 'rotate(-45deg)',
+  boxShadow: '0 2px 10px rgba(255, 77, 77, 0.4)',
+  zIndex: 10,
+  textTransform: 'uppercase',
+  letterSpacing: '1px',
+  pointerEvents: 'none'
+}));
+
   // ============================================
   // UPDATED RENDER PLANS - PROFESSIONAL DESIGN (IMAGE-BASED)
   // ============================================
@@ -1230,7 +1247,9 @@ const Subscription = () => {
         type: 'monthly',
         title: 'BASIC',
         price: '24.99',
+        originalPrice: '31.25',
         accentColor: '#ff6a34', // Orange
+        showDiscount: true,
         features: [
           { text: 'Unlimited Document Uploads', included: true },
           { text: 'Professional Document Builder', included: true },
@@ -1244,8 +1263,10 @@ const Subscription = () => {
         type: 'yearly',
         title: 'STANDARD',
         price: '49.99',
+        originalPrice: '62.49',
         accentColor: '#1e6afb', // Blue
         isPopular: true,
+        showDiscount: true,
         features: [
           { text: 'Everything in Basic', included: true },
           { text: 'AI-Powered Template Generation', included: true },
@@ -1260,6 +1281,7 @@ const Subscription = () => {
         title: 'ENTERPRISE',
         price: '99.99',
         accentColor: '#00c25a', // Green
+        showDiscount: false,
         features: [
           { text: 'Everything in Standard', included: true },
           { text: 'Dedicated Account Manager', included: true },
@@ -1296,6 +1318,10 @@ const Subscription = () => {
             return (
               <Grid item xs={12} sm={6} md={4} key={planInfo.type} sx={{ display: 'flex', justifyContent: 'center' }}>
                 <PricingCard accentcolor={planInfo.accentColor}>
+                  {planInfo.showDiscount && (
+                    <DiscountRibbon>20% OFF</DiscountRibbon>
+                  )}
+                  
                   {/* Color Header Section */}
                   <CardHeader accentcolor={planInfo.accentColor}>
                     <Typography
@@ -1324,17 +1350,38 @@ const Subscription = () => {
                       </Box>
                     ) : (
                       <>
-                        <Typography
-                          variant="h4"
-                          fontWeight={800}
-                          sx={{ color: planInfo.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <Box component="span" sx={{ fontSize: '1.2rem', mt: -1.5, mr: 0.5 }}>$</Box>
-                          {backendPlan.price || planInfo.price}
-                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          {planInfo.showDiscount && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: '#a0aec0',
+                                textDecoration: 'line-through',
+                                fontWeight: 600,
+                                mb: -0.5,
+                                fontSize: '0.9rem'
+                              }}
+                            >
+                              ${planInfo.originalPrice}
+                            </Typography>
+                          )}
+                          <Typography
+                            variant="h4"
+                            fontWeight={800}
+                            sx={{ color: planInfo.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Box component="span" sx={{ fontSize: '1.2rem', mt: -1.5, mr: 0.5 }}>$</Box>
+                            {backendPlan.price || planInfo.price}
+                          </Typography>
+                        </Box>
                         <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
                           Per {planInfo.type === 'monthly' ? 'Month' : planInfo.type === 'yearly' ? 'Year' : 'User'}
                         </Typography>
+                        {planInfo.showDiscount && (
+                          <Typography variant="caption" sx={{ display: 'block', color: '#ff4d4d', fontWeight: 700, mt: 0.5, fontSize: '0.65rem' }}>
+                            Limited Time Offer!
+                          </Typography>
+                        )}
                       </>
                     )}
                   </PriceBox>

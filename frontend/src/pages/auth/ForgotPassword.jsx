@@ -7,17 +7,14 @@ import { useAuth } from "../../context/AuthContext";
 
 // Material UI Icons
 import ArrowBack from "@mui/icons-material/ArrowBack";
-import Email from "@mui/icons-material/Email";
-import Lock from "@mui/icons-material/Lock";
 import CheckCircle from "@mui/icons-material/CheckCircle";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
-import Security from "@mui/icons-material/Security";
 import Send from "@mui/icons-material/Send";
-import VpnKey from "@mui/icons-material/VpnKey";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { Shield } from "lucide-react";
 import API_BASE_URL from "../../config/api";
+
 // CSS
 import "../../style/ForgotPassword.css";
 
@@ -37,11 +34,12 @@ const ForgotPassword = () => {
   
   const navigate = useNavigate();
   const { setUser, setToken } = useAuth();
+  const otpRefs = React.useRef([]);
 
   useEffect(() => {
     setPageTitle(
-      "Reset Password",
-      "Reset your password to regain access to your SafeSign account."
+      "Reset Password | SafeSign",
+      "Reset your password to regain access to your SafeSign account securely."
     );
   }, []);
 
@@ -60,14 +58,41 @@ const ForgotPassword = () => {
     fetchBranding();
   }, []);
 
-  // Handle OTP input (numbers only, max 6 digits)
-  const handleOtpChange = (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setOtp(value);
+  const handleOtpChange = (index, value) => {
+    if (value.length > 1) return; // Handled by paste
+
+    const newOtpArr = otp.split('');
+    newOtpArr[index] = value;
+    const newOtp = newOtpArr.join('');
+    setOtp(newOtp);
     setErrorMsg("");
+
+    // Move to next input
+    if (value && index < 5) {
+      otpRefs.current[index + 1].focus();
+    }
   };
 
-  // Step 1: Request OTP
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace") {
+      if (!otp[index] && index > 0) {
+        // If current is empty, go to previous and clear it
+        otpRefs.current[index - 1].focus();
+      }
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').slice(0, 6).replace(/\D/g, '');
+    if (pasteData) {
+      setOtp(pasteData);
+      // Focus the last filled input or the next empty one
+      const nextIndex = Math.min(pasteData.length, 5);
+      otpRefs.current[nextIndex].focus();
+    }
+  };
+
   const handleRequestOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -81,33 +106,20 @@ const ForgotPassword = () => {
     }
 
     try {
-  const response = await api.post("/auth/forgot-password", { 
-    email: email.toLowerCase() 
-  });
-
-  setSuccessMsg(
-    response.data?.message ||
-    "If the email exists, a password reset OTP has been sent to your inbox."
-  );
-
-  setStep(2);
-
-} catch (err) {
-  console.error("OTP request error:", err);
-
-  // Same UX for security
-  setSuccessMsg(
-    "If the email exists, a password reset OTP has been sent to your inbox."
-  );
-
-  setStep(2);
-} finally {
-  setLoading(false);
-}
-
+      const response = await api.post("/auth/forgot-password", { 
+        email: email.toLowerCase() 
+      });
+      setSuccessMsg(response.data?.message || "If the email exists, an OTP has been sent.");
+      setStep(2);
+    } catch (err) {
+      // UX for security
+      setSuccessMsg("If the email exists, an OTP has been sent.");
+      setStep(2);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Step 2: Verify OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -134,14 +146,12 @@ const ForgotPassword = () => {
     }
   };
 
-  // Step 3: Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
 
-    // Validate passwords
     if (newPassword.length < 6) {
       setErrorMsg("Password must be at least 6 characters");
       setLoading(false);
@@ -154,21 +164,6 @@ const ForgotPassword = () => {
       return;
     }
 
-    // Password strength validation
-    const passwordRules = {
-      minLength: newPassword.length >= 6,
-      hasUpper: /[A-Z]/.test(newPassword),
-      hasLower: /[a-z]/.test(newPassword),
-      hasNumber: /\d/.test(newPassword),
-    };
-
-    const allPasswordRulesMet = Object.values(passwordRules).every(rule => rule);
-    if (!allPasswordRulesMet) {
-      setErrorMsg("Password must contain at least one uppercase letter, one lowercase letter, and one number");
-      setLoading(false);
-      return;
-    }
-
     try {
       await api.post("/auth/reset-password", { 
         email: email.toLowerCase(), 
@@ -176,9 +171,8 @@ const ForgotPassword = () => {
         new_password: newPassword
       });
       
-      setSuccessMsg(" Password reset successfully! Redirecting to login...");
+      setSuccessMsg("Password reset successful! Redirecting...");
       
-      // Auto login after successful password reset
       setTimeout(async () => {
         try {
           const form = new URLSearchParams();
@@ -195,17 +189,10 @@ const ForgotPassword = () => {
           if (token && user) {
             setToken(token);
             setUser(user);
-            
-            // Redirect based on role
             switch (user.role) {
-              case "admin":
-                navigate("/admin/dashboard");
-                break;
-              case "recipient":
-                navigate("/recipient/dashboard");
-                break;
-              default:
-                navigate("/user");
+              case "admin": navigate("/admin/dashboard"); break;
+              case "recipient": navigate("/recipient/dashboard"); break;
+              default: navigate("/user");
             }
           } else {
             navigate("/login");
@@ -215,15 +202,16 @@ const ForgotPassword = () => {
         }
       }, 2000);
     } catch (err) {
-      setErrorMsg(err?.response?.data?.detail || "Failed to reset password. Please try again.");
+      setErrorMsg(err?.response?.data?.detail || "Failed to reset password.");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const goToLogin = () => navigate("/login");
+  const goToRegister = () => navigate("/register");
 
   const goBack = () => {
     if (step > 1) {
@@ -235,424 +223,193 @@ const ForgotPassword = () => {
     }
   };
 
-  const goToLogin = () => navigate("/login");
-  const goToRegister = () => navigate("/register");
-
-  // Password strength indicator
-  const getPasswordStrength = (password) => {
-    if (!password) return { score: 0, color: "#e5e7eb", label: "Empty" };
-    
-    let score = 0;
-    if (password.length >= 6) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/\d/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-    
-    const colors = ["#ef4444", "#f59e0b", "#eab308", "#10a37f", "#059669"];
-    const labels = ["Very Weak", "Weak", "Fair", "Good", "Strong"];
-    
-    return {
-      score: Math.min(score, 5),
-      color: colors[Math.min(score - 1, 4)] || "#e5e7eb",
-      label: labels[Math.min(score - 1, 4)] || "Very Weak"
-    };
-  };
-
-  const passwordStrength = getPasswordStrength(newPassword);
-
   return (
-    <div className="forgot-password-page">
+    <div className="ss-fp-container">
       {/* Left Side - Illustration */}
-      <div className="forgot-password-hero">
-        <div className="hero-overlay">
-               <div className="avatar avatar-left">
-    {/* <img src="/images/avatar1.jpg" alt="User" /> */}
-  </div>
+      <div className="ss-fp-hero">
+        <div className="ss-fp-hero-accent-1"></div>
+        <div className="ss-fp-hero-accent-2"></div>
+        
+        <div className="ss-fp-hero-image-wrapper">
+          <img 
+            src="/images/forgot-bg.png" 
+            alt="Secure Connections" 
+            className="ss-fp-hero-image" 
+          />
+        </div>
 
-  <div className="avatar avatar-right">
-    {/* <img src="/images/avatar2.jpg" alt="User" /> */}
-  </div>
-          <div className="hero-content">
-            <div className="brand-logo" onClick={() => navigate("/")}>
-              {logoUrl ? (
-                <div className="logo-with-name">
-                  <img src={logoUrl} alt="logo" className="hero-logo" />
-                  <span className="hero-brand-name">{brandName}</span>
-                </div>
-              ) : (
-                <div className="logo-placeholder">
-                  <Shield className="logo-icon" />
-                  <span className="hero-brand-name">{brandName}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="hero-text center">
-              <h1>Secure Password Reset</h1>
-              <p className="hero-subtitle">
-                Follow the steps to securely reset your password and regain access to your account
-              </p>
-            </div>
-
-            {/* Security Features */}
-            <div className="security-features">
-              <div className="security-header">
-                <Security className="security-icon" />
-                <h3>Protected Process</h3>
-              </div>
-              
-              <div className="security-grid">
-                <div className="security-item">
-                  <div className="security-icon-wrapper">
-                    <Email />
-                  </div>
-                  <div className="security-text">
-                    <h4>Email Verification</h4>
-                    <p>Secure OTP sent to your email</p>
-                  </div>
-                </div>
-                
-                <div className="security-item">
-                  <div className="security-icon-wrapper">
-                    <VpnKey />
-                  </div>
-                  <div className="security-text">
-                    <h4>One-Time Code</h4>
-                    <p>6-digit OTP valid for 10 minutes</p>
-                  </div>
-                </div>
-                
-                <div className="security-item">
-                  <div className="security-icon-wrapper">
-                    <Lock />
-                  </div>
-                  <div className="security-text">
-                    <h4>Encrypted</h4>
-                    <p>Military-grade password encryption</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress Steps */}
-            <div className="progress-steps">
-              <div className={`step ${step >= 1 ? 'active' : ''}`}>
-                <div className="step-number">1</div>
-                <div className="step-label">Enter Email</div>
-              </div>
-              <div className="step-connector"></div>
-              <div className={`step ${step >= 2 ? 'active' : ''}`}>
-                <div className="step-number">2</div>
-                <div className="step-label">Verify OTP</div>
-              </div>
-              <div className="step-connector"></div>
-              <div className={`step ${step >= 3 ? 'active' : ''}`}>
-                <div className="step-number">3</div>
-                <div className="step-label">New Password</div>
-              </div>
-            </div>
-          </div>
+        <div className="ss-fp-hero-content">
+          <h2 className="ss-fp-hero-title">Secure Password Recovery</h2>
+          <p className="ss-fp-hero-subtitle">
+            Regain access to your account with our secure multi-step verification process.
+          </p>
         </div>
       </div>
 
       {/* Right Side - Form */}
-      <div className="forgot-password-side">
-        <div className="forgot-password-wrapper">
-          <motion.div 
-            className="forgot-password-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            {/* Header with Back Button */}
-            <div className="header-with-back">
-              <button className="back-button" onClick={goBack}>
-                <ArrowBack />
-                <span>Back</span>
-              </button>
-              <div className="header-content">
-                <h2>Reset Your Password</h2>
-                <p className="subtitle">
-                  {step === 1 && "Enter your email to receive a password reset OTP"}
-                  {step === 2 && "Enter the 6-digit OTP sent to your email"}
-                  {step === 3 && "Create a new password for your account"}
-                </p>
-              </div>
+      <div className="ss-fp-side">
+        <div className="ss-fp-card">
+          {/* Logo Area */}
+          <div className="ss-fp-logo-section" onClick={() => navigate("/")}>
+            <div className="ss-fp-logo-container">
+              {logoUrl ? (
+                <img src={logoUrl} alt="SafeSign" className="ss-fp-logo" />
+              ) : (
+                <Shield color="#0f766e" size={48} />
+              )}
             </div>
+            <span className="ss-fp-brand-name">{brandName}</span>
+          </div>
 
-            {/* Step 1: Email Input */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h1 className="ss-fp-title">
+              <button className="ss-fp-simple-back" onClick={goBack} title="Go back">
+                <ArrowBack />
+              </button>
+              <span>
+                {step === 1 && "Forgot Password"}
+                {step === 2 && "Verify OTP"}
+                {step === 3 && "New Password"}
+              </span>
+            </h1>
+
+            {errorMsg && (
+              <div className="ss-fp-error">
+                <ErrorOutline fontSize="small" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="ss-fp-success">
+                <CheckCircle fontSize="small" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {/* Step 1: Email */}
             {step === 1 && (
               <form onSubmit={handleRequestOTP}>
-                <div className="form-group">
-                  <label>Email Address <span className="required">*</span></label>
-                  <div className="input-with-icon">
-                    {/* <Email className="input-icon" /> */}
+                <div className="ss-fp-form-group">
+                  <label className="ss-fp-label">Email Address <span className="ss-fp-required">*</span></label>
+                  <div className="ss-fp-input-wrapper">
                     <input
                       type="email"
-                      className="form-input"
+                      className="ss-fp-input"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="safesign@example.com"
+                      placeholder="safesign@email.com"
                       required
                       disabled={loading}
                       autoFocus
                     />
                   </div>
-                  {/* <p className="input-hint">
-                    Enter the email address associated with your account
-                  </p> */}
                 </div>
 
-                {errorMsg && (
-                  <div className="error-message">
-                    <ErrorOutline />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                {successMsg && (
-                  <div className="success-message">
-                    <CheckCircle />
-                    <span>{successMsg}</span>
-                  </div>
-                )}
-
-                <button className="submit-btn" type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      {/* <span className="spinner"></span> */}
-                      Sending OTP...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="btn-icon" />
-                      Send OTP
-                    </>
-                  )}
+                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Sending..." : "Send Reset Code"}
+                  <Send size={18} />
                 </button>
               </form>
             )}
 
-            {/* Step 2: OTP Input */}
+            {/* Step 2: OTP */}
             {step === 2 && (
               <form onSubmit={handleVerifyOTP}>
-                <div className="form-group">
-                  <label>6-Digit OTP <span className="required">*</span></label>
-                  <div className="otp-container">
+                <div className="ss-fp-form-group">
+                  <label className="ss-fp-label">6-Digit Verification Code <span className="ss-fp-required">*</span></label>
+                  <div className="ss-fp-otp-container" onPaste={handleOtpPaste}>
                     {[0, 1, 2, 3, 4, 5].map((index) => (
                       <input
                         key={index}
+                        ref={(el) => (otpRefs.current[index] = el)}
                         type="text"
-                        className="otp-input"
+                        className="ss-fp-otp-input"
                         value={otp[index] || ""}
-                        onChange={(e) => {
-                          const newOtp = otp.split('');
-                          newOtp[index] = e.target.value.replace(/\D/g, '')[0] || '';
-                          setOtp(newOtp.join(''));
-                        }}
+                        onChange={(e) => handleOtpChange(index, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
                         maxLength={1}
-                        disabled={loading}
+                        pattern="\d*"
+                        inputMode="numeric"
                         autoFocus={index === 0}
+                        disabled={loading}
                       />
                     ))}
                   </div>
-                  <p className="input-hint">
-                    Enter the 6-digit code sent to {email}
+                  <p style={{ marginTop: '12px', fontSize: '13px', color: '#64748b' }}>
+                    Code sent to <strong>{email}</strong>
                   </p>
-                  
-                  <div className="resend-otp">
-                    <span>Didn't receive the code?</span>
-                    <button 
-                      type="button" 
-                      className="resend-btn"
-                      onClick={handleRequestOTP}
-                      disabled={loading}
-                    >
-                      Resend OTP
-                    </button>
-                  </div>
                 </div>
 
-                {errorMsg && (
-                  <div className="error-message">
-                    <ErrorOutline />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                {successMsg && (
-                  <div className="success-message">
-                    <CheckCircle />
-                    <span>{successMsg}</span>
-                  </div>
-                )}
-
-                <button className="submit-btn" type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      {/* <span className="spinner"></span> */}
-                      Verifying...
-                    </>
-                  ) : (
-                    "Verify OTP"
-                  )}
+                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Verifying..." : "Verify Code"}
                 </button>
+
+                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                  <button 
+                    type="button" 
+                    className="ss-fp-footer-link" 
+                    onClick={handleRequestOTP} 
+                    style={{ background: 'none', border: 'none', padding: 0 }}
+                    disabled={loading}
+                  >
+                    Resend Code
+                  </button>
+                </div>
               </form>
             )}
 
             {/* Step 3: New Password */}
             {step === 3 && (
               <form onSubmit={handleResetPassword}>
-                <div className="form-group">
-                  <label>New Password <span className="required">*</span></label>
-                  <div className="password-wrapper">
-                    <div className="input-with-icon">
-                      <Lock className="input-icon" />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        className="form-input"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        required
-                        disabled={loading}
-                        autoFocus
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="toggle-password"
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={loading}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </button>
+                <div className="ss-fp-form-group">
+                  <label className="ss-fp-label">New Password <span className="ss-fp-required">*</span></label>
+                  <div className="ss-fp-input-wrapper">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="ss-fp-input"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      required
+                    />
                   </div>
-                  
-                  {/* Password Strength Indicator */}
-                  {newPassword && (
-                    <div className="password-strength">
-                      <div className="strength-bar">
-                        {[1, 2, 3, 4, 5].map((segment) => (
-                          <div
-                            key={segment}
-                            className="strength-segment"
-                            style={{
-                              backgroundColor: segment <= passwordStrength.score ? passwordStrength.color : '#e5e7eb',
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <div className="strength-label">
-                        <span>Password Strength: </span>
-                        <span style={{ color: passwordStrength.color, fontWeight: 600 }}>
-                          {passwordStrength.label}
-                        </span>
-                      </div>
-                      
-                      <div className="password-rules">
-                        <div className={`password-rule ${newPassword.length >= 6 ? 'valid' : ''}`}>
-                          <span className="rule-icon">{newPassword.length >= 6 ? '✓' : '✗'}</span>
-                          <span>At least 6 characters</span>
-                        </div>
-                        <div className={`password-rule ${/[A-Z]/.test(newPassword) ? 'valid' : ''}`}>
-                          <span className="rule-icon">{/[A-Z]/.test(newPassword) ? '✓' : '✗'}</span>
-                          <span>One uppercase letter</span>
-                        </div>
-                        <div className={`password-rule ${/[a-z]/.test(newPassword) ? 'valid' : ''}`}>
-                          <span className="rule-icon">{/[a-z]/.test(newPassword) ? '✓' : '✗'}</span>
-                          <span>One lowercase letter</span>
-                        </div>
-                        <div className={`password-rule ${/\d/.test(newPassword) ? 'valid' : ''}`}>
-                          <span className="rule-icon">{/\d/.test(newPassword) ? '✓' : '✗'}</span>
-                          <span>One number</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                <div className="form-group">
-                  <label>Confirm Password <span className="required">*</span></label>
-                  <div className="password-wrapper">
-                    <div className="input-with-icon">
-                      <Lock className="input-icon" />
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        className="form-input"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Confirm new password"
-                        required
-                        disabled={loading}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="toggle-password"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      disabled={loading}
-                    >
-                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                    </button>
+                <div className="ss-fp-form-group">
+                  <label className="ss-fp-label">Confirm New Password <span className="ss-fp-required">*</span></label>
+                  <div className="ss-fp-input-wrapper">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      className="ss-fp-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      required
+                    />
                   </div>
-                  {confirmPassword && newPassword !== confirmPassword && (
-                    <p className="error-hint">Passwords do not match</p>
-                  )}
                 </div>
 
-                {errorMsg && (
-                  <div className="error-message">
-                    <ErrorOutline />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                {successMsg && (
-                  <div className="success-message">
-                    <CheckCircle />
-                    <span>{successMsg}</span>
-                  </div>
-                )}
-
-                <button className="submit-btn" type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      {/* <span className="spinner"></span> */}
-                      Resetting Password...
-                    </>
-                  ) : (
-                    "Reset Password"
-                  )}
+                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Resetting..." : "Reset Password"}
                 </button>
               </form>
             )}
 
-            {/* Footer Links */}
-            <div className="footer-links">
-              <div className="footer-item">
-                <span className="text">Remember your password?</span>
-                <span className="link" onClick={goToLogin}>
-                  Sign in
-                </span>
+            <div className="ss-fp-footer">
+              <div className="ss-fp-footer-row">
+                <span className="ss-fp-footer-text">Remember password?</span>
+                <span className="ss-fp-footer-link" onClick={goToLogin}>Sign in</span>
               </div>
-              <div className="footer-item">
-                <span className="text">Don't have an account?</span>
-                <span className="link" onClick={goToRegister}>
-                  Sign up
-                </span>
+              <div className="ss-fp-footer-row">
+                <span className="ss-fp-footer-text">New to {brandName}?</span>
+                <span className="ss-fp-footer-link" onClick={goToRegister}>Create account</span>
               </div>
             </div>
-
-            {/* Security Notice */}
-            {/* <div className="security-notice">
-              <Lock className="notice-icon" />
-              <p>
-                <strong>Security Note:</strong> For your protection, this password reset process uses encrypted OTP verification. 
-                Never share your OTP with anyone.
-              </p>
-            </div> */}
           </motion.div>
         </div>
       </div>

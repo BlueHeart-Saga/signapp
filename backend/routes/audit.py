@@ -171,7 +171,7 @@ def serialize_audit_event(audit_event: Dict) -> Dict[str, Any]:
         "id": str(audit_event["_id"]),
         "action": audit_event.get("action"),
         "details": audit_event.get("details", {}),
-        "timestamp": audit_event.get("timestamp", audit_event.get("created_at")).isoformat(),
+        "timestamp": (audit_event.get("timestamp") or audit_event.get("created_at")).isoformat() + "Z",
         "ip_address": audit_event.get("ip_address"),
         "user_agent": audit_event.get("user_agent")
     }

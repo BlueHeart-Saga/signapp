@@ -536,11 +536,7 @@ const InitialDashboard = () => {
               </div>
               <div className="ss-init-promo-text">
                 <h3>Ends {promoExpiry.day} {promoExpiry.monthName}! Buy now and Save 20%</h3>
-                <div className="ss-init-promo-details">
                   <span>Offer expires: {promoExpiry.day}/{promoExpiry.monthNum}/{promoExpiry.shortYear}</span>
-                  <span>|</span>
-                  <span>Promo Code: <span className="ss-init-promo-code">WFH20</span></span>
-                </div>
               </div>
             </div>
             <button className="ss-init-btn-promo" onClick={() => navigate("/user/subscription")}>

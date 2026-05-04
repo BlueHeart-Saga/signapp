@@ -314,6 +314,22 @@ export const permanentDeleteDocument = async (id) => {
   return api.delete(`/documents/${id}/permanent`);
 };
 
+export const bulkSoftDeleteDocuments = async (documentIds) => {
+  return api.post("/documents/bulk/delete", { document_ids: documentIds });
+};
+
+export const bulkRestoreDocuments = async (documentIds) => {
+  return api.post("/documents/bulk/restore", { document_ids: documentIds });
+};
+
+export const bulkPermanentDeleteDocuments = async (documentIds) => {
+  return api.post("/documents/bulk/permanent-delete", { document_ids: documentIds });
+};
+
+export const emptyTrash = async () => {
+  return api.delete("/documents/trash/empty");
+};
+
 
 export const getTimeline = async (id) => {
   const res = await api.get(`/documents/${id}/timeline`);

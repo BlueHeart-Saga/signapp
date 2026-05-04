@@ -525,10 +525,22 @@ const Navbar = ({ toggleSidebar }) => {
 
           <h1
             className="signapp-navbar-logo"
-            onClick={() => navigate('/')}
+            onClick={() => {
+              if (userRole === 'admin') navigate('/admin/dashboard');
+              else if (userRole === 'user') navigate('/user/dashboard');
+              else if (userRole === 'recipient') navigate('/recipient/dashboard');
+              else navigate('/');
+            }}
             role="button"
             tabIndex={0}
-            onKeyPress={(e) => e.key === 'Enter' && navigate('/')}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                if (userRole === 'admin') navigate('/admin/dashboard');
+                else if (userRole === 'user') navigate('/user/dashboard');
+                else if (userRole === 'recipient') navigate('/recipient/dashboard');
+                else navigate('/');
+              }
+            }}
           >
             SafeSign
           </h1>
