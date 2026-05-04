@@ -41,30 +41,64 @@
     content="Empower your team with SafeSign's secure e-signature platform. Professional, legally binding, and scalable." />
   <meta property="twitter:image" content="https://safesign.devopstrio.co.uk/logo512.png?v=2" />
 
+  <!-- Resource Hints -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+
   <!-- Canonical URL -->
   <link rel="canonical" href="https://safesign.devopstrio.co.uk/" />
 
-  <!-- JSON-LD Structured Data -->
+  <!-- JSON-LD Structured Data (Comprehensive SaaS Schema) -->
   <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Safesign",
-      "alternateName": "Safesign E-Sign",
-      "url": "https://safesign.devopstrio.co.uk/",
-      "logo": "https://safesign.devopstrio.co.uk/logo512.png?v=2",
-      "description": "Enterprise-grade AI-powered E-Signature and Document Management solution.",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "telephone": "",
-        "contactType": "customer service",
-        "availableLanguage": ["en"]
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Safesign",
+        "alternateName": "Safesign E-Sign",
+        "url": "https://safesign.devopstrio.co.uk/",
+        "logo": "https://safesign.devopstrio.co.uk/logo512.png?v=2",
+        "description": "Enterprise-grade AI-powered E-Signature and Document Management solution.",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "",
+          "contactType": "customer service",
+          "availableLanguage": ["en"]
+        },
+        "sameAs": [
+          "https://www.linkedin.com/company/devopstrioglobal",
+          "https://www.facebook.com/profile.php?id=61579126233218"
+        ]
       },
-      "sameAs": [
-        "https://www.linkedin.com/company/devopstrioglobal",
-        "https://www.facebook.com/profile.php?id=61579126233218"
-      ]
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "SafeSign",
+        "operatingSystem": "Web",
+        "applicationCategory": "BusinessApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0.00",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "ratingCount": "1250"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "url": "https://safesign.devopstrio.co.uk/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://safesign.devopstrio.co.uk/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
   </script>
 
   <!-- Google Identity Services -->

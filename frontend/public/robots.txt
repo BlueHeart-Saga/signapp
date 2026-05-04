@@ -8,10 +8,14 @@ Disallow: /sign/
 Disallow: /complete/
 Disallow: /auth/
 Disallow: /unauthorized
+Crawl-delay: 10
 
 # Allow search engines to index public assets
 Allow: /static/
 Allow: /images/
+Allow: /logo192.png
+Allow: /logo512.png
+Allow: /favicon.ico
 
 # Sitemap location
 Sitemap: https://safesign.devopstrio.co.uk/sitemap.xml
