@@ -4,10 +4,9 @@ import {
   CardActions, Chip, Stack, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, FormControl, InputLabel,
   Select, MenuItem, Alert, Snackbar, CircularProgress, Tabs, Tab,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Table, TableBody, TableCell, TableHead, TableRow,
   TablePagination, Switch, InputAdornment, Autocomplete, Avatar,
-  Tooltip, Divider, Fade, ToggleButton, ToggleButtonGroup,
-  FormControlLabel
+  Tooltip, Divider
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -15,9 +14,9 @@ import {
   Refresh as RefreshIcon, Search as SearchIcon,
   Category as CategoryIcon, Description as TemplateIcon,
   FileUpload as UploadIcon, CheckCircle as ActiveIcon,
-  Cancel as InactiveIcon, GridView as GridIcon, List as ListIcon,
+  GridView as GridIcon, List as ListIcon,
   Close as CloseIcon, FilePresent as FileIcon, Info as InfoIcon,
-  LocalOffer as TagIcon, Settings as SettingsIcon, CheckCircle as CheckCircleIcon
+  Settings as SettingsIcon, CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
@@ -31,7 +30,7 @@ const TEAL_LIGHT = '#f0fdfa';
 const TEAL_MID = '#ccfbf1';
 
 const TemplateManagement = () => {
-  const { user: currentUser, token } = useAuth();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -86,14 +85,14 @@ const TemplateManagement = () => {
     try { return format(new Date(d), 'MMM dd, yyyy'); } catch { return d; }
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/templates/categories`, { headers: getHeaders() });
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data = await res.json();
       setCategories(data.categories || []);
     } catch (e) { console.error(e); }
-  };
+  }, [getHeaders]);
 
   const fetchTemplates = useCallback(async (targetPage = page) => {
     try {
@@ -114,12 +113,12 @@ const TemplateManagement = () => {
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }, [page, rowsPerPage, search, selectedCategory, getHeaders, sortBy, sortOrder]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/templates/stats/summary`, { headers: getHeaders() });
       if (res.ok) setStats(await res.json());
     } catch (e) { console.error(e); }
-  };
+  }, [getHeaders]);
 
   const saveCategory = async () => {
     try {
@@ -265,7 +264,7 @@ const TemplateManagement = () => {
     fetchTemplates(0);
   };
 
-  useEffect(() => { fetchCategories(); fetchTemplates(); fetchStats(); }, []);
+  useEffect(() => { fetchCategories(); fetchTemplates(); fetchStats(); }, [fetchCategories, fetchTemplates, fetchStats]);
 
   // ── Sub components ──────────────────────────────────────────────
   const StatusBadge = ({ template }) => {

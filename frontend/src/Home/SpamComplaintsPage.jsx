@@ -4,18 +4,11 @@ import {
   AlertTriangle,
   Flag,
   Eye,
-  Database,
-  Users,
-  Globe,
   FileText,
   ChevronDown,
   CheckCircle,
-  AlertCircle,
   Mail,
   Calendar,
-  Download,
-  Printer,
-  ExternalLink,
   Search,
   Clock,
   User,
@@ -721,7 +714,7 @@ const SpamComplaintsPage = () => {
           <div className="safe-emergency-card">
             <div className="safe-emergency-header">
               <AlertTriangle size={24} />
-              <h3>⚠️ Emergency Security Issue?</h3>
+              <h3> Emergency Security Issue?</h3>
             </div>
             <p>If you believe your account has been compromised or you've been a victim of fraud:</p>
             <div className="safe-emergency-contacts">

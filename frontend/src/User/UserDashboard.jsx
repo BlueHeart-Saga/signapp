@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Clock, FileText, CheckCircle, XCircle, AlertCircle,
-  Upload, Send, FileCheck, Search, Filter, Bell,
-  User, Settings, Menu, MoreVertical, Download,
+  Upload, Send, FileCheck,
+  User, MoreVertical, Download,
   Eye, Trash2, TrendingUp, Users, Clock3,
-  Mail, Calendar, FilePlus, RefreshCw, AlertTriangle,
-  History, Plus, X, Edit, Shield, FilePlus2, MailWarning
+  RefreshCw, AlertTriangle,
+  History, Plus, X, Edit, MailWarning
 } from 'lucide-react';
 import { FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +32,7 @@ import {
   PieChart, Pie, Cell,
   AreaChart, Area,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
-  Tooltip, Legend, XAxis, YAxis
+  Tooltip, XAxis, YAxis
 } from "recharts";
 
 
@@ -77,8 +77,8 @@ const UserDashboard = () => {
   // Upload states
   const [file, setFile] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewFile, setPreviewFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewFile] = useState(null);
+  const [, setUploadProgress] = useState(0);
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
 
@@ -133,11 +133,6 @@ const UserDashboard = () => {
     );
   }, []);
 
-  // Load real data
-  useEffect(() => {
-    loadDashboardData();
-    fetchAnalyticsData(timeRange);
-  }, [timeRange]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -171,7 +166,21 @@ const UserDashboard = () => {
 
 
 
-  const loadDashboardData = async () => {
+  const fetchAnalyticsData = useCallback(async (range = timeRange) => {
+    setAnalyticsLoading(true);
+    try {
+      const { getCompleteAnalytics } = await import('../services/DocumentAPI');
+      const daysParam = range === 'all' ? 0 : parseInt(range);
+      const completeData = await getCompleteAnalytics(daysParam);
+      setAnalyticsData(completeData);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [timeRange]);
+
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       const [statsData, recentActivities] = await Promise.all([
@@ -302,7 +311,7 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, fetchAnalyticsData]);
 
   // Helper functions
   const getChangePercentage = (data) => {
@@ -438,11 +447,6 @@ const UserDashboard = () => {
     setTimelineOpen(true);
   };
 
-  const handleManageRecipients = (documentId, title) => {
-    setSelectedDocument({ id: documentId, title });
-    setShowRecipientManager(true);
-    setDefaultRecipientTab("manage");
-  };
 
 
   const handleBuildTemplate = (documentId) => {
@@ -558,7 +562,7 @@ const UserDashboard = () => {
     try {
       setLoading(true);
 
-      const result = await templatesAPI.createFromTemplate(
+      await templatesAPI.createFromTemplate(
         template.originalData.id,
         `Copy of ${template.name}`
       );
@@ -590,14 +594,6 @@ const UserDashboard = () => {
   };
 
   // Upload handlers
-  const handleFileSelect = (event) => {
-    const selectedFile = event.target.files[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-    setPreviewFile(selectedFile);
-    setPreviewOpen(true);
-  };
 
   const handleUpload = async (uploadFile) => {
     if (!uploadFile) return;
@@ -649,19 +645,6 @@ const UserDashboard = () => {
     }
   };
 
-  const fetchAnalyticsData = async (range = timeRange) => {
-    setAnalyticsLoading(true);
-    try {
-      const { getCompleteAnalytics } = await import('../services/DocumentAPI');
-      const daysParam = range === 'all' ? 0 : parseInt(range);
-      const completeData = await getCompleteAnalytics(daysParam);
-      setAnalyticsData(completeData);
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
 
 
   const toggleSection = (section) => {
@@ -682,6 +665,12 @@ const UserDashboard = () => {
     : activities.filter(activity => activity.status === activeFilter);
 
   const displayedActivities = showAllActivities ? filteredActivities : filteredActivities.slice(0, 4);
+
+  // Load real data
+  useEffect(() => {
+    loadDashboardData();
+    fetchAnalyticsData(timeRange);
+  }, [timeRange, loadDashboardData, fetchAnalyticsData]);
 
   if (loading) {
     return (

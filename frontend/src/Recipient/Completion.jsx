@@ -226,7 +226,10 @@ const Completion = () => {
         { method: 'POST' }
       );
 
-      if (!response.ok) throw new Error('Failed to send email');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to send email');
+      }
 
       setSnackbar({
         open: true,
@@ -236,7 +239,7 @@ const Completion = () => {
     } catch (error) {
       setSnackbar({
         open: true,
-        msg: 'Failed to send email. Please try again.',
+        msg: error.message || 'Failed to send email. Please try again.',
         severity: 'error'
       });
     } finally {

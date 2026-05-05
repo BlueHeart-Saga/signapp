@@ -2047,7 +2047,7 @@ def create_preview_mode_html(content: str, fields: List[Dict], style: str = "mod
                 }});
                 
                 if (!isValid) {{
-                    alert('⚠️ Please fill in all required fields (marked with *)');
+                    alert(' Please fill in all required fields (marked with *)');
                     return;
                 }}
                 

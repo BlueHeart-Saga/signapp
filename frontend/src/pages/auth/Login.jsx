@@ -226,7 +226,7 @@
 
 //         {errorMsg && (
 //           <div style={styles.error}>
-//             <span style={styles.errorIcon}>⚠️</span>
+//             <span style={styles.errorIcon}></span>
 //             {errorMsg}
 //           </div>
 //         )}
@@ -845,16 +845,15 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
 import "../../style/Login.css";
-import api, { setAuthToken } from "../../services/api";
+import api from "../../services/api";
+
 import API_BASE_URL, { GOOGLE_CLIENT_ID } from "../../config/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
 // Material UI Icons
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
 import Home from "@mui/icons-material/Home";
 import Google from "@mui/icons-material/Google";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
@@ -863,12 +862,8 @@ import Security from "@mui/icons-material/Security";
 import Lock from "@mui/icons-material/Lock";
 import AccessTime from "@mui/icons-material/AccessTime";
 import CloudDone from "@mui/icons-material/CloudDone";
-import ArrowBackIos from "@mui/icons-material/ArrowBackIos";
-import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
-import Circle from "@mui/icons-material/Circle";
 import Explore from "@mui/icons-material/Explore";
 import People from "@mui/icons-material/People";
-import Upgrade from "@mui/icons-material/Upgrade";
 import Close from "@mui/icons-material/Close";
 import {
   FaCrown,
@@ -892,7 +887,7 @@ import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 const Login = ({ onLogin, onError, compact = false }) => {
   const [brandName, setBrandName] = useState("SafeSign");
   const [logoUrl, setLogoUrl] = useState(null);
-  const { setUser, setToken, token: currentToken, user: currentUser } = useAuth();
+  const { setUser, setToken } = useAuth();
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -1286,79 +1281,8 @@ const Login = ({ onLogin, onError, compact = false }) => {
   const goToHome = () => navigate("/");
   const handleForgotPassword = () => navigate("/forgot-password");
 
-  // Carousel navigation
-  const nextImage = () => {
-    setCurrentImageIndex((prevIndex) =>
-      prevIndex === images.length - 1 ? 0 : prevIndex + 1
-    );
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 10000); // Resume auto-play after 10 seconds
-  };
-
-  const prevImage = () => {
-    setCurrentImageIndex((prevIndex) =>
-      prevIndex === 0 ? images.length - 1 : prevIndex - 1
-    );
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 10000);
-  };
-
-  const goToImage = (index) => {
-    setCurrentImageIndex(index);
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 10000);
-  };
 
   // Security Features Component
-  const SecurityFeatures = () => (
-    <div className="security-features">
-      <div className="security-header">
-        <Security className="security-icon" />
-        <h3>Enterprise-Grade Security</h3>
-      </div>
-      {/* <p className="security-description">
-        Your documents and signatures are protected with military-grade encryption, 
-        secure infrastructure, and globally recognized compliance standards.
-      </p> */}
-
-      <div className="security-grid">
-        <div className="security-item">
-          <div className="security-icon-wrapper">
-            <CloudDone />
-          </div>
-          <div className="security-text">
-            <h4>99.9%</h4>
-            <p>Uptime SLA</p>
-          </div>
-        </div>
-
-        <div className="security-item">
-          <div className="security-icon-wrapper">
-            <Lock />
-          </div>
-          <div className="security-text">
-            <h4>256-bit</h4>
-            <p>AES Encryption</p>
-          </div>
-        </div>
-
-        <div className="security-item">
-          <div className="security-icon-wrapper">
-            <AccessTime />
-          </div>
-          <div className="security-text">
-            <h4>24/7</h4>
-            <p>Security Monitoring</p>
-          </div>
-        </div>
-      </div>
-
-      {/* <div className="security-buttons">
-        <button className="demo-btn">Request a Demo →</button>
-        <button className="trial-btn">Start Free Trial</button>
-      </div> */}
-    </div>
-  );
 
   // Compact version for modal
   if (compact) {

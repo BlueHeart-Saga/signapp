@@ -17,24 +17,14 @@ import {
     LinearProgress,
     Snackbar,
     Container,
-    Card,
-    CardContent,
     Divider,
     Avatar,
     List,
-    ListItem,
     ListItemText,
     ListItemIcon,
-    Badge,
     AppBar,
     Toolbar,
-    Tabs,
-    Tab,
-    FormControlLabel,
-    Switch,
     Grid,
-    CardActionArea,
-    CardMedia,
     Menu,
     MenuItem,
     DialogContentText,
@@ -44,9 +34,7 @@ import { useNavigate } from 'react-router-dom';
 
 import {
     CheckCircle as CheckIcon,
-    Error as ErrorIcon,
     ArrowDropDown as ArrowDownIcon,
-    ArrowDropUp as ArrowUpIcon,
     ZoomIn as ZoomInIcon,
     ZoomOut as ZoomOutIcon,
     Fullscreen as FullscreenIcon,
@@ -55,46 +43,33 @@ import {
     TextFields as TextIcon,
     CalendarToday as DateIcon,
     CheckBox as CheckboxIcon,
-    Lock as LockIcon,
     Edit as EditIcon,
-    NavigateNext as NextIcon,
     Close as CloseIcon,
-    Add as AddIcon,
-    Remove as RemoveIcon,
     FullscreenExit as FullscreenExitIcon,
     FitScreen as FitScreenIcon,
-    ChevronRight as ChevronRightIcon,
-    ChevronLeft as ChevronLeftIcon,
     Person as PersonIcon,
     Email as EmailIcon,
-    Assignment as AssignmentIcon,
     History as HistoryIcon,
     Preview as PreviewIcon,
     Refresh as RefreshIcon,
     Warning as WarningIcon,
-    Pending as PendingIcon,
     Attachment as AttachmentIcon,
     RadioButtonChecked as RadioIcon,
-    PictureAsPdf as PdfIcon,
     NavigateBefore as NavigateBeforeIcon,
     NavigateNext as NavigateNextIcon,
     LocalOffer as StampIcon,  // Added missing StampIcon
     MoreVert as MoreVertIcon,
     Print as PrintIcon,
     Block as BlockIcon,
-    ForwardToInbox as ForwardToInboxIcon,
     SkipNext as SkipNextIcon,
     AutoFixHigh as AutoFixHighIcon,
     AssignmentInd as AssignmentIndIcon,
-    Info as InfoIcon,
-    HelpOutline as HelpOutlineIcon,
     Timer as PostponeIcon,
     ContentCopy as ContentCopyIcon,
     ExpandMore as ExpandMoreIcon,
     CheckCircle as CheckCircleIcon,
     CloudDownload as CloudDownloadIcon
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { format } from 'date-fns';
@@ -176,16 +151,6 @@ const apiService = {
             throw error;
         }
     },
-
-    async completeSigning(recipientId) {
-        const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) throw new Error('Failed to complete signing');
-        return response.json();
-    },
-
     async downloadDocument(recipientId, type = 'current') {
         const endpoint = type === 'signed' ? 'signed-preview' : 'document';
         const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/${endpoint}`);
@@ -433,7 +398,6 @@ const FieldOverlay = React.memo(({
 
     // Check if field is completed
     const completed = isCompleted || !!fieldValues[field.id] || field.completed_at || field.is_completed || false;
-    const isImageField = IMAGE_BASED_FIELDS.has(field.type);
 
 
     // Get display value for completed fields
@@ -564,7 +528,6 @@ const FieldOverlay = React.memo(({
                         pointerEvents: 'none',
                         textAlign: 'center',
                         whiteSpace: (field.type === 'textbox' || field.type === 'mail') ? 'pre-wrap' : 'nowrap',
-                        alignItems: 'center',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         padding: '2px',
@@ -665,55 +628,6 @@ const DocumentPageThumbnail = React.memo(({
     thumbnailUrl = null,
     isLoading = false
 }) => {
-    const [thumbnailSrc, setThumbnailSrc] = useState(null);
-    const [error, setError] = useState(false);
-
-    // Load or generate thumbnail
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadThumbnail = async () => {
-            if (!thumbnailUrl) {
-                generatePlaceholder();
-                return;
-            }
-
-            if (thumbnailUrl.startsWith('data:image')) {
-                if (isMounted) setThumbnailSrc(thumbnailUrl);
-                return;
-            }
-
-            try {
-                setError(false);
-                const img = new Image();
-                img.onload = () => { if (isMounted) setThumbnailSrc(thumbnailUrl); };
-                img.onerror = () => { if (isMounted) { setError(true); generatePlaceholder(); } };
-                if (thumbnailUrl.includes(API_BASE_URL)) img.crossOrigin = 'anonymous';
-                img.src = thumbnailUrl;
-            } catch (err) {
-                console.error('Failed to load thumbnail:', err);
-                if (isMounted) { setError(true); generatePlaceholder(); }
-            }
-        };
-
-        const generatePlaceholder = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 140;
-            canvas.height = 190;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#fcfcfc';
-            ctx.fillRect(0, 0, 140, 190);
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(5, 5, 130, 180);
-            const dataUrl = canvas.toDataURL('image/png');
-            if (isMounted) setThumbnailSrc(dataUrl);
-        };
-
-        loadThumbnail();
-        return () => { isMounted = false; };
-    }, [thumbnailUrl, pageNumber, isActive]);
-
     return (
         <Box
             onClick={onClick}
@@ -908,20 +822,19 @@ const SigningPage = () => {
     const [activeField, setActiveField] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState(null);
-    const [modalValue, setModalValue] = useState(null); // Changed from string to null
-    const [textInput, setTextInput] = useState(''); // Added missing state
+    const [, setModalValue] = useState(null); // Changed from string to null
+    const [, setTextInput] = useState(''); // Added missing state
     const [selectedDate, setSelectedDate] = useState(null);
     const [zoom, setZoom] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
     const [numPages, setNumPages] = useState(0);
     const [pageDimensions, setPageDimensions] = useState({});
-    const [saving, setSaving] = useState(false);
+    const [, setSaving] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [recipientColors, setRecipientColors] = useState({});
 
-    const [thumbnails, setThumbnails] = useState([]);
     const [thumbnailUrls, setThumbnailUrls] = useState({});
     const [loadingThumbnails, setLoadingThumbnails] = useState(false);
     const [thumbnailPageMap, setThumbnailPageMap] = useState({});
@@ -929,7 +842,7 @@ const SigningPage = () => {
     const [finishDialogOpen, setFinishDialogOpen] = useState(false);
     const [finishDialogTitle, setFinishDialogTitle] = useState('');
     const [finishDialogMessage, setFinishDialogMessage] = useState('');
-    const [finishDialogAction, setFinishDialogAction] = useState('');
+    const [, setFinishDialogAction] = useState('');
 
     const documentUrlRef = useRef(null);
 
@@ -956,7 +869,7 @@ const SigningPage = () => {
     const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Generate recipient colors
-    const generateRecipientColors = (fields) => {
+    const generateRecipientColors = useCallback((fields) => {
         const colors = [
             'rgb(13, 148, 136)', '#4ECDC4', '#FFD166', '#06D6A0', '#118AB2',
             '#EF476F', '#7209B7', '#3A86FF', '#FB5607', '#8338EC'
@@ -970,9 +883,9 @@ const SigningPage = () => {
         });
 
         return colorMap;
-    };
+    }, []);
 
-    const refreshLiveDocumentSilently = async () => {
+    const refreshLiveDocumentSilently = useCallback(async () => {
         try {
             const blob = await apiService.fetchDocument(recipientId);
 
@@ -988,14 +901,6 @@ const SigningPage = () => {
 
         } catch (err) {
             console.error('Silent document refresh failed:', err);
-        }
-    };
-
-
-    // Load data on mount
-    useEffect(() => {
-        if (recipientId) {
-            loadData();
         }
     }, [recipientId]);
 
@@ -1121,7 +1026,7 @@ const SigningPage = () => {
 
 
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -1196,14 +1101,21 @@ const SigningPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [recipientId, generateRecipientColors]);
+
+    // Load data on mount
+    useEffect(() => {
+        if (recipientId) {
+            loadData();
+        }
+    }, [recipientId, loadData]);
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
     };
 
     // Add this function to generate placeholder thumbnails
-    const generatePlaceholderThumbnails = () => {
+    const generatePlaceholderThumbnails = useCallback(() => {
         const pageMap = {};
 
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
@@ -1236,10 +1148,38 @@ const SigningPage = () => {
         }
 
         setThumbnailPageMap(pageMap);
-    };
+    }, [numPages]);
 
     // Add this function to load thumbnails
-    const loadThumbnails = async () => {
+    const preloadImportantThumbnails = useCallback((pageMap) => {
+        const pagesToPreload = [currentPage, currentPage + 1, currentPage + 2];
+
+        pagesToPreload.forEach(pageNum => {
+            if (pageMap[pageNum] && !pageMap[pageNum].startsWith('data:')) {
+                // Only preload real URLs, not data URLs
+                const img = new Image();
+                img.src = pageMap[pageNum];
+                img.onload = () => {
+                    setThumbnailUrls(prev => ({
+                        ...prev,
+                        [pageNum]: pageMap[pageNum]
+                    }));
+                };
+                img.onerror = () => {
+                    console.warn(`Failed to load thumbnail for page ${pageNum}`);
+                };
+            } else if (pageMap[pageNum]?.startsWith('data:')) {
+                // For data URLs, set directly
+                setThumbnailUrls(prev => ({
+                    ...prev,
+                    [pageNum]: pageMap[pageNum]
+                }));
+            }
+        });
+    }, [currentPage]);
+
+    // Add this function to load thumbnails
+    const loadThumbnails = useCallback(async () => {
         try {
             setLoadingThumbnails(true);
 
@@ -1282,41 +1222,14 @@ const SigningPage = () => {
         } finally {
             setLoadingThumbnails(false);
         }
-    };
-
-    const preloadImportantThumbnails = (pageMap) => {
-        const pagesToPreload = [currentPage, currentPage + 1, currentPage + 2];
-
-        pagesToPreload.forEach(pageNum => {
-            if (pageMap[pageNum] && !pageMap[pageNum].startsWith('data:')) {
-                // Only preload real URLs, not data URLs
-                const img = new Image();
-                img.src = pageMap[pageNum];
-                img.onload = () => {
-                    setThumbnailUrls(prev => ({
-                        ...prev,
-                        [pageNum]: pageMap[pageNum]
-                    }));
-                };
-                img.onerror = () => {
-                    console.warn(`Failed to load thumbnail for page ${pageNum}`);
-                };
-            } else if (pageMap[pageNum]?.startsWith('data:')) {
-                // For data URLs, set directly
-                setThumbnailUrls(prev => ({
-                    ...prev,
-                    [pageNum]: pageMap[pageNum]
-                }));
-            }
-        });
-    };
+    }, [recipientId, numPages, recipientInfo?.otp_verified, preloadImportantThumbnails, generatePlaceholderThumbnails]);
 
     // Load thumbnails when document loads
     useEffect(() => {
         if (numPages > 0 && recipientId) {
             loadThumbnails();
         }
-    }, [numPages, recipientId]);
+    }, [numPages, recipientId, loadThumbnails]);
 
     // Clean up thumbnail URLs on unmount
     useEffect(() => {
@@ -1688,7 +1601,6 @@ const SigningPage = () => {
 
             // 🔥 CONTINUOUS SIGNING / AUTOFILL LOGIC
             if (isQuickSignMode) {
-                let remainingFields = [];
 
                 // 1. Signature bulk-autofill logic (if applicable)
                 if (modalType === 'signature' || modalType === 'initials' || modalType === 'stamp') {
@@ -1786,32 +1698,6 @@ const SigningPage = () => {
 
         // If no next page, return the first page with incomplete fields
         return sortedPages.length > 0 ? sortedPages[0] : null;
-    };
-
-    const handleCompleteSigning = async () => {
-        try {
-            setCompleting(true);
-
-            // Check if all required fields are completed
-            const requiredFields = fields.filter(f => f.required);
-            const incompleteRequired = requiredFields.filter(f => !f.completed_at);
-
-            if (incompleteRequired.length > 0) {
-                throw new Error(`Please complete ${incompleteRequired.length} required field(s) before finishing`);
-            }
-
-            await apiService.completeSigning(recipientId);
-            showSnackbar('Document signed successfully!', 'success');
-
-            setTimeout(() => {
-                window.location.href = `/signing/complete/${recipientId}`;
-            }, 2000);
-        } catch (err) {
-            console.error('Complete signing error:', err);
-            showSnackbar(`Failed to complete signing: ${err.message}`, 'error');
-        } finally {
-            setCompleting(false);
-        }
     };
 
     const handleDownload = async (type = 'current') => {

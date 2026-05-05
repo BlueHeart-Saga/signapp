@@ -42,7 +42,7 @@ function ContactUs() {
 
     // Basic validation
     if (!formData.name || !formData.email || !formData.message) {
-      setSubmitStatus("⚠️ Please fill in all required fields.");
+      setSubmitStatus(" Please fill in all required fields.");
       setIsSubmitting(false);
       return;
     }
@@ -50,13 +50,13 @@ function ContactUs() {
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setSubmitStatus("⚠️ Please enter a valid email address.");
+      setSubmitStatus(" Please enter a valid email address.");
       setIsSubmitting(false);
       return;
     }
 
     if (!agreeToPolicy) {
-      setSubmitStatus("⚠️ Please agree to the privacy policy.");
+      setSubmitStatus(" Please agree to the privacy policy.");
       setIsSubmitting(false);
       return;
     }

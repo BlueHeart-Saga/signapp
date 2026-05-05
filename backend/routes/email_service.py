@@ -101,10 +101,6 @@ class SafeSignSummaryEngine:
         canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.WHITE))
         canvas.rect(0, HEADER_BASE, PAGE_WIDTH, 95, fill=1, stroke=0)
 
-        # Teal top accent bar
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
-        canvas.rect(0, PAGE_HEIGHT - 4, PAGE_WIDTH, 4, fill=1, stroke=0)
-
         # Subtle teal divider - Bottom of header area
         canvas.setStrokeColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
         canvas.setLineWidth(1.25)
@@ -221,10 +217,10 @@ class SafeSignSummaryEngine:
         
         story.append(Paragraph("Signature & Initials", header_style))
         
-        # Create signature table - clean borders
-        sig_data = []
+        sig_element = None
+        init_element = None
         
-        # Signature row
+        # Process Signature
         signature_value = recipient_data.get('signature_value')
         if signature_value and isinstance(signature_value, dict) and signature_value.get('image'):
             try:
@@ -254,25 +250,14 @@ class SafeSignSummaryEngine:
                 display_width = 150
                 display_height = 50
                 
-                rl_img = RLImage(img_buffer, width=display_width, height=display_height)
-                
-                sig_data.append([
-                    Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Signature:</font>", styles['Normal']),
-                    rl_img
-                ])
+                sig_element = RLImage(img_buffer, width=display_width, height=display_height)
             except Exception as e:
                 print(f"Error processing signature: {e}")
-                sig_data.append([
-                    Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Signature:</font>", styles['Normal']),
-                    Paragraph("<font name='Helvetica' size='9' color='#2E7D32'>✓ Signed</font>", styles['Normal'])
-                ])
+                sig_element = Paragraph("<font name='Helvetica' size='9' color='#2E7D32'>✓ Signed</font>", styles['Normal'])
         else:
-            sig_data.append([
-                Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Signature:</font>", styles['Normal']),
-                Paragraph("<font name='Helvetica' size='9' color='#757575'>Not signed</font>", styles['Normal'])
-            ])
+            sig_element = Paragraph("<font name='Helvetica' size='9' color='#757575'>Not signed</font>", styles['Normal'])
         
-        # Initials row
+        # Process Initials
         initials_value = recipient_data.get('initials_value')
         has_initials_field = recipient_data.get('has_initials_field', False)
         
@@ -303,41 +288,39 @@ class SafeSignSummaryEngine:
                 display_width = 80
                 display_height = 30
                 
-                rl_img = RLImage(img_buffer, width=display_width, height=display_height)
-                
-                sig_data.append([
-                    Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Initials:</font>", styles['Normal']),
-                    rl_img
-                ])
+                init_element = RLImage(img_buffer, width=display_width, height=display_height)
             except Exception as e:
                 print(f"Error processing initials: {e}")
-                sig_data.append([
-                    Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Initials:</font>", styles['Normal']),
-                    Paragraph("<font name='Helvetica' size='9' color='#2E7D32'>✓ Initialed</font>", styles['Normal'])
-                ])
+                init_element = Paragraph("<font name='Helvetica' size='9' color='#2E7D32'>✓ Initialed</font>", styles['Normal'])
         elif has_initials_field:
-            sig_data.append([
-                Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Initials:</font>", styles['Normal']),
-                Paragraph("<font name='Helvetica' size='9' color='#ED6C02'>○ Pending</font>", styles['Normal'])
-            ])
+            init_element = Paragraph("<font name='Helvetica' size='9' color='#ED6C02'>○ Pending</font>", styles['Normal'])
+        else:
+            # Explicitly state N/A if no initials field existed
+            init_element = Paragraph("<font name='Helvetica' size='9' color='#757575'>N/A</font>", styles['Normal'])
         
-        if sig_data:
-            # Clean table with minimal borders - DocuSign style
-            sig_table = Table(sig_data, colWidths=[80, 350], hAlign='LEFT')
-            sig_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.WHITE)),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignSummaryEngine.BRAND_SECONDARY)),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
-            ]))
-            story.append(sig_table)
-            story.append(Spacer(1, 15))
+        # Side-by-Side inline layout
+        sig_label = Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Signature:</font>", styles['Normal'])
+        init_label = Paragraph("<font name='Helvetica-Bold' size='9' color='#2C3E50'>Initials:</font>", styles['Normal'])
+        
+        # Using a 4-column row
+        sig_data = [[sig_label, sig_element, init_label, init_element]]
+        
+        # Clean table with minimal borders - DocuSign style
+        sig_table = Table(sig_data, colWidths=[60, 160, 50, 160], hAlign='LEFT')
+        sig_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.WHITE)),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.BRAND_SECONDARY)),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+        ]))
+        story.append(sig_table)
+        story.append(Spacer(1, 15))
         
         return story
     
@@ -463,7 +446,7 @@ class SafeSignSummaryEngine:
              f"Completed: {summary_data.get('completed_date', 'Not completed')}"]
         ]
         
-        envelope_bar = Table(envelope_data, colWidths=[200, 150, 200], hAlign='CENTER')
+        envelope_bar = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
         envelope_bar.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
             ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
@@ -480,50 +463,55 @@ class SafeSignSummaryEngine:
         story.append(envelope_bar)
         story.append(Spacer(1, 10))
         
-        # ========== DOCUMENT INFO CARD - Clean white, gray border ==========
-        story.append(Paragraph("Document Information", styles['DocuSignSection']))
+        # ========== TWO COLUMN LAYOUT: DOC INFO & RECIPIENT SUMMARY ==========
+        
+        # 1. Document Info (Left Column)
+        owner_name = summary_data.get('owner_name', summary_data.get('owner_email', 'N/A'))
+        owner_email = summary_data.get('owner_email', 'N/A')
+        total_participants = len(summary_data.get('all_recipients', []))
         
         doc_info_data = [
-            ["Document Name", ":", summary_data.get('document_name', 'N/A')],
+            ["Document Name", ":", str(summary_data.get('document_name', 'N/A'))[:25] + ("..." if len(str(summary_data.get('document_name', 'N/A'))) > 25 else "")],
             ["Created", ":", summary_data.get('created_date', 'N/A')],
-            ["Owner", ":", summary_data.get('owner_name', summary_data.get('owner_email', 'N/A'))],
+            ["Sender Name", ":", str(owner_name)[:25]],
+            ["Sender Email", ":", str(owner_email)[:25]],
             ["Total Pages", ":", str(summary_data.get('total_pages', 0))],
+            ["Participants", ":", str(total_participants)],
         ]
         
-        doc_info_table = Table(doc_info_data, colWidths=[120, 20, 360], hAlign='LEFT')
+        doc_info_table = Table(doc_info_data, colWidths=[90, 15, 130], hAlign='LEFT')
         doc_info_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
             ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(SafeSignSummaryEngine.BLACK)),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
-        story.append(doc_info_table)
-        story.append(Spacer(1, 10))
+        left_column = [
+            Paragraph("Document Information", styles['DocuSignSection']),
+            Spacer(1, 5),
+            doc_info_table
+        ]
         
-        # ========== RECIPIENT SUMMARY CARD ==========
-        story.append(Paragraph("Recipient Summary", styles['DocuSignSection']))
-        
+        # 2. Recipient Summary (Right Column)
         current_recipient = summary_data.get('current_recipient', {})
         
-        # Status badge
         status_text = current_recipient.get('status', 'pending').upper()
         status_badge = SafeSignSummaryEngine.create_status_badge(
             status_text, 
             'completed' if status_text == 'COMPLETED' else 'pending'
         )
         
-        # Recipient info - Two column layout
         recipient_info_data = [
-            ["Name", ":", current_recipient.get('name', 'N/A')],
-            ["Email", ":", current_recipient.get('email', 'N/A')],
+            ["Name", ":", str(current_recipient.get('name', 'N/A'))[:25]],
+            ["Email", ":", str(current_recipient.get('email', 'N/A'))[:25]],
             ["Role", ":", current_recipient.get('role', 'signer').replace('_', ' ').title()],
             ["Status", ":", Paragraph(status_badge, styles['DocuSignBody'])],
             ["Completed", ":", current_recipient.get('completed_at', 'Not completed')[:10] if current_recipient.get('completed_at') else 'Not completed'],
@@ -531,23 +519,40 @@ class SafeSignSummaryEngine:
             ["Authentication", ":", "OTP Verified" if current_recipient.get('otp_verified') else "Pending"],
         ]
         
-        recipient_table = Table(recipient_info_data, colWidths=[100, 20, 380], hAlign='LEFT')
+        recipient_table = Table(recipient_info_data, colWidths=[80, 15, 140], hAlign='LEFT')
         recipient_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
             ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(SafeSignSummaryEngine.BLACK)),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
-        story.append(recipient_table)
-        story.append(Spacer(1, 8))
+        right_column = [
+            Paragraph("Recipient Summary", styles['DocuSignSection']),
+            Spacer(1, 5),
+            recipient_table
+        ]
+        
+        # Create a layout table for the two columns
+        layout_data = [[left_column, right_column]]
+        layout_table = Table(layout_data, colWidths=[doc.width * 0.48, doc.width * 0.52])
+        layout_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        
+        story.append(KeepTogether(layout_table))
+        story.append(Spacer(1, 15))
         
         # ========== SIGNATURE & INITIALS BLOCK ==========
         # Get signature and initials from recipient fields
@@ -578,8 +583,6 @@ class SafeSignSummaryEngine:
         story.append(Spacer(1, 10))
         
         # ========== FIELD COMPLETION SUMMARY ==========
-        story.append(Paragraph("Field Completion Summary", styles['DocuSignSection']))
-        
         # Field statistics cards
         stats = summary_data.get('statistics', {})
         
@@ -613,12 +616,13 @@ class SafeSignSummaryEngine:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
-        story.append(stat_table)
+        story.append(KeepTogether([
+            Paragraph("Field Completion Summary", styles['DocuSignSection']),
+            stat_table
+        ]))
         story.append(Spacer(1, 20))
         
         # ========== DETAILED FIELDS TABLE ==========
-        story.append(Paragraph("All Assigned Fields", styles['DocuSignSubSection']))
-        
         fields = summary_data.get('assigned_fields', [])
         # Filter out signature/initials from detailed table (already shown above)
         other_fields = [f for f in fields if f.get('type') not in ['signature', 'initials', 'witness_signature']]
@@ -688,19 +692,22 @@ class SafeSignSummaryEngine:
                 ('TOPPADDING', (0, 1), (-1, -1), 6),
             ]))
             
-            story.append(field_table)
+            fields_elements = [
+                Paragraph("All Assigned Fields", styles['DocuSignSubSection']),
+                field_table
+            ]
+            story.append(KeepTogether(fields_elements))
             story.append(Spacer(1, 10))
         else:
-            story.append(Paragraph(
-                f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No additional fields assigned.</font>",
-                styles['DocuSignBody']
-            ))
+            fields_elements = [
+                Paragraph("All Assigned Fields", styles['DocuSignSubSection']),
+                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No additional fields assigned.</font>", styles['DocuSignBody'])
+            ]
+            story.append(KeepTogether(fields_elements))
         
         story.append(Spacer(1, 25))
         
         # ========== ALL PARTICIPANTS TABLE ==========
-        story.append(Paragraph("Document Participants", styles['DocuSignSection']))
-        
         participants = summary_data.get('all_recipients', [])
         if participants:
             participant_data = [
@@ -712,7 +719,7 @@ class SafeSignSummaryEngine:
                 status_color = SafeSignSummaryEngine.SUCCESS if status == 'COMPLETED' else SafeSignSummaryEngine.WARNING
                 
                 completed_date = p.get('completed_at', '—')
-                if completed_date != '—' and len(completed_date) > 10:
+                if completed_date and completed_date != '—' and len(str(completed_date)) > 10:
                     completed_date = completed_date[:10]
                 
                 participant_data.append([
@@ -737,19 +744,22 @@ class SafeSignSummaryEngine:
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
             
-            story.append(participant_table)
+            participants_elements = [
+                Paragraph("Document Participants", styles['DocuSignSection']),
+                participant_table
+            ]
+            story.append(KeepTogether(participants_elements))
             story.append(Spacer(1, 10))
         else:
-            story.append(Paragraph(
-                f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No participants found.</font>",
-                styles['DocuSignBody']
-            ))
+            participants_elements = [
+                Paragraph("Document Participants", styles['DocuSignSection']),
+                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No participants found.</font>", styles['DocuSignBody'])
+            ]
+            story.append(KeepTogether(participants_elements))
         
         story.append(Spacer(1, 25))
         
         # ========== ACTIVITY TIMELINE ==========
-        story.append(Paragraph("Recent Activity", styles['DocuSignSection']))
-        
         timeline = summary_data.get('recent_activity', [])
         if timeline:
             timeline_data = [
@@ -777,13 +787,18 @@ class SafeSignSummaryEngine:
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
             ]))
             
-            story.append(timeline_table)
+            activity_elements = [
+                Paragraph("Recent Activity", styles['DocuSignSection']),
+                timeline_table
+            ]
+            story.append(KeepTogether(activity_elements))
             story.append(Spacer(1, 10))
         else:
-            story.append(Paragraph(
-                f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No recent activity recorded.</font>",
-                styles['DocuSignBody']
-            ))
+            activity_elements = [
+                Paragraph("Recent Activity", styles['DocuSignSection']),
+                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No recent activity recorded.</font>", styles['DocuSignBody'])
+            ]
+            story.append(KeepTogether(activity_elements))
         
         # ========== VERIFICATION STATEMENT ==========
         # ========== CERTIFICATE OF AUTHENTICITY ==========
@@ -1185,10 +1200,6 @@ class SafeSignCertificateEngine:
         canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.WHITE))
         canvas.rect(0, HEADER_BASE, PAGE_WIDTH, 95, fill=1, stroke=0)
         
-        # Teal top accent bar
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
-        canvas.rect(0, PAGE_HEIGHT - 4, PAGE_WIDTH, 4, fill=1, stroke=0)
-        
         # Subtle teal divider
         canvas.setStrokeColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
         canvas.setLineWidth(1.25)
@@ -1386,7 +1397,7 @@ class SafeSignCertificateEngine:
              f"Completed: {certificate_data.get('completed_date', 'Not completed')}"]
         ]
         
-        envelope_card = Table(envelope_data, colWidths=[200, 150, 200], hAlign='CENTER')
+        envelope_card = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
         envelope_card.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
             ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
@@ -2344,7 +2355,7 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
                                 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 15px;">
                                     <tr>
                                         <td style="vertical-align: top; width: 20px; padding-top: 2px;">
-                                            <span style="font-size: 18px;">⚠️</span>
+                                            <span style="font-size: 18px;"></span>
                                         </td>
                                         <td style="padding-left: 12px; font-size: 13px; line-height: 1.5; color: #b91c1c;">
                                             <strong>Security Notice:</strong> Never share this OTP with anyone. Our staff will never ask for your code.
@@ -2967,7 +2978,7 @@ async def send_bulk_invites(
                 )
                 
         except Exception as e:
-            print(f"⚠️ Error sending to {recipient['email']}: {str(e)}")
+            print(f" Error sending to {recipient['email']}: {str(e)}")
             # Log error
             db.error_logs.insert_one({
                 "document_id": ObjectId(document_id),
@@ -3232,6 +3243,12 @@ def send_document_email(
     """
     try:
         standard_footer = get_standard_email_footer()
+        
+        # Create message
+        msg = MIMEMultipart()
+        msg["Subject"] = subject
+        msg["From"] = EMAIL_FROM
+        msg["To"] = to_email
         
         # Build HTML content
         html_content = f"""
@@ -3841,7 +3858,7 @@ async def send_document_completion_email(
                 msg.attach(zip_attachment)
                 print(f" Attached full ZIP package to completion email for {recipient_email}")
         except Exception as ze:
-            print(f"⚠️ Warning: Could not generate/attach ZIP package to completion email: {str(ze)}")
+            print(f" Warning: Could not generate/attach ZIP package to completion email: {str(ze)}")
         
         # Send email
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
@@ -3971,26 +3988,26 @@ async def send_completed_document_package(document_id: str):
                         })
                     else:
                         failed_recipients.append({
-                            "email": recipient.get("email"),
-                            "name": recipient.get("name"),
+                            "email": target.get("email"),
+                            "name": target.get("name"),
                             "error": "Email send failed"
                         })
-                        print(f"❌ Failed to send to {recipient.get('email')}")
+                        print(f"❌ Failed to send to {target.get('email')}")
                 else:
                     failed_recipients.append({
-                        "email": recipient.get("email"),
-                        "name": recipient.get("name"),
+                        "email": target.get("email"),
+                        "name": target.get("name"),
                         "error": "Package generation failed"
                     })
-                    print(f"❌ Package generation failed for {recipient.get('email')}")
+                    print(f"❌ Package generation failed for {target.get('email')}")
                     
             except Exception as e:
                 failed_recipients.append({
-                    "email": recipient.get("email", "unknown"),
-                    "name": recipient.get("name", "unknown"),
+                    "email": target.get("email", "unknown"),
+                    "name": target.get("name", "unknown"),
                     "error": str(e)
                 })
-                print(f"❌ Error sending to {recipient.get('email')}: {str(e)}")
+                print(f"❌ Error sending to {target.get('email')}: {str(e)}")
         
         # Update document with email status
         update_data = {
@@ -4884,7 +4901,7 @@ async def send_expiration_email_to_owner(document: dict):
                         <!-- Alert Header -->
                         <tr>
                             <td class="document-header">
-                                <h1 style="margin: 0; color: #e11d48; font-size: 20px;">⚠️ Document Expired</h1>
+                                <h1 style="margin: 0; color: #e11d48; font-size: 20px;"> Document Expired</h1>
                             </td>
                         </tr>
                         
@@ -4992,7 +5009,7 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
                         <!-- Alert Header -->
                         <tr>
                             <td class="document-header">
-                                <h1 style="margin: 0; color: #00A3A3; font-size: 20px;">🕒 Request Expired</h1>
+                                <h1 style="margin: 0; color: #00A3A3; font-size: 20px;"> Request Expired</h1>
                             </td>
                         </tr>
                         

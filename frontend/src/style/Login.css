@@ -814,20 +814,20 @@
 /* ── Submit Button ────────────────────────────────────── */
 .submit-btn {
   width: 100%;
-  padding: 15px 24px;
-  background: linear-gradient(135deg, #0f766e 0%, #0b7c71 100%);
+  padding: 12px 24px;
+  background: #0f766e;
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin: 20px 0;
+  gap: 8px;
+  margin: 16px 0;
   font-family: inherit;
 }
 

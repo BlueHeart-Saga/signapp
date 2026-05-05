@@ -350,7 +350,7 @@
 // }
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaFilePdf,
@@ -358,7 +358,6 @@ import {
   FaFileAlt,
   FaTrash,
   FaDownload,
-  FaUsers,
   FaSearch,
   FaTimes,
   FaFolderOpen,
@@ -375,17 +374,16 @@ import { FaFolder } from "react-icons/fa";
 import { restoreDocument, permanentDeleteDocument, bulkSoftDeleteDocuments, bulkRestoreDocuments, bulkPermanentDeleteDocuments, emptyTrash } from "../services/DocumentAPI";
 
 import { documentsAPI } from '../services/api';
-import { uploadDocument } from '../services/DocumentAPI';
+// import { uploadDocument } from '../services/DocumentAPI';
 import '../style/documents.css';
 import '../style/TemplatesList.css';
 import { useAuth } from '../context/AuthContext';
-import SubscriptionExpiredBlock from '../components/SubscriptionExpiredBlock';
 import { CircularProgress, Box } from '@mui/material';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 export default function DocumentsAndTemplates() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   // ============ DOCUMENTS STATE ============
   const [documents, setDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
@@ -457,7 +455,7 @@ export default function DocumentsAndTemplates() {
   }, [location.search]);
 
   // ============ DOCUMENTS FUNCTIONS ============
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setDocumentsLoading(true);
       setDocumentsError('');
@@ -470,10 +468,10 @@ export default function DocumentsAndTemplates() {
     } finally {
       setDocumentsLoading(false);
     }
-  };
+  }, []);
 
 
-  const loadTrashDocuments = async () => {
+  const loadTrashDocuments = useCallback(async () => {
     try {
       setTrashLoading(true);
       const res = await fetch(
@@ -492,7 +490,7 @@ export default function DocumentsAndTemplates() {
     } finally {
       setTrashLoading(false);
     }
-  };
+  }, [token]);
 
   // ============ SELECTION & BULK ACTIONS ============
   const handleToggleSelect = (id) => {
@@ -598,7 +596,7 @@ export default function DocumentsAndTemplates() {
     if (activeTab === "trash") {
       loadTrashDocuments();
     }
-  }, [activeTab]);
+  }, [activeTab, loadTrashDocuments]);
 
 
   const handleDelete = async (documentId) => {
@@ -736,7 +734,7 @@ export default function DocumentsAndTemplates() {
     return null;
   };
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       setTemplatesLoading(true);
       setTemplatesError("");
@@ -770,9 +768,9 @@ export default function DocumentsAndTemplates() {
     } finally {
       setTemplatesLoading(false);
     }
-  };
+  }, [page, limit, templateSearch, categoryId, freeOnly, token]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/admin/templates/user/categories`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -786,9 +784,9 @@ export default function DocumentsAndTemplates() {
     } catch (err) {
       console.error("Category fetch failed:", err);
     }
-  };
+  }, [token]);
 
-  const fetchPopularTemplates = async () => {
+  const fetchPopularTemplates = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/admin/templates/user/stats/popular?limit=5`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -802,7 +800,7 @@ export default function DocumentsAndTemplates() {
     } catch (err) {
       console.error("Popular templates fetch failed:", err);
     }
-  };
+  }, [token]);
 
   const getTemplateDetails = async (templateId) => {
     try {
@@ -1099,7 +1097,7 @@ export default function DocumentsAndTemplates() {
     fetchCategories();
     fetchPopularTemplates();
     fetchTemplates();
-  }, []);
+  }, [loadDocuments, fetchCategories, fetchPopularTemplates, fetchTemplates]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -1107,7 +1105,7 @@ export default function DocumentsAndTemplates() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [page, templateSearch, categoryId, freeOnly]);
+  }, [fetchTemplates]);
 
   if (authLoading) {
     return (
@@ -1398,82 +1396,82 @@ export default function DocumentsAndTemplates() {
                 {filteredDocuments.map((document) => {
                   const docId = document.id || document._id;
                   return (
-                  <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
-                    <div className="dt-document-card-header">
-                      <div className="dt-document-selection-wrapper">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocs.includes(docId)}
-                          onChange={() => handleToggleSelect(docId)}
-                          className="dt-card-checkbox"
-                        />
-                        <div className="dt-document-icon">
-                          {getFileIcon(document.mime_type, document.filename)}
+                    <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
+                      <div className="dt-document-card-header">
+                        <div className="dt-document-selection-wrapper">
+                          <input
+                            type="checkbox"
+                            checked={selectedDocs.includes(docId)}
+                            onChange={() => handleToggleSelect(docId)}
+                            className="dt-card-checkbox"
+                          />
+                          <div className="dt-document-icon">
+                            {getFileIcon(document.mime_type, document.filename)}
+                          </div>
+                        </div>
+                        <div className="dt-document-actions">
+                          <button
+                            className="dt-btn-icon"
+                            onClick={() => handleDownload(docId, document.filename)}
+                            title="Download Document"
+                          >
+                            <FaDownload />
+                          </button>
+                          <button
+                            className="dt-btn-icon dt-danger"
+                            onClick={() => setDeleteConfirm(docId)}
+                            title="Delete Document"
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
                       </div>
-                      <div className="dt-document-actions">
+
+                      <div className="dt-document-card-body">
+                        <h3 className="dt-document-name" title={document.filename}>
+                          {document.filename}
+                        </h3>
+
+                        <div className="dt-document-meta">
+                          <div className="dt-meta-item">
+                            <FaClock className="dt-meta-icon" />
+                            <span className="dt-meta-text">
+                              {formatDate(document.uploaded_at)}
+                            </span>
+                          </div>
+                          <div className="dt-meta-item">
+                            <span className="dt-file-size">
+                              {formatFileSize(document.size)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="dt-document-info">
+                          <div className="dt-info-row">
+                            <span className="dt-info-label">Source:</span>
+                            <span className={`dt-source-badge dt-source-${document.source?.toLowerCase() || 'local'}`}>
+                              {document.source || 'Local'}
+                            </span>
+                          </div>
+                          <div className="dt-info-row">
+                            <span className="dt-info-label">Status:</span>
+                            <span className={`dt-status-badge dt-status-${document.status?.toLowerCase() || 'active'}`}>
+                              {document.status || 'Active'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dt-document-card-footer">
                         <button
-                          className="dt-btn-icon"
-                          onClick={() => handleDownload(docId, document.filename)}
-                          title="Download Document"
+                          className="dt-btn dt-btn-outline dt-btn-sm"
+                          onClick={() => handleViewDocumentPdf(document)}
                         >
-                          <FaDownload />
+                          {/* <FaEye className="dt-btn-icon" /> */}
+                          View PDF
                         </button>
-                        <button
-                          className="dt-btn-icon dt-danger"
-                          onClick={() => setDeleteConfirm(docId)}
-                          title="Delete Document"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
 
-                    <div className="dt-document-card-body">
-                      <h3 className="dt-document-name" title={document.filename}>
-                        {document.filename}
-                      </h3>
-
-                      <div className="dt-document-meta">
-                        <div className="dt-meta-item">
-                          <FaClock className="dt-meta-icon" />
-                          <span className="dt-meta-text">
-                            {formatDate(document.uploaded_at)}
-                          </span>
-                        </div>
-                        <div className="dt-meta-item">
-                          <span className="dt-file-size">
-                            {formatFileSize(document.size)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="dt-document-info">
-                        <div className="dt-info-row">
-                          <span className="dt-info-label">Source:</span>
-                          <span className={`dt-source-badge dt-source-${document.source?.toLowerCase() || 'local'}`}>
-                            {document.source || 'Local'}
-                          </span>
-                        </div>
-                        <div className="dt-info-row">
-                          <span className="dt-info-label">Status:</span>
-                          <span className={`dt-status-badge dt-status-${document.status?.toLowerCase() || 'active'}`}>
-                            {document.status || 'Active'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="dt-document-card-footer">
-                      <button
-                        className="dt-btn dt-btn-outline dt-btn-sm"
-                        onClick={() => handleViewDocumentPdf(document)}
-                      >
-                        {/* <FaEye className="dt-btn-icon" /> */}
-                        View PDF
-                      </button>
-
-                      {/* <button 
+                        {/* <button 
     className="dt-btn dt-btn-primary dt-btn-sm"
     onClick={() => handleDownload(document.id, document.filename)}
   >
@@ -1481,17 +1479,18 @@ export default function DocumentsAndTemplates() {
     Download
   </button> */}
 
-                      <button
-                        className="dt-btn dt-btn-primary dt-btn-sm"
-                        onClick={() => handleUseDocument(document)}
-                      >
-                        <FaCloudUploadAlt />
-                        Use Document
-                      </button>
-                    </div>
+                        <button
+                          className="dt-btn dt-btn-primary dt-btn-sm"
+                          onClick={() => handleUseDocument(document)}
+                        >
+                          <FaCloudUploadAlt />
+                          Use Document
+                        </button>
+                      </div>
 
-                  </div>
-                )})}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -1667,7 +1666,7 @@ export default function DocumentsAndTemplates() {
                   </div>
                 ) : templatesError ? (
                   <div className="dt-error-alert">
-                    <p>⚠️ {templatesError}</p>
+                    <p> {templatesError}</p>
                     <button onClick={fetchTemplates} className="dt-btn dt-btn-outline">
                       Try Again
                     </button>
@@ -2047,124 +2046,125 @@ export default function DocumentsAndTemplates() {
                 {trashDocuments.map((doc) => {
                   const docId = doc.id || doc._id;
                   return (
-                  <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
-                    <div className="dt-document-card-header" style={{ padding: '8px 14px', borderBottom: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedDocs.includes(docId)}
-                        onChange={() => handleToggleSelect(docId)}
-                        className="dt-card-checkbox"
-                      />
-                      <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>Select item</span>
-                    </div>
-                    <div className="dt-document-card-body">
-                      <h3 className="dt-document-name" title={doc.filename}>
-                        {doc.filename}
-                      </h3>
+                    <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
+                      <div className="dt-document-card-header" style={{ padding: '8px 14px', borderBottom: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedDocs.includes(docId)}
+                          onChange={() => handleToggleSelect(docId)}
+                          className="dt-card-checkbox"
+                        />
+                        <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>Select item</span>
+                      </div>
+                      <div className="dt-document-card-body">
+                        <h3 className="dt-document-name" title={doc.filename}>
+                          {doc.filename}
+                        </h3>
 
-                      <div className="dt-document-meta">
-                        <div className="dt-meta-row">
-                          <span className="dt-meta-label">Deleted on</span>
-                          <strong>{getDeletedDate(doc)}</strong>
-                        </div>
-
-                        <div className="dt-meta-row">
-                          <span className="dt-meta-label">Status</span>
-                          <span className={`dt-status-badge dt-status-${doc.status}`}>
-                            {doc.status}
-                          </span>
-                        </div>
-
-                        {doc.size && (
+                        <div className="dt-document-meta">
                           <div className="dt-meta-row">
-                            <span className="dt-meta-label">Size</span>
-                            <span>{formatFileSize(doc.size)}</span>
+                            <span className="dt-meta-label">Deleted on</span>
+                            <strong>{getDeletedDate(doc)}</strong>
                           </div>
-                        )}
 
-                        {doc.source && (
                           <div className="dt-meta-row">
-                            <span className="dt-meta-label">Source</span>
-                            <span className={`dt-source-badge dt-source-${doc.source}`}>
-                              {doc.source}
+                            <span className="dt-meta-label">Status</span>
+                            <span className={`dt-status-badge dt-status-${doc.status}`}>
+                              {doc.status}
                             </span>
                           </div>
-                        )}
+
+                          {doc.size && (
+                            <div className="dt-meta-row">
+                              <span className="dt-meta-label">Size</span>
+                              <span>{formatFileSize(doc.size)}</span>
+                            </div>
+                          )}
+
+                          {doc.source && (
+                            <div className="dt-meta-row">
+                              <span className="dt-meta-label">Source</span>
+                              <span className={`dt-source-badge dt-source-${doc.source}`}>
+                                {doc.source}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
 
-                    <div className="dt-document-card-footer">
+                      <div className="dt-document-card-footer">
 
-                      {/* 👁 View PDF – always allowed */}
-                      <button
-                        className="dt-btn dt-btn-outline dt-btn-sm"
-                        onClick={() => handleViewDocumentPdf(doc)}
-                      >
-                        <FaEye />
-                        View PDF
-                      </button>
-
-                      {/* ♻️ Restore – ONLY if voided */}
-                      {doc.status === "deleted" && (
+                        {/* 👁 View PDF – always allowed */}
                         <button
                           className="dt-btn dt-btn-outline dt-btn-sm"
+                          onClick={() => handleViewDocumentPdf(doc)}
+                        >
+                          <FaEye />
+                          View PDF
+                        </button>
+
+                        {/* ♻️ Restore – ONLY if voided */}
+                        {doc.status === "deleted" && (
+                          <button
+                            className="dt-btn dt-btn-outline dt-btn-sm"
+                            onClick={() =>
+                              setConfirmDialog({
+                                open: true,
+                                title: "Restore document?",
+                                message:
+                                  "This document will be restored to your documents list.",
+                                confirmText: "Restore Document",
+                                danger: false,
+                                onConfirm: async () => {
+                                  await restoreDocument(docId);
+                                  loadTrashDocuments();
+                                  loadDocuments();
+                                },
+                              })
+                            }
+                          >
+                            ♻️ Restore
+                          </button>
+                        )}
+
+
+                        {/* 🔥 Permanent delete */}
+                        <button
+                          className="dt-btn dt-btn-danger dt-btn-sm"
                           onClick={() =>
                             setConfirmDialog({
                               open: true,
-                              title: "Restore document?",
-                              message:
-                                "This document will be restored to your documents list.",
-                              confirmText: "Restore Document",
-                              danger: false,
+                              title: "Permanently delete document?",
+                              message: (
+                                <>
+                                  <p>
+                                    This action <strong>cannot be undone</strong>.
+                                  </p>
+                                  <p>
+                                    The document, signatures, recipients, and audit trail will be
+                                    permanently removed.
+                                  </p>
+                                </>
+                              ),
+                              confirmText: "Delete Permanently",
+                              danger: true,
                               onConfirm: async () => {
-                                await restoreDocument(docId);
+                                await permanentDeleteDocument(docId);
                                 loadTrashDocuments();
-                                loadDocuments();
                               },
                             })
                           }
                         >
-                          ♻️ Restore
+                          Delete Forever
                         </button>
-                      )}
 
+                      </div>
 
-                      {/* 🔥 Permanent delete */}
-                      <button
-                        className="dt-btn dt-btn-danger dt-btn-sm"
-                        onClick={() =>
-                          setConfirmDialog({
-                            open: true,
-                            title: "Permanently delete document?",
-                            message: (
-                              <>
-                                <p>
-                                  This action <strong>cannot be undone</strong>.
-                                </p>
-                                <p>
-                                  The document, signatures, recipients, and audit trail will be
-                                  permanently removed.
-                                </p>
-                              </>
-                            ),
-                            confirmText: "Delete Permanently",
-                            danger: true,
-                            onConfirm: async () => {
-                              await permanentDeleteDocument(docId);
-                              loadTrashDocuments();
-                            },
-                          })
-                        }
-                      >
-                        Delete Forever
-                      </button>
 
                     </div>
-
-
-                  </div>
-                )})}
+                  )
+                })}
               </div>
             )}
           </div>

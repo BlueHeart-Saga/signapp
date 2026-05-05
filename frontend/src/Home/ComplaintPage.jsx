@@ -236,7 +236,7 @@ export default function ComplaintPage() {
             This report is confidential and reviewed by SafeSign’s Trust & Security team.
           </div>
           {success && <div className="success-box">Complaint submitted successfully.</div>}
-          {error && <div className="error-box">⚠️ {error}</div>}
+          {error && <div className="error-box"> {error}</div>}
         </div>
 
 

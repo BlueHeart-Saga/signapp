@@ -1,4 +1,5 @@
 {
+    "python.defaultInterpreterPath": "backend/.venv/Scripts/python.exe",
     "appService.zipIgnorePattern": [
         "__pycache__{,/**}",
         "*.py[cod]",

@@ -3034,6 +3034,8 @@ async def email_signed_document(
         )
 
         return {"message": "Signed document emailed successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error emailing signed document: {str(e)}")
         import traceback

@@ -20,7 +20,7 @@ This document serves as the primary reference for the Quality Assurance and Test
 
 ---
 
-## ⚠️ 2. High-Priority Edge Cases (Failure Testing)
+##  2. High-Priority Edge Cases (Failure Testing)
 *These scenarios test the resilience of the system under stress or improper usage.*
 
 | Scenario | Expected Behavior |

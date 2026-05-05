@@ -337,7 +337,7 @@ async def send_otp_email(email: str, otp: str):
                                 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 35px; background-color: #f8fafc; border: 1px solid #fef08a; border-radius: 10px; padding: 15px;">
                                     <tr>
                                         <td style="vertical-align: top; width: 20px; padding-top: 2px;">
-                                            <span style="font-size: 18px;">⚠️</span>
+                                            <span style="font-size: 18px;"></span>
                                         </td>
                                         <td style="padding-left: 12px; font-size: 13px; line-height: 1.5; color: #854d0e; font-style: italic;">
                                             If you did not attempt to log in, please secure your account immediately. Never share this code.

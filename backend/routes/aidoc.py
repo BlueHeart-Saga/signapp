@@ -288,7 +288,7 @@
 #             print(
 #                 "CONTENT GENERATED"
 #                 if total_chars > 0
-#                 else "⚠️ NO CONTENT GENERATED"
+#                 else " NO CONTENT GENERATED"
 #             )
 #             print("=================================")
 

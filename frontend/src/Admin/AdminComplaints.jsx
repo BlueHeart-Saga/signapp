@@ -44,18 +44,18 @@ export default function AdminComplaints() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [adminNote, setAdminNote] = useState("");
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = React.useCallback(async () => {
     setLoading(true);
     const res = await axios.get(`${API_BASE_URL}/e-sign/complaints/admin`, {
       params: { status },
     });
     setComplaints(res.data.items);
     setLoading(false);
-  };
+  }, [status]);
 
   useEffect(() => {
     fetchComplaints();
-  }, [status]);
+  }, [fetchComplaints]);
 
   const openDrawer = (complaint) => {
     setSelected(complaint);

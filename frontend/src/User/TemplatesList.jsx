@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "../style/TemplatesList.css";
 import { uploadDocument } from "../services/DocumentAPI";
 
@@ -58,7 +58,7 @@ const UserTemplatesList = () => {
   };
 
   // Fetch available templates
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -99,10 +99,10 @@ const UserTemplatesList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search, categoryId, freeOnly, token]);
 
   // Fetch categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/templates/user/categories`, {
         headers: {
@@ -121,10 +121,10 @@ const UserTemplatesList = () => {
     } catch (err) {
       console.error("Category fetch failed:", err);
     }
-  };
+  }, [token]);
 
   // Fetch popular templates
-  const fetchPopularTemplates = async () => {
+  const fetchPopularTemplates = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/templates/user/stats/popular?limit=5`, {
         headers: {
@@ -143,7 +143,7 @@ const UserTemplatesList = () => {
     } catch (err) {
       console.error("Popular templates fetch failed:", err);
     }
-  };
+  }, [token]);
 
   // Get template details for preview
   const getTemplateDetails = async (templateId) => {
@@ -442,7 +442,7 @@ const UserTemplatesList = () => {
     fetchCategories();
     fetchPopularTemplates();
     fetchTemplates();
-  }, []);
+  }, [fetchCategories, fetchPopularTemplates, fetchTemplates]);
 
   // Fetch templates when filters change
   useEffect(() => {
@@ -451,7 +451,7 @@ const UserTemplatesList = () => {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [page, search, categoryId, freeOnly]);
+  }, [fetchTemplates]);
 
   // Cleanup preview URL on unmount
   useEffect(() => {
@@ -612,7 +612,7 @@ const UserTemplatesList = () => {
           {/* Error */}
           {error && (
             <div className="error-alert">
-              <p>⚠️ {error}</p>
+              <p> {error}</p>
               <button onClick={fetchTemplates}>Try Again</button>
             </div>
           )}
