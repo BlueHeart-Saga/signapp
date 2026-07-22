@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 const PremiumBannerSlider = ({ navigate: propNavigate }) => {
-  const navigate = propNavigate || useNavigate();
+  const hookNavigate = useNavigate();
+  const navigate = propNavigate || hookNavigate;
   const [banners, setBanners] = useState([]);
   const [activeBanner, setActiveBanner] = useState(0);
   const [pauseBanner, setPauseBanner] = useState(false);
