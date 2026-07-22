@@ -643,7 +643,7 @@ const EnterpriseQuoteForm = ({ onSubmit, onCancel }) => {
 const Subscription = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { user, updateUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   // State
@@ -856,9 +856,9 @@ const Subscription = () => {
       setDialogState({ ...dialogState, subscribe: false });
       await fetchAllData();
 
-      // Update user context
-      if (updateUser) {
-        updateUser({ ...user, has_active_subscription: true });
+      // Refresh user context immediately
+      if (refreshUser) {
+        await refreshUser();
       }
     } catch (error) {
       showSnackbar(
@@ -885,6 +885,11 @@ const Subscription = () => {
       showSnackbar(response.data.message || 'Plan changed successfully!', 'success');
       setDialogState({ ...dialogState, changePlan: false });
       await fetchAllData();
+
+      // Refresh user context immediately
+      if (refreshUser) {
+        await refreshUser();
+      }
     } catch (error) {
       showSnackbar(
         error.response?.data?.detail || 'Failed to change plan',
@@ -910,8 +915,9 @@ const Subscription = () => {
       setDialogState({ ...dialogState, cancel: false });
       await fetchAllData();
 
-      if (updateUser) {
-        updateUser({ ...user, has_active_subscription: false });
+      // Refresh user context immediately
+      if (refreshUser) {
+        await refreshUser();
       }
     } catch (error) {
       showSnackbar(
@@ -936,8 +942,9 @@ const Subscription = () => {
       setDialogState({ ...dialogState, renew: false });
       await fetchAllData();
 
-      if (updateUser) {
-        updateUser({ ...user, has_active_subscription: true });
+      // Refresh user context immediately
+      if (refreshUser) {
+        await refreshUser();
       }
     } catch (error) {
       showSnackbar(
@@ -1124,7 +1131,7 @@ const Subscription = () => {
                 <Button
                   variant="outlined"
                   color="primary"
-                  onClick={() => setActiveTab(0)}
+                  onClick={() => setDialogState({ ...dialogState, changePlan: true })}
                   startIcon={<SwapHorizIcon />}
                   sx={{
                     borderRadius: '12px',
@@ -1652,7 +1659,7 @@ const DiscountRibbon = styled(Box)(({ theme }) => ({
       </DialogTitle>
 
       <DialogContent dividers>
-        {selectedPlan && (
+        {selectedPlan ? (
           <>
             <Alert severity="info" sx={{ mb: 3 }}>
               <AlertTitle>Changing from {currentSubscription?.plan_name}</AlertTitle>
@@ -1722,14 +1729,72 @@ const DiscountRibbon = styled(Box)(({ theme }) => ({
 
             <PaymentFormWithElements
               plan={selectedPlan}
-              onSuccess={() => {
+              onSuccess={async () => {
                 handleCloseDialog('changePlan');
-                fetchAllData();
+                await fetchAllData();
+                if (refreshUser) {
+                  await refreshUser();
+                }
                 showSnackbar('Plan changed successfully!', 'success');
               }}
               onCancel={() => handleCloseDialog('changePlan')}
             />
           </>
+        ) : (
+          <Box>
+            <Typography variant="body1" sx={{ mb: 3, fontWeight: 500, color: 'text.secondary' }}>
+              Select a new plan to change your subscription:
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {plans
+                .filter((p) => p.plan_type !== 'free_trial' && p.plan_type !== currentSubscription?.plan_type)
+                .map((plan) => (
+                  <Paper
+                    key={plan.plan_type}
+                    elevation={0}
+                    variant="outlined"
+                    sx={{
+                      p: 2.5,
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderColor: '#e2e8f0',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'primary.light' + '0A',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+                      }
+                    }}
+                    onClick={() => handleChangePlan(plan)}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main', width: 48, height: 48 }}>
+                        {getPlanIcon(plan.plan_type)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          {plan.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {plan.description}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography variant="h6" fontWeight={700} color="primary.main">
+                        {plan.plan_type === 'enterprise' ? 'Custom' : formatCurrency(plan.price)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {plan.plan_type === 'enterprise' ? 'Contact Sales' : `per ${plan.duration_days === 365 ? 'year' : 'month'}`}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                ))}
+            </Box>
+          </Box>
         )}
       </DialogContent>
     </Dialog>
@@ -1794,9 +1859,12 @@ const DiscountRibbon = styled(Box)(({ theme }) => ({
 
         <PaymentFormWithElements
           plan={selectedPlan}
-          onSuccess={() => {
+          onSuccess={async () => {
             handleCloseDialog('subscribe');
-            fetchAllData();
+            await fetchAllData();
+            if (refreshUser) {
+              await refreshUser();
+            }
             showSnackbar('Payment successful! Welcome to your new plan.', 'success');
           }}
           onCancel={() => handleCloseDialog('subscribe')}

@@ -86,10 +86,11 @@ const EnhancedSignaturePad = ({
   const canvasRef = useRef(null);
   const textCanvasRef = useRef(null);
   const stampCanvasRef = useRef(null);
+  const pointsRef = useRef([]);
   const [activeTab, setActiveTab] = useState(0);
   const [textInput, setTextInput] = useState('');
   // const [fontSize, setFontSize] = useState(112); 
-  const [fontFamily, setFontFamily] = useState('Ink Free');
+  const [fontFamily, setFontFamily] = useState('Dancing Script');
   const [fontColor, setFontColor] = useState('#000000');
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadError, setUploadError] = useState('');
@@ -119,7 +120,7 @@ const EnhancedSignaturePad = ({
 
   const getDefaultFontSize = () => {
     if (fieldType === 'initials') return 160; // ⬅ bigger like signature
-    return 112;
+    return 160;
   };
 
   const [fontSize, setFontSize] = useState(getDefaultFontSize());
@@ -234,15 +235,16 @@ const EnhancedSignaturePad = ({
       name: 'handwriting',
       label: 'Handwriting',
       fonts: [
-        'Ink Free',
-        'Fave Script Bold Pro',
-        'Bradley Hand ITC',
-        'Gabriola',
-        'Pristina',
-        'Vivaldi',
-        'Cochocib Script Latin Pro',
-        'Eras Light ITC',
-        'Dreaming Outloud Script Pro Regular'
+        'Dancing Script',
+        'Pacifico',
+        'Great Vibes',
+        'Sacramento',
+        'Alex Brush',
+        'Allura',
+        'Caveat',
+        'Satisfy',
+        'Yellowtail',
+        'Cedarville Cursive'
       ],
       color: '#000000'
     },
@@ -274,12 +276,12 @@ const EnhancedSignaturePad = ({
     }
   ];
 
-  // Color options - black, blue, green, red
+  // Color options - black, blue, navy, red
   const colors = [
-    '#000000', // Black
-    '#1976d2', // Blue
-    '#2ecc71', // Green
-    '#e53935'  // Red
+    '#000000', // Classic Black
+    '#002fa7', // Royal Blue
+    '#0f2c59', // Navy Blue
+    '#d32f2f'  // Deep Red
   ];
 
   const stampColors = [
@@ -367,7 +369,7 @@ const EnhancedSignaturePad = ({
   // Update font style based on selection
   useEffect(() => {
     if (selectedFontStyle === 'handwriting' && fontFamily === 'Arial') {
-      setFontFamily('Ink Free');
+      setFontFamily('Dancing Script');
     }
   }, [selectedFontStyle, fontFamily]);
 
@@ -519,18 +521,18 @@ const EnhancedSignaturePad = ({
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
 
-    // Set canvas size
-    canvas.width = width;
-    canvas.height = fieldType === 'initials' ? height * 1.2 : height;
+    // Set canvas size scaled up by 3x for crisp output
+    canvas.width = width * scaleFactor;
+    canvas.height = (fieldType === 'initials' ? height * 1.2 : height) * scaleFactor;
 
     // Set styles
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = fontColor || '#000000';
+    ctx.lineWidth = 0.8 * scaleFactor;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   }, [width, height, fieldType]);
 
@@ -568,10 +570,15 @@ const EnhancedSignaturePad = ({
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
+
+    ctx.strokeStyle = fontColor || '#000000';
+    ctx.lineWidth = 0.8 * scaleFactor;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
     setIsDrawing(true);
-    setLastX(x);
-    setLastY(y);
+    pointsRef.current = [{ x, y }];
 
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -584,11 +591,46 @@ const EnhancedSignaturePad = ({
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
 
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    setLastX(x);
-    setLastY(y);
+    const points = pointsRef.current;
+    points.push({ x, y });
+
+    // Compute speed/distance
+    const p1 = points[points.length - 2];
+    const p2 = points[points.length - 1];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Compute dynamic width (thicker for slow movement, thinner for fast movement)
+    const maxStroke = 1.0 * scaleFactor;
+    const minStroke = 0.6 * scaleFactor;
+    const targetLineWidth = Math.max(minStroke, maxStroke - (distance * 0.02));
+
+    ctx.strokeStyle = fontColor || '#000000';
+    ctx.lineWidth = (ctx.lineWidth || maxStroke) * 0.6 + targetLineWidth * 0.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const len = points.length;
+    if (len >= 2) {
+      const midX = (p1.x + p2.x) / 2;
+      const midY = (p1.y + p2.y) / 2;
+      
+      ctx.beginPath();
+      if (len === 2) {
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(midX, midY);
+      } else {
+        const p0 = points[len - 3];
+        const prevMidX = (p0.x + p1.x) / 2;
+        const prevMidY = (p0.y + p1.y) / 2;
+        ctx.moveTo(prevMidX, prevMidY);
+        ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+      }
+      ctx.stroke();
+    }
   };
 
   const stopDrawing = () => {
@@ -599,6 +641,7 @@ const EnhancedSignaturePad = ({
 
     ctx.closePath();
     setIsDrawing(false);
+    pointsRef.current = [];
     saveToHistory();
   };
 
@@ -619,8 +662,7 @@ const EnhancedSignaturePad = ({
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     saveToHistory();
     setCurrentValue(null);
@@ -755,33 +797,40 @@ const EnhancedSignaturePad = ({
     if (!canvas || !textInput.trim()) return '';
 
     const ctx = canvas.getContext('2d');
-    canvas.width = width;
-    canvas.height = fieldType === 'initials' ? height * 1.2 : height;
+    const scaleFactor = 3;
+    
+    // Check required width at minimum font size of 10px to avoid clipping
+    const minFontSize = 10;
+    const paddingX = 20 * scaleFactor;
+    ctx.font = `${minFontSize * scaleFactor}px "${fontFamily}", cursive`;
+    const minWidthNeeded = ctx.measureText(textInput).width + paddingX;
+    const defaultWidth = width * scaleFactor;
 
-    const finalFontSize =
-      fieldType === 'initials'
-        ? Math.min(fontSize * 1.4, 180) // ⬅ boost initials
-        : fontSize;
+    canvas.width = Math.max(defaultWidth, minWidthNeeded);
+    canvas.height = (fieldType === 'initials' ? height * 1.2 : height) * scaleFactor;
 
+    const maxTextWidth = canvas.width - paddingX;
 
+    let currentFontSize = fieldType === 'initials'
+      ? Math.min(fontSize * 1.4, 180) // ⬅ boost initials
+      : fontSize;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `${currentFontSize * scaleFactor}px "${fontFamily}", cursive`;
+    while (currentFontSize > minFontSize && ctx.measureText(textInput).width > maxTextWidth) {
+      currentFontSize -= 0.5;
+      ctx.font = `${currentFontSize * scaleFactor}px "${fontFamily}", cursive`;
+    }
 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = fontColor;
-    ctx.font = `${finalFontSize}px "${fontFamily}", cursive`;
+    ctx.font = `${currentFontSize * scaleFactor}px "${fontFamily}", cursive`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
 
-    const lines = textInput.split('\n');
-    const lineHeight = fontSize * 1.2;
+    const startY = canvas.height / 2;
+    const startX = canvas.width / 2; // Center alignment offset
 
-    // Always center vertically for professional look, consistent with signatures
-    const startY = (canvas.height - (lines.length * lineHeight)) / 2 + (fontSize / 2);
-
-    lines.forEach((line, index) => {
-      ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
-    });
+    ctx.fillText(textInput, startX, startY);
 
     return canvas.toDataURL();
   };
@@ -790,17 +839,17 @@ const EnhancedSignaturePad = ({
     const canvas = canvasRef.current;
     if (!canvas || !stampText) return;
 
+    const scaleFactor = 3;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const padding = 20;
+    const padding = 20 * scaleFactor;
 
     // Draw stamp shape
     ctx.strokeStyle = stampColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3 * scaleFactor;
     ctx.fillStyle = `${stampColor}20`;
 
     switch (stampShape) {
@@ -832,12 +881,12 @@ const EnhancedSignaturePad = ({
 
     // Draw stamp text
     ctx.fillStyle = stampColor;
-    ctx.font = 'bold 24px Arial';
+    ctx.font = `bold ${24 * scaleFactor}px Arial`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
 
     const lines = stampText.split('\n');
-    const lineHeight = 28;
+    const lineHeight = 28 * scaleFactor;
     const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
 
     lines.forEach((line, index) => {
@@ -847,18 +896,19 @@ const EnhancedSignaturePad = ({
     // Draw date if enabled
     if (showDateOnStamp) {
       const date = new Date().toLocaleDateString();
-      ctx.font = '12px Arial';
-      ctx.fillText(date, centerX, centerY + (lines.length * lineHeight) / 2 + 20);
+      ctx.font = `${12 * scaleFactor}px Arial`;
+      ctx.fillText(date, centerX, centerY + (lines.length * lineHeight) / 2 + 20 * scaleFactor);
     }
 
     // Draw "APPROVED" text around the stamp
     if (stampShape === 'circle') {
-      const radius = Math.min(canvas.width, canvas.height) / 2 - padding + 15;
+      const radius = Math.min(canvas.width, canvas.height) / 2 - padding + 15 * scaleFactor;
       const approvedText = "APPROVED";
       const angleStep = (2 * Math.PI) / approvedText.length;
 
       ctx.save();
       ctx.translate(centerX, centerY);
+      ctx.font = `bold ${10 * scaleFactor}px Arial`;
       ctx.textBaseline = 'alphabetic';
       ctx.textAlign = 'center';
 
@@ -893,7 +943,8 @@ const EnhancedSignaturePad = ({
         if (imageData) {
           return {
             image: imageData,
-            text: textInput
+            text: textInput,
+            signature_type: activeTab === 0 ? 'type' : (activeTab === 1 ? 'draw' : 'upload')
           };
         }
         return null;
@@ -1003,6 +1054,12 @@ const EnhancedSignaturePad = ({
         // Add text for signature fields
         if (fieldType === 'signature' || fieldType === 'witness_signature' || fieldType === 'initials') {
           if (value.text) payload.text = value.text;
+          if (value.signature_type) payload.signature_type = value.signature_type;
+          if (value.signature_type === 'type') {
+            payload.font_family = fontFamily;
+            payload.font_size = fontSize;
+            payload.font_color = fontColor;
+          }
         }
         // Add additional properties for stamp
         if (fieldType === 'stamp') {
@@ -1115,9 +1172,40 @@ const EnhancedSignaturePad = ({
 
   const renderDrawTab = () => (
     <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {fieldType === 'stamp' ? 'Design your stamp below' : `Draw your ${fieldType === 'initials' ? 'initials' : 'signature'} with mouse or touch`}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Typography variant="subtitle2" color="text.secondary">
+          {fieldType === 'stamp' ? 'Design your stamp below' : `Draw your ${fieldType === 'initials' ? 'initials' : 'signature'} with mouse or touch`}
+        </Typography>
+        
+        {fieldType !== 'stamp' && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+              Color:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              {colors.map(color => (
+                <IconButton
+                  key={color}
+                  size="small"
+                  onClick={() => setFontColor(color)}
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    backgroundColor: color,
+                    border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
+                    boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
+                    '&:hover': {
+                      opacity: 0.9,
+                    },
+                  }}
+                >
+                  {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 12 }} />}
+                </IconButton>
+              ))}
+            </Box>
+          </Box>
+        )}
+      </Box>
 
       <Box
         sx={{
@@ -1254,7 +1342,8 @@ const EnhancedSignaturePad = ({
             // Allow multiline and no char limit for textbox
             setTextInput(e.target.value);
           } else {
-            setTextInput(e.target.value);
+            // Limit to 36 characters for signatures/stamps
+            setTextInput(e.target.value.substring(0, 36));
           }
         }}
         placeholder={
@@ -1266,7 +1355,7 @@ const EnhancedSignaturePad = ({
         }
         sx={{ mb: 2 }}
         inputProps={{
-          maxLength: fieldType === 'initials' ? 3 : (fieldType === 'textbox' ? 60 : undefined),
+          maxLength: fieldType === 'initials' ? 3 : (fieldType === 'textbox' ? 60 : 36),
           style: {
             textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
             fontSize: fieldType === 'initials' ? '32px' : 'inherit',

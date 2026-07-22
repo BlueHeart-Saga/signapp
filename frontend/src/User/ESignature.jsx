@@ -122,6 +122,9 @@ const ESignature = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [canvasInitialized, setCanvasInitialized] = useState(false);
 
+  const lastXRef = useRef(0);
+  const lastYRef = useRef(0);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -156,22 +159,22 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     requestAnimationFrame(() => {
       const containerWidth = container.clientWidth;
       const containerHeight = 300; // Fixed height for canvas
+      const scaleFactor = 3;
 
-      // Set canvas dimensions
-      canvas.width = containerWidth;
-      canvas.height = containerHeight;
+      // Set canvas dimensions scaled by 3 for high-DPI crisp output
+      canvas.width = containerWidth * scaleFactor;
+      canvas.height = containerHeight * scaleFactor;
 
       const ctx = canvas.getContext('2d');
       
       // Set initial drawing styles
       ctx.strokeStyle = penColor;
-      ctx.lineWidth = penWidth;
+      ctx.lineWidth = penWidth * scaleFactor;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.fillStyle = '#ffffff';
       
-      // Clear canvas with white background
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas transparently
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       setCanvasInitialized(true);
       console.log('Canvas initialized with dimensions:', canvas.width, 'x', canvas.height);
@@ -204,8 +207,9 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     if (mode === 'draw' && canvasInitialized) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
+      const scaleFactor = 3;
       ctx.strokeStyle = penColor;
-      ctx.lineWidth = penWidth;
+      ctx.lineWidth = penWidth * scaleFactor;
     }
   }, [penColor, penWidth, mode, canvasInitialized]);
 
@@ -218,10 +222,21 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
     
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = penWidth * scaleFactor;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
     
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -236,13 +251,41 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
     
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
     
-    ctx.lineTo(x, y);
+    const lastX = lastXRef.current;
+    const lastY = lastYRef.current;
+    
+    const dx = x - lastX;
+    const dy = y - lastY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Brush sizing dynamic response (speed sensitive calligraphic effect)
+    const maxStroke = (penWidth + 1.2) * scaleFactor;
+    const minStroke = Math.max(1.0, penWidth - 1.5) * scaleFactor;
+    const targetLineWidth = Math.max(minStroke, maxStroke - (distance * 0.04));
+    
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = (ctx.lineWidth || maxStroke) * 0.6 + targetLineWidth * 0.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    const midPointX = (lastX + x) / 2;
+    const midPointY = (lastY + y) / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.quadraticCurveTo(lastX, lastY, midPointX, midPointY);
     ctx.stroke();
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
   };
 
   const stopDrawing = () => {
@@ -257,11 +300,22 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
     
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+    
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = penWidth * scaleFactor;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
     
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -275,14 +329,42 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
     
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
     
-    ctx.lineTo(x, y);
+    const lastX = lastXRef.current;
+    const lastY = lastYRef.current;
+    
+    const dx = x - lastX;
+    const dy = y - lastY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Brush sizing dynamic response (speed sensitive calligraphic effect)
+    const maxStroke = (penWidth + 1.2) * scaleFactor;
+    const minStroke = Math.max(1.0, penWidth - 1.5) * scaleFactor;
+    const targetLineWidth = Math.max(minStroke, maxStroke - (distance * 0.04));
+    
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = (ctx.lineWidth || maxStroke) * 0.6 + targetLineWidth * 0.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    const midPointX = (lastX + x) / 2;
+    const midPointY = (lastY + y) / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.quadraticCurveTo(lastX, lastY, midPointX, midPointY);
     ctx.stroke();
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
   };
 
   const handleTouchEnd = (e) => {
@@ -313,9 +395,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Clear canvas transparently
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Calculate dimensions to fit canvas while maintaining aspect ratio
         const scale = Math.min(
@@ -355,20 +436,39 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const scaleFactor = 3;
     
-    // Clear canvas with white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Check required width at minimum font size of 10px to avoid clipping
+    const minFontSize = 10;
+    const paddingX = 20 * scaleFactor;
+    ctx.font = `${minFontSize * scaleFactor}px "${selectedFont}", cursive`;
+    const minWidthNeeded = ctx.measureText(typedText).width + paddingX;
+    const defaultWidth = canvas.width; // Keep track of default width or container width if available
+
+    canvas.width = Math.max(defaultWidth, minWidthNeeded);
+    let currentFontSize = fontSize;
+
+    const maxTextWidth = canvas.width - paddingX;
+
+    ctx.font = `${currentFontSize * scaleFactor}px "${selectedFont}", cursive`;
+    while (currentFontSize > minFontSize && ctx.measureText(typedText).width > maxTextWidth) {
+      currentFontSize -= 0.5;
+      ctx.font = `${currentFontSize * scaleFactor}px "${selectedFont}", cursive`;
+    }
+
+    // Clear canvas transparently
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.fillStyle = penColor;
-    ctx.font = `${fontSize}px ${selectedFont}`;
-    ctx.textAlign = 'center';
+    ctx.font = `${currentFontSize * scaleFactor}px "${selectedFont}", cursive`;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     
-    const x = canvas.width / 2;
-    const y = canvas.height / 2;
+    const startY = canvas.height / 2;
+    const startX = 10 * scaleFactor; // Left alignment offset
     
-    ctx.fillText(typedText, x, y);
+    ctx.fillText(typedText, startX, startY);
+
     setHasContent(true);
     showSnackbar('Text signature applied');
   };
@@ -501,9 +601,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Clear canvas transparently
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw the loaded signature
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -557,9 +656,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    // Clear with white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas transparently
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     setTypedText('');
     setHasContent(false);

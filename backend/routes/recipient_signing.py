@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import io
 from pydantic import BaseModel
-from routes.fields import validate_field_role
+from routes.fields import validate_field_role, convert_canvas_to_pdf_points
 from .fields import serialize_field_with_recipient, normalize_field_value
 from .pdf_engine import PDFEngine
 from .documents import _log_event, get_merged_pdf, load_document_pdf, apply_completed_fields_to_pdf
@@ -2226,6 +2226,46 @@ async def complete_field_as_recipient(
                 ratio = field["canvas_height"] / field["pdf_height"]
                 update_data["canvas_height"] = new_height * ratio
     
+    # Recalculate PDF coordinates if position/resize coordinates are provided in the payload
+    if field_type in IMAGE_FIELDS:
+        x = payload.get("x") if payload.get("x") is not None else payload.get("canvas_x")
+        y = payload.get("y") if payload.get("y") is not None else payload.get("canvas_y")
+        width = payload.get("width")
+        height = payload.get("height")
+        canvas_width = payload.get("canvas_width")
+        canvas_height = payload.get("canvas_height")
+        page_width = payload.get("page_width")
+        page_height = payload.get("page_height")
+
+        if all(v is not None for v in [x, y, width, height, canvas_width, canvas_height, page_width, page_height]):
+            try:
+                pdf_coords = convert_canvas_to_pdf_points(
+                    canvas_x=float(x),
+                    canvas_y=float(y),
+                    canvas_width=float(canvas_width),
+                    canvas_height=float(canvas_height),
+                    page_width_pt=float(page_width),
+                    page_height_pt=float(page_height),
+                    field_width_px=float(width),
+                    field_height_px=float(height),
+                    page_number=field.get("page", 0)
+                )
+                update_data.update({
+                    "canvas_x": float(x),
+                    "canvas_y": float(y),
+                    "width": float(width),
+                    "height": float(height),
+                    "canvas_width": float(canvas_width),
+                    "canvas_height": float(canvas_height),
+                    "pdf_x": pdf_coords["x"],
+                    "pdf_y": pdf_coords["y"],
+                    "pdf_width": pdf_coords["width"],
+                    "pdf_height": pdf_coords["height"]
+                })
+                print(f"[RECIPIENT-SIGNING] Updated coordinates for field {field_id}: canvas_x={x}, canvas_y={y}, w={width}, h={height} -> pdf_x={pdf_coords['x']}, pdf_y={pdf_coords['y']}, pdf_w={pdf_coords['width']}, pdf_h={pdf_coords['height']}")
+            except Exception as e:
+                print(f"❌ Error converting signature field coordinates: {str(e)}")
+
     # Update the field
     if field_type == "attachment":
         data_str = normalized_value.get("data")

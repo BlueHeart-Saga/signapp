@@ -147,6 +147,29 @@ export const AuthProvider = ({ children }) => {
     await fetchSubscription();
   };
 
+  const refreshUser = async () => {
+    if (!token) return;
+    try {
+      const [userRes, subRes] = await Promise.all([
+        API.get("/auth/me"),
+        API.get("/subscription/current").catch(() => ({ data: null }))
+      ]);
+
+      const userData = userRes.data;
+      const subData = subRes.data;
+
+      // Synchronize user flag with actual subscription status if sub data is available
+      if (userData) {
+        userData.has_active_subscription = subData ? subData.is_active : false;
+      }
+
+      setUser(userData);
+      setSubscription(subData);
+    } catch (err) {
+      console.error("Failed to refresh user session:", err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -158,6 +181,7 @@ export const AuthProvider = ({ children }) => {
         subscription,
         subscriptionLoading,
         refreshSubscription,
+        refreshUser,
         updateOnboardingStatus,
         isAuthenticated: !!user,
         logout,

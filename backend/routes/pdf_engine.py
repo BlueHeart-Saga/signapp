@@ -255,81 +255,99 @@ class PDFEngine:
     
     @staticmethod
     def _apply_signature_field(page, rect, value, field):
-        """Apply signature image - no border for completed fields."""
+        """Apply signature - supports image overlays and native text signatures."""
         is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
-        # 🚫 CRITICAL: If field is completed, just insert the image without any borders/background
-        if is_completed and value:
-            # Extract image from different value formats
-            image_data = None
-            
-            if isinstance(value, dict):
-                if "image" in value:
-                    image_data = PDFEngine.decode_base64_image(value["image"])
-                elif "data" in value and value.get("type") == "image":
-                    image_data = PDFEngine.decode_base64_image(value["data"])
-                elif "value" in value:
-                    val = value.get("value")
-                    if isinstance(val, str) and val.startswith("data:image"):
-                        image_data = PDFEngine.decode_base64_image(val)
-                    elif isinstance(val, dict) and val.get("image"):
-                        image_data = PDFEngine.decode_base64_image(val.get("image"))
-            elif isinstance(value, str):
-                image_data = PDFEngine.decode_base64_image(value)
-            
-            if image_data:
-                try:
-                    img = Image.open(BytesIO(image_data)).convert("RGBA")
-                    img = img.resize((int(rect.width), int(rect.height)), Image.Resampling.LANCZOS)
-                    
-                    buf = BytesIO()
-                    img.save(buf, format="PNG")
-                    page.insert_image(
-                        rect,
-                        stream=buf.getvalue(),
-                        keep_proportion=False,
-                        overlay=True
-                    )
-                except Exception as e:
-                    print(f"Error inserting signature image: {e}")
-                    # Fallback to text for completed fields
-                    page.insert_textbox(
-                        rect,
-                        "✓ Signed",
-                        fontsize=min(12, rect.height * 0.6),
-                        fontname="Helvetica",
-                        color=(0, 0.5, 0),
-                        align=1,
-                        overlay=True
-                    )
-            elif value and not image_data:
-                # Value exists but couldn't decode as image - show text value
-                # Extract color if available
-                text_color = (0, 0.5, 0) # Default green for signature fallback
-                font_color = value.get("font_color") if isinstance(value, dict) else None
-                if font_color and isinstance(font_color, str):
+        # Normalize nested value if present
+        actual_val = value
+        if isinstance(value, dict) and "value" in value:
+            inner = value.get("value")
+            if isinstance(inner, dict):
+                actual_val = inner
+        
+        # Check if it's a typed signature
+        is_typed = False
+        text_content = ""
+        font_family = "Times-Italic"
+        font_color = (0, 0, 0)
+        
+        if isinstance(actual_val, dict):
+            if actual_val.get("signature_type") == "type" or (actual_val.get("text") and actual_val.get("image")):
+                is_typed = True
+                text_content = actual_val.get("text")
+                
+                custom_font = actual_val.get("font_family")
+                if custom_font:
+                    font_family = custom_font
+                
+                color_hex = actual_val.get("font_color")
+                if color_hex and color_hex.startswith("#"):
                     try:
-                        c = font_color.lstrip("#")
+                        c = color_hex.lstrip("#")
                         if len(c) == 6:
-                            text_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
+                            font_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
                     except:
                         pass
-
-                page.insert_textbox(
-                    rect,
-                    str(value)[:20],
-                    fontsize=min(12, rect.height * 0.6),
-                    fontname="Helvetica",
-                    color=text_color,
-                    align=1,
-                    overlay=True
-                )
+        elif isinstance(actual_val, str) and not actual_val.startswith("data:image"):
+            is_typed = True
+            text_content = actual_val
             
-            # 🚫 IMPORTANT: Return immediately - NO borders for completed fields
+        # Draw native vector text signature if typed
+        if is_typed and text_content:
+            fontsize = min(24, rect.height * 0.75)
+            fontname = "Times-Italic"  # Standard PDF cursive-slanted vector font
+            
+            # Padding for width boundaries
+            pad_x = 6
+            max_width = rect.width - pad_x * 2
+            
+            # If the text at a readable minimum font size (10.0) is wider than max_width,
+            # dynamically expand the box to the right to fit the full text without clipping.
+            min_readable_size = 10.0
+            try:
+                required_width = fitz.get_text_length(text_content, fontname=fontname, fontsize=min_readable_size)
+            except:
+                required_width = len(text_content) * min_readable_size * 0.5
+                
+            if required_width > max_width:
+                # Expand rect to the right
+                new_width = required_width + pad_x * 2
+                rect = fitz.Rect(rect.x0, rect.y0, rect.x0 + new_width, rect.y1)
+                max_width = required_width
+            
+            # Auto-scale font size until single line fits
+            while fontsize > min_readable_size:
+                try:
+                    w = fitz.get_text_length(text_content, fontname=fontname, fontsize=fontsize)
+                except:
+                    w = len(text_content) * fontsize * 0.5
+                
+                if w <= max_width:
+                    break
+                fontsize -= 0.5
+                
+            if fontsize < min_readable_size:
+                fontsize = min_readable_size
+            
+            # Center vertically
+            vertical_padding = (rect.height - fontsize) / 2
+            sig_rect = rect
+            if vertical_padding > 0:
+                sig_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+
+            page.insert_textbox(
+                sig_rect,
+                text_content,
+                fontsize=fontsize,
+                fontname=fontname,
+                color=font_color,
+                align=1,  # Centered
+                overlay=True
+            )
             return
-        
+
         # If no value and field is not completed, show placeholder
-        if not value and not is_completed:
+        if not actual_val and not is_completed:
             # Show placeholder for empty signature field
             page.draw_rect(
                 rect,
@@ -339,31 +357,33 @@ class PDFEngine:
                 overlay=True
             )
             
+            fontsize = min(12, rect.height * 0.6)
+            vertical_padding = (rect.height - fontsize) / 2
+            placeholder_rect = rect
+            if vertical_padding > 0:
+                placeholder_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+
             page.insert_textbox(
-                rect,
+                placeholder_rect,
                 "Signature",
-                fontsize=min(12, rect.height * 0.6),
+                fontsize=fontsize,
                 fontname="Helvetica",
                 color=(0.5, 0.5, 0.5),
                 align=1,
                 overlay=True
             )
             return
-        
+            
+        # Otherwise, handle image-based signature (draw or upload)
         image_data = None
-
-        # Extract image from different value formats
-        if isinstance(value, dict):
-            if "image" in value:
-                image_data = PDFEngine.decode_base64_image(value["image"])
-            elif "data" in value and value.get("type") == "image":
-                image_data = PDFEngine.decode_base64_image(value["data"])
-        elif isinstance(value, str):
-            image_data = PDFEngine.decode_base64_image(value)
-        
-        # 🚫 DO NOT draw any border if field has a signature (completed)
-        # The signature image should appear without any border/background
-        
+        if isinstance(actual_val, dict):
+            if "image" in actual_val:
+                image_data = PDFEngine.decode_base64_image(actual_val["image"])
+            elif "data" in actual_val and actual_val.get("type") == "image":
+                image_data = PDFEngine.decode_base64_image(actual_val["data"])
+        elif isinstance(actual_val, str):
+            image_data = PDFEngine.decode_base64_image(actual_val)
+            
         if image_data:
             try:
                 img = Image.open(BytesIO(image_data)).convert("RGBA")
@@ -379,7 +399,6 @@ class PDFEngine:
                 )
             except Exception as e:
                 print(f"Error inserting signature image: {e}")
-                # Fallback to text
                 page.insert_textbox(
                     rect,
                     "✓ Signed",
@@ -389,11 +408,10 @@ class PDFEngine:
                     align=1,
                     overlay=True
                 )
-        elif value and not image_data:
-            # Value exists but couldn't decode as image - show text value
+        elif actual_val:
             page.insert_textbox(
                 rect,
-                str(value)[:20],
+                str(actual_val)[:20],
                 fontsize=min(12, rect.height * 0.6),
                 fontname="Helvetica",
                 color=(0, 0.5, 0),
@@ -487,8 +505,13 @@ class PDFEngine:
                     pass
 
             font_size = min(16, rect.height * 0.7)
+            vertical_padding = (rect.height - font_size) / 2
+            text_rect = rect
+            if vertical_padding > 0:
+                text_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+
             page.insert_textbox(
-                rect,
+                text_rect,
                 initials,
                 fontsize=font_size,
                 fontname="Helvetica-Bold",
@@ -521,8 +544,13 @@ class PDFEngine:
                 initials = str(text_value).upper()[:3]
                 placeholder_text = f"({initials})"
             
+            vertical_padding = (rect.height - font_size) / 2
+            placeholder_rect = rect
+            if vertical_padding > 0:
+                placeholder_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+
             page.insert_textbox(
-                rect,
+                placeholder_rect,
                 placeholder_text,
                 fontsize=font_size,
                 fontname="Helvetica",
@@ -620,10 +648,18 @@ class PDFEngine:
         is_multiline = "\n" in str(display_text)
         
         if not is_multiline:
+            # Center horizontally
+            try:
+                current_font = custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica"
+                text_width = fitz.get_text_length(display_text, fontname=current_font, fontsize=max_font)
+                start_x = rect.x0 + (rect.width - text_width) / 2
+            except:
+                start_x = rect.x0 + 3
+            
             # Use centered alignment for text fields
             text_y = rect.y0 + (rect.height + max_font) / 2 - 1.5
             page.insert_text(
-                fitz.Point(rect.x0 + 3, text_y),
+                fitz.Point(start_x, text_y),
                 display_text,
                 fontsize=max_font,
                 fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
@@ -631,13 +667,21 @@ class PDFEngine:
                 overlay=True
             )
         else:
+            # Estimate multiline height and center vertically
+            num_lines = len(str(display_text).splitlines())
+            estimated_height = num_lines * max_font * 1.25
+            vertical_padding = (rect.height - estimated_height) / 2
+            textbox_rect = rect
+            if vertical_padding > 0:
+                textbox_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+
             page.insert_textbox(
-                rect,
+                textbox_rect,
                 display_text,
                 fontsize=max_font,
                 fontname=custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica",
                 color=custom_text_color,
-                align=0, # Left-aligned
+                align=1, # Centered
                 overlay=True
             )
     
@@ -674,11 +718,18 @@ class PDFEngine:
             pass
         
         font_size = min(field.get("font_size", 12), rect.height * 0.75)
+        # Center horizontally
+        try:
+            text_width = fitz.get_text_length(date_text, fontname="Helvetica", fontsize=font_size)
+            start_x = rect.x0 + (rect.width - text_width) / 2
+        except:
+            start_x = rect.x0 + 3
+
         # Center vertically
         text_y = rect.y0 + (rect.height + font_size) / 2 - 1.5
 
         page.insert_text(
-            fitz.Point(rect.x0 + 3, text_y),
+            fitz.Point(start_x, text_y),
             date_text,
             fontsize=font_size,
             fontname="Helvetica",

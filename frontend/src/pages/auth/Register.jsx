@@ -856,6 +856,8 @@ const Register = ({ onRegister }) => {
         // Handle different error response formats from your backend
         if (typeof data.detail === "string") {
           message = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          message = data.detail.map(e => e.msg).join(", ");
         } else if (data.detail && typeof data.detail === "object") {
           // Handle the structured error response from your backend
           message = data.detail.message || data.detail.error || message;

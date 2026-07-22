@@ -820,6 +820,38 @@ async def can_recipient_register(email: str):
 # AUTHENTICATION ROUTES
 # ============================================
 
+async def auto_assign_free_trial(email: str, name: str, user_doc: dict):
+    """Automatically assigns a free trial subscription to a user doc and inserts a subscription record."""
+    try:
+        from routes.subscription import create_subscription_record, PlanType, SubscriptionHelper
+        
+        start_date = datetime.utcnow()
+        expiry_date = SubscriptionHelper.calculate_expiry_date(PlanType.FREE_TRIAL, start_date)
+        transaction_id = SubscriptionHelper.generate_transaction_id("TRIAL")
+        
+        # Create subscription record in database
+        await create_subscription_record(
+            email=email.lower(),
+            name=name,
+            plan_type=PlanType.FREE_TRIAL,
+            start_date=start_date,
+            expiry_date=expiry_date,
+            transaction_id=transaction_id,
+            payment_method="free_trial",
+            price=0.0
+        )
+        
+        # Set subscription status on user document
+        user_doc.update({
+            "has_active_subscription": True,
+            "is_premium": True,
+            "subscription_plan": PlanType.FREE_TRIAL.value,
+            "subscription_expiry": expiry_date,
+            "subscription_updated_at": start_date
+        })
+    except Exception as sub_err:
+        print(f"Warning: Failed to auto-assign free trial: {sub_err}")
+
 @router.post("/register")
 async def register_user(user_data: UserRegister):
     """Register a new user with comprehensive error handling"""
@@ -915,6 +947,10 @@ async def register_user(user_data: UserRegister):
             "email_verified": False,
             "auth_provider": "email"
         }
+        
+        # Auto-assign free trial for "user" role
+        if user_data.role == "user":
+            await auto_assign_free_trial(user_data.email.lower(), user_data.full_name, user_doc)
         
         # For recipients, add additional fields
         if user_data.role == "recipient":
@@ -1700,6 +1736,9 @@ async def google_callback(
                 "organization_name": ""
             }
             
+            # Auto-assign free trial for Google user
+            await auto_assign_free_trial(email.lower(), name, user_doc)
+            
             result = await db_insert_one(db.users, user_doc)
             
             # Trigger Welcome Email
@@ -1799,6 +1838,9 @@ async def google_verify_token(request: GoogleTokenRequest):
                 "profile_picture": picture,
                 "organization_name": ""
             }
+            
+            # Auto-assign free trial for Google user
+            await auto_assign_free_trial(email.lower(), name, user_doc)
             
             result = await db_insert_one(db.users, user_doc)
             user = await db_find_one(db.users, {"_id": result.inserted_id})

@@ -1185,7 +1185,9 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
         if (typeof data.detail === "string") {
           message = data.detail;
-        } else if (typeof data.detail === "object") {
+        } else if (Array.isArray(data.detail)) {
+          message = data.detail.map(e => e.msg).join(", ");
+        } else if (data.detail && typeof data.detail === "object") {
           message = data.detail.message || data.detail.error || message;
         } else if (data.message) {
           message = data.message;
@@ -1196,6 +1198,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
       }
 
       toast.error(message);
+      setErrorMsg(message);
       onError?.(message);
     } finally {
       setLoading(false);
@@ -1358,19 +1361,19 @@ const Login = ({ onLogin, onError, compact = false }) => {
               </div>
             </div>
 
-            {/* {errorMsg && (
+            {errorMsg && (
               <div className="error-message">
                 <ErrorOutline />
-                {errorMsg}
+                <span>{errorMsg}</span>
               </div>
-            )} */}
+            )}
 
-            {/* {successMsg && (
+            {successMsg && (
               <div className="success-message">
                 <CheckCircle />
-                {successMsg}
+                <span>{successMsg}</span>
               </div>
-            )} */}
+            )}
 
             <button className="submit-btn" type="submit" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}

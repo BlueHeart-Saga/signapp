@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Book,
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 
 const Documentation = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('getting-started');
   const [expandedSections, setExpandedSections] = useState({});
@@ -257,6 +259,54 @@ except Exception as e:
         title: 'Rate Limiting',
         content: `API requests are limited to:\n\n- Free plan: 100 requests/hour\n- Pro plan: 1,000 requests/hour\n- Business plan: 10,000 requests/hour\n- Enterprise: Custom limits\n\nRate limit headers are included in all responses.`
       }
+    ],
+    'security': [
+      {
+        id: 'overview',
+        title: 'Security Compliance',
+        content: `SafeSign is compliant with major global electronic signature standards, including eIDAS in the European Union and the ESIGN Act in the United States. Every signed document is protected by a cryptographic tamper-evident seal and includes a complete certificate of completion containing signers' email verification, IP addresses, and timestamps.`
+      },
+      {
+        id: 'best-practices',
+        title: 'Security Best Practices',
+        content: `Keep your account and integration secure by following these guidelines:\n\n1. Never share your API Secret Keys or commit them to public code repositories. Use environment variables.\n2. Enable two-factor authentication (2FA) for all users in your organization dashboard.\n3. Regularly audit authorized members and revoke API keys that are no longer in active use.\n4. Ensure your webhook endpoints use SSL/TLS and verify payload signatures to confirm they originate from SafeSign.`
+      }
+    ],
+    'integrations': [
+      {
+        id: 'overview',
+        title: 'Integrations Overview',
+        content: `SafeSign integrates smoothly with the platforms you already use, such as Salesforce, Google Workspace, Slack, and Microsoft Teams. Sync documents automatically to cloud storages like Google Drive, Dropbox, and Box.`
+      },
+      {
+        id: 'webhooks',
+        title: 'Webhook Implementation',
+        content: `Webhooks allow your application to receive real-time notifications about events in SafeSign. To configure webhooks:\n\n1. Go to Developer Settings > Webhooks.\n2. Enter your payload delivery URL.\n3. Select the events you wish to subscribe to (e.g., document.completed, document.declined).\n4. SafeSign will send a POST request with a JSON payload whenever those events are triggered.`
+      }
+    ],
+    'guides': [
+      {
+        id: 'overview',
+        title: 'Creating and Using Templates',
+        content: `Save time by converting frequently used documents into templates:\n\n1. Navigate to the Templates tab in your dashboard.\n2. Click "Create Template" and upload your document file.\n3. Drag and drop signature fields, initials, names, and custom input boxes.\n4. Define default recipient roles (e.g., Client, Witness).\n5. Click Save. You can now use this template to send personalized signing requests in seconds.`
+      },
+      {
+        id: 'bulk-send',
+        title: 'Sending in Bulk',
+        content: `Bulk sending allows you to send the same document to hundreds of recipients simultaneously. Upload a CSV file containing recipient names and emails to distribute customized signing packages instantly.`
+      }
+    ],
+    'troubleshooting': [
+      {
+        id: 'overview',
+        title: 'API Error Codes',
+        content: `SafeSign API returns standard HTTP status codes:\n\n- 400 Bad Request: Invalid parameters or malformed JSON payload.\n- 401 Unauthorized: Invalid API key or missing authorization header.\n- 403 Forbidden: Insufficient permissions for the requested resource.\n- 404 Not Found: The specified document or resource does not exist.\n- 429 Too Many Requests: Rate limit exceeded. Back off and retry.`
+      },
+      {
+        id: 'email-delivery',
+        title: 'Email Delivery Issues',
+        content: `If a signer claims they did not receive the signature request email:\n\n1. Ask them to check their Spam/Junk folder.\n2. Verify that the email address you entered was spelled correctly in the dashboard.\n3. In the Documents list, click "Resend Invitation" to dispatch the email request again.`
+      }
     ]
   };
 
@@ -300,6 +350,34 @@ except Exception as e:
       element.scrollIntoView({ behavior: 'smooth' });
       setShowMobileNav(false);
     }
+  };
+
+  const handlePopularGuideClick = (guide) => {
+    setActiveCategory(guide.category);
+    // Determine the section ID to scroll to
+    let targetSectionId = '';
+    if (guide.id === 'guide-1') {
+      targetSectionId = 'getting-started-quick-start';
+    } else if (guide.id === 'guide-2') {
+      targetSectionId = 'api-reference-authentication';
+    } else if (guide.id === 'guide-3') {
+      targetSectionId = 'integrations-webhooks';
+    } else if (guide.id === 'guide-4') {
+      targetSectionId = 'security-best-practices';
+    } else {
+      targetSectionId = `${guide.category}-overview`;
+    }
+
+    // Expand the target section
+    setExpandedSections(prev => ({
+      ...prev,
+      [targetSectionId]: true
+    }));
+    
+    // Scroll to the section after rendering
+    setTimeout(() => {
+      scrollToSection(targetSectionId);
+    }, 100);
   };
 
   useEffect(() => {
@@ -381,7 +459,10 @@ except Exception as e:
                         <div 
                           key={guide.id} 
                           className="safe-result-item"
-                          onClick={() => scrollToSection(guide.category)}
+                          onClick={() => {
+                            handlePopularGuideClick(guide);
+                            setSearchQuery('');
+                          }}
                         >
                           <div className="safe-result-content">
                             <h4>{guide.title}</h4>
@@ -468,6 +549,10 @@ except Exception as e:
                       <a
                         key={guide.id}
                         href={`#${guide.category}-${guide.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePopularGuideClick(guide);
+                        }}
                         className="safe-popular-link"
                       >
                         <FileText size={14} />
@@ -682,11 +767,17 @@ except Exception as e:
                       </p>
                     </div>
                     <div className="safe-cta-actions">
-                      <button className="safe-cta-btn-primary">
+                      <button 
+                        className="safe-cta-btn-primary"
+                        onClick={() => navigate('/community')}
+                      >
                         Join Community
                         <ArrowRight size={18} />
                       </button>
-                      <button className="safe-cta-btn-secondary">
+                      <button 
+                        className="safe-cta-btn-secondary"
+                        onClick={() => navigate('/support')}
+                      >
                         Contact Support
                       </button>
                     </div>

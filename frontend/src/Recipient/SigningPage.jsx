@@ -113,18 +113,21 @@ const apiService = {
         return response.json();
     },
 
-    async saveFieldValue(recipientId, fieldId, fieldValue) {
-        console.log('Saving field value:', { recipientId, fieldId, fieldValue });
+    async saveFieldValue(recipientId, fieldId, fieldValue, coords = null) {
+        console.log('Saving field value:', { recipientId, fieldId, fieldValue, coords });
 
         try {
+            const body = {
+                value: fieldValue,
+                ...(coords || {})
+            };
+
             const response = await fetch(
                 `${API_BASE_URL}/signing/recipient/${recipientId}/fields/${fieldId}/complete`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        value: fieldValue
-                    })
+                    body: JSON.stringify(body)
                 }
             );
 
@@ -389,23 +392,235 @@ const convertPDFToScreenCoordinates = (field, pageDimensions) => {
 const FieldOverlay = React.memo(({
     field,
     screenPosition,
+    pageDimensions,
     isCompleted,
     onClick,
+    onUpdateCoords,
     recipientColor = 'rgb(13, 148, 136)',
+    isRecipientCompleted,
     fieldValues = {}
 }) => {
+    const elementRef = useRef(null);
+    const isResizingRef = useRef(false);
+    const [isResizing, setIsResizing] = useState(false);
     const fieldConfig = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
 
     // Check if field is completed
     const completed = isCompleted || !!fieldValues[field.id] || field.completed_at || field.is_completed || false;
+    const isSignatureField = ['signature', 'initials', 'stamp', 'witness_signature'].includes(field.type);
+    
+    // Can only resize if the entire recipient signing process is not yet completed
+    const canMoveAndResize = !isRecipientCompleted && isSignatureField;
 
+    // Helper to convert screen coordinates back to PDF points
+    const convertScreenToPDFCoordinates = useCallback((x, y, w, h, dimensions) => {
+        if (!dimensions) return { pdf_x: 0, pdf_y: 0, pdf_width: 100, pdf_height: 30 };
+        const { pdfWidth, pdfHeight, renderWidth, renderHeight } = dimensions;
+        const scaleX = renderWidth / pdfWidth;
+        const scaleY = renderHeight / pdfHeight;
+        return {
+            pdf_x: x / scaleX,
+            pdf_y: (renderHeight - y - h) / scaleY,
+            pdf_width: w / scaleX,
+            pdf_height: h / scaleY
+        };
+    }, []);
+
+    // Resize handlers (No drag positioning, only resizing width and height)
+    const handleResizeMouseDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        isResizingRef.current = true;
+        setIsResizing(true);
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = screenPosition.width;
+        const startHeight = screenPosition.height;
+        const startLeft = screenPosition.x;
+        const startTop = screenPosition.y;
+
+        let resized = false;
+
+        const handleMouseMove = (moveEvent) => {
+            const dx = moveEvent.clientX - startX;
+            const dy = moveEvent.clientY - startY;
+
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                resized = true;
+            }
+
+            let newWidth = startWidth + dx;
+            let newHeight = startHeight + dy;
+
+            const renderWidth = pageDimensions.renderWidth;
+            const renderHeight = pageDimensions.renderHeight;
+            newWidth = Math.max(50, Math.min(newWidth, renderWidth - startLeft));
+            newHeight = Math.max(20, Math.min(newHeight, renderHeight - startTop));
+
+            if (elementRef.current) {
+                elementRef.current.style.width = `${newWidth}px`;
+                elementRef.current.style.height = `${newHeight}px`;
+            }
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+
+            setIsResizing(false);
+            setTimeout(() => {
+                isResizingRef.current = false;
+            }, 100);
+
+            if (resized && elementRef.current) {
+                const width = parseFloat(elementRef.current.style.width);
+                const height = parseFloat(elementRef.current.style.height);
+
+                const newPdfCoords = convertScreenToPDFCoordinates(
+                    startLeft,
+                    startTop,
+                    width,
+                    height,
+                    pageDimensions
+                );
+
+                if (onUpdateCoords) {
+                    onUpdateCoords(field.id, {
+                        ...newPdfCoords,
+                        x: startLeft,
+                        y: startTop,
+                        canvas_x: startLeft,
+                        canvas_y: startTop,
+                        width: width,
+                        height: height,
+                        canvas_width: pageDimensions.renderWidth,
+                        canvas_height: pageDimensions.renderHeight,
+                        page_width: pageDimensions.pdfWidth,
+                        page_height: pageDimensions.pdfHeight
+                    });
+                }
+            }
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleResizeTouchStart = (e) => {
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+
+        isResizingRef.current = true;
+        setIsResizing(true);
+
+        const startX = touch.clientX;
+        const startY = touch.clientY;
+        const startWidth = screenPosition.width;
+        const startHeight = screenPosition.height;
+        const startLeft = screenPosition.x;
+        const startTop = screenPosition.y;
+
+        let resized = false;
+
+        const handleTouchMove = (moveEvent) => {
+            if (moveEvent.touches.length !== 1) return;
+            const moveTouch = moveEvent.touches[0];
+            const dx = moveTouch.clientX - startX;
+            const dy = moveTouch.clientY - startY;
+
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                resized = true;
+                if (moveEvent.cancelable) moveEvent.preventDefault();
+            }
+
+            let newWidth = startWidth + dx;
+            let newHeight = startHeight + dy;
+
+            const renderWidth = pageDimensions.renderWidth;
+            const renderHeight = pageDimensions.renderHeight;
+            newWidth = Math.max(50, Math.min(newWidth, renderWidth - startLeft));
+            newHeight = Math.max(20, Math.min(newHeight, renderHeight - startTop));
+
+            if (elementRef.current) {
+                elementRef.current.style.width = `${newWidth}px`;
+                elementRef.current.style.height = `${newHeight}px`;
+            }
+        };
+
+        const handleTouchEnd = () => {
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+
+            setIsResizing(false);
+            setTimeout(() => {
+                isResizingRef.current = false;
+            }, 100);
+
+            if (resized && elementRef.current) {
+                const width = parseFloat(elementRef.current.style.width);
+                const height = parseFloat(elementRef.current.style.height);
+
+                const newPdfCoords = convertScreenToPDFCoordinates(
+                    startLeft,
+                    startTop,
+                    width,
+                    height,
+                    pageDimensions
+                );
+
+                if (onUpdateCoords) {
+                    onUpdateCoords(field.id, {
+                        ...newPdfCoords,
+                        x: startLeft,
+                        y: startTop,
+                        canvas_x: startLeft,
+                        canvas_y: startTop,
+                        width: width,
+                        height: height,
+                        canvas_width: pageDimensions.renderWidth,
+                        canvas_height: pageDimensions.renderHeight,
+                        page_width: pageDimensions.pdfWidth,
+                        page_height: pageDimensions.pdfHeight
+                    });
+                }
+            }
+        };
+
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd);
+    };
+
+    // Helper to get signature image data if completed
+    const getSignatureImage = useCallback(() => {
+        const val = fieldValues[field.id] || field.value;
+        if (!val) return null;
+        if (typeof val === 'string') {
+            if (val.startsWith('data:image')) return val;
+            return null;
+        }
+        if (typeof val === 'object') {
+            if (val.image) return val.image;
+            if (val.value) {
+                if (typeof val.value === 'string' && val.value.startsWith('data:image')) {
+                    return val.value;
+                }
+                if (typeof val.value === 'object' && val.value.image) {
+                    return val.value.image;
+                }
+            }
+        }
+        return null;
+    }, [fieldValues, field.id, field.value]);
+
+    const sigImage = isSignatureField && completed ? getSignatureImage() : null;
 
     // Get display value for completed fields
     const getDisplayValue = () => {
-        // For completed fields, we usually want to show the value in the overlay 
-        // to give immediate feedback, unless it's already perfectly rendered on the PDF background.
-        // We will remove the early return "" to allow the actual values to flow through.
-
         // ===== NOT COMPLETED PLACEHOLDERS =====
         if (!completed) {
             switch (field.type) {
@@ -472,6 +687,7 @@ const FieldOverlay = React.memo(({
             placement="top"
         >
             <Box
+                ref={elementRef}
                 sx={{
                     position: 'absolute',
                     left: `${screenPosition.x}px`,
@@ -479,21 +695,22 @@ const FieldOverlay = React.memo(({
                     width: `${screenPosition.width}px`,
                     height: `${screenPosition.height}px`,
                     boxSizing: 'border-box',
-                    backgroundColor: 'transparent',
+                    backgroundColor: isResizing ? 'white' : 'transparent',
 
-                    // Border only on hover or when incomplete
+                    // Border only on hover or when incomplete/resizing
                     border: completed
-                        ? '1px solid transparent'
+                        ? (isResizing ? '1px dashed rgb(13, 148, 136)' : '1px solid transparent')
                         : `1px solid ${recipientColor}`,
+                    borderStyle: canMoveAndResize ? 'dashed' : 'solid',
 
                     cursor: 'pointer',
                     pointerEvents: 'auto',
-                    transition: 'all 0.2s ease',
+                    transition: 'border 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
 
                     '&:hover': {
                         borderColor: completed ? 'rgb(13, 148, 136)' : recipientColor,
-                        boxShadow: '0 0 0 1px rgba(0,0,0,0.2)',
-                        backgroundColor: 'transparent'
+                        boxShadow: '0 0 0 2px rgba(13, 148, 136, 0.2)',
+                        backgroundColor: isResizing ? 'white' : (completed ? 'transparent' : 'rgba(13, 148, 136, 0.02)')
                     },
 
                     display: 'flex',
@@ -501,11 +718,15 @@ const FieldOverlay = React.memo(({
                     justifyContent: 'center',
                     overflow: 'hidden',
                     zIndex: 100,
-                    borderRadius: '2px'
+                    borderRadius: '2px',
+                    userSelect: 'none'
                 }}
                 onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
+                    if (isResizingRef.current) {
+                        return;
+                    }
                     onClick(field);
                 }}
             >
@@ -530,11 +751,22 @@ const FieldOverlay = React.memo(({
                         whiteSpace: (field.type === 'textbox' || field.type === 'mail') ? 'pre-wrap' : 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        padding: '2px',
+                        padding: (isResizing && sigImage) ? '4px' : '2px',
                         lineHeight: 1.1
                     }}
                 >
-                    {displayValue}
+                    {(isResizing && sigImage) ? (
+                        <img 
+                            src={sigImage} 
+                            alt="Signature" 
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'contain',
+                                pointerEvents: 'none'
+                            }} 
+                        />
+                    ) : displayValue}
                 </Box>
 
 
@@ -550,6 +782,33 @@ const FieldOverlay = React.memo(({
                             backgroundColor: 'rgb(13, 148, 136)',
                             borderRadius: '50%',
                             border: '1px solid white'
+                        }}
+                    />
+                )}
+
+                {/* Resize handle */}
+                {canMoveAndResize && (
+                    <Box
+                        className="resize-handle"
+                        sx={{
+                            position: 'absolute',
+                            right: 0,
+                            bottom: 0,
+                            width: '12px',
+                            height: '12px',
+                            cursor: 'se-resize',
+                            zIndex: 110,
+                            background: 'linear-gradient(135deg, transparent 40%, rgba(0, 0, 0, 0.3) 40%)',
+                            borderBottomRightRadius: '2px',
+                            '&:hover': {
+                                background: 'linear-gradient(135deg, transparent 40%, rgb(13, 148, 136) 40%)'
+                            }
+                        }}
+                        onMouseDown={handleResizeMouseDown}
+                        onTouchStart={handleResizeTouchStart}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
                         }}
                     />
                 )}
@@ -569,7 +828,9 @@ const PdfPageWithOverlays = React.memo(({
     fields,
     pageDimensions,
     onFieldClick,
+    onUpdateCoords,
     recipientColors,
+    isRecipientCompleted,
     fieldValues = {}
 }) => {
 
@@ -597,9 +858,12 @@ const PdfPageWithOverlays = React.memo(({
                         key={field.id}
                         field={field}
                         screenPosition={screenPosition}
+                        pageDimensions={pageDimensions}
                         isCompleted={field.completed_at || field.is_completed || !!fieldValues[field.id]}
                         onClick={onFieldClick}
+                        onUpdateCoords={onUpdateCoords}
                         recipientColor={recipientColors[field.recipient_id] || 'rgb(13, 148, 136)'}
+                        isRecipientCompleted={isRecipientCompleted}
                         fieldValues={fieldValues}
                     />
                 );
@@ -1114,6 +1378,42 @@ const SigningPage = () => {
         setSnackbar({ open: true, message, severity });
     };
 
+    const handleUpdateFieldCoords = useCallback(async (fieldId, updatedCoords) => {
+        // 1. First, update the fields state synchronously
+        setFields(prev => prev.map(f => {
+            if (f.id === fieldId) {
+                return {
+                    ...f,
+                    ...updatedCoords
+                };
+            }
+            return f;
+        }));
+
+        // 2. Next, check if it's completed and trigger the API call outside the state updater
+        const currentField = fields.find(f => f.id === fieldId);
+        if (currentField) {
+            const isCompleted = currentField.completed_at || currentField.is_completed || !!fieldValues[fieldId];
+            if (isCompleted) {
+                const valueToSave = fieldValues[fieldId] || currentField.value;
+                if (valueToSave) {
+                    try {
+                        await apiService.saveFieldValue(
+                            recipientId,
+                            fieldId,
+                            valueToSave,
+                            updatedCoords
+                        );
+                        refreshLiveDocumentSilently();
+                    } catch (err) {
+                        console.error('Failed to update signature size:', err);
+                        showSnackbar('Failed to update signature size: ' + err.message, 'error');
+                    }
+                }
+            }
+        }
+    }, [fields, fieldValues, recipientId, refreshLiveDocumentSilently]);
+
     // Add this function to generate placeholder thumbnails
     const generatePlaceholderThumbnails = useCallback(() => {
         const pageMap = {};
@@ -1558,11 +1858,26 @@ const SigningPage = () => {
                 valueToSave
             });
 
+            // Get coordinates if available
+            const activePageNum = activeField.page + 1;
+            const activePageDimensions = pageDimensions[activePageNum];
+            const coords = activePageDimensions ? {
+                x: activeField.canvas_x ?? activeField.x,
+                y: activeField.canvas_y ?? activeField.y,
+                width: activeField.width,
+                height: activeField.height,
+                canvas_width: activeField.canvas_width ?? activePageDimensions.renderWidth,
+                canvas_height: activeField.canvas_height ?? activePageDimensions.renderHeight,
+                page_width: activePageDimensions.pdfWidth,
+                page_height: activePageDimensions.pdfHeight
+            } : null;
+
             // Make the API call
             const result = await apiService.saveFieldValue(
                 recipientId,
                 activeField.id,
-                valueToSave
+                valueToSave,
+                coords
             );
 
             console.log('Save successful:', result);
@@ -2535,7 +2850,9 @@ const SigningPage = () => {
                                                             fields={fields}
                                                             pageDimensions={pageDimensions[pageNum]}
                                                             onFieldClick={handleFieldClick}
+                                                            onUpdateCoords={handleUpdateFieldCoords}
                                                             recipientColors={recipientColors}
+                                                            isRecipientCompleted={recipientInfo?.status === 'completed' || !!recipientInfo?.completed_at}
                                                             fieldValues={fieldValues}
                                                         />
                                                     )}

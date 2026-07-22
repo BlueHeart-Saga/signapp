@@ -2581,7 +2581,8 @@ export default function MyDocuments() {
             variant="outlined"
             onClick={() => {
               logout();
-              navigate("/login");
+              localStorage.removeItem("token");
+              window.location.href = "/login";
             }}
             style={{ borderRadius: "8px", textTransform: "none", borderColor: "#cbd5e1", color: "#475569" }}
           >
