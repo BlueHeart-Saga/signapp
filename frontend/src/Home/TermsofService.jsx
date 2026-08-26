@@ -349,11 +349,11 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       content: `For questions about these Terms, please contact us:
 
 SafeSign Legal Department
-Email: legal@safesign.com
+Email: support@devopstrioglobal.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
 
-For legal notices, please use the above address or email legal@safesign.com.`
+For legal notices, please use the above address or email support@devopstrioglobal.com.`
     }
   ];
 

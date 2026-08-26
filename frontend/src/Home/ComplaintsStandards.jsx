@@ -415,7 +415,7 @@ const ComplaintsStandards = () => {
                     <Mail size={20} />
                     <div>
                       <div className="safe-submit-label">Email Complaint</div>
-                      <div className="safe-submit-value">complaints@safesign.devopstrio.co.uk</div>
+                      <div className="safe-submit-value">support@devopstrioglobal.com</div>
                     </div>
                   </div>
                   <div className="safe-submit-method">

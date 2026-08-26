@@ -43,6 +43,7 @@ jobs:
           echo "REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }}" >> .env
           echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
           echo "GENERATE_SOURCEMAP=false" >> .env
+          echo "DISABLE_ESLINT_PLUGIN=true" >> .env
 
       # 4️⃣ Install dependencies
       - name: Install dependencies

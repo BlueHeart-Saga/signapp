@@ -258,12 +258,12 @@ We encourage you to review this Privacy Policy periodically for any changes.`
       content: `If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
 SafeSign Privacy Team
-Email: privacy@safesign.com
+Email: support@devopstrioglobal.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
 
 Data Protection Officer:
-Email: dpo@safesign.com`
+Email: support@devopstrioglobal.com`
     }
   ];
 

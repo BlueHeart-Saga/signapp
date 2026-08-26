@@ -144,7 +144,7 @@ function ContactUs() {
               </div>
               <div style={styles.methodDetails}>
                 <h4 style={styles.methodTitle}>MAIL</h4>
-                <p style={styles.methodText}>support@influenceai.com</p>
+                <p style={styles.methodText}>support@devopstrioglobal.com</p>
               </div>
             </div>
 

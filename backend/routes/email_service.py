@@ -874,7 +874,7 @@ class SafeSignSummaryEngine:
             ("Audit Trail & Traceability", "SafeSign maintains a comprehensive audit trail that logs every critical recipient action, including document access, field interactions, authentication challenges, and final approvals. This traceability is designed to support independent transaction review and evidentiary validation in the event of a dispute."),
             ("Account & Transaction Context", "This transaction was initiated and managed by the authorized account holder ('Sender') identified in the document metadata. SafeSign validates recipient access through secure delivery channels and secondary identity verification mechanisms where configured. All transaction logs are maintained within SafeSign's secure vault for the duration of the retention period."),
             ("Platform Security Assurance", "SafeSign applies advanced technical and organizational safeguards to protect signature data and transaction records. System controls—including data-at-rest encryption and secure transit protocols—are designed to support reliability, service continuity, and long-term evidentiary preservation."),
-            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or visit our Global Help Center at <u>support.safesign.com</u>. SafeSign provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
+            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or email us at <u>support@devopstrioglobal.com</u>. SafeSign provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
             ("Certificate Limitations & Legal Disclaimer", "This certificate is a system-generated summary derived from SafeSign's encrypted transaction records. It does not constitute legal advice, nor does it independently validate the ultimate legal enforceability of specific clauses under localized jurisdictions. Enforceability is subject to applicable law and the specific consent of the involved parties.")
         ]
 
@@ -1795,7 +1795,7 @@ class SafeSignCertificateEngine:
         story.append(Paragraph("<b>Global Support & Resource Center</b>", ParagraphStyle('SubAuthBold', parent=sub_auth_style, fontSize=9, spaceAfter=5)))
         story.append(Paragraph(
             "For assistance regarding your SafeSign account, technical troubleshooting, or to report unauthorized access, "
-            "please visit our Help Center at <u>support.safesign.com</u> or contact our legal compliance team at <u>legal@safesign.com</u>. "
+            "please email our platform support team at <u>support@devopstrioglobal.com</u>. "
             "Our platform support team is available 24/7 to assist with platform-specific inquiries.",
             disclosure_style
         ))

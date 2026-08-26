@@ -39,9 +39,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 # Email configuration from environment variables
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME", "sagasri143@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "jalzxmkgmmnolksa")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@influencerplatform.com")
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "devopstrioglobal@gmail.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "rvaanwlmdcixyvbx")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "support@devopstrioglobal.com")
 
 # Google OAuth configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")

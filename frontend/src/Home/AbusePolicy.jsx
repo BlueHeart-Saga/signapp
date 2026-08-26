@@ -104,7 +104,7 @@ const AbusePolicy = () => {
       subSections: [
         {
           title: 'How to Report',
-          content: `Report abuse by emailing abuse@safesign.devopstrio.co.uk with detailed information including document IDs, timestamps, and supporting evidence.`
+          content: `Report abuse by emailing support@devopstrioglobal.com with detailed information including document IDs, timestamps, and supporting evidence.`
         },
         {
           title: 'Required Information',
@@ -135,7 +135,7 @@ const AbusePolicy = () => {
         },
         {
           title: 'Appeal Process',
-          content: `Users may appeal enforcement decisions by contacting compliance@safesign.devopstrio.co.uk within 30 days. Appeals require evidence supporting your case.`
+          content: `Users may appeal enforcement decisions by contacting support@devopstrioglobal.com within 30 days. Appeals require evidence supporting your case.`
         }
       ],
       icon: <Scale size={20} />
@@ -339,14 +339,14 @@ const AbusePolicy = () => {
                     <Mail size={20} />
                     <div>
                       <div className="safe-report-label">Email Report</div>
-                      <div className="safe-report-value">abuse@safesign.devopstrio.co.uk</div>
+                      <div className="safe-report-value">support@devopstrioglobal.com</div>
                     </div>
                   </div>
                   <div className="safe-report-method">
                     <MessageSquare size={20} />
                     <div>
                       <div className="safe-report-label">Emergency Contact</div>
-                      <div className="safe-report-value">emergency@safesign.devopstrio.co.uk</div>
+                      <div className="safe-report-value">support@devopstrioglobal.com</div>
                     </div>
                   </div>
                   <div className="safe-report-note">

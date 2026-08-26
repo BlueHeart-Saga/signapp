@@ -193,7 +193,7 @@ const TrademarkPolicy = () => {
       subSections: [
         {
           title: 'How to Report',
-          content: `Submit detailed reports to trademark@safesign.devopstrio.co.uk with supporting evidence and context.`
+          content: `Submit detailed reports to support@devopstrioglobal.com with supporting evidence and context.`
         },
         {
           title: 'Required Information',
@@ -511,13 +511,9 @@ const TrademarkPolicy = () => {
                 <div className="safe-guidelines-contact">
                   <h4>Request Permission:</h4>
                   <div className="safe-contact-methods">
-                    <a href="mailto:trademark@safesign.devopstrio.co.uk" className="safe-contact-method">
+                    <a href="mailto:support@devopstrioglobal.com" className="safe-contact-method">
                       <Mail size={18} />
-                      <span>trademark@safesign.devopstrio.co.uk</span>
-                    </a>
-                    <a href="mailto:legal@safesign.devopstrio.co.uk" className="safe-contact-method">
-                      <Mail size={18} />
-                      <span>legal@safesign.devopstrio.co.uk</span>
+                      <span>support@devopstrioglobal.com</span>
                     </a>
                   </div>
                 </div>

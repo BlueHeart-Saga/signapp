@@ -754,7 +754,7 @@ const TermsDialog = ({
                 Support Email
               </Typography>
               <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                legal@safe-sign.com
+                support@devopstrioglobal.com
               </Typography>
             </Box>
             <Box>

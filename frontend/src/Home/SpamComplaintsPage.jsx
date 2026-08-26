@@ -718,7 +718,7 @@ const SpamComplaintsPage = () => {
             </div>
             <p>If you believe your account has been compromised or you've been a victim of fraud:</p>
             <div className="safe-emergency-contacts">
-              <a href="mailto:security@safesign.com" className="safe-emergency-btn">
+              <a href="mailto:support@devopstrioglobal.com" className="safe-emergency-btn">
                 <Mail size={16} />
                 Email Security Team
               </a>

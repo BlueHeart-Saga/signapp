@@ -172,7 +172,7 @@ const HelpCenter = () => {
       icon: <Mail size={24} />,
       title: 'Email Support',
       description: 'Get help via email',
-      details: 'support@safesign.com',
+      details: 'support@devopstrioglobal.com',
       responseTime: 'Within 4 hours',
       color: '#0f766e'
     },

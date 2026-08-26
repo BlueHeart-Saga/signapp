@@ -299,7 +299,7 @@ const SubscriptionExpiredBlock = () => {
                 <ActionButton
                     fullWidth
                     component="a"
-                    href="mailto:support@safesign.com"
+                    href="mailto:support@devopstrioglobal.com"
                 >
                     CONTACT SUPPORT
                 </ActionButton>
