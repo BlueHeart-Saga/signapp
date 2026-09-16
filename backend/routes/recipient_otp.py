@@ -14,11 +14,11 @@ from routes.auth import create_recipient_token
 router = APIRouter(prefix="/api/recipient", tags=["Recipient Access"])
 
 # Email configuration from environment variables
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME", "your-email@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "your-app-password")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "support@devopstrioglobal.com")
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "esigniva@devopstrioglobal.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "Vikadan1234$")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "esigniva@devopstrioglobal.com")
 
 class OTPRequest(BaseModel):
     email: EmailStr

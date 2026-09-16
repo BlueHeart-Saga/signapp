@@ -18,11 +18,11 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "signapp")
 
 # Email Configuration
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-EMAIL_FROM = os.getenv("EMAIL_FROM", "SafeSign Team <support@devopstrioglobal.com>")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "SafeSign Team <esigniva@devopstrioglobal.com>")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3001")
 
