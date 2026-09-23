@@ -19,10 +19,36 @@ concurrency:
 
 jobs:
   # =============================================================
+  # 0. Path Filter Job (Detects what changed in this push)
+  # =============================================================
+  changes:
+    if: github.repository == 'Devopstrio/SafeSign_Platform'
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect Changed Paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/main_esigniva.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/main_esigniva.yml'
+
+  # =============================================================
   # 1. Build & Deploy Frontend (React -> Azure Web App esigniva)
   # =============================================================
   deploy-frontend:
-    if: github.repository == 'Devopstrio/SafeSign_Platform'
+    needs: changes
+    if: github.repository == 'Devopstrio/SafeSign_Platform' && (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     defaults:
@@ -71,7 +97,8 @@ jobs:
   # 2. Build & Deploy Backend (FastAPI Docker -> Azure signapp-backend-docker)
   # =============================================================
   deploy-backend:
-    if: github.repository == 'Devopstrio/SafeSign_Platform'
+    needs: changes
+    if: github.repository == 'Devopstrio/SafeSign_Platform' && (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     steps:
