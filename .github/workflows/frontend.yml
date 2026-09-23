@@ -1,4 +1,4 @@
-name: Frontend CI/CD
+name: Frontend CI/CD (QA - signapp)
 
 on:
   push:
@@ -6,8 +6,12 @@ on:
       - main
     paths:
       - "frontend/**"
-      - ".github/workflows/frontend.yml"   # 🔥 IMPORTANT
+      - ".github/workflows/frontend.yml"
   workflow_dispatch:
+
+concurrency:
+  group: frontend-qa-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -15,14 +19,12 @@ jobs:
 
     defaults:
       run:
-        working-directory: frontend   # 🔥 cleaner (no need cd)
+        working-directory: frontend
 
     steps:
-      # 1️⃣ Checkout
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,8 +32,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 3️⃣ Create .env
-      - name: Create .env file
+      - name: Create .env file for QA
         run: |
           echo "REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}" > .env
           echo "REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }}" >> .env
@@ -45,16 +46,13 @@ jobs:
           echo "GENERATE_SOURCEMAP=false" >> .env
           echo "DISABLE_ESLINT_PLUGIN=true" >> .env
 
-      # 4️⃣ Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # 5️⃣ Build
       - name: Build frontend
         run: CI=false npm run build
 
-      # 6️⃣ Deploy to Azure
-      - name: Deploy to Azure Web App
+      - name: Deploy to Azure Web App (QA)
         uses: azure/webapps-deploy@v3
         with:
           app-name: signapp
