@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'BlueHeart-Saga/signapp'
     runs-on: ubuntu-latest
 
     steps:
