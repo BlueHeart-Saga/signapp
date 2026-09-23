@@ -40,7 +40,7 @@ async def send_reminders():
         for recipient in pending_recipients:
             try:
                 print(f"       -> Sending reminder to {recipient['email']}")
-                await send_reminder_email(recipient, doc, doc.get("owner_email", "SafeSign"))
+                await send_reminder_email(recipient, doc, doc.get("owner_email", "Esigniva"))
             except Exception as e:
                 print(f"       !! Error sending reminder to {recipient['email']}: {e}")
 

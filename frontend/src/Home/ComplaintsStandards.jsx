@@ -97,7 +97,7 @@ const ComplaintsStandards = () => {
     {
       id: 'introduction',
       title: 'Complaints & Standards Framework',
-      content: `SafeSign maintains a comprehensive framework for handling complaints and ensuring compliance with global standards. This page outlines our commitment to quality, security, and customer satisfaction.`,
+      content: `Esigniva maintains a comprehensive framework for handling complaints and ensuring compliance with global standards. This page outlines our commitment to quality, security, and customer satisfaction.`,
       subSections: [
         {
           title: 'Our Commitment',
@@ -141,7 +141,7 @@ const ComplaintsStandards = () => {
     {
       id: 'compliance-standards',
       title: 'Compliance Standards',
-      content: `SafeSign adheres to internationally recognized standards and regulations to ensure secure, compliant electronic signature services.`,
+      content: `Esigniva adheres to internationally recognized standards and regulations to ensure secure, compliant electronic signature services.`,
       icon: <Award size={20} />
     },
     {
@@ -235,7 +235,7 @@ const ComplaintsStandards = () => {
               Global Compliance Standards
             </h2>
             <p className="safe-section-subtitle">
-              SafeSign adheres to internationally recognized security and privacy standards
+              Esigniva adheres to internationally recognized security and privacy standards
             </p>
           </div>
 
@@ -429,7 +429,7 @@ const ComplaintsStandards = () => {
                     <FileText size={20} />
                     <div>
                       <div className="safe-submit-label">Web Form</div>
-                      <div className="safe-submit-value">safesign.devopstrio.co.uk/complaints</div>
+                      <div className="safe-submit-value">esigniva.devopstrio.co.uk/complaints</div>
                     </div>
                   </div>
                 </div>
@@ -535,7 +535,7 @@ const ComplaintsStandards = () => {
                     </div>
                   </div>
                   <p className="safe-policy-card-description">
-                    Complete terms governing use of SafeSign services.
+                    Complete terms governing use of Esigniva services.
                   </p>
                   <div className="safe-policy-card-footer">
                     <ExternalLink size={16} />

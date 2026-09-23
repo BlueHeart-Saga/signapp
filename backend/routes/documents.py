@@ -25,8 +25,8 @@ from .converter import convert_to_pdf, get_pdf_page_count
 from database import db
 from .auth import get_current_user
 from .fields import normalize_field_value
-from .email_service import send_completed_document_to_recipients, SafeSignCertificateEngine, SafeSignSummaryEngine
-ProfessionalCertificateEngine = SafeSignCertificateEngine
+from .email_service import send_completed_document_to_recipients, EsignivaCertificateEngine, EsignivaSummaryEngine
+ProfessionalCertificateEngine = EsignivaCertificateEngine
 
 from reportlab.lib import colors
 from reportlab.platypus import PageBreak, KeepTogether
@@ -174,7 +174,7 @@ class BulkActionRequest(BaseModel):
 
 # Professional Certificate Engine is now unified in email_service.py
 # Alias kept for downward compatibility
-# ProfessionalCertificateEngine = SafeSignCertificateEngine (set in imports)
+# ProfessionalCertificateEngine = EsignivaCertificateEngine (set in imports)
       
 # Add this near the top of your file, after the imports
 def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
@@ -257,6 +257,94 @@ def generate_short_envelope_id() -> str:
     sequence_str = f"{sequence:03d}"
     
     return f"ENV-{today}{sequence_str}"
+
+
+@router.get("/search", summary="Search documents by filename, envelope_id, status, or recipient")
+async def search_documents(
+    q: str = Query(..., min_length=1, description="Search query string"),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Search documents for current user (or all documents for admin)
+    Matches:
+    - filename / title
+    - envelope_id
+    - status
+    - recipient name / email
+    - subject / message
+    """
+    try:
+        user_id = str(current_user["id"])
+        user_role = current_user.get("role", "user")
+        
+        clean_query = q.strip()
+        if not clean_query:
+            return {"results": [], "total": 0}
+
+        regex_pattern = re.compile(re.escape(clean_query), re.IGNORECASE)
+
+        # Base filter: if admin, search across all non-deleted documents; otherwise scope to user
+        if user_role == "admin":
+            base_filter = {"status": {"$ne": "deleted"}}
+        else:
+            user_email = current_user.get("email", "")
+            base_filter = {
+                "status": {"$ne": "deleted"},
+                "$or": [
+                    {"user_id": user_id},
+                    {"created_by": user_id},
+                    {"owner_id": user_id},
+                    {"recipients.email": user_email}
+                ]
+            }
+
+        # Match criteria across multiple fields
+        match_conditions = [
+            {"filename": regex_pattern},
+            {"title": regex_pattern},
+            {"envelope_id": regex_pattern},
+            {"status": regex_pattern},
+            {"subject": regex_pattern},
+            {"message": regex_pattern},
+            {"recipients.name": regex_pattern},
+            {"recipients.email": regex_pattern}
+        ]
+
+        final_query = {
+            "$and": [
+                base_filter,
+                {"$or": match_conditions}
+            ]
+        }
+
+        cursor = db.documents.find(final_query).sort("uploaded_at", -1).limit(limit)
+        
+        results = []
+        for doc in cursor:
+            results.append({
+                "id": str(doc["_id"]),
+                "filename": doc.get("filename") or doc.get("title") or "Untitled Document",
+                "title": doc.get("title") or doc.get("filename") or "Untitled Document",
+                "status": doc.get("status", "draft"),
+                "uploaded_at": doc.get("uploaded_at") or doc.get("created_at") or doc.get("updated_at"),
+                "updated_at": doc.get("updated_at"),
+                "envelope_id": doc.get("envelope_id"),
+                "recipient_count": len(doc.get("recipients", [])),
+                "recipients": [
+                    {
+                        "name": r.get("name"),
+                        "email": r.get("email"),
+                        "status": r.get("status")
+                    }
+                    for r in doc.get("recipients", [])[:3]
+                ]
+            })
+
+        return {"results": results, "total": len(results)}
+    except Exception as e:
+        print(f"Error in search_documents: {e}")
+        return {"results": [], "total": 0}
 
 def validate_envelope_id(envelope_id: str, current_document_id: str = None) -> bool:
     """
@@ -1959,15 +2047,16 @@ async def upload_document(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    # Restriction: Only allow upload if user has an active plan (Admins bypass)
-    if current_user.get("role") != "admin":
-        # We fetch the latest user data from DB to ensure subscription status is current
-        user_data = db.users.find_one({"_id": ObjectId(current_user["id"])})
-        if not user_data or not user_data.get("has_active_subscription", False):
-            raise HTTPException(
-                status_code=403,
-                detail="Active subscription required to upload documents. Please upgrade your plan."
-            )
+    # Pure Credit Authorization & Deduction for document upload (1 credit)
+    from services.credit_service import CreditService
+    from config.credit_costs import CREDIT_COSTS
+    await CreditService.consume_credits(
+        user_id=str(current_user.get("id", "")),
+        email=current_user.get("email", ""),
+        amount=CREDIT_COSTS.get("document_upload", 1),
+        action="document_upload",
+        description=f"Uploaded document: {file.filename}"
+    )
 
     # Validate file type
     ext = file.filename.split(".")[-1].lower()
@@ -2185,8 +2274,17 @@ async def add_file_to_document(
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    if doc["status"] != "draft":
-        raise HTTPException(400, "Cannot add files after sending")
+    if doc.get("status") in ["sent", "completed", "signed", "voided", "archived"]:
+        raise HTTPException(400, "Cannot add files to a document after it has been sent or finalized")
+
+    # Atomic credit deduction for file upload (raises HTTP 402 if balance is 0)
+    await CreditService.consume_credits(
+        user_id=str(current_user["id"]),
+        email=current_user.get("email", ""),
+        amount=CREDIT_COSTS.get("document_upload", 1),
+        action="document_upload",
+        description=f"Uploaded file: {file.filename or 'document'}"
+    )
 
     # Start progress
     db.documents.update_one(
@@ -3009,14 +3107,17 @@ async def create_document_from_template(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    # Restriction: Only allow if user has an active plan (Admins bypass)
-    if current_user.get("role") != "admin":
-        user_data = db.users.find_one({"_id": ObjectId(current_user["id"])})
-        if not user_data or not user_data.get("has_active_subscription", False):
-            raise HTTPException(
-                status_code=403,
-                detail="Active subscription required to use templates. Please upgrade your plan."
-            )
+    # Pure Credit Authorization & Deduction for template usage (3 credits)
+    from services.credit_service import CreditService
+    from config.credit_costs import CREDIT_COSTS
+    await CreditService.consume_credits(
+        user_id=str(current_user.get("id", "")),
+        email=current_user.get("email", ""),
+        amount=CREDIT_COSTS.get("template_use", 3),
+        action="template_use",
+        reference_id=payload.template_id,
+        description="Used template to generate document"
+    )
 
     # 1️⃣ Validate template ID
     try:
@@ -3261,15 +3362,35 @@ async def list_documents_paged(
 
 @router.get("/stats")
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
-    owner_id = ObjectId(current_user["id"])
+    user_id_str = str(current_user["id"])
+    try:
+        user_obj_id = ObjectId(user_id_str)
+        owner_filter = {"$in": [user_obj_id, user_id_str]}
+    except Exception:
+        owner_filter = user_id_str
 
-    stats = {}
+    # Count deleted documents
+    deleted_count = db.documents.count_documents({
+        "owner_id": owner_filter,
+        "$or": [{"is_deleted": True}, {"status": "deleted"}]
+    })
 
-    for status in DOCUMENT_STATUSES:
-        stats[status] = db.documents.count_documents({
-            "owner_id": owner_id,
-            "status": status
-        })
+    active_base = {
+        "owner_id": owner_filter,
+        "is_deleted": {"$ne": True},
+        "status": {"$ne": "deleted"}
+    }
+
+    stats = {
+        "draft": db.documents.count_documents({**active_base, "status": "draft"}),
+        "sent": db.documents.count_documents({**active_base, "status": "sent"}),
+        "in_progress": db.documents.count_documents({**active_base, "status": {"$in": ["in_progress", "in-progress"]}}),
+        "completed": db.documents.count_documents({**active_base, "status": "completed"}),
+        "declined": db.documents.count_documents({**active_base, "status": "declined"}),
+        "expired": db.documents.count_documents({**active_base, "status": "expired"}),
+        "voided": db.documents.count_documents({**active_base, "status": "voided"}),
+        "deleted": deleted_count
+    }
 
     stats["total"] = sum(stats.values())
 
@@ -3305,58 +3426,90 @@ async def get_active_signers(current_user: dict = Depends(get_current_user)):
 @router.get("/audit-logs/recent")
 async def get_recent_activities(
     current_user: dict = Depends(get_current_user),
-    limit: int = Query(20, ge=1, le=100)
+    limit: int = Query(100, ge=1, le=500),
+    status: Optional[str] = Query(None)
 ):
-    owner_id = ObjectId(current_user["id"])
+    user_id_str = str(current_user["id"])
+    try:
+        user_obj_id = ObjectId(user_id_str)
+        owner_filter = {"$in": [user_obj_id, user_id_str]}
+    except Exception:
+        owner_filter = user_id_str
 
-    docs = list(db.documents.find(
-        {"owner_id": owner_id},
-        {"_id": 1, "filename": 1, "status": 1}
-    ))
+    doc_query = {"owner_id": owner_filter}
+
+    if status and status != "all":
+        if status == "deleted":
+            doc_query["$or"] = [{"is_deleted": True}, {"status": "deleted"}]
+        elif status == "in_progress":
+            doc_query["is_deleted"] = {"$ne": True}
+            doc_query["status"] = {"$in": ["in_progress", "in-progress"]}
+        else:
+            doc_query["is_deleted"] = {"$ne": True}
+            doc_query["status"] = status
+
+    docs = list(db.documents.find(doc_query).sort([
+        ("updated_at", -1),
+        ("uploaded_at", -1),
+        ("created_at", -1)
+    ]).limit(limit))
 
     doc_map = {d["_id"]: d for d in docs}
+    doc_ids = list(doc_map.keys())
 
-    logs = list(
+    if not doc_ids:
+        return []
+
+    timeline_events = list(
         db.document_timeline
-        .find({"document_id": {"$in": list(doc_map.keys())}})
+        .find({"document_id": {"$in": doc_ids}})
         .sort("timestamp", -1)
-        .limit(limit)
     )
 
+    latest_event_by_doc = {}
+    for evt in timeline_events:
+        did = evt.get("document_id")
+        if did not in latest_event_by_doc:
+            latest_event_by_doc[did] = evt
 
     results = []
-
-    for log in logs:
-        doc = doc_map.get(log["document_id"])
-        if not doc:
-            continue
-
-        document_id = log["document_id"]
+    for doc in docs:
+        doc_id = doc["_id"]
+        latest_evt = latest_event_by_doc.get(doc_id, {})
 
         total_signers = db.recipients.count_documents({
-            "document_id": document_id,
+            "document_id": doc_id,
             "role": "signer"
         })
 
         completed_signers = db.recipients.count_documents({
-            "document_id": document_id,
+            "document_id": doc_id,
             "role": "signer",
             "status": "completed"
         })
 
-        results.append({
-            "id": str(log["_id"]),
-            "document_id": str(document_id),
-            "document_name": doc.get("filename", "Untitled"),
-            "status": doc.get("status", "draft"),
-            "action": log.get("action"),
-            "timestamp": log.get("timestamp"),
+        effective_status = "deleted" if (doc.get("is_deleted") or doc.get("status") == "deleted") else doc.get("status", "draft")
+        if effective_status == "in-progress":
+            effective_status = "in_progress"
 
+        action = latest_evt.get("action") or f"document_{effective_status}"
+        timestamp = latest_evt.get("timestamp") or doc.get("updated_at") or doc.get("uploaded_at") or doc.get("created_at")
+        if isinstance(timestamp, datetime):
+            timestamp = timestamp.isoformat()
+
+        results.append({
+            "id": str(latest_evt.get("_id", doc_id)),
+            "document_id": str(doc_id),
+            "document_name": doc.get("filename") or doc.get("title") or "Untitled",
+            "status": effective_status,
+            "action": action,
+            "timestamp": timestamp,
+            "sender": current_user.get("full_name") or current_user.get("email") or "User",
             "signers_total": total_signers,
             "signers_completed": completed_signers,
         })
 
-    return results   # ← ADD THIS
+    return results
 
 
 # -----------------------------
@@ -4220,15 +4373,15 @@ async def download_summary_pdf(
         "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}",
         "generated_at": datetime.utcnow().isoformat(),
         "generated_by": current_user.get("email", "unknown"),
-        "platform": "SafeSign Professional"
+        "platform": "Esigniva Professional"
     }
     
     # Generate PDF via unified engine
-    pdf_bytes = SafeSignSummaryEngine.create_document_summary_pdf(summary_data)
+    pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
     
     # Sanitized filename
     clean_name = re.sub(r'[^\w\s-]', '', doc.get('filename', 'document'))
-    filename = f"SafeSign_Summary_{doc.get('envelope_id', 'doc')}_{clean_name}.pdf"
+    filename = f"Esigniva_Summary_{doc.get('envelope_id', 'doc')}_{clean_name}.pdf"
     
     _log_event(document_id, current_user, "download_professional_summary", {"filename": filename, "format": "pdf"}, request)
     
@@ -5850,7 +6003,7 @@ async def download_certificate_owner(
             "certificate_id": certificate_id,
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": current_user.get("email", "unknown"),
-            "platform": "SafeSign Professional"
+            "platform": "Esigniva Professional"
         }
         
         # ========== GENERATE PROFESSIONAL CERTIFICATE PDF ==========
@@ -5873,7 +6026,7 @@ async def download_certificate_owner(
             
             c.setFillColor(colors.white)
             c.setFont("Helvetica-Bold", 20)
-            c.drawString(50, height - 40, "SafeSign")
+            c.drawString(50, height - 40, "Esigniva")
             c.drawString(width - 200, height - 40, "CERTIFICATE OF COMPLETION")
             
             c.setFillColor(colors.black)
@@ -5888,7 +6041,7 @@ async def download_certificate_owner(
             
             c.setFont("Helvetica", 9)
             c.drawString(50, 50, f"Generated: {datetime.utcnow().strftime('%B %d, %Y at %I:%M:%S %p UTC')}")
-            c.drawString(50, 30, "Verified by SafeSign Secure Digital Signature Platform")
+            c.drawString(50, 30, "Verified by Esigniva Secure Digital Signature Platform")
             
             c.save()
             buffer.seek(0)
@@ -5899,7 +6052,7 @@ async def download_certificate_owner(
         base_name = safe_name.rsplit('.', 1)[0][:40]
         envelope_short = doc.get('envelope_id', certificate_id)[-8:]
         
-        filename = f"SafeSign_Certificate_{envelope_short}_{base_name}.pdf"
+        filename = f"Esigniva_Certificate_{envelope_short}_{base_name}.pdf"
         filename = re.sub(r'\s+', '_', filename)
         
         # ========== LOG THE DOWNLOAD ==========
@@ -6335,7 +6488,7 @@ async def download_document_package_owner(
         sender_organization = owner.get("organization_name", "")
         
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         # Use request.base_url to get current backend URL
         base_url = str(request.base_url).rstrip('/')
         logo_url = f"{base_url}/branding/logo/file" if branding.get("logo_file_path") else None
@@ -6927,6 +7080,10 @@ async def get_complete_analytics(
                 "days_left": max(0, (exp_date - now).days) if isinstance(exp_date, datetime) else 0
             })
 
+        # Credit Summary Calculation
+        from services.credit_service import CreditService
+        credit_summary = await CreditService.get_credit_summary(current_user["email"])
+
         # Efficiency metrics calculation
         hourly_series = act_stats.get("hourly", [0]*24)
         peak_hr = 0
@@ -6953,6 +7110,12 @@ async def get_complete_analytics(
                 "avg_signing_time": recip_stats.get("avg_signing_time", 0)
             },
             "subscription": sub_info,
+            "credits": {
+                "available": credit_summary.get("available", 0),
+                "total_allocated": credit_summary.get("total_allocated", 0),
+                "total_consumed": credit_summary.get("total_consumed", 0),
+                "plan_name": "Credit-Based Plan"
+            },
             "contacts": {"total_contacts": db.contacts.count_documents({"owner_id": owner_id})}
         }
         

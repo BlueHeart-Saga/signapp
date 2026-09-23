@@ -4,11 +4,11 @@ import { ChevronDown, ChevronUp, HelpCircle, FileText, Shield, Clock, Users, Zap
 import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
-function SafeSignFAQ() {
+function EsignivaFAQ() {
   useEffect(() => {
     setPageTitle(
-      "Frequently Asked Questions | SafeSign E-Signature Support",
-      "Find answers to common questions about SafeSign electronic signatures, security, pricing, and compliance. Get the help you need to streamline your document workflows."
+      "Frequently Asked Questions | Esigniva E-Signature Support",
+      "Find answers to common questions about Esigniva electronic signatures, security, pricing, and compliance. Get the help you need to streamline your document workflows."
     );
   }, []);
   const [activeIndex, setActiveIndex] = useState(null);
@@ -20,18 +20,18 @@ function SafeSignFAQ() {
       icon: <HelpCircle size={20} />,
       questions: [
         {
-          q: "What is SafeSign?",
-          a: "SafeSign is a secure, compliant electronic signature platform that helps businesses streamline their document signing processes. We provide legally binding e-signatures that are recognized worldwide under ESIGN, UETA, eIDAS, and other international regulations.",
+          q: "What is Esigniva?",
+          a: "Esigniva is a secure, compliant electronic signature platform that helps businesses streamline their document signing processes. We provide legally binding e-signatures that are recognized worldwide under ESIGN, UETA, eIDAS, and other international regulations.",
           tags: ['General', 'Getting Started']
         },
         {
-          q: "Is SafeSign legally binding?",
-          a: "Yes, absolutely. SafeSign complies with ESIGN, UETA, eIDAS, GDPR, and other global e-signature laws. All signatures are court-admissible and legally binding in over 180 countries. We maintain comprehensive audit trails for every document.",
+          q: "Is Esigniva legally binding?",
+          a: "Yes, absolutely. Esigniva complies with ESIGN, UETA, eIDAS, GDPR, and other global e-signature laws. All signatures are court-admissible and legally binding in over 180 countries. We maintain comprehensive audit trails for every document.",
           tags: ['Legal', 'Compliance']
         },
         {
-          q: "How secure is SafeSign?",
-          a: "SafeSign uses bank-level 256-bit SSL/TLS encryption, SOC 2 Type II compliance, regular third-party security audits, and GDPR-ready data centers. All documents are encrypted both in transit and at rest.",
+          q: "How secure is Esigniva?",
+          a: "Esigniva uses bank-level 256-bit SSL/TLS encryption, SOC 2 Type II compliance, regular third-party security audits, and GDPR-ready data centers. All documents are encrypted both in transit and at rest.",
           tags: ['Security', 'Privacy']
         }
       ]
@@ -69,8 +69,8 @@ function SafeSignFAQ() {
       icon: <Zap size={20} />,
       questions: [
         {
-          q: "What file formats does SafeSign support?",
-          a: "SafeSign supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TXT files. Maximum file size is 100MB per document. All documents are converted to PDF for signing and storage.",
+          q: "What file formats does Esigniva support?",
+          a: "Esigniva supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TXT files. Maximum file size is 100MB per document. All documents are converted to PDF for signing and storage.",
           tags: ['Files', 'Formats']
         },
         {
@@ -79,7 +79,7 @@ function SafeSignFAQ() {
           tags: ['Customization', 'Branding']
         },
         {
-          q: "Does SafeSign integrate with other tools?",
+          q: "Does Esigniva integrate with other tools?",
           a: "Yes, we offer integrations with Google Drive, Dropbox, OneDrive, Salesforce, HubSpot, Slack, Zapier, and 200+ other applications through our API and pre-built connectors.",
           tags: ['Integrations', 'API']
         }
@@ -96,8 +96,8 @@ function SafeSignFAQ() {
           tags: ['Data Storage', 'Privacy']
         },
         {
-          q: "What compliance standards does SafeSign meet?",
-          a: "SafeSign is SOC 2 Type II certified, GDPR compliant, CCPA ready, HIPAA capable (BAA available), and meets ISO 27001, 27017, and 27018 standards. We undergo regular third-party audits.",
+          q: "What compliance standards does Esigniva meet?",
+          a: "Esigniva is SOC 2 Type II certified, GDPR compliant, CCPA ready, HIPAA capable (BAA available), and meets ISO 27001, 27017, and 27018 standards. We undergo regular third-party audits.",
           tags: ['Compliance', 'Certifications']
         },
         {
@@ -159,13 +159,13 @@ function SafeSignFAQ() {
   };
 
   return (
-    <div className="safesign-faq">
+    <div className="esigniva-faq">
       <div className="faq-container">
         {/* Header */}
         <div className="faq-header">
           <h1 className="faq-title">Frequently Asked Questions</h1>
           <p className="faq-subtitle">
-            Find answers to common questions about SafeSign. Can't find what you're looking for?
+            Find answers to common questions about Esigniva. Can't find what you're looking for?
             <a href="/contact" className="contact-link"> Contact our support team</a>.
           </p>
         </div>
@@ -267,10 +267,10 @@ function SafeSignFAQ() {
             </div>
             <h3 className="cta-title">Still have questions?</h3>
             <p className="cta-text">
-              Our support team is here to help you get the most out of SafeSign.
+              Our support team is here to help you get the most out of Esigniva.
             </p>
             <div className="cta-buttons">
-              <a href="/contact" className="cta-button primary">
+              <a href="/support" className="cta-button primary">
                 Contact Support
               </a>
               <a href="/docs" className="cta-button secondary">
@@ -282,7 +282,7 @@ function SafeSignFAQ() {
       </div>
 
       <style jsx>{`
-        .safesign-faq {
+        .esigniva-faq {
           width: 100%;
           background: #ffffff;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -738,4 +738,4 @@ function SafeSignFAQ() {
   );
 }
 
-export default SafeSignFAQ;
+export default EsignivaFAQ;

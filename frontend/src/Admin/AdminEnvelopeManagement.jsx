@@ -167,7 +167,7 @@ export default function AdminEnvelopeManagement() {
                             fullWidth
                             variant="outlined"
                             size="small"
-                            placeholder="Search by Safesign ID, Filename or Email..."
+                            placeholder="Search by Esigniva ID, Filename or Email..."
                             value={searchByValue}
                             onChange={(e) => setSearchByValue(e.target.value)}
                             onKeyDown={handleSearch}
@@ -194,7 +194,7 @@ export default function AdminEnvelopeManagement() {
                             <TableHead sx={{ bgcolor: '#f1f5f9' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700 }}>Document Info</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Safesign Identity (Envelope ID)</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Esigniva Identity (Envelope ID)</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Owner</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
@@ -339,7 +339,7 @@ export default function AdminEnvelopeManagement() {
                     <TextField
                         autoFocus
                         fullWidth
-                        label="Custom Safesign ID"
+                        label="Custom Esigniva ID"
                         value={customId}
                         onChange={(e) => setCustomId(e.target.value)}
                         sx={{ mt: 1 }}

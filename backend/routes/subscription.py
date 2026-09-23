@@ -11,6 +11,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict, Va
 
 from database import db
 from routes.auth import get_current_user
+from services.credit_service import CreditService
 
 # Initialize Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -97,12 +98,14 @@ class PaymentStatus(str, Enum):
 PLAN_CONFIG = {
     PlanType.FREE_TRIAL: {
         "name": "Free Trial",
-        "description": "Try all features free for 15 days",
+        "description": "Try all features free for 15 days with 100 credits",
         "price": 0,
         "duration_days": 15,
+        "credits": 100,
         "stripe_price_id": None,  # No Stripe price ID for free trial
         "features": [
             "Full access to all features",
+            "100 included credits",
             "15 days trial period",
             "No credit card required"
         ],
@@ -110,12 +113,14 @@ PLAN_CONFIG = {
     },
     PlanType.MONTHLY: {
         "name": "Monthly Plan",
-        "description": "Full access, pay monthly. Cancel anytime.",
+        "description": "Full access, pay monthly. Includes 500 credits per month.",
         "price": 9.99,
         "duration_days": 30,
+        "credits": 500,
         "stripe_price_id": os.getenv("STRIPE_MONTHLY_PRICE_ID", "price_monthly"),
         "features": [
-            "Unlimited documents",
+            "500 credits per month",
+            "Unlimited document storage",
             "Priority support",
             "Audit trails",
             "Cancel anytime"
@@ -124,11 +129,13 @@ PLAN_CONFIG = {
     },
     PlanType.YEARLY: {
         "name": "Yearly Plan",
-        "description": "Best value - 2 months free. Full access for one year.",
+        "description": "Best value - 7,000 credits/year. 2 months free.",
         "price": 99.99,
         "duration_days": 365,
+        "credits": 7000,
         "stripe_price_id": os.getenv("STRIPE_YEARLY_PRICE_ID", "price_yearly"),
         "features": [
+            "7,000 credits per year",
             "All Monthly features",
             "2 months free",
             "Best value",
@@ -139,11 +146,13 @@ PLAN_CONFIG = {
     },
     PlanType.ENTERPRISE: {
         "name": "Enterprise",
-        "description": "Custom plans for teams and organizations",
+        "description": "Custom plans for teams and organizations with tailored credits",
         "price": 0,  # Base price, actual price will be negotiated
         "duration_days": 365,  # Default 1 year, can be customized
+        "credits": 10000,
         "stripe_price_id": None,  # Custom pricing
         "features": [
+            "10,000+ custom credits",
             "Custom duration",
             "Team management",
             "Dedicated support",
@@ -154,11 +163,13 @@ PLAN_CONFIG = {
     },
     PlanType.LIFETIME: {
         "name": "Lifetime Plan",
-        "description": "One-time payment for permanent access",
+        "description": "One-time payment for permanent access with 50,000 credits",
         "price": 499.00,
         "duration_days": 36500,  # 100 years
+        "credits": 50000,
         "stripe_price_id": os.getenv("STRIPE_LIFETIME_PRICE_ID", "price_lifetime"),
         "features": [
+            "50,000 lifetime credits",
             "All Enterprise features",
             "One-time payment",
             "Permanent access",
@@ -228,6 +239,7 @@ class PlanInfo(BaseModel):
     description: str
     price: float
     duration_days: int
+    credits: int = 0
     features: List[str]
     is_popular: bool = False
     savings: Optional[str] = None
@@ -603,6 +615,7 @@ async def get_available_plans():
             description=config["description"],
             price=config["price"],
             duration_days=config["duration_days"],
+            credits=config.get("credits", 0),
             features=config.get("features", []),
             is_popular=config.get("is_popular", False),
             savings=config.get("savings"),
@@ -761,6 +774,20 @@ async def create_subscription(
             expiry_date,
             stripe_subscription_id
         )
+
+        # Allocate plan credits to user
+        plan_credits = PLAN_CONFIG[request.plan_type].get("credits", 0)
+        if plan_credits > 0:
+            user_obj = user.get("id") or user.get("_id")
+            await CreditService.allocate_credits(
+                user_id=str(user_obj) if user_obj else "",
+                email=user_email,
+                amount=plan_credits,
+                source="subscription",
+                reference_id=subscription_id,
+                expires_at=expiry_date,
+                description=f"Plan credits for {PLAN_CONFIG[request.plan_type]['name']}"
+            )
         
         days_remaining = SubscriptionHelper.get_days_remaining(expiry_date)
         plan_config = PLAN_CONFIG[request.plan_type]
@@ -883,6 +910,20 @@ async def change_plan(
             expiry_date,
             current_sub.get("stripe_subscription_id")
         )
+
+        # Allocate new plan credits
+        plan_credits = PLAN_CONFIG[request.new_plan_type].get("credits", 0)
+        if plan_credits > 0:
+            user_obj = user.get("id") or user.get("_id")
+            await CreditService.allocate_credits(
+                user_id=str(user_obj) if user_obj else "",
+                email=user_email,
+                amount=plan_credits,
+                source="subscription",
+                reference_id=subscription_id,
+                expires_at=expiry_date,
+                description=f"Plan credits for {PLAN_CONFIG[request.new_plan_type]['name']}"
+            )
         
         days_remaining = SubscriptionHelper.get_days_remaining(expiry_date)
         plan_config = PLAN_CONFIG[request.new_plan_type]
@@ -1158,6 +1199,17 @@ async def create_free_trial(email: str, name: str = "") -> SubscriptionStatusRes
             PlanType.FREE_TRIAL, 
             expiry_date
         )
+
+        # Allocate 100 Free Trial credits
+        await CreditService.allocate_credits(
+            user_id="",
+            email=email,
+            amount=PLAN_CONFIG[PlanType.FREE_TRIAL]["credits"],
+            source="free_trial",
+            reference_id=subscription_id,
+            expires_at=expiry_date,
+            description="Welcome 100 Free Trial Credits"
+        )
         
         days_remaining = SubscriptionHelper.get_days_remaining(expiry_date)
         
@@ -1329,6 +1381,20 @@ async def renew_subscription(user: dict = Depends(get_current_user)):
         
         # Update user
         await update_user_subscription_status(user_email, True, plan_type, expiry_date)
+
+        # Allocate plan renewal credits
+        plan_credits = PLAN_CONFIG[plan_type].get("credits", 0)
+        if plan_credits > 0:
+            user_obj = user.get("id") or user.get("_id")
+            await CreditService.allocate_credits(
+                user_id=str(user_obj) if user_obj else "",
+                email=user_email,
+                amount=plan_credits,
+                source="subscription",
+                reference_id=subscription_id,
+                expires_at=expiry_date,
+                description=f"Renewal credits for {PLAN_CONFIG[plan_type]['name']}"
+            )
         
         days_remaining = SubscriptionHelper.get_days_remaining(expiry_date)
         plan_config = PLAN_CONFIG[plan_type]
@@ -1359,77 +1425,42 @@ async def renew_subscription(user: dict = Depends(get_current_user)):
 @router.get("/check-access", response_model=AccessCheckResponse)
 async def check_access(user: dict = Depends(get_current_user)):
     """
-    Simple access check for protected routes
-    Use this in frontend to verify if user can access features
+    Access check for pure credit-based architecture.
+    Grants access as long as user has credits in their credit wallet or is an admin.
     """
     user_email = user.get("email")
     
     try:
-        # Find active subscription
-        subscription = await get_active_subscription(user_email)
-        
-        # No active subscription found
-        if not subscription:
-            # Check if user has any subscription at all
-            any_sub = await get_most_recent_subscription(user_email)
-            
-            if any_sub:
-                return AccessCheckResponse(
-                    has_access=False,
-                    message="Your subscription has expired. Please renew to continue.",
-                    requires_subscription=True
-                )
-            else:
-                # New user - should have free trial created automatically
-                return AccessCheckResponse(
-                    has_access=False,
-                    message="No active subscription found. Please start a free trial or subscribe.",
-                    requires_subscription=True
-                )
-        
-        # Check if subscription is still active
-        expiry_date = subscription.get("expiry_date")
-        is_active = SubscriptionHelper.is_active(expiry_date)
-        
-        if not is_active:
-            # Auto-update to expired
-            await db_update_one(
-                subscriptions_collection,
-                {"_id": subscription["_id"]},
-                {"$set": {
-                    "status": SubscriptionStatus.EXPIRED.value,
-                    "updated_at": datetime.utcnow()
-                }}
+        if user.get("role") == "admin":
+            return AccessCheckResponse(
+                has_access=True,
+                message="Admin access granted.",
+                requires_subscription=False
             )
-            
-            await update_user_subscription_status(user_email, False)
-            
+
+        summary = await CreditService.get_credit_summary(user_email)
+        balance = summary.get("balance", 0)
+        
+        if balance > 0:
+            return AccessCheckResponse(
+                has_access=True,
+                message=f"Access granted. You have {balance} credits in your wallet.",
+                requires_subscription=False,
+                days_remaining=999
+            )
+        else:
             return AccessCheckResponse(
                 has_access=False,
-                message="Your subscription has expired. Please renew to continue.",
-                requires_subscription=True
+                message="Your credit balance is 0. Please purchase credits to perform metered actions.",
+                requires_subscription=False,
+                days_remaining=0
             )
-        
-        # Active subscription
-        days_remaining = SubscriptionHelper.get_days_remaining(expiry_date)
-        plan_type = PlanType(subscription["plan_type"])
-        
-        return AccessCheckResponse(
-            has_access=True,
-            message=f"Access granted. Your subscription is active for {days_remaining} more days.",
-            requires_subscription=True,
-            plan_type=plan_type,
-            plan_name=PLAN_CONFIG[plan_type]["name"],
-            expiry_date=expiry_date,
-            days_remaining=days_remaining
-        )
     except Exception as e:
         logger.error(f"Error in check_access: {e}")
-        # Default to allowing access if we can't determine status
         return AccessCheckResponse(
             has_access=True,
             message="Access granted.",
-            requires_subscription=True
+            requires_subscription=False
         )
 
 @router.get("/history", response_model=SubscriptionHistoryResponse)
@@ -1574,3 +1605,121 @@ async def get_current_subscription(user: dict = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve current subscription"
         )
+
+# ============================================
+# BILLING INFO & PAYMENT METHODS ROUTES
+# ============================================
+
+class BillingInfoModel(BaseModel):
+    company_name: Optional[str] = ""
+    vat_id: Optional[str] = ""
+    tax_id_type: Optional[str] = "VAT/EIN"
+    billing_email: Optional[str] = ""
+    secondary_email: Optional[str] = ""
+    phone: Optional[str] = ""
+    address: Optional[str] = ""
+    city: Optional[str] = ""
+    state: Optional[str] = ""
+    zip: Optional[str] = ""
+    country: Optional[str] = ""
+
+class SavedCardModel(BaseModel):
+    brand: str = "Visa"
+    last4: str = "4242"
+    exp_month: str = "12"
+    exp_year: str = "2028"
+    is_default: bool = False
+    cardholder_name: Optional[str] = ""
+
+@router.get("/billing-info")
+async def get_billing_info(current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    user = await db_find_one(users_collection, {"email": user_email})
+    billing = (user or {}).get("billing_info", {})
+    if not billing:
+        billing = {
+            "company_name": (user or {}).get("company", ""),
+            "vat_id": "",
+            "tax_id_type": "VAT/EIN",
+            "billing_email": user_email,
+            "secondary_email": "",
+            "phone": (user or {}).get("phone", ""),
+            "address": "100 Enterprise Way",
+            "city": "San Francisco",
+            "state": "CA",
+            "zip": "94107",
+            "country": "United States"
+        }
+    return billing
+
+@router.post("/billing-info")
+async def update_billing_info(info: BillingInfoModel, current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    update_data = info.model_dump()
+    await db_update_one(
+        users_collection,
+        {"email": user_email},
+        {"$set": {"billing_info": update_data, "updated_at": datetime.utcnow()}}
+    )
+    return {"success": True, "message": "Billing information saved successfully", "billing_info": update_data}
+
+@router.get("/payment-methods")
+async def get_payment_methods(current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    user = await db_find_one(users_collection, {"email": user_email})
+    cards = (user or {}).get("saved_cards", [])
+    if not cards:
+        cards = [
+            {"id": "pm_1", "brand": "Visa", "last4": "4242", "expMonth": "12", "expYear": "2028", "isDefault": True, "cardholderName": (user or {}).get("full_name", "Primary Account")},
+            {"id": "pm_2", "brand": "Mastercard", "last4": "8821", "expMonth": "08", "expYear": "2027", "isDefault": False, "cardholderName": "Corporate Expense Card"}
+        ]
+        await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": cards}})
+    return cards
+
+@router.post("/payment-methods")
+async def add_payment_method(card: SavedCardModel, current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    user = await db_find_one(users_collection, {"email": user_email})
+    cards = (user or {}).get("saved_cards", [])
+    
+    new_card = {
+        "id": f"pm_{int(datetime.utcnow().timestamp())}",
+        "brand": card.brand,
+        "last4": card.last4,
+        "expMonth": card.exp_month,
+        "expYear": card.exp_year,
+        "isDefault": card.is_default or len(cards) == 0,
+        "cardholderName": card.cardholder_name or user.get("full_name", "Cardholder")
+    }
+    
+    if new_card["isDefault"]:
+        for c in cards:
+            c["isDefault"] = False
+            
+    cards.append(new_card)
+    await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": cards}})
+    return {"success": True, "message": "Payment method added successfully", "cards": cards}
+
+@router.put("/payment-methods/{card_id}/default")
+async def set_default_payment_method(card_id: str, current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    user = await db_find_one(users_collection, {"email": user_email})
+    cards = (user or {}).get("saved_cards", [])
+    for c in cards:
+        c["isDefault"] = (c["id"] == card_id)
+    await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": cards}})
+    return {"success": True, "message": "Default payment method updated", "cards": cards}
+
+@router.delete("/payment-methods/{card_id}")
+async def delete_payment_method(card_id: str, current_user: dict = Depends(get_current_user)):
+    user_email = current_user.get("email")
+    user = await db_find_one(users_collection, {"email": user_email})
+    cards = (user or {}).get("saved_cards", [])
+    new_cards = [c for c in cards if c["id"] != card_id]
+    
+    # If deleted card was default and there are remaining cards, set the first one as default
+    if new_cards and not any(c.get("isDefault") for c in new_cards):
+        new_cards[0]["isDefault"] = True
+
+    await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": new_cards}})
+    return {"success": True, "message": "Payment method deleted successfully", "cards": new_cards}

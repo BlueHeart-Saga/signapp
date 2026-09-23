@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import "../style/AboutHero.css";
 import { useNavigate } from "react-router-dom";
+import ProductDemoModal from "../components/ProductDemoModal";
 
 const AboutHero = () => {
   const navigate = useNavigate();
+  const [demoOpen, setDemoOpen] = useState(false);
+
   return (
     <section className="about-hero">
 
@@ -21,7 +24,7 @@ const AboutHero = () => {
 
         <div className="about-hero-actions">
           <button className="btn-primary1" onClick={() => navigate("/login")}>Get Started</button>
-          <button className="herocss-btn-secondary" onClick={() => navigate("/login")}>Book Demo</button>
+          <button className="herocss-btn-secondary" onClick={() => setDemoOpen(true)}>Book Demo</button>
         </div>
       </div>
 
@@ -34,6 +37,7 @@ const AboutHero = () => {
         />
       </div>
 
+      <ProductDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   );
 };

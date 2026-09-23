@@ -39,7 +39,7 @@ async def send_otp_email(to_email: str, otp: str, documents_count: int):
         msg = MIMEMultipart()
         msg['From'] = FROM_EMAIL
         msg['To'] = to_email
-        msg['Subject'] = "Your Document Access Code - SafeSign"
+        msg['Subject'] = "Your Document Access Code - Esigniva"
         
         # Create email body
         body = f"""
@@ -64,7 +64,7 @@ async def send_otp_email(to_email: str, otp: str, documents_count: int):
                             <!-- Header -->
                             <tr>
                                 <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-                                    <span class="brand-name">SafeSign</span>
+                                    <span class="brand-name">Esigniva</span>
                                 </td>
                             </tr>
                             
@@ -96,7 +96,7 @@ async def send_otp_email(to_email: str, otp: str, documents_count: int):
                             <tr>
                                 <td style="padding: 30px; text-align: center; background: #f8fafc; border-top: 1px solid #f1f5f9;">
                                     <p style="margin: 0; font-size: 13px; color: #94a3b8;">
-                                        &copy; {current_year} SafeSign. All rights reserved.<br>
+                                        &copy; {current_year} Esigniva. All rights reserved.<br>
                                         Secure electronic signatures powered by AI
                                     </p>
                                 </td>

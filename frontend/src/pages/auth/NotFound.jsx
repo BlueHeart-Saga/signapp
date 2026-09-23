@@ -48,7 +48,7 @@ const styles = {
     fontSize: "64px",
     fontWeight: "700",
     margin: "0",
-    color: "#0f766e", // SafeSign teal
+    color: "#0f766e", // Esigniva teal
   },
   title: {
     margin: "12px 0 8px",

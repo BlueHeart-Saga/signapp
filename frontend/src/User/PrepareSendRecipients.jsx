@@ -29,7 +29,8 @@ import {
   FaEllipsisV,
   FaCheckCircle,
   FaExclamationCircle,
-  FaInfo
+  FaInfo,
+  FaCloudUploadAlt
 } from 'react-icons/fa';
 import {
   DragDropContext,
@@ -1853,80 +1854,155 @@ export default function PrepareSendRecipients() {
         <div className="zoho-add-documents">
           <h3 className="zoho-section-title">Add documents</h3>
 
-          {selectedFiles.length >= 2 && (
-            <div className="zoho-merge-bar">
-              <span>{selectedFiles.length} files selected</span>
-
-              <button
-                className="zoho-merge-action-btn"
-                onClick={() => {
-                  setMergedFilename(
-                    files.find(f => f.id === selectedFiles[0])?.filename
-                      ?.replace(/\.pdf$/i, "") || "Merged Document"
-                  );
-                  setMergeConfirmOpen(true);
-
+          {(!files || files.length === 0) ? (
+            <div
+              className="zoho-empty-upload-box"
+              onClick={() => {
+                if (document.status === "draft") {
+                  setMergeOpen(true);
+                }
+              }}
+              style={{
+                border: "2px dashed #cbd5e1",
+                borderRadius: "16px",
+                padding: "36px 24px",
+                textAlign: "center",
+                backgroundColor: "#f8fafc",
+                cursor: document.status === "draft" ? "pointer" : "default",
+                transition: "all 0.2s ease-in-out",
+                marginTop: "16px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "12px"
+              }}
+            >
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  backgroundColor: "#eff6ff",
+                  color: "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "26px",
+                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.15)"
                 }}
               >
-                Merge
-              </button>
-
-              <button
-                className="zoho-clear-btn"
-                onClick={() => setSelectedFiles([])}
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
-
-
-          <DragDropContext onDragEnd={handleFileDragEnd}>
-            <Droppable droppableId="files" direction="horizontal">
-              {(provided) => (
-                <div
-                  className="zoho-doc-grid"
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
+                <FaCloudUploadAlt />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, color: "#0f172a", fontSize: "16px", fontWeight: 700 }}>
+                  No documents added yet
+                </h4>
+                <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px", maxWidth: "380px" }}>
+                  Upload PDF or Word files to include them in this signature request envelope.
+                </p>
+              </div>
+              {document.status === "draft" && (
+                <button
+                  type="button"
+                  className="ds-add-doc-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMergeOpen(true);
+                  }}
+                  style={{
+                    marginTop: "4px",
+                    padding: "10px 22px",
+                    backgroundColor: "#2563eb",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)"
+                  }}
                 >
-                  {Array.isArray(files) && files.map((file, index) => (
-                    <Draggable
-                      key={file.id}
-                      draggableId={file.id}
-                      index={index}
-                      isDragDisabled={document.status !== "draft"}
-                    >
-                      {(provided) => (
-                        <ZohoFileCard
-                          file={file}
-                          documentId={document.id}
-                          provided={provided}
-                          onReload={reloadFiles}
-                          selectedFiles={selectedFiles}
-                          setSelectedFiles={setSelectedFiles}
-                          setConfirmDialog={setConfirmDialog}
-                          onReplace={handleReplaceFile}
-                          onPreview={(page) => {
-                            setActivePage(page);
-                            setViewerOpen(true);
-                          }}
-                        />
+                  <FaPlus fontSize="12px" /> Add Document
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {selectedFiles.length >= 2 && (
+                <div className="zoho-merge-bar">
+                  <span>{selectedFiles.length} files selected</span>
 
+                  <button
+                    className="zoho-merge-action-btn"
+                    onClick={() => {
+                      setMergedFilename(
+                        files.find(f => f.id === selectedFiles[0])?.filename
+                          ?.replace(/\.pdf$/i, "") || "Merged Document"
+                      );
+                      setMergeConfirmOpen(true);
+                    }}
+                  >
+                    Merge
+                  </button>
 
-                      )}
-                    </Draggable>
-                  ))}
-
-                  {provided.placeholder}
-
-                  {document.status === "draft" && (
-                    <AddFileCard onClick={() => setMergeOpen(true)} />
-                  )}
+                  <button
+                    className="zoho-clear-btn"
+                    onClick={() => setSelectedFiles([])}
+                  >
+                    Clear
+                  </button>
                 </div>
               )}
-            </Droppable>
-          </DragDropContext>
+
+              <DragDropContext onDragEnd={handleFileDragEnd}>
+                <Droppable droppableId="files" direction="horizontal">
+                  {(provided) => (
+                    <div
+                      className="zoho-doc-grid"
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                    >
+                      {Array.isArray(files) && files.map((file, index) => (
+                        <Draggable
+                          key={file.id}
+                          draggableId={file.id}
+                          index={index}
+                          isDragDisabled={document.status !== "draft"}
+                        >
+                          {(provided) => (
+                            <ZohoFileCard
+                              file={file}
+                              documentId={document.id}
+                              provided={provided}
+                              onReload={reloadFiles}
+                              selectedFiles={selectedFiles}
+                              setSelectedFiles={setSelectedFiles}
+                              setConfirmDialog={setConfirmDialog}
+                              onReplace={handleReplaceFile}
+                              onPreview={(page) => {
+                                setActivePage(page);
+                                setViewerOpen(true);
+                              }}
+                            />
+                          )}
+                        </Draggable>
+                      ))}
+
+                      {provided.placeholder}
+
+                      {document.status === "draft" && (
+                        <AddFileCard onClick={() => setMergeOpen(true)} />
+                      )}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </>
+          )}
         </div>
 
 

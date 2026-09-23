@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import {
@@ -341,64 +341,96 @@ export default function MyDocuments() {
   //   }
   // };
 
+  const uploadAbortControllerRef = useRef(null);
+
+  const cancelUpload = useCallback(() => {
+    if (uploadAbortControllerRef.current) {
+      try {
+        uploadAbortControllerRef.current.abort();
+      } catch (e) {
+        console.warn("Abort error:", e);
+      }
+      uploadAbortControllerRef.current = null;
+    }
+    setLoading(false);
+    setUploadProgress(0);
+    setProcessingMsg("");
+    setSnackbar({ open: true, message: "Upload cancelled by user", severity: "info" });
+  }, []);
+
   const handleUpload = async (uploadFile) => {
     if (!uploadFile) return;
 
+    // Create fresh AbortController for this upload session
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
+
     setLoading(true);
-    setUploadProgress(0);
-    setProcessingMsg("Uploading document to server...");
+    setUploadProgress(1);
+    setProcessingMsg("Transferring document to server... 1%");
 
     try {
-      // 1. Initial Upload (scaled to 0-50% in DocumentAPI)
-      const res = await uploadDocument(uploadFile, (percent) => {
-        setUploadProgress(percent);
-        if (percent >= 50) {
-          setProcessingMsg("Transferred! Converting and processing...");
-        }
-      });
+      // 1. Initial Upload with real byte progress (1% to 85%)
+      const res = await uploadDocument(
+        uploadFile,
+        (percent) => {
+          if (controller.signal.aborted) return;
+          const mapped = Math.min(85, Math.max(1, Math.round(percent * 0.85)));
+          setUploadProgress(mapped);
+          setProcessingMsg(`Transferring document to server... ${percent}%`);
+        },
+        controller.signal
+      );
+
+      if (controller.signal.aborted) return;
 
       console.log("UPLOAD RESPONSE (INITIAL):", res);
       const docId = res?.document_id || res?.document?.id;
       if (!docId) throw new Error("Upload API did not return document id");
 
-      // 2. Poll for Background Processing Status (handles 50-100%)
+      // 2. Poll for Background Processing Status (85% to 99%)
+      setUploadProgress(85);
+      setProcessingMsg("Transferred! Converting and processing document...");
+
       let isDone = false;
       let pollCount = 0;
       const MAX_POLLS = 120; // 2 minutes max polling
 
       while (!isDone && pollCount < MAX_POLLS) {
+        if (controller.signal.aborted) return;
+
         pollCount++;
-        // Wait 1 second between polls
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 600));
+
+        if (controller.signal.aborted) return;
 
         try {
           const statusRes = await getDocumentStatus(docId);
+          if (controller.signal.aborted) return;
+
           const backendProgress = statusRes.progress || 0;
           const backendMsg = statusRes.processing_status || "Processing...";
 
-          // Map backend progress (20-100) to frontend progress (50-100)
-          // Since backend starts at 20% after upload is confirmed
-          let mappedProgress = 50;
-          if (backendProgress > 20) {
-            mappedProgress = 50 + Math.round((backendProgress - 20) * (50 / 80));
-          }
+          // Map backend progress (0-100) to frontend display range (85-99%)
+          const mappedProgress = Math.min(99, 85 + Math.round((backendProgress / 100) * 14));
 
-          setUploadProgress(Math.min(mappedProgress, 99));
+          setUploadProgress(mappedProgress);
           setProcessingMsg(backendMsg);
 
           if (statusRes.status !== "processing" || backendProgress >= 100) {
             isDone = true;
           }
         } catch (pollErr) {
-          console.error("Status check failed:", pollErr);
-          // If status check fails, we might just stop polling and assume it's working
-          // or wait for the next iteration
+          console.error("Status check error:", pollErr);
+          if (pollCount > 5) isDone = true;
         }
       }
 
-      // 3. Finalization
+      if (controller.signal.aborted) return;
+
+      // 3. Finalization (100%)
       setUploadProgress(100);
-      setProcessingMsg("Complete");
+      setProcessingMsg("Complete!");
 
       // Fetch the final document data
       const finalDocRes = await getDocumentsPaged(1, 10, filters.status);
@@ -410,12 +442,19 @@ export default function MyDocuments() {
       loadDocs();
 
     } catch (err) {
+      if (err.name === "CanceledError" || err.name === "AbortError" || controller.signal.aborted) {
+        console.log("Upload request aborted by user.");
+        return;
+      }
       console.error("Upload error:", err);
-      setSnackbar({ open: true, message: err.message || "Upload failed", severity: "error" });
+      setSnackbar({ open: true, message: err.response?.data?.detail || err.message || "Upload failed", severity: "error" });
     } finally {
-      setLoading(false);
-      setUploadProgress(0);
-      setProcessingMsg("");
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setUploadProgress(0);
+        setProcessingMsg("");
+        uploadAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -1251,10 +1290,7 @@ export default function MyDocuments() {
 
                   <button
                     className="uploading-cancel-btn"
-                    onClick={() => {
-                      setLoading(false);
-                      setUploadProgress(0);
-                    }}
+                    onClick={cancelUpload}
                   >
                     Cancel
                   </button>
@@ -1524,8 +1560,8 @@ export default function MyDocuments() {
         </div>
 
 
-        <div className="safesign-pagination">
-          <div className="safesign-pagination-info">
+        <div className="esigniva-pagination">
+          <div className="esigniva-pagination-info">
             Showing{" "}
             {totalDocs === 0 ? 0 : (currentPage - 1) * pageSize + 1}
             {" – "}
@@ -1533,7 +1569,7 @@ export default function MyDocuments() {
           </div>
 
 
-          <div className="safesign-pagination-center">
+          <div className="esigniva-pagination-center">
             Rows
             <select
               value={pageSize}
@@ -1549,21 +1585,21 @@ export default function MyDocuments() {
             </select>
           </div>
 
-          <div className="safesign-pagination-controls">
+          <div className="esigniva-pagination-controls">
             <button
-              className="safesign-page-btn"
+              className="esigniva-page-btn"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(currentPage - 1)}
             >
               ← Previous
             </button>
 
-            <span className="safesign-page-current">
+            <span className="esigniva-page-current">
               Page {currentPage} of {totalPages}
             </span>
 
             <button
-              className="safesign-page-btn"
+              className="esigniva-page-btn"
               disabled={currentPage >= totalPages || totalDocs === 0}
               onClick={() => setCurrentPage(currentPage + 1)}
             >

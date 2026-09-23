@@ -1,7 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import React from 'react';
 import { FileText, Shield, Users } from 'lucide-react';
 import AboutHero from './AboutHero';
-import AboutSafeSignSection from './AboutSafeSignSection';
+import AboutEsignivaSection from './AboutEsignivaSection';
 import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 import {
@@ -17,14 +18,14 @@ export default function About() {
 
   useEffect(() => {
     setPageTitle(
-      "About SafeSign | Our Mission for Secure Digital Signatures",
-      "Discover SafeSign's mission to provide the world's most secure and user-friendly digital signature platform. Learn how we empower businesses with legally binding e-signatures and automated document workflows."
+      "About Esigniva | Our Mission for Secure Digital Signatures",
+      "Discover Esigniva's mission to provide the world's most secure and user-friendly digital signature platform. Learn how we empower businesses with legally binding e-signatures and automated document workflows."
     );
   }, []);
   return (
     <div className="about-page">
       <AboutHero />
-      {/* <AboutSafeSignSection /> */}
+      {/* <AboutEsignivaSection /> */}
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-container">
@@ -34,7 +35,7 @@ export default function About() {
               Trusted Everywhere.
             </h1>
             <p className="hero-description">
-              SafeSign is a secure, cloud-based digital signature platform that helps
+              Esigniva is a secure, cloud-based digital signature platform that helps
               businesses sign, send, and manage documents faster—without paperwork or delays.
             </p>
 
@@ -100,7 +101,7 @@ export default function About() {
           <div className="simple-content">
             <h2 className="simple-title">Simple, Fast, and Paperless</h2>
             <p className="simple-description">
-              SafeSign removes friction from document signing by digitizing every step
+              Esigniva removes friction from document signing by digitizing every step
               of the process.
             </p>
 

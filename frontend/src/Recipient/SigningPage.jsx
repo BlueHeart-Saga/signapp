@@ -965,7 +965,7 @@ const DocumentPageThumbnail = React.memo(({
                     {fields
                         .filter((f) => f.page === pageNumber - 1)
                         .map((f, idx) => {
-                            // Standard PDF Dimensions (SafeSign uses 612x792 points as standard)
+                            // Standard PDF Dimensions (Esigniva uses 612x792 points as standard)
                             const PDF_W = 612;
                             const PDF_H = 792;
 

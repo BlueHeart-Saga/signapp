@@ -82,11 +82,12 @@ import DocumentSummary from "./User/DocumentSummary";
 import AdminBanner from "./Admin/AdminBanner";
 import AbusePolicy from "./Home/AbusePolicy";
 import ComplaintsStandards from "./Home/ComplaintsStandards";
-import SafeSignFAQ from "./Home/SafeSignFAQ";
+import EsignivaFAQ from "./Home/EsignivaFAQ";
 import TrademarkPolicy from "./Home/TrademarkPolicy";
 import DeletedDocuments from "./components/DeletedDocuments";
 import ComplaintPage from "./Home/ComplaintPage";
 import AdminComplaints from "./Admin/AdminComplaints";
+import AdminFeedback from "./Admin/AdminFeedback";
 import AdminEnvelopeManagement from "./Admin/AdminEnvelopeManagement";
 import VoidedDocumentView from "./Recipient/VoidedDocumentView";
 import DeclinedDocumentView from "./Recipient/DeclinedDocumentView";
@@ -96,6 +97,8 @@ import Contacts from "./User/Contacts";
 import DocumentMainLayout from "./User/editor/DocumentMainLayout";
 import ExpiredDocumentView from "./Recipient/ExpiredDocumentView";
 import PlanGuard from "./components/PlanGuard";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ServerOfflineBanner from "./components/ServerOfflineBanner";
 
 
 function AnimatedRoutes() {
@@ -111,7 +114,7 @@ function AnimatedRoutes() {
   useEffect(() => {
     setPageTitle(
       "Home",
-      "Safesign is the premier AI-powered e-signature platform. Securely sign, automate, and manage your documents with enterprise-grade tools."
+      "Esigniva is the premier AI-powered e-signature platform. Securely sign, automate, and manage your documents with enterprise-grade tools."
     );
   }, []);
 
@@ -225,7 +228,7 @@ function AnimatedRoutes() {
           <Route path="/abusepolicy" element={<AbusePolicy />} />
           <Route path="/complaints" element={<ComplaintsStandards />} />
           <Route path="/trademarkpolicy" element={<TrademarkPolicy />} />
-          <Route path="/faq" element={<SafeSignFAQ />} />
+          <Route path="/faq" element={<EsignivaFAQ />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/cookies" element={<Cookies />} />
 
@@ -274,6 +277,7 @@ function AnimatedRoutes() {
                   <Route path="logo" element={<DynamicLogo />} />
                   <Route path="banner" element={<AdminBanner />} />
                   <Route path="complaints" element={<AdminComplaints />} />
+                  <Route path="feedback" element={<AdminFeedback />} />
                   <Route path="envelopes" element={<AdminEnvelopeManagement />} />
                 </Routes>
               </Layout>
@@ -393,17 +397,19 @@ function AnimatedRoutes() {
 }
 function App() {
   return (
-    <AuthProvider>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-        }}
-      />
-      <Router>
-        <AnimatedRoutes />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+          }}
+        />
+        <Router>
+          <AnimatedRoutes />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

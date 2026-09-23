@@ -19,7 +19,10 @@ import os
 import secrets
 import asyncio
 from storage import storage
-from authlib.integrations.starlette_client import OAuth
+try:
+    from authlib.integrations.starlette_client import OAuth
+except ImportError:
+    OAuth = None
 from starlette.requests import Request
 from starlette.config import Config
 from starlette.middleware.sessions import SessionMiddleware
@@ -235,7 +238,7 @@ async def send_otp_email(email: str, otp: str):
     
     # 1. Fetch Branding Info
     branding = await db_find_one(db.branding, {})
-    platform_name = "SafeSign"
+    platform_name = "Esigniva"
     if branding:
         platform_name = branding.get("platform_name", platform_name)
     
@@ -300,7 +303,7 @@ async def send_otp_email(email: str, otp: str):
                                             <img src="cid:logo" alt="Logo" style="height: 32px; width: auto; display: block;">
                                         </td>
                                         <td style="vertical-align: middle; padding-left: 10px;">
-                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">SafeSign</span>
+                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">Esigniva</span>
                                         </td>
                                     </tr>
                                 </table>
@@ -319,7 +322,7 @@ async def send_otp_email(email: str, otp: str):
                             <td style="padding: 40px 20px 30px;">
                                 <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; font-weight: 700;">Hello,</h2>
                                 <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #475569;">
-                                    A login attempt was detected on your <strong>SafeSign</strong> account. Use the one-time passcode below to complete your authentication.
+                                    A login attempt was detected on your <strong>Esigniva</strong> account. Use the one-time passcode below to complete your authentication.
                                 </p>
                                 
                                 <!-- OTP Section (Strict Single Row) -->
@@ -352,12 +355,12 @@ async def send_otp_email(email: str, otp: str):
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
                                 <!-- Policy Links (Exactly as image) -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
                                     <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
                                 </div>
 
@@ -417,11 +420,11 @@ async def send_otp_email(email: str, otp: str):
 
 async def send_welcome_email(email: str, full_name: str = ""):
     """Send high-fidelity Welcome email for new users with embedded assets"""
-    subject = "Welcome to SafeSign"
+    subject = "Welcome to Esigniva"
     
     # 1. Fetch Branding Info
     branding = await db_find_one(db.branding, {})
-    platform_name = "SafeSign"
+    platform_name = "Esigniva"
     if branding:
         platform_name = branding.get("platform_name", platform_name)
     
@@ -482,7 +485,7 @@ async def send_welcome_email(email: str, full_name: str = ""):
                                             <img src="cid:logo" alt="Logo" style="height: 32px; width: auto; display: block;">
                                         </td>
                                         <td style="vertical-align: middle; padding-left: 10px;">
-                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">SafeSign</span>
+                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">Esigniva</span>
                                         </td>
                                     </tr>
                                 </table>
@@ -492,7 +495,7 @@ async def send_welcome_email(email: str, full_name: str = ""):
                         <!-- Full-Width Banner (No side padding) -->
                         <tr>
                             <td style="padding: 0;">
-                                <img src="cid:banner" alt="Welcome to SafeSign" style="width: 100%; height: auto; display: block; border: 0;">
+                                <img src="cid:banner" alt="Welcome to Esigniva" style="width: 100%; height: auto; display: block; border: 0;">
                             </td>
                         </tr>
                         
@@ -502,7 +505,7 @@ async def send_welcome_email(email: str, full_name: str = ""):
                                 <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; font-weight: 700;">{greeting}</h2>
                                 
                                 <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #475569;">
-                                    Thank you for showing interest in <strong>SafeSign</strong>.
+                                    Thank you for showing interest in <strong>Esigniva</strong>.
                                 </p>
                                 
                                 <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #475569;">
@@ -518,7 +521,7 @@ async def send_welcome_email(email: str, full_name: str = ""):
                                     <table border="0" cellspacing="0" cellpadding="0">
                                         <tr>
                                             <td align="center" bgcolor="#00A3A3" style="border-radius: 8px;">
-                                                <a href="https://safesign.devopstrio.co.uk/login" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 12px 30px; display: inline-block; font-weight: 700;">
+                                                <a href="https://esigniva.devopstrio.co.uk/login" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 12px 30px; display: inline-block; font-weight: 700;">
                                                     Click to proceed
                                                 </a>
                                             </td>
@@ -527,7 +530,7 @@ async def send_welcome_email(email: str, full_name: str = ""):
                                 </div>
                                 
                                 <p style="margin: 0; font-size: 15px; color: #475569;">Best,</p>
-                                <p style="margin: 5px 0 0; font-size: 15px; font-weight: 700; color: #1e293b;">SafeSign Team.</p>
+                                <p style="margin: 5px 0 0; font-size: 15px; font-weight: 700; color: #1e293b;">Esigniva Team.</p>
                             </td>
                         </tr>
                         
@@ -536,12 +539,12 @@ async def send_welcome_email(email: str, full_name: str = ""):
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
                                 <!-- Policy Links (Exactly as image) -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
                                     <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
                                 </div>
 
@@ -847,8 +850,23 @@ async def auto_assign_free_trial(email: str, name: str, user_doc: dict):
             "is_premium": True,
             "subscription_plan": PlanType.FREE_TRIAL.value,
             "subscription_expiry": expiry_date,
-            "subscription_updated_at": start_date
+            "subscription_updated_at": start_date,
+            "credit_balance": 100,
+            "credit_plan_limit": 100,
+            "credit_reset_date": expiry_date
         })
+
+        # Allocate 100 Free Trial credits in ledger
+        from services.credit_service import CreditService
+        await CreditService.allocate_credits(
+            user_id="",
+            email=email.lower(),
+            amount=100,
+            source="free_trial",
+            reference_id=transaction_id,
+            expires_at=expiry_date,
+            description="Welcome 100 Free Trial Credits"
+        )
     except Exception as sub_err:
         print(f"Warning: Failed to auto-assign free trial: {sub_err}")
 
@@ -1389,17 +1407,18 @@ async def forgot_password(
 ):
     """Request password reset OTP"""
     try:
-        email = request.email.lower()
+        email = request.email.lower().strip()
 
         user = await db_find_one(db.users, {"email": email})
 
-        # Security: do NOT reveal user existence
+        # Check if user exists
         if not user:
-            return {
-                "message": "If the email exists, a password reset OTP has been sent"
-            }
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email address. Please check your email or register a new account."
+            )
 
-        if not user.get("is_active", False):
+        if not user.get("is_active", True):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is suspended. Please contact support."
@@ -1427,7 +1446,7 @@ async def forgot_password(
         background_tasks.add_task(send_otp_email, email, otp)
 
         return {
-            "message": "If the email exists, a password reset OTP has been sent"
+            "message": "Password reset code sent to your registered email address."
         }
 
     except HTTPException:
@@ -1915,6 +1934,8 @@ async def update_profile(
     time_zone: str = Form(None),
     reminder_days: Optional[int] = Form(None),
     expiry_days: Optional[int] = Form(None),
+    signature_text: Optional[str] = Form(None),
+    initials_text: Optional[str] = Form(None),
     profile_picture: UploadFile = File(None),
     stamp_image: UploadFile = File(None),
     current_user: dict = Depends(get_current_user)
@@ -1932,6 +1953,8 @@ async def update_profile(
             "time_zone": time_zone,
             "reminder_days": reminder_days,
             "expiry_days": expiry_days,
+            "signature_text": signature_text,
+            "initials_text": initials_text,
             "updated_at": datetime.utcnow()
         }
 

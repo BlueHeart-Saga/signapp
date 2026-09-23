@@ -96,8 +96,8 @@ export default function ProfileSetupModal({ onComplete }) {
     try {
       setLoading(true);
 
-      // Set default name as "SafeSign User"
-      const defaultName = "SafeSign User";
+      // Set default name as "Esigniva User"
+      const defaultName = "Esigniva User";
 
       const formData = new FormData();
       formData.append("full_name", defaultName);
@@ -138,7 +138,7 @@ export default function ProfileSetupModal({ onComplete }) {
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
       const updatedUser = {
         ...currentUser,
-        full_name: "SafeSign User"
+        full_name: "Esigniva User"
       };
       localStorage.setItem("user", JSON.stringify(updatedUser));
       onComplete(updatedUser);

@@ -835,7 +835,7 @@ async def generate_html_report(
                 <div class="report-header">
                     <div>
                         <div class="brand-logo mb-1">
-                            <i class="bi bi-shield-check"></i> SafeSign
+                            <i class="bi bi-shield-check"></i> Esigniva
                         </div>
                         <h1 class="h4 mb-0 fw-bold">Electronic Record & Audit Trail</h1>
                     </div>
@@ -958,7 +958,7 @@ async def generate_html_report(
                 </div>
                 
                 <div class="footer">
-                    <p class="mb-1">Audit Record generated on {data['metadata']['report_generated']} by SafeSign Infrastructure</p>
+                    <p class="mb-1">Audit Record generated on {data['metadata']['report_generated']} by Esigniva Infrastructure</p>
                     <p class="mb-0">Secure electronic identifier: {data['document'].get('envelope_id', 'N/A')}</p>
                     <p class="mt-2 text-muted" style="font-size: 0.7rem;">Verified audit trail containing ({len(data['timeline_events'])}) chronological document lifecycle events.</p>
                 </div>

@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
-import { Search, Calendar, Clock, User, ChevronRight, Mail, TrendingUp, FileText } from 'lucide-react';
-
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Calendar, Clock, User, ChevronRight, Mail, TrendingUp, FileText, X, ArrowRight, BookOpen } from 'lucide-react';
 import { setPageTitle } from "../utils/pageTitle";
-import { useEffect } from "react";
 
 const BlogPage = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     setPageTitle(
-      "SafeSign E-Signature Blog | Expert Insights & Legal Guides",
-      "Stay updated with the latest in electronic signatures, document security, and legal compliance. Expert guides and industry insights from the SafeSign team."
+      "Esigniva E-Signature Blog | Expert Insights & Legal Guides",
+      "Stay updated with the latest in electronic signatures, document security, and legal compliance. Expert guides and industry insights from the Esigniva team."
     );
   }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Articles');
+  const [selectedArticle, setSelectedArticle] = useState(null);
 
   const categories = [
     { name: 'All Articles', count: 24 },
@@ -41,7 +42,7 @@ const BlogPage = () => {
       category: 'Security & Privacy',
       categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=500&fit=crop',
-      title: 'Bank-Level Security: How SafeSign Protects Your Sensitive Documents',
+      title: 'Bank-Level Security: How Esigniva Protects Your Sensitive Documents',
       excerpt: 'Discover the advanced security measures we implement to keep your documents and signatures completely secure.',
       author: 'Michael Chen',
       authorRole: 'Security Engineer',
@@ -176,8 +177,8 @@ const BlogPage = () => {
       category: 'E-Signature Guides',
       categoryColor: '#0f766e',
       image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
-      title: 'Integrating SafeSign with Your CRM: A Step-by-Step Guide',
-      excerpt: 'Learn how to seamlessly connect SafeSign with popular CRM platforms like Salesforce and HubSpot.',
+      title: 'Integrating Esigniva with Your CRM: A Step-by-Step Guide',
+      excerpt: 'Learn how to seamlessly connect Esigniva with popular CRM platforms like Salesforce and HubSpot.',
       author: 'Alex Turner',
       authorRole: 'Integration Specialist',
       date: '2025-1-10',
@@ -238,7 +239,7 @@ const BlogPage = () => {
           <div className="safe-hero-content">
             <div className="safe-hero-badge">
               <FileText size={18} />
-              <span>SafeSign Insights</span>
+              <span>Esigniva Insights</span>
             </div>
             <h1 className="safe-hero-title">E-Signature Expertise & Industry Insights</h1>
             <p className="safe-hero-subtitle">
@@ -306,7 +307,12 @@ const BlogPage = () => {
                           </div>
                         </div>
 
-
+                        <button 
+                          className="safe-read-more-btn"
+                          onClick={() => setSelectedArticle(article)}
+                        >
+                          Read Article <ChevronRight size={16} />
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -363,6 +369,13 @@ const BlogPage = () => {
                             </div>
                           </div>
                         </div>
+
+                        <button 
+                          className="safe-read-more-btn"
+                          onClick={() => setSelectedArticle(article)}
+                        >
+                          Read Article <ChevronRight size={16} />
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -385,9 +398,9 @@ const BlogPage = () => {
             <aside className="safe-blog-sidebar">
               {/* About Section */}
               <div className="safe-sidebar-card">
-                <h3 className="safe-sidebar-title">About SafeSign Blog</h3>
+                <h3 className="safe-sidebar-title">About Esigniva Blog</h3>
                 <p className="safe-sidebar-text">
-                  Welcome to the official SafeSign blog. We publish expert insights on electronic signatures,
+                  Welcome to the official Esigniva blog. We publish expert insights on electronic signatures,
                   document security, legal compliance, and digital transformation strategies to help businesses
                   succeed in the digital age.
                 </p>
@@ -401,12 +414,18 @@ const BlogPage = () => {
                 </div>
                 <div className="safe-popular-list">
                   {popularArticles.map((article) => (
-                    <div key={article.id} className="safe-popular-item">
+                    <div 
+                      key={article.id} 
+                      className="safe-popular-item"
+                      onClick={() => setSelectedArticle(article)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <div className="safe-popular-image">
                         <img src={article.image} alt={article.title} />
                       </div>
                       <div className="safe-popular-content">
                         <h4 className="safe-popular-title">{article.title}</h4>
+                        <p className="safe-popular-preview">{article.excerpt || 'Read expert insights on e-signatures...'}</p>
                         <div className="safe-popular-meta">
                           <span className="safe-popular-date">{article.date}</span>
                           <span className="safe-popular-views">{article.views} views</span>
@@ -467,6 +486,216 @@ const BlogPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Blog Article Reader Modal */}
+      {selectedArticle && (
+        <div className="safe-blog-modal-overlay" onClick={() => setSelectedArticle(null)}>
+          <div className="safe-blog-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="safe-blog-modal-close" onClick={() => setSelectedArticle(null)}>
+              <X size={20} />
+            </button>
+            <div className="safe-blog-modal-header">
+              <span className="safe-article-category" style={{ backgroundColor: selectedArticle.categoryColor || '#0f766e' }}>
+                {selectedArticle.category}
+              </span>
+              <h2>{selectedArticle.title}</h2>
+              <div className="safe-blog-modal-meta">
+                <span>By <strong>{selectedArticle.author || 'Esigniva Editorial'}</strong></span>
+                {selectedArticle.date && <span> • {selectedArticle.date}</span>}
+                {selectedArticle.readTime && <span> • {selectedArticle.readTime}</span>}
+              </div>
+            </div>
+
+            <div className="safe-blog-modal-body">
+              <img src={selectedArticle.image} alt={selectedArticle.title} className="safe-blog-modal-img" />
+              
+              <div className="safe-blog-modal-excerpt">
+                <strong>Article Preview & Summary:</strong>
+                <p>{selectedArticle.excerpt || 'Discover expert insights on electronic signatures, workflow security, and legal compliance.'}</p>
+              </div>
+
+              <div className="safe-blog-modal-text">
+                <h3>Key Legal & Operational Insights</h3>
+                <p>
+                  Electronic signatures have revolutionized business operations, driving turnaround times down from days to minutes while maintaining full legal enforceability under ESIGN, UETA, and eIDAS guidelines.
+                </p>
+                <p>
+                  To maximize compliance, ensure every signature captures comprehensive audit logs, verified IP addresses, cryptographic hashing, and recipient consent certificates.
+                </p>
+              </div>
+            </div>
+
+            <div className="safe-blog-modal-footer">
+              <button className="safe-modal-btn-primary" onClick={() => { setSelectedArticle(null); navigate("/login"); }}>
+                Start Free E-Sign Trial <ArrowRight size={16} />
+              </button>
+              <button className="safe-modal-btn-secondary" onClick={() => setSelectedArticle(null)}>
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        /* Blog Reader Modal & Buttons */
+        .safe-read-more-btn {
+          margin-top: 14px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #f0fdf4;
+          color: #0f766e;
+          border: 1px solid #bbf7d0;
+          padding: 8px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .safe-read-more-btn:hover {
+          background: #0f766e;
+          color: #ffffff;
+        }
+
+        .safe-popular-preview {
+          font-size: 12px;
+          color: #64748b;
+          margin: 4px 0;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .safe-blog-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(6px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          padding: 20px;
+        }
+
+        .safe-blog-modal-content {
+          background: #ffffff;
+          width: 100%;
+          max-width: 720px;
+          border-radius: 20px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          position: relative;
+          overflow: hidden;
+          max-height: 90vh;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .safe-blog-modal-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: #f1f5f9;
+          border: none;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #475569;
+        }
+
+        .safe-blog-modal-header {
+          padding: 28px 28px 16px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .safe-blog-modal-header h2 {
+          margin: 10px 0 6px;
+          font-size: 20px;
+          color: #0f172a;
+        }
+
+        .safe-blog-modal-meta {
+          font-size: 13px;
+          color: #64748b;
+        }
+
+        .safe-blog-modal-body {
+          padding: 24px 28px;
+          overflow-y: auto;
+          flex: 1;
+        }
+
+        .safe-blog-modal-img {
+          width: 100%;
+          height: 240px;
+          object-fit: cover;
+          border-radius: 12px;
+          margin-bottom: 20px;
+        }
+
+        .safe-blog-modal-excerpt {
+          background: #f8fafc;
+          border-left: 4px solid #0f766e;
+          padding: 14px 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 14px;
+          color: #334155;
+        }
+
+        .safe-blog-modal-text h3 {
+          font-size: 16px;
+          color: #0f172a;
+          margin-bottom: 10px;
+        }
+
+        .safe-blog-modal-text p {
+          font-size: 14px;
+          color: #475569;
+          line-height: 1.6;
+          margin-bottom: 14px;
+        }
+
+        .safe-blog-modal-footer {
+          padding: 18px 28px;
+          background: #f8fafc;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .safe-modal-btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: #0f766e;
+          color: #ffffff;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 10px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .safe-modal-btn-secondary {
+          background: #e2e8f0;
+          color: #334155;
+          border: none;
+          padding: 10px 18px;
+          border-radius: 10px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+      `}</style>
 
       <style jsx>{`
         /* Base Styles */

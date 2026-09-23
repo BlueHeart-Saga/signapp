@@ -6,25 +6,25 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
 const token = localStorage.getItem("token");
 
 // Upload local file
-export const uploadDocument = async (file, onProgress) => {
+export const uploadDocument = async (file, onProgress, signal) => {
   const formData = new FormData();
   formData.append("file", file);
 
   const res = await api.post("/documents/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
+    signal,
     onUploadProgress: (progressEvent) => {
       if (!progressEvent.total) return;
       const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-      if (onProgress) onProgress(Math.round(percent * 0.5)); // 50% for upload, 50% for backend processing
+      if (onProgress) onProgress(percent);
     }
   });
 
-  // ⭐ CRITICAL FIX
   return res.data;
 };
 
 
-export const addFileToDocument = async (documentId, file, onProgress) => {
+export const addFileToDocument = async (documentId, file, onProgress, signal) => {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -33,10 +33,11 @@ export const addFileToDocument = async (documentId, file, onProgress) => {
     formData,
     {
       headers: { "Content-Type": "multipart/form-data" },
+      signal,
       onUploadProgress: (progressEvent) => {
         if (!progressEvent.total) return;
         const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        if (onProgress) onProgress(percent * 0.8); // 80% for upload
+        if (onProgress) onProgress(percent);
       }
     }
   );
@@ -423,23 +424,42 @@ export const getDocumentsByStatus = async (status) => {
 };
 
 
-export const getRecentActivities = async (limit = 20) => {
+export const getRecentActivities = async (limit = 100, status = null) => {
   try {
-    // First try to get from audit logs
-    const response = await api.get('/documents/audit-logs/recent', { params: { limit } });
+    const params = { limit };
+    if (status && status !== 'all') {
+      params.status = status;
+    }
+    const response = await api.get('/documents/audit-logs/recent', { params });
     return response.data;
   } catch (error) {
-    // Fallback: generate activities from documents
-    const documents = await getDocuments();
-    const activities = documents.slice(0, limit).map(doc => ({
-      id: doc.id,
-      document_name: doc.filename,
-      type: `document_${doc.status}`,
-      timestamp: doc.uploaded_at,
-      status: doc.status,
-      document_id: doc.id
-    }));
-    return activities;
+    console.error("Error fetching recent activities:", error);
+    try {
+      const documents = await getDocuments();
+      let filtered = documents;
+      if (status && status !== 'all') {
+        if (status === 'deleted') {
+          filtered = documents.filter(doc => doc.is_deleted || doc.status === 'deleted');
+        } else if (status === 'in_progress') {
+          filtered = documents.filter(doc => !doc.is_deleted && (doc.status === 'in_progress' || doc.status === 'in-progress'));
+        } else {
+          filtered = documents.filter(doc => !doc.is_deleted && doc.status === status);
+        }
+      }
+      return filtered.slice(0, limit).map(doc => ({
+        id: doc.id || doc._id,
+        document_id: doc.id || doc._id,
+        document_name: doc.filename || doc.title || 'Untitled',
+        status: doc.is_deleted ? 'deleted' : (doc.status === 'in-progress' ? 'in_progress' : (doc.status || 'draft')),
+        action: `document_${doc.status || 'draft'}`,
+        timestamp: doc.updated_at || doc.uploaded_at || doc.created_at,
+        signers_total: doc.recipients ? doc.recipients.length : 0,
+        signers_completed: doc.recipients ? doc.recipients.filter(r => r.status === 'completed').length : 0
+      }));
+    } catch (fallbackError) {
+      console.error("Fallback failed:", fallbackError);
+      return [];
+    }
   }
 };
 

@@ -17,6 +17,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  MessageSquare,
   Circle
 } from "lucide-react";
 import axios from "axios";
@@ -30,7 +31,8 @@ const menuItems = {
     { name: "Templates", path: "/admin/templates", icon: <FileText size={18} /> },
     { name: "Envelope Management", path: "/admin/envelopes", icon: <Shield size={18} /> },
     { name: "Logo & Branding", path: "/admin/logo", icon: <Image size={18} /> },
-    { name: "Banners", path: "/admin/banner", icon: <Images size={18} /> }
+    { name: "Banners", path: "/admin/banner", icon: <Images size={18} /> },
+    { name: "Feedback & Inquiries", path: "/admin/feedback", icon: <MessageSquare size={18} /> }
   ],
   user: [
     { name: "Overview", path: "/user", icon: <Activity size={18} /> },
@@ -75,7 +77,7 @@ const menuItems = {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
   const [openSubmenus, setOpenSubmenus] = useState({ "/user/documents": true });
   const [hoveredPath, setHoveredPath] = useState(null);
@@ -116,11 +118,11 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside
-      className={`safesign-sidebar ${collapsed ? "safesign-sidebar--collapsed" : ""}`}
+      className={`esigniva-sidebar ${collapsed ? "esigniva-sidebar--collapsed" : ""}`}
       onClick={onToggle}
     >
-      <div className="safesign-sidebar__header">
-        <div className="safesign-sidebar__logo">
+      <div className="esigniva-sidebar__header">
+        <div className="esigniva-sidebar__logo">
           {logoUrl ? (
             <img
               src={logoUrl}
@@ -128,13 +130,13 @@ export default function Sidebar({ collapsed, onToggle }) {
               style={{ height: collapsed ? 22 : 28, objectFit: "contain" }}
             />
           ) : (
-            <Shield size={collapsed ? 20 : 24} className="safesign-sidebar__logo-icon" />
+            <Shield size={collapsed ? 20 : 24} className="esigniva-sidebar__logo-icon" />
           )}
-          {!collapsed && <span className="safesign-sidebar__logo-text">{brandName}</span>}
+          {!collapsed && <span className="esigniva-sidebar__logo-text">{brandName}</span>}
         </div>
       </div>
 
-      <nav className="safesign-sidebar__nav">
+      <nav className="esigniva-sidebar__nav">
         {items.map((item) => {
           const isParentActive = location.pathname.startsWith(item.path);
           const isOpen = openSubmenus[item.path];
@@ -145,20 +147,20 @@ export default function Sidebar({ collapsed, onToggle }) {
             return (
               <div
                 key={item.path}
-                className="safesign-sidebar__menu-group"
+                className="esigniva-sidebar__menu-group"
                 onMouseEnter={() => setHoveredPath(item.path)}
                 onMouseLeave={() => setHoveredPath(null)}
               >
                 <div
-                  className={`safesign-sidebar__link ${isParentActive ? "safesign-sidebar__link--active" : ""}`}
+                  className={`esigniva-sidebar__link ${isParentActive ? "esigniva-sidebar__link--active" : ""}`}
                   onClick={(e) => !collapsed && toggleSubmenu(item.path, e)}
                   title={collapsed ? item.name : ""}
                 >
-                  <span className="safesign-sidebar__link-icon">{item.icon}</span>
+                  <span className="esigniva-sidebar__link-icon">{item.icon}</span>
                   {!collapsed && (
                     <>
-                      <span className="safesign-sidebar__link-label">{item.name}</span>
-                      <span className="safesign-sidebar__chevron">
+                      <span className="esigniva-sidebar__link-label">{item.name}</span>
+                      <span className="esigniva-sidebar__chevron">
                         {showSub ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </span>
                     </>
@@ -167,12 +169,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
                 {showSub && (
                   <div
-                    className={`safesign-sidebar__submenu ${collapsed ? "safesign-sidebar__submenu--floating" : ""
+                    className={`esigniva-sidebar__submenu ${collapsed ? "esigniva-sidebar__submenu--floating" : ""
                       }`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {collapsed && (
-                      <div className="safesign-sidebar__submenu-header">
+                      <div className="esigniva-sidebar__submenu-header">
                         {item.name}
                       </div>
                     )}
@@ -185,7 +187,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                         <Link
                           key={idx}
                           to={`${sub.path}?${sub.param || 'status'}=${sub.filter}`}
-                          className={`safesign-sidebar__submenu-link ${isActive ? "active" : ""}`}
+                          className={`esigniva-sidebar__submenu-link ${isActive ? "active" : ""}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (window.innerWidth <= 768) {
@@ -215,24 +217,24 @@ export default function Sidebar({ collapsed, onToggle }) {
               to={item.path}
               title={collapsed ? item.name : ""}
               onClick={(e) => e.stopPropagation()}
-              className={`safesign-sidebar__link ${location.pathname === item.path ||
+              className={`esigniva-sidebar__link ${location.pathname === item.path ||
                 (item.path === "/user" && location.pathname === "/user")
-                ? "safesign-sidebar__link--active"
+                ? "esigniva-sidebar__link--active"
                 : ""
                 }`}
             >
-              <span className="safesign-sidebar__link-icon">{item.icon}</span>
-              {!collapsed && <span className="safesign-sidebar__link-label">{item.name}</span>}
+              <span className="esigniva-sidebar__link-icon">{item.icon}</span>
+              {!collapsed && <span className="esigniva-sidebar__link-label">{item.name}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="safesign-sidebar__footer">
+      <div className="esigniva-sidebar__footer">
         {role === "user" && (
           <Link
             to="/user/settings"
-            className={`safesign-sidebar__settings ${location.pathname === "/user/settings" ? "safesign-sidebar__settings--active" : ""}`}
+            className={`esigniva-sidebar__settings ${location.pathname === "/user/settings" ? "esigniva-sidebar__settings--active" : ""}`}
             onClick={(e) => e.stopPropagation()}
           >
             <Settings size={18} />
@@ -242,7 +244,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         {/* Logout Button */}
         <button
-          className="safesign-sidebar__logout"
+          className="esigniva-sidebar__logout"
           onClick={(e) => {
             e.stopPropagation();
             localStorage.removeItem("token");
@@ -256,7 +258,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </div>
 
       <style jsx>{`
-        .safesign-sidebar {
+        .esigniva-sidebar {
           display: flex;
           flex-direction: column;
           width: 230px;
@@ -271,18 +273,18 @@ export default function Sidebar({ collapsed, onToggle }) {
           z-index: 1000;
         }
 
-        .safesign-sidebar--collapsed {
+        .esigniva-sidebar--collapsed {
           width: 70px;
         }
 
-        .safesign-sidebar__header {
+        .esigniva-sidebar__header {
           padding: 20px 16px;
           border-bottom: 1px solid #e2e8f0;
           background: white;
           flex-shrink: 0;
         }
 
-        .safesign-sidebar__logo {
+        .esigniva-sidebar__logo {
           display: flex;
           align-items: center;
           gap: 10px;
@@ -290,17 +292,17 @@ export default function Sidebar({ collapsed, onToggle }) {
           padding-left: 4px;
         }
 
-        .safesign-sidebar--collapsed .safesign-sidebar__logo {
+        .esigniva-sidebar--collapsed .esigniva-sidebar__logo {
           justify-content: center;
           padding-left: 0;
         }
 
-        .safesign-sidebar__logo-icon {
+        .esigniva-sidebar__logo-icon {
           color: #0f766e;
           flex-shrink: 0;
         }
 
-        .safesign-sidebar__logo-text {
+        .esigniva-sidebar__logo-text {
           font-size: 19px;
           font-weight: 700;
           letter-spacing: -0.02em;
@@ -310,7 +312,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           text-overflow: ellipsis;
         }
 
-        .safesign-sidebar__nav {
+        .esigniva-sidebar__nav {
           flex: 1;
           padding: 16px 12px;
           overflow-y: auto;
@@ -319,24 +321,24 @@ export default function Sidebar({ collapsed, onToggle }) {
           scrollbar-color: #e2e8f0 transparent;
         }
 
-        .safesign-sidebar--collapsed .safesign-sidebar__nav {
+        .esigniva-sidebar--collapsed .esigniva-sidebar__nav {
           overflow-x: visible;
         }
 
-        .safesign-sidebar__nav::-webkit-scrollbar {
+        .esigniva-sidebar__nav::-webkit-scrollbar {
           width: 4px;
         }
 
-        .safesign-sidebar__nav::-webkit-scrollbar-thumb {
+        .esigniva-sidebar__nav::-webkit-scrollbar-thumb {
           background: #e2e8f0;
           border-radius: 10px;
         }
 
-        .safesign-sidebar__menu-group {
+        .esigniva-sidebar__menu-group {
           position: relative;
         }
 
-        .safesign-sidebar__link {
+        .esigniva-sidebar__link {
           display: flex;
           align-items: center;
           gap: 12px;
@@ -352,29 +354,29 @@ export default function Sidebar({ collapsed, onToggle }) {
           cursor: pointer;
         }
 
-        .safesign-sidebar__link:hover {
+        .esigniva-sidebar__link:hover {
           background: #f8fafc;
           color: #0f766e;
         }
 
-        .safesign-sidebar__link--active {
+        .esigniva-sidebar__link--active {
           background: #f0fdf9;
           color: #0f766e;
           font-weight: 600;
         }
 
-        .safesign-sidebar__link-icon {
+        .esigniva-sidebar__link-icon {
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
         }
 
-        .safesign-sidebar__link-label {
+        .esigniva-sidebar__link-label {
           white-space: nowrap;
         }
 
-        .safesign-sidebar__chevron {
+        .esigniva-sidebar__chevron {
           margin-left: auto;
           display: flex;
           align-items: center;
@@ -382,7 +384,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           transition: transform 0.2s;
         }
 
-        .safesign-sidebar__submenu {
+        .esigniva-sidebar__submenu {
           margin-left: 24px;
           padding-left: 12px;
           border-left: 1px solid #f1f5f9;
@@ -393,7 +395,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           margin-bottom: 8px;
         }
 
-        .safesign-sidebar__submenu--floating {
+        .esigniva-sidebar__submenu--floating {
           position: absolute;
           left: 100%;
           top: 0;
@@ -409,7 +411,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           margin-bottom: 0;
         }
 
-        .safesign-sidebar__submenu-header {
+        .esigniva-sidebar__submenu-header {
           padding: 8px 12px;
           font-size: 11px;
           font-weight: 700;
@@ -420,7 +422,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           margin-bottom: 4px;
         }
 
-        .safesign-sidebar__submenu-link {
+        .esigniva-sidebar__submenu-link {
           display: flex;
           align-items: center;
           gap: 10px;
@@ -433,17 +435,17 @@ export default function Sidebar({ collapsed, onToggle }) {
           transition: all 0.15s ease;
         }
 
-        .safesign-sidebar__submenu-link:hover {
+        .esigniva-sidebar__submenu-link:hover {
           background: #f1f5f9;
           color: #0f766e;
         }
 
-        .safesign-sidebar__submenu-link.active {
+        .esigniva-sidebar__submenu-link.active {
           color: #0f766e;
           background: #f0fdfa;
         }
 
-        .safesign-sidebar__footer {
+        .esigniva-sidebar__footer {
           padding: 16px 12px;
           border-top: 1px solid #f1f5f9;
           display: flex;
@@ -452,7 +454,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           margin-top: auto;
         }
 
-        .safesign-sidebar__settings, .safesign-sidebar__logout {
+        .esigniva-sidebar__settings, .esigniva-sidebar__logout {
           display: flex;
           align-items: center;
           gap: 12px;
@@ -465,21 +467,21 @@ export default function Sidebar({ collapsed, onToggle }) {
           text-decoration: none;
         }
 
-        .safesign-sidebar__settings {
+        .esigniva-sidebar__settings {
           color: #475569;
         }
 
-        .safesign-sidebar__settings:hover {
+        .esigniva-sidebar__settings:hover {
           background: #f8fafc;
           color: #0f766e;
         }
 
-        .safesign-sidebar__settings--active {
+        .esigniva-sidebar__settings--active {
           background: #f0fdf9;
           color: #0f766e;
         }
 
-        .safesign-sidebar__logout {
+        .esigniva-sidebar__logout {
           background: transparent;
           border: none;
           color: #ef4444;
@@ -487,28 +489,28 @@ export default function Sidebar({ collapsed, onToggle }) {
           text-align: left;
         }
 
-        .safesign-sidebar__logout:hover {
+        .esigniva-sidebar__logout:hover {
           background: #fef2f2;
         }
 
         @media (max-width: 991px) {
-          .safesign-sidebar:not(.safesign-sidebar--collapsed) {
+          .esigniva-sidebar:not(.esigniva-sidebar--collapsed) {
             width: 70px;
           }
         }
 
         @media (max-width: 768px) {
-          .safesign-sidebar {
+          .esigniva-sidebar {
             width: 260px !important;
             transform: translateX(-100%);
             box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
           }
           
-          .safesign-sidebar:not(.safesign-sidebar--collapsed) {
+          .esigniva-sidebar:not(.esigniva-sidebar--collapsed) {
              transform: translateX(0);
           }
 
-          .safesign-sidebar--collapsed {
+          .esigniva-sidebar--collapsed {
             transform: translateX(-100%);
           }
         }

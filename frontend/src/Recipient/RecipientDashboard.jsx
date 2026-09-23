@@ -661,7 +661,7 @@ const Dashboard = () => {
                 letterSpacing: 0.3,
               }}
             >
-              SafeSign
+              Esigniva
             </Typography>
           </Box>
           

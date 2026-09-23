@@ -35,7 +35,7 @@ const AbuseHeroCard = () => {
         {/* Subtitle */}
         <p className="abuse-hero-subtitle">
           Help us maintain a secure platform by reporting suspicious activities. 
-          Your vigilance makes SafeSign safer for millions of users worldwide.
+          Your vigilance makes Esigniva safer for millions of users worldwide.
         </p>
 
         {/* Trust Metrics */}

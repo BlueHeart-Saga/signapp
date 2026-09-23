@@ -29,7 +29,7 @@ const ForgotPassword = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
   
   const navigate = useNavigate();
@@ -38,8 +38,8 @@ const ForgotPassword = () => {
 
   useEffect(() => {
     setPageTitle(
-      "Reset Password | SafeSign",
-      "Reset your password to regain access to your SafeSign account securely."
+      "Reset Password | Esigniva",
+      "Reset your password to regain access to your Esigniva account securely."
     );
   }, []);
 
@@ -107,14 +107,14 @@ const ForgotPassword = () => {
 
     try {
       const response = await api.post("/auth/forgot-password", { 
-        email: email.toLowerCase() 
+        email: email.toLowerCase().trim() 
       });
-      setSuccessMsg(response.data?.message || "If the email exists, an OTP has been sent.");
+      setSuccessMsg(response.data?.message || "Password reset code sent to your registered email.");
       setStep(2);
     } catch (err) {
-      // UX for security
-      setSuccessMsg("If the email exists, an OTP has been sent.");
-      setStep(2);
+      const msg = err?.response?.data?.detail || "No account found with this email address. Please check your email or create an account.";
+      setErrorMsg(msg);
+      // Stay on step 1 so user can correct email or navigate to Login / Register
     } finally {
       setLoading(false);
     }
@@ -253,7 +253,7 @@ const ForgotPassword = () => {
           <div className="ss-fp-logo-section" onClick={() => navigate("/")}>
             <div className="ss-fp-logo-container">
               {logoUrl ? (
-                <img src={logoUrl} alt="SafeSign" className="ss-fp-logo" />
+                <img src={logoUrl} alt="Esigniva" className="ss-fp-logo" />
               ) : (
                 <Shield color="#0f766e" size={48} />
               )}
@@ -276,6 +276,24 @@ const ForgotPassword = () => {
                 {step === 3 && "New Password"}
               </span>
             </h1>
+
+            {/* Connected Step Progress Bar */}
+            <div className="ss-fp-steps-bar">
+              <div className={`ss-fp-step-item ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>
+                <div className="ss-fp-step-circle">{step > 1 ? "✓" : "1"}</div>
+                <span className="ss-fp-step-label">Email</span>
+              </div>
+              <div className={`ss-fp-step-line ${step > 1 ? 'active' : ''}`}></div>
+              <div className={`ss-fp-step-item ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>
+                <div className="ss-fp-step-circle">{step > 2 ? "✓" : "2"}</div>
+                <span className="ss-fp-step-label">Verify OTP</span>
+              </div>
+              <div className={`ss-fp-step-line ${step > 2 ? 'active' : ''}`}></div>
+              <div className={`ss-fp-step-item ${step >= 3 ? 'active' : ''}`}>
+                <div className="ss-fp-step-circle">3</div>
+                <span className="ss-fp-step-label">New Password</span>
+              </div>
+            </div>
 
             {errorMsg && (
               <div className="ss-fp-error">
@@ -302,7 +320,7 @@ const ForgotPassword = () => {
                       className="ss-fp-input"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="safesign@email.com"
+                      placeholder="esigniva@email.com"
                       required
                       disabled={loading}
                       autoFocus
@@ -368,7 +386,7 @@ const ForgotPassword = () => {
               <form onSubmit={handleResetPassword}>
                 <div className="ss-fp-form-group">
                   <label className="ss-fp-label">New Password <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-input-wrapper">
+                  <div className="ss-fp-input-wrapper" style={{ position: "relative" }}>
                     <input
                       type={showPassword ? "text" : "password"}
                       className="ss-fp-input"
@@ -377,12 +395,30 @@ const ForgotPassword = () => {
                       placeholder="At least 6 characters"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </button>
                   </div>
                 </div>
 
                 <div className="ss-fp-form-group">
                   <label className="ss-fp-label">Confirm New Password <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-input-wrapper">
+                  <div className="ss-fp-input-wrapper" style={{ position: "relative" }}>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       className="ss-fp-input"
@@ -391,6 +427,24 @@ const ForgotPassword = () => {
                       placeholder="Repeat new password"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </button>
                   </div>
                 </div>
 

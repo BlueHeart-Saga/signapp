@@ -27,8 +27,8 @@ class FileSystemStorage(StorageProvider):
             with open(file_path, 'wb') as f:
                 shutil.copyfileobj(file_data, f)
         
-        # Return relative path as identifier
-        return str(Path(folder) / unique_filename)
+        # Return relative path as identifier (normalized with forward slashes)
+        return str(Path(folder) / unique_filename).replace('\\', '/')
     
     def download(self, file_identifier: str) -> bytes:
         file_path = self.base_path / file_identifier

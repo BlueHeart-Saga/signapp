@@ -17,20 +17,20 @@
 }
 
 
-.safesign-sidebar--collapsed {
+.esigniva-sidebar--collapsed {
   cursor: col-resize; /* ⇔ expand hint */
 }
 
-.safesign-sidebar__link,
-.safesign-sidebar__logout,
-.safesign-sidebar__logo,
+.esigniva-sidebar__link,
+.esigniva-sidebar__logout,
+.esigniva-sidebar__logo,
 .sidebar-link,
 .logout-btn {
   cursor: pointer;
 }
 
 
-.safesign-sidebar:not(.safesign-sidebar--collapsed) {
+.esigniva-sidebar:not(.esigniva-sidebar--collapsed) {
   cursor: default;
 }
 

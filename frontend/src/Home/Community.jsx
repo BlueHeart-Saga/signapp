@@ -93,7 +93,7 @@ const Community = () => {
     },
     {
       id: 3,
-      title: 'Showcase: Our document workflow automation using SafeSign API',
+      title: 'Showcase: Our document workflow automation using Esigniva API',
       author: 'Mike Rodriguez',
       authorRole: 'Product Manager',
       authorAvatar: 'https://i.pravatar.cc/150?img=3',
@@ -134,7 +134,7 @@ const Community = () => {
     },
     {
       id: 6,
-      title: 'Tutorial: Integrating SafeSign with React applications',
+      title: 'Tutorial: Integrating Esigniva with React applications',
       author: 'James Miller',
       authorAvatar: 'https://i.pravatar.cc/150?img=6',
       category: 'tutorials',
@@ -147,7 +147,7 @@ const Community = () => {
     {
       id: 7,
       title: 'Announcement: New API version 2.1 released',
-      author: 'SafeSign Team',
+      author: 'Esigniva Team',
       authorAvatar: 'https://i.pravatar.cc/150?img=7',
       category: 'announcements',
       replies: 32,
@@ -170,7 +170,7 @@ const Community = () => {
     },
     {
       id: 9,
-      title: 'Showcase: Our legal department\'s transformation with SafeSign',
+      title: 'Showcase: Our legal department\'s transformation with Esigniva',
       author: 'Robert Chen',
       authorAvatar: 'https://i.pravatar.cc/150?img=9',
       category: 'showcase',
@@ -260,7 +260,7 @@ const Community = () => {
       title: 'GitHub Repository',
       icon: <Github size={20} />,
       color: '#333',
-      link: 'https://github.com/safesign',
+      link: 'https://github.com/esigniva',
       description: 'Open-source libraries'
     },
     {
@@ -280,7 +280,7 @@ const Community = () => {
   ];
 
   const socialLinks = [
-    { platform: 'Twitter', icon: <Twitter size={20} />, handle: '@SafeSignHQ', followers: '15.2K' },
+    { platform: 'Twitter', icon: <Twitter size={20} />, handle: '@EsignivaHQ', followers: '15.2K' },
     { platform: 'LinkedIn', icon: <Linkedin size={20} />, followers: '28.5K' },
     { platform: 'GitHub', icon: <Github size={20} />, stars: '2.4K' },
     { platform: 'YouTube', icon: <Youtube size={20} />, subscribers: '8.7K' }
@@ -320,12 +320,12 @@ const Community = () => {
           <div className="safe-hero-content">
             <div className="safe-hero-badge">
               <Users size={20} />
-              <span>Welcome to SafeSign Community</span>
+              <span>Welcome to Esigniva Community</span>
             </div>
             <h1 className="safe-hero-title">Connect, Learn & Grow Together</h1>
             <p className="safe-hero-subtitle">
               Join thousands of developers, businesses, and e-signature enthusiasts sharing knowledge,
-              solving problems, and building amazing things with SafeSign
+              solving problems, and building amazing things with Esigniva
             </p>
             
             {/* Stats */}
@@ -394,7 +394,7 @@ const Community = () => {
                       
                       <h3 className="safe-topic-title">{topic.title}</h3>
                       <p className="safe-topic-excerpt">
-                        Explore best practices and implementation strategies for integrating SafeSign webhooks...
+                        Explore best practices and implementation strategies for integrating Esigniva webhooks...
                       </p>
                       
                       <div className="safe-topic-meta">
@@ -689,7 +689,7 @@ const Community = () => {
                   {socialLinks.map((social, index) => (
                     <a
                       key={index}
-                      href="#"
+                      href="/login" onClick={(e) => { e.preventDefault(); navigate("/login"); }}
                       className="safe-social-link"
                     >
                       <div className="safe-social-icon">

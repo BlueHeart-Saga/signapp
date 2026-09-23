@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="safeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="64" height="64" rx="16" fill="url(#safeGrad)"/>
+  <!-- Shield outline -->
+  <path d="M32 14C32 14 44 16 44 26C44 38 32 48 32 48C32 48 20 38 20 26C20 16 32 14 32 14Z" 
+        stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Signature Checkmark inside shield -->
+  <path d="M26 28L30 32L38 22" 
+        stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

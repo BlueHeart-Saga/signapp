@@ -36,9 +36,9 @@ const TermsOfService = () => {
       id: 'agreement',
       title: 'Agreement to Terms',
       icon: <Book size={18} />,
-      content: `By accessing or using SafeSign's electronic signature platform and related services ("Services"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these Terms, you may not access our Services.
+      content: `By accessing or using Esigniva's electronic signature platform and related services ("Services"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these Terms, you may not access our Services.
 
-These Terms constitute a legally binding agreement between you ("User") and SafeSign Inc. ("Company"). If you are using our Services on behalf of an organization, you represent that you have authority to bind that organization to these Terms.`,
+These Terms constitute a legally binding agreement between you ("User") and Esigniva Inc. ("Company"). If you are using our Services on behalf of an organization, you represent that you have authority to bind that organization to these Terms.`,
       subSections: []
     },
     {
@@ -69,7 +69,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       id: 'services',
       title: 'Services Description',
       icon: <Zap size={18} />,
-      content: `SafeSign provides electronic signature and document management services that enable users to:`,
+      content: `Esigniva provides electronic signature and document management services that enable users to:`,
       subSections: [
         {
           title: 'Core Features',
@@ -154,7 +154,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       subSections: [
         {
           title: 'Our Property',
-          content: `SafeSign trademarks, logos, software, and platform are owned by us and protected by intellectual property laws.`
+          content: `Esigniva trademarks, logos, software, and platform are owned by us and protected by intellectual property laws.`
         },
         {
           title: 'Your Property',
@@ -234,7 +234,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
         },
         {
           title: 'Essential Basis',
-          content: `These limitations are fundamental elements of the basis of the bargain between you and SafeSign.`
+          content: `These limitations are fundamental elements of the basis of the bargain between you and Esigniva.`
         },
         {
           title: 'Exceptions',
@@ -246,7 +246,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       id: 'indemnification',
       title: 'Indemnification',
       icon: <Landmark size={18} />,
-      content: `You agree to indemnify, defend, and hold harmless SafeSign and its affiliates from any claims, damages, or expenses arising from:`,
+      content: `You agree to indemnify, defend, and hold harmless Esigniva and its affiliates from any claims, damages, or expenses arising from:`,
       subSections: [
         {
           title: 'Your Content',
@@ -322,7 +322,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       subSections: [
         {
           title: 'Entire Agreement',
-          content: `These Terms constitute the entire agreement between you and SafeSign regarding our Services.`
+          content: `These Terms constitute the entire agreement between you and Esigniva regarding our Services.`
         },
         {
           title: 'Severability',
@@ -348,7 +348,7 @@ These Terms constitute a legally binding agreement between you ("User") and Safe
       icon: <Mail size={18} />,
       content: `For questions about these Terms, please contact us:
 
-SafeSign Legal Department
+Esigniva Legal Department
 Email: support@devopstrioglobal.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
@@ -408,7 +408,7 @@ For legal notices, please use the above address or email support@devopstriogloba
             </div>
             <h1 className="safe-hero-title">Terms of Service</h1>
             <p className="safe-hero-subtitle">
-              Legal agreement governing your use of SafeSign services and platform
+              Legal agreement governing your use of Esigniva services and platform
             </p>
             
             <div className="safe-hero-meta">
@@ -498,7 +498,7 @@ For legal notices, please use the above address or email support@devopstriogloba
                 <div>
                   <h3 className="safe-notice-title">Important Notice</h3>
                   <p className="safe-notice-text">
-                    These Terms constitute a legally binding agreement. By using SafeSign services, you agree to be bound by these Terms. Please read them carefully.
+                    These Terms constitute a legally binding agreement. By using Esigniva services, you agree to be bound by these Terms. Please read them carefully.
                   </p>
                 </div>
               </div>

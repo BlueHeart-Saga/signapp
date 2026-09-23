@@ -44,19 +44,19 @@ const SpamComplaintsPage = () => {
     {
       id: 'unsolicited',
       title: 'Unsolicited Email',
-      description: 'Received email from SafeSign without signing up',
+      description: 'Received email from Esigniva without signing up',
       icon: AlertTriangle
     },
     {
       id: 'phishing',
       title: 'Phishing Attempt',
-      description: 'Suspicious email pretending to be SafeSign',
+      description: 'Suspicious email pretending to be Esigniva',
       icon: Shield
     },
     {
       id: 'excessive',
       title: 'Excessive Emails',
-      description: 'Too many emails from SafeSign',
+      description: 'Too many emails from Esigniva',
       icon: Bell
     },
     {
@@ -83,18 +83,18 @@ const SpamComplaintsPage = () => {
     {
       id: 'what-is-spam',
       title: 'What is Considered Spam?',
-      content: `At SafeSign, we take email integrity seriously. We consider the following as spam:`,
+      content: `At Esigniva, we take email integrity seriously. We consider the following as spam:`,
       subSections: [
         {
           title: 'Unsolicited Communications',
-          content: `Emails sent without prior consent or business relationship. SafeSign only sends emails when:
+          content: `Emails sent without prior consent or business relationship. Esigniva only sends emails when:
 - You or someone you know initiates a document signing process
 - You have an active account with us
 - You have subscribed to our communications`
         },
         {
           title: 'Phishing Attempts',
-          content: `Emails pretending to be from SafeSign that try to:
+          content: `Emails pretending to be from Esigniva that try to:
 - Steal your login credentials or personal information
 - Trick you into downloading malware
 - Request sensitive information via email`
@@ -107,12 +107,12 @@ const SpamComplaintsPage = () => {
     },
     {
       id: 'legitimate-emails',
-      title: 'Legitimate SafeSign Emails',
-      content: `You may receive legitimate emails from SafeSign in these scenarios:`,
+      title: 'Legitimate Esigniva Emails',
+      content: `You may receive legitimate emails from Esigniva in these scenarios:`,
       subSections: [
         {
           title: 'Document Signing Requests',
-          content: `When someone requests your signature on a document through SafeSign, you will receive:
+          content: `When someone requests your signature on a document through Esigniva, you will receive:
 - Initial invitation with OTP
 - Reminders if you haven't completed signing
 - Confirmation after signing
@@ -201,11 +201,11 @@ const SpamComplaintsPage = () => {
     {
       id: 'prevention',
       title: 'How to Identify Legitimate Emails',
-      content: `Legitimate SafeSign emails will always have these characteristics:`,
+      content: `Legitimate Esigniva emails will always have these characteristics:`,
       subSections: [
         {
           title: 'Sender Verification',
-          content: `- From: @safesign.com or our verified domains
+          content: `- From: @esigniva.com or our verified domains
 - Proper SPF, DKIM, and DMARC alignment
 - No suspicious characters or misspellings in sender address`
         },
@@ -219,13 +219,13 @@ const SpamComplaintsPage = () => {
         },
         {
           title: 'Links & Attachments',
-          content: `- Links point to https://safesign.com domains
+          content: `- Links point to https://esigniva.com domains
 - Hover over links to verify destination
 - Attachments are PDF documents (never .exe, .zip, .scr files)`
         },
         {
           title: 'What We Never Ask',
-          content: `SafeSign will NEVER ask for:
+          content: `Esigniva will NEVER ask for:
 - Your password via email
 - Credit card information via email
 - To download software updates via email link
@@ -695,7 +695,7 @@ const SpamComplaintsPage = () => {
 
                 <div className="safe-faq-item">
                   <h3>How can I prevent future spam?</h3>
-                  <p>Use email filters, never share your email publicly, use unique passwords, and enable two-factor authentication on your SafeSign account.</p>
+                  <p>Use email filters, never share your email publicly, use unique passwords, and enable two-factor authentication on your Esigniva account.</p>
                 </div>
 
                 <div className="safe-faq-item">

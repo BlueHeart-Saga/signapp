@@ -268,7 +268,7 @@ const ExpiredDocumentView = () => {
                 {/* Footer info */}
                 <Box sx={{ mt: 4, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">
-                        Securely powered by Safesign • Document ID: {documentInfo?.id?.substring(0, 8)}...
+                        Securely powered by Esigniva • Document ID: {documentInfo?.id?.substring(0, 8)}...
                     </Typography>
                 </Box>
             </Paper>

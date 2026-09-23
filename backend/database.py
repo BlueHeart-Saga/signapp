@@ -5,11 +5,12 @@ import os
 load_dotenv()
 
 # Priority order:
-# 1. MONGODB_URI  (Azure/Production)
-# 2. MONGO_URL    (Local fallback)
-# 3. localhost    (development default)
+# 1. MONGO_URI / MONGODB_URI (Azure/Production)
+# 2. MONGO_URL (Local fallback)
+# 3. localhost (development default)
 MONGO_URL = (
-    os.getenv("MONGODB_URI")
+    os.getenv("MONGO_URI")
+    or os.getenv("MONGODB_URI")
     or os.getenv("MONGO_URL")
     or "mongodb://localhost:27017"
 )

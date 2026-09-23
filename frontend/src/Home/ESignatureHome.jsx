@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../style/ESignatureHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
@@ -6,10 +7,11 @@ import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
 const ESignatureHome = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     setPageTitle(
-      "Create & Sign Documents Online | SafeSign E-Signature",
-      "Easily create, upload, and sign documents online with SafeSign. Our intuitive drag-and-drop builder and secure upload system make e-signatures simple and legally binding."
+      "Create & Sign Documents Online | Esigniva E-Signature",
+      "Easily create, upload, and sign documents online with Esigniva. Our intuitive drag-and-drop builder and secure upload system make e-signatures simple and legally binding."
     );
   }, []);
   return (
@@ -32,8 +34,8 @@ const ESignatureHome = () => {
           </p>
 
           <div className="esig-hero-buttons">
-            <button className="esig-btn-primary">Request a demo</button>
-            <button className="esig-btn-outline">Start free trial</button>
+            <button className="esig-btn-primary" onClick={() => navigate("/login")}>Request a demo</button>
+            <button className="esig-btn-outline" onClick={() => navigate("/login")}>Start free trial</button>
           </div>
         </div>
 

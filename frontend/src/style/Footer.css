@@ -1,15 +1,15 @@
 /* ================================
-   SAFESIGN FOOTER – UNIQUE CLASSES
+   ESIGNIVA FOOTER – UNIQUE CLASSES
    ================================ */
 
-.safesign-footer {
+.esigniva-footer {
   background: #000;
   color: #fff;
   padding: 60px 0 30px;
 }
 
 /* MAIN GRID */
-.safesign-footer-container {
+.esigniva-footer-container {
   max-width: 1150px;
   margin: auto;
   display: grid;
@@ -18,20 +18,20 @@
 }
 
 /* BRAND */
-.safesign-footer-brand {
+.esigniva-footer-brand {
   font-size: 24px;
   margin-bottom: 10px;
 }
 
 /* BRAND WITH LOGO WRAPPER */
-.safesign-footer-brand-wrapper {
+.esigniva-footer-brand-wrapper {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 /* BRAND LOGO IMAGE */
-.safesign-footer-logo-img {
+.esigniva-footer-logo-img {
   height: 42px;
   width: auto;
   object-fit: contain;
@@ -39,7 +39,7 @@
 }
 
 
-.safesign-footer-tagline {
+.esigniva-footer-tagline {
   color: #d1d5db;
   font-size: 13px;
   max-width: 260px;
@@ -48,14 +48,14 @@
 
 /* SOCIAL ICONS */
 /* Social icons wrapper */
-.safesign-footer-socials {
+.esigniva-footer-socials {
   display: flex;
   gap: 12px;
   margin-top: 14px;
 }
 
 /* Remove default button styling */
-.safesign-footer-socials button {
+.esigniva-footer-socials button {
   background: transparent;
   /* 🔥 key fix */
   border: none;
@@ -67,7 +67,7 @@
 }
 
 /* Icon styling */
-.safesign-footer-socials svg {
+.esigniva-footer-socials svg {
   width: 22px;
   height: 22px;
   color: #ffffff;
@@ -77,7 +77,7 @@
 }
 
 /* Hover effect (Zoho / SaaS style) */
-.safesign-footer-socials button:hover svg {
+.esigniva-footer-socials button:hover svg {
   color: #0f766e;
   /* brand teal */
   opacity: 1;
@@ -86,33 +86,33 @@
 
 
 /* COLUMN TITLES */
-.safesign-footer-title {
+.esigniva-footer-title {
   margin-bottom: 14px;
   font-size: 15px;
   font-weight: 600;
 }
 
 /* LISTS */
-.safesign-footer-list {
+.esigniva-footer-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.safesign-footer-list li {
+.esigniva-footer-list li {
   margin: 8px 0;
   color: #d1d5db;
   cursor: pointer;
   transition: color .2s ease, padding-left .2s ease;
 }
 
-.safesign-footer-list li:hover {
+.esigniva-footer-list li:hover {
   color: #fff;
   padding-left: 3px;
 }
 
 /* CONTACT ROW ITEMS */
-.safesign-footer-contact {
+.esigniva-footer-contact {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -122,13 +122,13 @@
 }
 
 /* BOTTOM ROW */
-.safesign-footer-bottom {
+.esigniva-footer-bottom {
   text-align: center;
   margin-top: 40px;
   padding-top: 12px;
 }
 
-.safesign-footer-policies {
+.esigniva-footer-policies {
   margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
@@ -137,7 +137,7 @@
   row-gap: 8px;
 }
 
-.safesign-footer-policies a {
+.esigniva-footer-policies a {
   font-size: 13px;
   color: #94a3b8;
   text-decoration: none;
@@ -147,7 +147,7 @@
   align-items: center;
 }
 
-.safesign-footer-policies a:not(:last-child)::after {
+.esigniva-footer-policies a:not(:last-child)::after {
   content: "•";
   margin-left: 12px;
   color: #475569;
@@ -155,7 +155,7 @@
   pointer-events: none;
 }
 
-.safesign-footer-policies a:hover {
+.esigniva-footer-policies a:hover {
   color: #fff;
   text-decoration: underline;
 }
@@ -166,60 +166,60 @@
 
 /* LARGE TABLETS / SMALL LAPTOPS */
 @media (max-width: 1100px) {
-  .safesign-footer-container {
+  .esigniva-footer-container {
     padding: 0 16px;
   }
 }
 
 /* TABLETS */
 @media (max-width: 992px) {
-  .safesign-footer-container {
+  .esigniva-footer-container {
     grid-template-columns: 1fr 1fr;
     gap: 28px;
   }
 
-  .safesign-footer {
+  .esigniva-footer {
     padding: 50px 0 25px;
   }
 }
 
 /* BIG MOBILE */
 @media (max-width: 768px) {
-  .safesign-footer-brand {
+  .esigniva-footer-brand {
     font-size: 22px;
   }
 
-  .safesign-footer-title {
+  .esigniva-footer-title {
     font-size: 14px;
   }
 
-  .safesign-footer-list li {
+  .esigniva-footer-list li {
     font-size: 14px;
   }
 }
 
 /* SMALL MOBILE */
 @media (max-width: 600px) {
-  .safesign-footer {
+  .esigniva-footer {
     padding: 36px 14px 22px;
   }
 
-  .safesign-footer-container {
+  .esigniva-footer-container {
     grid-template-columns: 1fr;
     gap: 22px;
   }
 
-  .safesign-footer-policies {
+  .esigniva-footer-policies {
     flex-direction: row;
     gap: 8px;
     padding: 0 10px;
   }
 
-  .safesign-footer-policies a::after {
+  .esigniva-footer-policies a::after {
     display: none;
   }
 
-  .safesign-footer-contact {
+  .esigniva-footer-contact {
     font-size: 14px;
   }
 }

@@ -1018,9 +1018,10 @@ async def user_download_template(
             )
         
         # Get active template
+        query_id = ObjectId(template_id) if ObjectId.is_valid(template_id) else template_id
         template = db.document_templates.find_one({
-            "_id": ObjectId(template_id),
-            "is_active": True
+            "$or": [{"_id": query_id}, {"_id": str(template_id)}],
+            "is_active": {"$ne": False}
         })
         
         if not template:
@@ -1036,23 +1037,41 @@ async def user_download_template(
             # For now, we'll allow all users to download
             pass
         
-        if format == "pdf":
+        if format in ["docx", "word"]:
+            orig_path = template.get("original_file_path", "")
+            if orig_path and (orig_path.lower().endswith(".docx") or orig_path.lower().endswith(".doc")):
+                file_path = orig_path
+                filename = template.get("original_filename", f"{template.get('title', 'template')}.docx")
+                if not filename.lower().endswith(".docx"):
+                    filename += ".docx"
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                file_bytes = get_file_from_storage(file_path)
+            else:
+                pdf_path = template.get("file_path")
+                filename = f"{template.get('title', 'template').replace(' ', '_')}.docx"
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                raw_bytes = get_file_from_storage(pdf_path)
+                if not raw_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Template file not found"
+                    )
+                from .converter import convert_pdf_to_docx
+                converted_bytes = convert_pdf_to_docx(raw_bytes)
+                file_bytes = converted_bytes if converted_bytes else raw_bytes
+        elif format == "pdf":
             file_path = template.get("file_path")
             filename = template.get("filename", "template.pdf")
+            if not filename.lower().endswith(".pdf"):
+                filename += ".pdf"
             content_type = template.get("content_type", "application/pdf")
+            file_bytes = get_file_from_storage(file_path)
         else:
             file_path = template.get("original_file_path", template.get("file_path"))
             filename = template.get("original_filename", template.get("filename", "template"))
             content_type = template.get("original_content_type", template.get("content_type", "application/octet-stream"))
+            file_bytes = get_file_from_storage(file_path)
         
-        if not file_path:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Template file not found"
-            )
-        
-        # Get file from Azure Blob Storage
-        file_bytes = get_file_from_storage(file_path)
         if not file_bytes:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

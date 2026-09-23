@@ -5,6 +5,18 @@ import App from "./App";
 import { brandAPI } from "./services/brandAPI";
 import { setPageTitle } from "./utils/pageTitle";
 
+// Catch benign browser extension DOM cleanup errors (e.g., frame_start.js removeChild errors)
+window.addEventListener("error", (event) => {
+  if (
+    event.message &&
+    (event.message.includes("removeChild") ||
+     event.message.includes("The node to be removed is not a child"))
+  ) {
+    console.warn("Suppressed browser extension DOM cleanup error:", event.message);
+    event.preventDefault();
+  }
+});
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
 brandAPI.loadBranding().finally(() => {

@@ -1930,7 +1930,7 @@
 
 .rename-input-wrapper input:focus {
   border-color: rgb(46, 125, 50);
-  /* SafeSign green */
+  /* Esigniva green */
   box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
 }
 
@@ -3159,12 +3159,12 @@
   transition: all 0.25s ease;
 }
 
-/* SafeSign-style glow pulse */
+/* Esigniva-style glow pulse */
 .edit-highlight {
-  animation: safesignPulse 1.2s ease;
+  animation: esignivaPulse 1.2s ease;
 }
 
-@keyframes safesignPulse {
+@keyframes esignivaPulse {
   0% {
     transform: scale(1);
     box-shadow: 0 0 0 rgba(13, 148, 136, 0);

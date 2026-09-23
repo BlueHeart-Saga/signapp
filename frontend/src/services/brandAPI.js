@@ -14,21 +14,24 @@ export const brandAPI = {
     try {
       const res = await axios.get(`${API_BASE_URL}/branding/config`);
 
-      const platformName = res.data?.platform_name || "SafeSign";
+      const platformName = res.data?.platform_name || "Esigniva";
 
       // 🌍 global platform name (used everywhere)
       window.__PLATFORM_NAME__ = platformName;
 
-      // 🌐 ALWAYS try backend logo endpoint
-      const logoUrl = `${API_BASE_URL}/branding/logo/file`;
-      setFavicon(logoUrl, "/favicon.ico");
+      // 🌐 Use custom uploaded logo as favicon if set, otherwise use /favicon.png
+      if (res.data?.logo_url) {
+        setFavicon(`${API_BASE_URL}/branding/logo/file`);
+      } else {
+        setFavicon("/favicon.png");
+      }
 
       return res.data;
     } catch (error) {
       console.warn("Branding load failed, using defaults");
 
-      window.__PLATFORM_NAME__ = "SafeSign";
-      setFavicon("/favicon.ico");
+      window.__PLATFORM_NAME__ = "Esigniva";
+      setFavicon("/favicon.png");
 
       return null;
     }

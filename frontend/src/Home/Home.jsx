@@ -723,7 +723,7 @@ const Home = () => {
 
   useEffect(() => {
     setPageTitle(
-      "SafeSign | Enterprise E-Signature & Document Management Platform",
+      "Esigniva | Enterprise E-Signature & Document Management Platform",
       "Experience the most secure enterprise-grade electronic signatures, AI-powered document management, and automated workflows. Legally binding and HIPAA compliant signing for global teams."
     );
   }, []);

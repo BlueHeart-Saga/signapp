@@ -6,17 +6,17 @@ function SimpleFAQ() {
 
   const testimonials = [
     {
-      text: "Since switching to the Professional plan, we've increased our influencer marketing ROI by 137%. The advanced analytics alone are worth the investment.",
+      text: "The credit-based model is fantastic for our legal practice. We only pay for the documents we send and AI contracts we generate. The 7,000 yearly credits save us over 30% compared to legacy signature software.",
       name: "Sarah Johnson",
-      company: "Brown Cosmetics"
+      company: "Brown & Associates Law"
     },
     {
-      text: "The Enterprise plan has transformed how we manage influencer relationships. The custom workflows and dedicated support have saved us countless hours.",
+      text: "The Lifetime plan with 50,000 credits was an incredible investment for our enterprise team. Instant API access and zero monthly bills.",
       name: "Michael Chen",
       company: "TechInsights Inc."
     },
     {
-      text: "We started with the Starter plan and gradually upgraded as our needs grew. The scalability of the platform has been perfect for our expanding business.",
+      text: "We started with the 100 free trial credits, generated our first 5 contracts with the AI builder, and bought the 2,000 credit top-up pack. Smooth, fast, and transparent.",
       name: "Jessica Williams",
       company: "FitLife Apparel"
     }
@@ -24,20 +24,20 @@ function SimpleFAQ() {
 
   const faqs = [
     {
-      question: "Can I change plans anytime?",
-      answer: "Yes, you can upgrade or downgrade your plan at any time. When upgrading, the new features are available immediately. When downgrading, changes take effect at the start of your next billing cycle."
+      question: "How does the credit-based pricing model work?",
+      answer: "Every platform action (sending a document for e-signature, generating an AI contract, or parsing fields) consumes credits based on a transparent schedule. Your monthly or annual subscription includes credits every billing period, and you can add top-up credit packs whenever you need more."
     },
     {
-      question: "Is there a free trial available?",
-      answer: "Yes! We offer a 14-day free trial for all paid plans. No credit card required to start. You'll get full access to all features during your trial period."
+      question: "Do credit top-up packs expire?",
+      answer: "No! Pay-as-you-go credit top-up packs never expire. They remain in your available credit balance indefinitely until you use them."
     },
     {
-      question: "What payment methods do you accept?",
-      answer: "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and for annual Enterprise plans we also accept bank transfers."
+      question: "What comes with the 15-day Free Trial?",
+      answer: "New signups automatically receive 100 free credits with full platform access for 15 days. No credit card is required to start testing e-signatures, AI document generation, or real-time audit trails."
     },
     {
-      question: "Do you offer discounts for non-profits?",
-      answer: "Yes, we offer a 25% discount for registered non-profit organizations. Please contact our sales team with proof of your non-profit status to get this discount applied."
+      question: "Can I change plans or buy extra credits anytime?",
+      answer: "Yes! You can switch between Monthly and Yearly billing, upgrade to Lifetime access, or purchase credit top-up packs directly from your user dashboard at any time."
     }
   ];
 
@@ -99,11 +99,8 @@ function SimpleFAQ() {
 
       <style jsx>{`
         .simple-faq {
-          width: 100%;
-          background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          color: #111827;
-          padding: 80px 0;
+          padding: 60px 0;
+          background: #f8fafc;
         }
 
         .faq-container {
@@ -112,218 +109,104 @@ function SimpleFAQ() {
           padding: 0 20px;
         }
 
-        /* Section Titles */
         .section-title {
           font-size: 32px;
-          font-weight: 700;
+          font-weight: 800;
+          color: #0f172a;
           text-align: center;
-          color: #111827;
           margin-bottom: 40px;
-        }
-
-        /* Testimonials */
-        .testimonials-section {
-          margin-bottom: 80px;
         }
 
         .testimonials-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
           gap: 24px;
+          margin-bottom: 60px;
         }
 
         .testimonial-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 32px;
-          transition: all 0.3s;
-        }
-
-        .testimonial-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-          border-color: #0f766e;
+          background: white;
+          border-radius: 16px;
+          padding: 28px;
+          border: 1px solid #e2e8f0;
+          position: relative;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
 
         .quote-mark {
           font-size: 48px;
           color: #0f766e;
-          font-weight: 700;
+          font-family: Georgia, serif;
           line-height: 1;
-          margin-bottom: 16px;
-          height: 40px;
+          margin-bottom: -10px;
         }
 
         .testimonial-text {
-          font-size: 16px;
-          color: #4b5563;
+          font-size: 14px;
+          color: #334155;
           line-height: 1.6;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
           font-style: italic;
         }
 
-        .testimonial-author {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .author-info {
-          flex: 1;
-        }
-
         .author-name {
-          font-size: 16px;
-          font-weight: 600;
-          color: #111827;
-          margin-bottom: 4px;
+          font-size: 15px;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0;
         }
 
         .author-company {
-          font-size: 14px;
-          color: #6b7280;
-        }
-
-        /* FAQ Section */
-        .faq-section {
-          max-width: 800px;
-          margin: 0 auto;
+          font-size: 13px;
+          color: #64748b;
+          margin: 2px 0 0;
         }
 
         .faq-list {
+          max-width: 800px;
+          margin: 0 auto;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
         }
 
         .faq-item {
-          border: 1px solid #e5e7eb;
+          background: white;
+          border: 1px solid #e2e8f0;
           border-radius: 12px;
           overflow: hidden;
-          transition: all 0.3s;
-        }
-
-        .faq-item:hover {
-          border-color: #d1d5db;
+          transition: border-color 0.2s ease;
         }
 
         .faq-item.active {
           border-color: #0f766e;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
         }
 
         .faq-question {
           width: 100%;
-          padding: 24px;
+          padding: 20px 24px;
           background: transparent;
           border: none;
           display: flex;
           justify-content: space-between;
           align-items: center;
           cursor: pointer;
-          font-size: 18px;
-          font-weight: 600;
-          color: #111827;
           text-align: left;
-          transition: background 0.2s;
-        }
-
-        .faq-question:hover {
-          background: #f9fafb;
         }
 
         .question-text {
-          flex: 1;
-          padding-right: 20px;
-        }
-
-        .faq-icon {
-          color: #6b7280;
-          flex-shrink: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #0f172a;
         }
 
         .faq-answer {
-          padding: 0 24px 24px;
-        }
-
-        .faq-answer p {
-          font-size: 16px;
-          color: #4b5563;
+          padding: 0 24px 20px;
+          color: #475569;
+          font-size: 14px;
           line-height: 1.6;
-          margin: 0;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 1024px) {
-          .testimonials-grid {
-            gap: 20px;
-          }
-          
-          .testimonial-card {
-            padding: 24px;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .simple-faq {
-            padding: 60px 0;
-          }
-          
-          .testimonials-grid {
-            grid-template-columns: 1fr;
-            max-width: 500px;
-            margin: 0 auto;
-          }
-          
-          .section-title {
-            font-size: 28px;
-            margin-bottom: 32px;
-          }
-          
-          .faq-question {
-            padding: 20px;
-            font-size: 16px;
-          }
-          
-          .faq-answer {
-            padding: 0 20px 20px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .simple-faq {
-            padding: 40px 0;
-          }
-          
-          .faq-container {
-            padding: 0 16px;
-          }
-          
-          .section-title {
-            font-size: 24px;
-            margin-bottom: 24px;
-          }
-          
-          .testimonial-card {
-            padding: 20px;
-          }
-          
-          .testimonial-text {
-            font-size: 15px;
-          }
-          
-          .faq-question {
-            padding: 16px;
-          }
-          
-          .faq-answer {
-            padding: 0 16px 16px;
-          }
-          
-          .faq-answer p {
-            font-size: 15px;
-          }
+          border-top: 1px solid #f1f5f9;
+          padding-top: 16px;
         }
       `}</style>
     </div>

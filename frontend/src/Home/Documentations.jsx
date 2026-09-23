@@ -47,7 +47,7 @@ const Documentation = () => {
       title: 'Getting Started',
       icon: <Zap size={20} />,
       color: '#0f766e',
-      description: 'Begin your SafeSign journey'
+      description: 'Begin your Esigniva journey'
     },
     {
       id: 'api-reference',
@@ -145,11 +145,11 @@ const Documentation = () => {
   ];
 
   const codeSamples = {
-    javascript: `// Initialize SafeSign SDK
-const safesign = require('@safesign/sdk');
+    javascript: `// Initialize Esigniva SDK
+const esigniva = require('@esigniva/sdk');
 
-const client = new safesign.Client({
-  apiKey: process.env.SAFESIGN_API_KEY,
+const client = new esigniva.Client({
+  apiKey: process.env.ESIGNIVA_API_KEY,
   environment: 'production'
 });
 
@@ -179,10 +179,10 @@ async function createDocument() {
     console.error('Error:', error.message);
   }
 }`,
-    python: `# Initialize SafeSign SDK
-from safesign import Client
+    python: `# Initialize Esigniva SDK
+from esigniva import Client
 
-client = Client(api_key=os.getenv('SAFESIGN_API_KEY'))
+client = Client(api_key=os.getenv('ESIGNIVA_API_KEY'))
 
 # Create a document
 try:
@@ -207,8 +207,8 @@ try:
     print(f"Document created: {document.id}")
 except Exception as e:
     print(f"Error: {str(e)}")`,
-    curl: `curl -X POST https://api.safesign.com/v1/documents \\
-  -H "Authorization: Bearer $SAFESIGN_API_KEY" \\
+    curl: `curl -X POST https://api.esigniva.com/v1/documents \\
+  -H "Authorization: Bearer $ESIGNIVA_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "title": "Employment Agreement",
@@ -228,12 +228,12 @@ except Exception as e:
       {
         id: 'overview',
         title: 'Overview',
-        content: `SafeSign is a secure, legally-binding electronic signature platform that helps businesses streamline document workflows. Our platform provides enterprise-grade security, comprehensive audit trails, and seamless integrations.`
+        content: `Esigniva is a secure, legally-binding electronic signature platform that helps businesses streamline document workflows. Our platform provides enterprise-grade security, comprehensive audit trails, and seamless integrations.`
       },
       {
         id: 'quick-start',
         title: 'Quick Start',
-        content: `To get started with SafeSign:\n\n1. Create an account at app.safesign.com\n2. Verify your email address\n3. Set up your organization profile\n4. Add team members (optional)\n5. Upload your first document\n\nYou can start with our free plan which includes 5 documents per month.`
+        content: `To get started with Esigniva:\n\n1. Create an account at app.esigniva.com\n2. Verify your email address\n3. Set up your organization profile\n4. Add team members (optional)\n5. Upload your first document\n\nYou can start with our free plan which includes 5 documents per month.`
       },
       {
         id: 'features',
@@ -252,7 +252,7 @@ except Exception as e:
       {
         id: 'authentication',
         title: 'Authentication',
-        content: `All API requests require authentication using your API key. Include the API key in the Authorization header:\n\n\`Authorization: Bearer YOUR_API_KEY\`\n\nYou can generate API keys in your SafeSign dashboard under Settings > API Keys.`
+        content: `All API requests require authentication using your API key. Include the API key in the Authorization header:\n\n\`Authorization: Bearer YOUR_API_KEY\`\n\nYou can generate API keys in your Esigniva dashboard under Settings > API Keys.`
       },
       {
         id: 'rate-limiting',
@@ -264,24 +264,24 @@ except Exception as e:
       {
         id: 'overview',
         title: 'Security Compliance',
-        content: `SafeSign is compliant with major global electronic signature standards, including eIDAS in the European Union and the ESIGN Act in the United States. Every signed document is protected by a cryptographic tamper-evident seal and includes a complete certificate of completion containing signers' email verification, IP addresses, and timestamps.`
+        content: `Esigniva is compliant with major global electronic signature standards, including eIDAS in the European Union and the ESIGN Act in the United States. Every signed document is protected by a cryptographic tamper-evident seal and includes a complete certificate of completion containing signers' email verification, IP addresses, and timestamps.`
       },
       {
         id: 'best-practices',
         title: 'Security Best Practices',
-        content: `Keep your account and integration secure by following these guidelines:\n\n1. Never share your API Secret Keys or commit them to public code repositories. Use environment variables.\n2. Enable two-factor authentication (2FA) for all users in your organization dashboard.\n3. Regularly audit authorized members and revoke API keys that are no longer in active use.\n4. Ensure your webhook endpoints use SSL/TLS and verify payload signatures to confirm they originate from SafeSign.`
+        content: `Keep your account and integration secure by following these guidelines:\n\n1. Never share your API Secret Keys or commit them to public code repositories. Use environment variables.\n2. Enable two-factor authentication (2FA) for all users in your organization dashboard.\n3. Regularly audit authorized members and revoke API keys that are no longer in active use.\n4. Ensure your webhook endpoints use SSL/TLS and verify payload signatures to confirm they originate from Esigniva.`
       }
     ],
     'integrations': [
       {
         id: 'overview',
         title: 'Integrations Overview',
-        content: `SafeSign integrates smoothly with the platforms you already use, such as Salesforce, Google Workspace, Slack, and Microsoft Teams. Sync documents automatically to cloud storages like Google Drive, Dropbox, and Box.`
+        content: `Esigniva integrates smoothly with the platforms you already use, such as Salesforce, Google Workspace, Slack, and Microsoft Teams. Sync documents automatically to cloud storages like Google Drive, Dropbox, and Box.`
       },
       {
         id: 'webhooks',
         title: 'Webhook Implementation',
-        content: `Webhooks allow your application to receive real-time notifications about events in SafeSign. To configure webhooks:\n\n1. Go to Developer Settings > Webhooks.\n2. Enter your payload delivery URL.\n3. Select the events you wish to subscribe to (e.g., document.completed, document.declined).\n4. SafeSign will send a POST request with a JSON payload whenever those events are triggered.`
+        content: `Webhooks allow your application to receive real-time notifications about events in Esigniva. To configure webhooks:\n\n1. Go to Developer Settings > Webhooks.\n2. Enter your payload delivery URL.\n3. Select the events you wish to subscribe to (e.g., document.completed, document.declined).\n4. Esigniva will send a POST request with a JSON payload whenever those events are triggered.`
       }
     ],
     'guides': [
@@ -300,7 +300,7 @@ except Exception as e:
       {
         id: 'overview',
         title: 'API Error Codes',
-        content: `SafeSign API returns standard HTTP status codes:\n\n- 400 Bad Request: Invalid parameters or malformed JSON payload.\n- 401 Unauthorized: Invalid API key or missing authorization header.\n- 403 Forbidden: Insufficient permissions for the requested resource.\n- 404 Not Found: The specified document or resource does not exist.\n- 429 Too Many Requests: Rate limit exceeded. Back off and retry.`
+        content: `Esigniva API returns standard HTTP status codes:\n\n- 400 Bad Request: Invalid parameters or malformed JSON payload.\n- 401 Unauthorized: Invalid API key or missing authorization header.\n- 403 Forbidden: Insufficient permissions for the requested resource.\n- 404 Not Found: The specified document or resource does not exist.\n- 429 Too Many Requests: Rate limit exceeded. Back off and retry.`
       },
       {
         id: 'email-delivery',
@@ -313,7 +313,7 @@ except Exception as e:
   const faqs = [
     {
       question: 'How do I generate an API key?',
-      answer: 'Navigate to Settings > API Keys in your SafeSign dashboard. Click "Generate New Key" and copy the key immediately - it will only be shown once.'
+      answer: 'Navigate to Settings > API Keys in your Esigniva dashboard. Click "Generate New Key" and copy the key immediately - it will only be shown once.'
     },
     {
       question: 'Are webhooks real-time?',
@@ -321,7 +321,7 @@ except Exception as e:
     },
     {
       question: 'What file formats are supported?',
-      answer: 'SafeSign supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TIFF files. Maximum file size is 100MB.'
+      answer: 'Esigniva supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TIFF files. Maximum file size is 100MB.'
     }
   ];
 
@@ -407,7 +407,7 @@ except Exception as e:
                 </button>
                 <div className="safe-docs-logo">
                   <Book size={24} />
-                  <span>SafeSign Docs</span>
+                  <span>Esigniva Docs</span>
                 </div>
               </div>
               
@@ -428,9 +428,9 @@ except Exception as e:
             </div>
             
             <div className="safe-hero-section">
-              <h1 className="safe-hero-title">SafeSign Documentation</h1>
+              <h1 className="safe-hero-title">Esigniva Documentation</h1>
               <p className="safe-hero-subtitle">
-                Comprehensive guides, API references, and tutorials to help you integrate and use SafeSign effectively
+                Comprehensive guides, API references, and tutorials to help you integrate and use Esigniva effectively
               </p>
               
               {/* Search */}

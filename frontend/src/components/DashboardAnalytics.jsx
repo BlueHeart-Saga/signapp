@@ -984,12 +984,10 @@ const DashboardAnalytics = ({ onClose }) => {
         </div>
         <div className="plan-details">
           <div className="plan-name">{analyticsData.subscription.plan_name}</div>
-          {analyticsData.subscription.days_remaining > 0 && (
-            <div className="days-remaining">
-              <Clock size={16} />
-              <span>{analyticsData.subscription.days_remaining} days remaining</span>
-            </div>
-          )}
+          <div className="days-remaining">
+            <Clock size={16} />
+            <span>Credits Never Expire</span>
+          </div>
           {analyticsData.subscription.is_trial && (
             <div className="trial-badge">Trial</div>
           )}

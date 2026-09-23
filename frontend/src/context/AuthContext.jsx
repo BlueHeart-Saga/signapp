@@ -14,7 +14,16 @@ export const AuthProvider = ({ children }) => {
     }
   });
   const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [credits, setCredits] = useState(null);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const hasToken = !!localStorage.getItem("token");
+      const hasUser = !!localStorage.getItem("user");
+      return hasToken && !hasUser;
+    } catch {
+      return false;
+    }
+  });
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const setUser = (userData, activeToken = null) => {
@@ -61,6 +70,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  const fetchCredits = async () => {
+    if (!token) return;
+    try {
+      const res = await API.get("/credits/balance");
+      setCredits(res.data);
+      if (res.data && res.data.balance !== undefined) {
+        setUserState((prev) => (prev ? { ...prev, credit_balance: res.data.balance } : prev));
+      }
+    } catch (err) {
+      console.error("Failed to fetch credits balance", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleCreditsUpdated = () => {
+      fetchCredits();
+    };
+    window.addEventListener("credits_updated", handleCreditsUpdated);
+    return () => {
+      window.removeEventListener("credits_updated", handleCreditsUpdated);
+    };
+  }, [token]);
+
   const fetchSubscription = async () => {
     if (!token) return;
     try {
@@ -80,6 +112,7 @@ export const AuthProvider = ({ children }) => {
     if (!token) {
       setUser(null);
       setSubscription(null);
+      setCredits(null);
       setLoading(false);
       return;
     }
@@ -87,28 +120,40 @@ export const AuthProvider = ({ children }) => {
     // Refresh user and subscription on mount or token change
     const initializeAuth = async () => {
       try {
-        setLoading(true);
-        // Run both fetches in parallel
-        const [userRes, subRes] = await Promise.all([
-          API.get("/auth/me"),
-          API.get("/subscription/current").catch(() => ({ data: null }))
+        if (!user) {
+          setLoading(true);
+        }
+        // Run fetches in parallel safely
+        const [userRes, subRes, creditRes] = await Promise.all([
+          API.get("/auth/me").catch((err) => {
+            if (err.response?.status === 401) throw err;
+            return { data: null };
+          }),
+          API.get("/subscription/current").catch(() => ({ data: null })),
+          API.get("/credits/balance").catch(() => ({ data: null }))
         ]);
 
-        const userData = userRes.data;
+        const userData = userRes.data || user;
         const subData = subRes.data;
+        const creditData = creditRes.data;
 
-        // Synchronize user flag with actual subscription status if sub data is available
+        // Synchronize user flag with actual entitlement status (positive credits or active subscription)
         if (userData) {
-          userData.has_active_subscription = subData ? subData.is_active : false;
+          const hasCredits = (creditData?.balance > 0) || (userData?.credit_balance > 0);
+          userData.has_active_subscription = hasCredits || (subData ? subData.is_active : false);
+          setUser(userData);
         }
 
-        setUser(userData);
-        setSubscription(subData);
+        if (subData) setSubscription(subData);
+        if (creditData) setCredits(creditData);
       } catch (err) {
         console.error("Session expired or invalid", err);
-        setToken(null);
-        setUser(null);
-        setSubscription(null);
+        if (err.response?.status === 401) {
+          setToken(null);
+          setUser(null);
+          setSubscription(null);
+          setCredits(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -123,6 +168,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setSubscription(null);
+    setCredits(null);
     /* global google */
     if (window.google) {
       window.google.accounts.id.disableAutoSelect();
@@ -147,24 +193,32 @@ export const AuthProvider = ({ children }) => {
     await fetchSubscription();
   };
 
+  const refreshCredits = async () => {
+    await fetchCredits();
+  };
+
   const refreshUser = async () => {
     if (!token) return;
     try {
-      const [userRes, subRes] = await Promise.all([
+      const [userRes, subRes, creditRes] = await Promise.all([
         API.get("/auth/me"),
-        API.get("/subscription/current").catch(() => ({ data: null }))
+        API.get("/subscription/current").catch(() => ({ data: null })),
+        API.get("/credits/balance").catch(() => ({ data: null }))
       ]);
 
       const userData = userRes.data;
       const subData = subRes.data;
+      const creditData = creditRes.data;
 
-      // Synchronize user flag with actual subscription status if sub data is available
+      // Synchronize user flag with actual entitlement status (positive credits or active subscription)
       if (userData) {
-        userData.has_active_subscription = subData ? subData.is_active : false;
+        const hasCredits = (creditData?.balance > 0) || (userData?.credit_balance > 0);
+        userData.has_active_subscription = hasCredits || (subData ? subData.is_active : false);
       }
 
       setUser(userData);
       setSubscription(subData);
+      setCredits(creditData);
     } catch (err) {
       console.error("Failed to refresh user session:", err);
     }
@@ -180,6 +234,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         subscription,
         subscriptionLoading,
+        credits,
+        refreshCredits,
         refreshSubscription,
         refreshUser,
         updateOnboardingStatus,

@@ -25,14 +25,14 @@ const TrademarkPolicy = () => {
       type: 'Word Marks',
       icon: <FileText size={20} />,
       color: '#0f766e',
-      examples: ['SafeSign', 'SafeSign Pro', 'SafeSign Business'],
+      examples: ['Esigniva', 'Esigniva Pro', 'Esigniva Business'],
       description: 'Registered names and product identifiers'
     },
     {
       type: 'Logo Marks',
       icon: <Badge size={20} />,
       color: '#3b82f6',
-      examples: ['SafeSign Logo', 'Icon variations', 'Brand symbols'],
+      examples: ['Esigniva Logo', 'Icon variations', 'Brand symbols'],
       description: 'Visual brand identifiers'
     },
     {
@@ -56,15 +56,15 @@ const TrademarkPolicy = () => {
       scenario: 'Service Reference',
       icon: <CheckCircle size={18} />,
       color: '#10b981',
-      description: 'Accurately describing SafeSign services you use',
-      examples: ['"We use SafeSign for document signing"', '"Powered by SafeSign"'],
+      description: 'Accurately describing Esigniva services you use',
+      examples: ['"We use Esigniva for document signing"', '"Powered by Esigniva"'],
       requirements: ['Truthful representation', 'Clear attribution']
     },
     {
       scenario: 'Media & Press',
       icon: <FileText size={18} />,
       color: '#3b82f6',
-      description: 'Journalistic or media coverage referencing SafeSign',
+      description: 'Journalistic or media coverage referencing Esigniva',
       examples: ['News articles', 'Blog posts', 'Reviews'],
       requirements: ['Factual context', 'No endorsement implication']
     },
@@ -72,7 +72,7 @@ const TrademarkPolicy = () => {
       scenario: 'Integration Partners',
       icon: <Link size={18} />,
       color: '#0f766e',
-      description: 'Partners showcasing integration with SafeSign',
+      description: 'Partners showcasing integration with Esigniva',
       examples: ['Integration documentation', 'Partner marketing'],
       requirements: ['Written permission', 'Brand guidelines']
     }
@@ -113,40 +113,40 @@ const TrademarkPolicy = () => {
     {
       id: 'introduction',
       title: 'Trademark Policy Overview',
-      content: `This Trademark Policy governs the use of SafeSign trademarks, logos, service marks, and branding elements ("Trademarks") owned by DevOpsTrio. By using or referencing SafeSign Trademarks, you agree to comply with this policy.`,
+      content: `This Trademark Policy governs the use of Esigniva trademarks, logos, service marks, and branding elements ("Trademarks") owned by DevOpsTrio. By using or referencing Esigniva Trademarks, you agree to comply with this policy.`,
       subSections: [
         {
           title: 'Purpose',
-          content: `Protect SafeSign brand identity and prevent consumer confusion while allowing legitimate references to our services.`
+          content: `Protect Esigniva brand identity and prevent consumer confusion while allowing legitimate references to our services.`
         },
         {
           title: 'Scope',
-          content: `Applies globally to all uses of SafeSign Trademarks in any medium, digital or physical.`
+          content: `Applies globally to all uses of Esigniva Trademarks in any medium, digital or physical.`
         }
       ],
       icon: <BookOpen size={20} />
     },
     {
       id: 'trademarks',
-      title: 'SafeSign Trademarks',
-      content: `SafeSign Trademarks include all brand identifiers that distinguish our products and services in the marketplace. These marks are valuable business assets protected by law.`,
+      title: 'Esigniva Trademarks',
+      content: `Esigniva Trademarks include all brand identifiers that distinguish our products and services in the marketplace. These marks are valuable business assets protected by law.`,
       icon: <Tag size={20} />
     },
     {
       id: 'permitted-use',
       title: 'Permitted Use',
-      content: `You may use SafeSign Trademarks under specific conditions that do not mislead consumers or dilute our brand value.`,
+      content: `You may use Esigniva Trademarks under specific conditions that do not mislead consumers or dilute our brand value.`,
       subSections: [
         {
           title: 'General Guidelines',
           content: `- Always use trademarks as adjectives, not nouns or verbs
 - Include proper trademark symbols (™ or ®) on first reference
-- Maintain proper capitalization (SafeSign, not Safesign or safeSign)
+- Maintain proper capitalization (Esigniva, not Esigniva or Esigniva)
 - Do not combine our marks with your own branding`
         },
         {
           title: 'Attribution',
-          content: `When referencing SafeSign, include appropriate attribution such as "SafeSign is a trademark of DevOpsTrio."`
+          content: `When referencing Esigniva, include appropriate attribution such as "Esigniva is a trademark of DevOpsTrio."`
         }
       ],
       icon: <CheckCircle size={20} />
@@ -154,13 +154,13 @@ const TrademarkPolicy = () => {
     {
       id: 'prohibited-use',
       title: 'Prohibited Use',
-      content: `Certain uses of SafeSign Trademarks are strictly prohibited to protect brand integrity and prevent consumer confusion.`,
+      content: `Certain uses of Esigniva Trademarks are strictly prohibited to protect brand integrity and prevent consumer confusion.`,
       subSections: [
         {
           title: 'Strict Prohibitions',
-          content: `- Never use SafeSign marks as part of your company name
-- Do not register domain names containing SafeSign
-- Avoid creating composite marks with SafeSign
+          content: `- Never use Esigniva marks as part of your company name
+- Do not register domain names containing Esigniva
+- Avoid creating composite marks with Esigniva
 - Never imply endorsement or partnership without authorization`
         }
       ],
@@ -173,15 +173,15 @@ const TrademarkPolicy = () => {
       subSections: [
         {
           title: 'Domain Names',
-          content: `Do not register or use domain names containing "SafeSign" or confusingly similar variations.`
+          content: `Do not register or use domain names containing "Esigniva" or confusingly similar variations.`
         },
         {
           title: 'Social Media',
-          content: `Do not use SafeSign marks in usernames, handles, or profile names without permission.`
+          content: `Do not use Esigniva marks in usernames, handles, or profile names without permission.`
         },
         {
           title: 'Advertising',
-          content: `Do not use SafeSign Trademarks in paid advertisements, SEO keywords, or online marketing in a misleading manner.`
+          content: `Do not use Esigniva Trademarks in paid advertisements, SEO keywords, or online marketing in a misleading manner.`
         }
       ],
       icon: <Globe size={20} />
@@ -208,7 +208,7 @@ const TrademarkPolicy = () => {
     {
       id: 'enforcement',
       title: 'Enforcement Actions',
-      content: `SafeSign takes trademark protection seriously and will take appropriate action against violations.`,
+      content: `Esigniva takes trademark protection seriously and will take appropriate action against violations.`,
       subSections: [
         {
           title: 'Response Actions',
@@ -245,7 +245,7 @@ const TrademarkPolicy = () => {
             </div>
             <h1 className="safe-hero-title">Trademark Policy</h1>
             <p className="safe-hero-subtitle">
-              Guidelines for proper use of SafeSign trademarks, logos, and branding to protect our brand identity and prevent consumer confusion
+              Guidelines for proper use of Esigniva trademarks, logos, and branding to protect our brand identity and prevent consumer confusion
             </p>
             
             <div className="safe-hero-meta">
@@ -272,7 +272,7 @@ const TrademarkPolicy = () => {
           <div className="safe-section-header">
             <h2 className="safe-section-title">
               <Tag size={24} />
-              SafeSign Trademarks
+              Esigniva Trademarks
             </h2>
             <p className="safe-section-subtitle">
               Protected brand identifiers owned exclusively by DevOpsTrio
@@ -528,7 +528,7 @@ const TrademarkPolicy = () => {
               </div>
               <div className="safe-notice-content">
                 <p>
-                  Any third-party trademarks, service marks, logos, and brand names referenced on SafeSign platforms are the property of their respective owners. Reference to third-party trademarks does not constitute endorsement, sponsorship, or recommendation by SafeSign.
+                  Any third-party trademarks, service marks, logos, and brand names referenced on Esigniva platforms are the property of their respective owners. Reference to third-party trademarks does not constitute endorsement, sponsorship, or recommendation by Esigniva.
                 </p>
                 <div className="safe-notice-examples">
                   <h4>Examples:</h4>
@@ -558,7 +558,7 @@ const TrademarkPolicy = () => {
                     </div>
                   </div>
                   <p className="safe-policy-card-description">
-                    Complete terms governing use of SafeSign services.
+                    Complete terms governing use of Esigniva services.
                   </p>
                   <div className="safe-policy-card-footer">
                     <ExternalLink size={16} />

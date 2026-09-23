@@ -82,7 +82,7 @@ const AbusePolicy = () => {
       subSections: [
         {
           title: 'Purpose & Scope',
-          content: `SafeSign is committed to providing a secure environment for electronic document signing. This policy ensures our platform is not used for illegal, harmful, or abusive purposes while protecting legitimate users.`
+          content: `Esigniva is committed to providing a secure environment for electronic document signing. This policy ensures our platform is not used for illegal, harmful, or abusive purposes while protecting legitimate users.`
         },
         {
           title: 'Zero Tolerance',
@@ -94,7 +94,7 @@ const AbusePolicy = () => {
     {
       id: 'prohibited-activities',
       title: 'Prohibited Activities',
-      content: `The following activities are strictly prohibited on the SafeSign platform. This list is not exhaustive and may be updated as new threats emerge.`,
+      content: `The following activities are strictly prohibited on the Esigniva platform. This list is not exhaustive and may be updated as new threats emerge.`,
       icon: <Ban size={20} />
     },
     {
@@ -123,7 +123,7 @@ const AbusePolicy = () => {
     {
       id: 'enforcement',
       title: 'Enforcement & Consequences',
-      content: `SafeSign employs a graduated enforcement framework based on violation severity and user history.`,
+      content: `Esigniva employs a graduated enforcement framework based on violation severity and user history.`,
       subSections: [
         {
           title: 'Enforcement Actions',
@@ -383,7 +383,7 @@ const AbusePolicy = () => {
                     </div>
                   </div>
                   <p className="safe-policy-card-description">
-                    Complete terms governing use of SafeSign services.
+                    Complete terms governing use of Esigniva services.
                   </p>
                   <div className="safe-policy-card-footer">
                     <ExternalLink size={16} />

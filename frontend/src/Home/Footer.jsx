@@ -16,7 +16,7 @@ import API_BASE_URL from "../config/api";
 export default function Footer() {
   const navigate = useNavigate();
 
-  const [brandName, setBrandName] = useState("Safesign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [tagline, setTagline] = useState(
     "SIGN SMARTER WITH AI-POWERED E-SIGNATURES"
   );
@@ -60,12 +60,12 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="safesign-footer">
-      <div className="safesign-footer-container">
+    <footer className="esigniva-footer">
+      <div className="esigniva-footer-container">
         {/* Brand Section */}
         <div>
           <div
-            className="safesign-footer-brand-wrapper"
+            className="esigniva-footer-brand-wrapper"
             onClick={() => navigate("/")}
             style={{ cursor: "pointer" }}
           >
@@ -73,15 +73,15 @@ export default function Footer() {
               <img
                 src={logoUrl}
                 alt={`${brandName} logo`}
-                className="safesign-footer-logo-img"
+                className="esigniva-footer-logo-img"
               />
             )}
-            <h2 className="safesign-footer-brand">{brandName}</h2>
+            <h2 className="esigniva-footer-brand">{brandName}</h2>
           </div>
 
-          <p className="safesign-footer-tagline">{tagline}</p>
+          <p className="esigniva-footer-tagline">{tagline}</p>
 
-          <div className="safesign-footer-socials">
+          <div className="esigniva-footer-socials">
             <button
               aria-label="Facebook"
               onClick={() => openExternal(socialLinks.facebook)}
@@ -114,8 +114,8 @@ export default function Footer() {
 
         {/* Quick Links */}
         <div>
-          <h3 className="safesign-footer-title">Quick Links</h3>
-          <ul className="safesign-footer-list">
+          <h3 className="esigniva-footer-title">Quick Links</h3>
+          <ul className="esigniva-footer-list">
             <li onClick={() => navigate("/")}>Home</li>
             <li onClick={() => navigate("/aboutus")}>About Us</li>
             <li onClick={() => navigate("/contactus")}>Contact Us</li>
@@ -127,8 +127,8 @@ export default function Footer() {
 
         {/* Resources */}
         <div>
-          <h3 className="safesign-footer-title">Resources</h3>
-          <ul className="safesign-footer-list">
+          <h3 className="esigniva-footer-title">Resources</h3>
+          <ul className="esigniva-footer-list">
             <li onClick={() => navigate("/blog")}>Blog</li>
             <li onClick={() => navigate("/helpcenter")}>Help Center</li>
             <li onClick={() => navigate("/case-studies")}>Case Studies</li>
@@ -140,27 +140,27 @@ export default function Footer() {
 
         {/* Contact */}
         <div>
-          <h3 className="safesign-footer-title">Contact Us</h3>
+          <h3 className="esigniva-footer-title">Contact Us</h3>
 
-          <p className="safesign-footer-contact">
+          <p className="esigniva-footer-contact">
             <Mail size={16} /> support@{brandName.toLowerCase()}.com
           </p>
 
-          <p className="safesign-footer-contact">
+          <p className="esigniva-footer-contact">
             <Phone size={16} /> +91 98765 43210
           </p>
 
-          <p className="safesign-footer-contact">
+          <p className="esigniva-footer-contact">
             <MapPin size={16} /> India
           </p>
         </div>
       </div>
 
       {/* Bottom Bar */}
-      <div className="safesign-footer-bottom">
+      <div className="esigniva-footer-bottom">
         <p>© 2026 {brandName} — All rights reserved.</p>
 
-        <div className="safesign-footer-policies">
+        <div className="esigniva-footer-policies">
           <a href="/privacy-policy" onClick={(e) => { e.preventDefault(); navigate("/privacy-policy"); }}>Privacy Policy</a>
           <a href="/terms-of-service" onClick={(e) => { e.preventDefault(); navigate("/terms-of-service"); }}>
             Terms of Service

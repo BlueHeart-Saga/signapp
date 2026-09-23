@@ -1709,7 +1709,7 @@
   }
 }
 
-.safesign-pagination {
+.esigniva-pagination {
   background: white;
   border-radius: 14px;
   padding: 14px 20px;
@@ -1721,13 +1721,13 @@
   /* margin: 18px 0; */
 }
 
-.safesign-pagination-info {
+.esigniva-pagination-info {
   font-size: 14px;
   color: #64748b;
   font-weight: 500;
 }
 
-.safesign-pagination-center {
+.esigniva-pagination-center {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1735,7 +1735,7 @@
   color: #475569;
 }
 
-.safesign-pagination select {
+.esigniva-pagination select {
   border-radius: 10px;
   padding: 6px 12px;
   border: 1px solid #e5e7eb;
@@ -1745,13 +1745,13 @@
   cursor: pointer;
 }
 
-.safesign-pagination-controls {
+.esigniva-pagination-controls {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.safesign-page-btn {
+.esigniva-page-btn {
   padding: 8px 16px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -1762,16 +1762,16 @@
   transition: all 0.15s ease;
 }
 
-.safesign-page-btn:hover {
+.esigniva-page-btn:hover {
   background: #f1f5f9;
 }
 
-.safesign-page-btn:disabled {
+.esigniva-page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.safesign-page-current {
+.esigniva-page-current {
   font-weight: 700;
   color: #0f766e;
 }
@@ -2091,7 +2091,7 @@
     font-size: 1.75rem;
   }
 
-  .safesign-pagination {
+  .esigniva-pagination {
     flex-direction: column;
     gap: 1.25rem;
     padding: 20px;
@@ -2099,12 +2099,12 @@
     text-align: center;
   }
 
-  .safesign-pagination-center {
+  .esigniva-pagination-center {
     width: 100%;
     justify-content: center;
   }
 
-  .safesign-pagination-controls {
+  .esigniva-pagination-controls {
     width: 100%;
     justify-content: center;
   }

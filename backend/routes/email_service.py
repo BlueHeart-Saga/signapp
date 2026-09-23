@@ -36,7 +36,7 @@ router = APIRouter()
 # PROFESSIONAL DOCUSIGN-STYLE SUMMARY ENGINE
 # ======================
 
-class SafeSignSummaryEngine:
+class EsignivaSummaryEngine:
     """Professional document summary generator - DocuSign inspired green, black & white design"""
     
     # Brand color palette - Professional DocuSign Style
@@ -73,7 +73,7 @@ class SafeSignSummaryEngine:
         """Retrieve logo and platform name from DB/Azure"""
         branding = db.branding.find_one({})
         logo_img = None
-        platform_name = "SafeSign"
+        platform_name = "Esigniva"
         tagline = "Secure Digital Signatures"
         
         if branding:
@@ -90,7 +90,7 @@ class SafeSignSummaryEngine:
         return logo_img, platform_name, tagline
     
     @staticmethod
-    def create_header(canvas, doc, title="DOCUMENT SUMMARY", envelope_id=None, logo_img=None, platform_name="SafeSign", tagline="Secure Digital Signatures"):
+    def create_header(canvas, doc, title="DOCUMENT SUMMARY", envelope_id=None, logo_img=None, platform_name="Esigniva", tagline="Secure Digital Signatures"):
         """Professional Header - Absolute positioning to avoid content overlap"""
         canvas.saveState()
         
@@ -98,11 +98,11 @@ class SafeSignSummaryEngine:
         HEADER_BASE = PAGE_HEIGHT - 95
         
         # Header background rect - Top of page
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.WHITE))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.WHITE))
         canvas.rect(0, HEADER_BASE, PAGE_WIDTH, 95, fill=1, stroke=0)
 
         # Subtle teal divider - Bottom of header area
-        canvas.setStrokeColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
+        canvas.setStrokeColor(colors.HexColor(EsignivaSummaryEngine.BRAND_PRIMARY))
         canvas.setLineWidth(1.25)
         canvas.line(40, HEADER_BASE, PAGE_WIDTH - 40, HEADER_BASE)
 
@@ -118,22 +118,22 @@ class SafeSignSummaryEngine:
 
         # Branding
         canvas.setFont("Helvetica-Bold", 18)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.BLACK))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.BLACK))
         canvas.drawString(text_x_offset, HEADER_BASE + 55, platform_name)
 
         canvas.setFont("Helvetica", 7.5)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
         canvas.drawString(text_x_offset, HEADER_BASE + 42, tagline)
 
         # Document Title (Right)
         canvas.setFont("Helvetica-Bold", 14)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.BLACK))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.BLACK))
         canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 55, title)
 
         # Envelope ID
         if envelope_id:
             canvas.setFont("Helvetica", 7.5)
-            canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
+            canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
             canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 42, f"Envelope: {envelope_id}")
 
         canvas.restoreState()
@@ -145,27 +145,27 @@ class SafeSignSummaryEngine:
         canvas.saveState()
         
         # Light gray line
-        canvas.setStrokeColor(colors.HexColor(SafeSignSummaryEngine.GRAY_300))
+        canvas.setStrokeColor(colors.HexColor(EsignivaSummaryEngine.GRAY_300))
         canvas.setLineWidth(0.5)
         canvas.line(40, 35, doc.width + 40, 35)
         
         # Footer text - Professional Format
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p UTC")
         footer_id = f"SUM-{certificate_id[:12].upper()}" if certificate_id else "N/A"
-        footer_text = f"© SafeSign | Secure Digital Signatures | Generated: {timestamp} | Summary ID: {footer_id}"
+        footer_text = f"© Esigniva | Secure Digital Signatures | Generated: {timestamp} | Summary ID: {footer_id}"
         
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
         canvas.drawString(40, 20, footer_text)
         
-        # SafeSign Branding
+        # Esigniva Branding
         canvas.setFont("Helvetica-Bold", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY))
-        canvas.drawRightString(doc.width + 40, 20, "SafeSign Verified")
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.BRAND_PRIMARY))
+        canvas.drawRightString(doc.width + 40, 20, "Esigniva Verified")
         
         # Page number
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignSummaryEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
         canvas.drawRightString(doc.width + 40, 10, f"Page {doc.page}")
         
         canvas.restoreState()
@@ -175,17 +175,17 @@ class SafeSignSummaryEngine:
         """Create clean status badge - DocuSign style"""
         
         if status == "completed":
-            color = SafeSignSummaryEngine.SUCCESS
-            bg_color = SafeSignSummaryEngine.SUCCESS_LIGHT
+            color = EsignivaSummaryEngine.SUCCESS
+            bg_color = EsignivaSummaryEngine.SUCCESS_LIGHT
         elif status == "pending":
-            color = SafeSignSummaryEngine.WARNING
-            bg_color = SafeSignSummaryEngine.WARNING_LIGHT
+            color = EsignivaSummaryEngine.WARNING
+            bg_color = EsignivaSummaryEngine.WARNING_LIGHT
         elif status == "voided":
-            color = SafeSignSummaryEngine.VOID
-            bg_color = SafeSignSummaryEngine.VOID_LIGHT
+            color = EsignivaSummaryEngine.VOID
+            bg_color = EsignivaSummaryEngine.VOID_LIGHT
         else:
-            color = SafeSignSummaryEngine.GRAY_600
-            bg_color = SafeSignSummaryEngine.GRAY_100
+            color = EsignivaSummaryEngine.GRAY_600
+            bg_color = EsignivaSummaryEngine.GRAY_100
             
         return f"<font name='Helvetica-Bold' size='9' color='{color}'><back color='{bg_color}'>  {text}  </back></font>"
     
@@ -208,7 +208,7 @@ class SafeSignSummaryEngine:
             'SignatureHeader',
             parent=styles['Heading3'],
             fontSize=13,
-            textColor=colors.HexColor(SafeSignSummaryEngine.BLACK),
+            textColor=colors.HexColor(EsignivaSummaryEngine.BLACK),
             spaceBefore=5,
             spaceAfter=10,
             fontName='Helvetica-Bold',
@@ -308,8 +308,8 @@ class SafeSignSummaryEngine:
         # Clean table with minimal borders - DocuSign style
         sig_table = Table(sig_data, colWidths=[60, 160, 50, 160], hAlign='LEFT')
         sig_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.WHITE)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.BRAND_SECONDARY)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.WHITE)),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.BRAND_SECONDARY)),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
@@ -317,7 +317,7 @@ class SafeSignSummaryEngine:
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
         ]))
         story.append(sig_table)
         story.append(Spacer(1, 15))
@@ -339,8 +339,8 @@ class SafeSignSummaryEngine:
             leftMargin=54,    # 0.75"
             topMargin=120,    # Prevent header overlap
             bottomMargin=54,  # 0.75"
-            title=f"SafeSign Summary - {summary_data.get('envelope_id', 'Document')}",
-            author="SafeSign",
+            title=f"Esigniva Summary - {summary_data.get('envelope_id', 'Document')}",
+            author="Esigniva",
             subject="Document Summary"
         )
         
@@ -348,7 +348,7 @@ class SafeSignSummaryEngine:
         story = []
         
         # Fetch platform branding
-        logo_img, platform_name, tagline = SafeSignSummaryEngine._get_branding_data()
+        logo_img, platform_name, tagline = EsignivaSummaryEngine._get_branding_data()
         
         # ========== CUSTOM STYLES - DocuSign Inspired ==========
         
@@ -357,7 +357,7 @@ class SafeSignSummaryEngine:
             name='DocuSignTitle',
             parent=styles['Heading1'],
             fontSize=22,
-            textColor=colors.HexColor(SafeSignSummaryEngine.BLACK),
+            textColor=colors.HexColor(EsignivaSummaryEngine.BLACK),
             alignment=TA_CENTER,
             spaceAfter=10,
             spaceBefore=0,
@@ -370,7 +370,7 @@ class SafeSignSummaryEngine:
             name='DocuSignSection',
             parent=styles['Heading2'],
             fontSize=13,
-            textColor=colors.HexColor(SafeSignSummaryEngine.BLACK),
+            textColor=colors.HexColor(EsignivaSummaryEngine.BLACK),
             alignment=TA_LEFT,
             spaceBefore=10,
             spaceAfter=4,
@@ -384,7 +384,7 @@ class SafeSignSummaryEngine:
             name='DocuSignSubSection',
             parent=styles['Heading3'],
             fontSize=11,
-            textColor=colors.HexColor(SafeSignSummaryEngine.GRAY_700),
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_700),
             alignment=TA_LEFT,
             spaceBefore=8,  # Reduced
             spaceAfter=4,   # Reduced
@@ -398,7 +398,7 @@ class SafeSignSummaryEngine:
             name='DocuSignBody',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=colors.HexColor(SafeSignSummaryEngine.GRAY_800),
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_800),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=13,
@@ -410,7 +410,7 @@ class SafeSignSummaryEngine:
             name='DocuSignLabel',
             parent=styles['Normal'],
             fontSize=8,
-            textColor=colors.HexColor(SafeSignSummaryEngine.GRAY_600),
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_600),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=11,     # Reduced
@@ -422,7 +422,7 @@ class SafeSignSummaryEngine:
             name='DocuSignValue',
             parent=styles['Normal'],
             fontSize=9.5,   # Reduced
-            textColor=colors.HexColor(SafeSignSummaryEngine.BLACK),
+            textColor=colors.HexColor(EsignivaSummaryEngine.BLACK),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=13,     # Reduced
@@ -448,15 +448,15 @@ class SafeSignSummaryEngine:
         
         envelope_bar = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
         envelope_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 15),
             ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
@@ -485,8 +485,8 @@ class SafeSignSummaryEngine:
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
-            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(SafeSignSummaryEngine.BLACK)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
+            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(EsignivaSummaryEngine.BLACK)),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -504,7 +504,7 @@ class SafeSignSummaryEngine:
         current_recipient = summary_data.get('current_recipient', {})
         
         status_text = current_recipient.get('status', 'pending').upper()
-        status_badge = SafeSignSummaryEngine.create_status_badge(
+        status_badge = EsignivaSummaryEngine.create_status_badge(
             status_text, 
             'completed' if status_text == 'COMPLETED' else 'pending'
         )
@@ -525,8 +525,8 @@ class SafeSignSummaryEngine:
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
-            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(SafeSignSummaryEngine.BLACK)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
+            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(EsignivaSummaryEngine.BLACK)),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -576,7 +576,7 @@ class SafeSignSummaryEngine:
         current_recipient['has_initials_field'] = has_initials_field
         
         # Create signature block
-        signature_block = SafeSignSummaryEngine.create_recipient_signature_block(current_recipient)
+        signature_block = EsignivaSummaryEngine.create_recipient_signature_block(current_recipient)
         if signature_block:
             story.extend(signature_block)
         
@@ -598,8 +598,8 @@ class SafeSignSummaryEngine:
         stat_table = Table(stat_data, colWidths=[150, 150, 150], hAlign='LEFT')
         stat_table.setStyle(TableStyle([
             # Header
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
@@ -607,12 +607,12 @@ class SafeSignSummaryEngine:
             # Values
             ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, 1), 16),
-            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY)),
+            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(EsignivaSummaryEngine.BRAND_PRIMARY)),
             ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
             
             ('BOTTOMPADDING', (0, 1), (-1, 1), 12),
             ('TOPPADDING', (0, 1), (-1, 1), 12),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
@@ -639,10 +639,10 @@ class SafeSignSummaryEngine:
                 # Status with color
                 if field.get('completed'):
                     status = "✓ Completed"
-                    status_color = SafeSignSummaryEngine.SUCCESS
+                    status_color = EsignivaSummaryEngine.SUCCESS
                 else:
                     status = "○ Pending"
-                    status_color = SafeSignSummaryEngine.WARNING
+                    status_color = EsignivaSummaryEngine.WARNING
                 
                 # Format value
                 value = field.get('value', '—')
@@ -673,8 +673,8 @@ class SafeSignSummaryEngine:
             field_table = Table(field_data, colWidths=[100, 50, 100, 150, 80], hAlign='LEFT', repeatRows=1)
             field_table.setStyle(TableStyle([
                 # Header
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 9),
                 ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
@@ -683,10 +683,10 @@ class SafeSignSummaryEngine:
                 
                 # Data rows
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(SafeSignSummaryEngine.WHITE), 
-                  colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
+                 [colors.HexColor(EsignivaSummaryEngine.WHITE), 
+                  colors.HexColor(EsignivaSummaryEngine.GRAY_50)]),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
                 ('TOPPADDING', (0, 1), (-1, -1), 6),
@@ -701,7 +701,7 @@ class SafeSignSummaryEngine:
         else:
             fields_elements = [
                 Paragraph("All Assigned Fields", styles['DocuSignSubSection']),
-                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No additional fields assigned.</font>", styles['DocuSignBody'])
+                Paragraph(f"<font name='Helvetica' size='10' color='{EsignivaSummaryEngine.GRAY_600}'>No additional fields assigned.</font>", styles['DocuSignBody'])
             ]
             story.append(KeepTogether(fields_elements))
         
@@ -716,7 +716,7 @@ class SafeSignSummaryEngine:
             
             for p in participants:
                 status = p.get('status', 'pending').upper()
-                status_color = SafeSignSummaryEngine.SUCCESS if status == 'COMPLETED' else SafeSignSummaryEngine.WARNING
+                status_color = EsignivaSummaryEngine.SUCCESS if status == 'COMPLETED' else EsignivaSummaryEngine.WARNING
                 
                 completed_date = p.get('completed_at', '—')
                 if completed_date and completed_date != '—' and len(str(completed_date)) > 10:
@@ -732,15 +732,15 @@ class SafeSignSummaryEngine:
             
             participant_table = Table(participant_data, colWidths=[100, 130, 80, 80, 90], hAlign='LEFT', repeatRows=1)
             participant_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 9),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(SafeSignSummaryEngine.WHITE), 
-                  colors.HexColor(SafeSignSummaryEngine.GRAY_50)]),
+                 [colors.HexColor(EsignivaSummaryEngine.WHITE), 
+                  colors.HexColor(EsignivaSummaryEngine.GRAY_50)]),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
             
@@ -753,7 +753,7 @@ class SafeSignSummaryEngine:
         else:
             participants_elements = [
                 Paragraph("Document Participants", styles['DocuSignSection']),
-                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No participants found.</font>", styles['DocuSignBody'])
+                Paragraph(f"<font name='Helvetica' size='10' color='{EsignivaSummaryEngine.GRAY_600}'>No participants found.</font>", styles['DocuSignBody'])
             ]
             story.append(KeepTogether(participants_elements))
         
@@ -776,11 +776,11 @@ class SafeSignSummaryEngine:
                 
             timeline_table = Table(timeline_data, colWidths=[80, 100, 120, 200], hAlign='LEFT', repeatRows=1)
             timeline_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
                 ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
@@ -796,7 +796,7 @@ class SafeSignSummaryEngine:
         else:
             activity_elements = [
                 Paragraph("Recent Activity", styles['DocuSignSection']),
-                Paragraph(f"<font name='Helvetica' size='10' color='{SafeSignSummaryEngine.GRAY_600}'>No recent activity recorded.</font>", styles['DocuSignBody'])
+                Paragraph(f"<font name='Helvetica' size='10' color='{EsignivaSummaryEngine.GRAY_600}'>No recent activity recorded.</font>", styles['DocuSignBody'])
             ]
             story.append(KeepTogether(activity_elements))
         
@@ -807,7 +807,7 @@ class SafeSignSummaryEngine:
         # Professional Certificate Banner
         story.append(Spacer(1, 10))
         story.append(Paragraph("CERTIFICATE OF AUTHENTICITY", 
-            ParagraphStyle('AuthTitle', fontSize=22, textColor=colors.HexColor(SafeSignSummaryEngine.BLACK), fontName='Helvetica-Bold', alignment=TA_LEFT, spaceAfter=18)))
+            ParagraphStyle('AuthTitle', fontSize=22, textColor=colors.HexColor(EsignivaSummaryEngine.BLACK), fontName='Helvetica-Bold', alignment=TA_LEFT, spaceAfter=18)))
         
         # Summary snapshot row
         summary_id = summary_data.get('summary_id', f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}")
@@ -815,34 +815,34 @@ class SafeSignSummaryEngine:
         
         snapshot_data = [
             [
-                Paragraph(f"<font color='{SafeSignSummaryEngine.GRAY_600}'>Summary ID:</font> <b>{summary_id}</b>", styles['DocuSignBody']),
-                Paragraph(f"<font color='{SafeSignSummaryEngine.GRAY_600}'>Generated:</font> <b>{gen_time}</b>", styles['DocuSignBody']),
-                Paragraph(f"<font color='{SafeSignSummaryEngine.GRAY_600}'>Verified by:</font> <b>SafeSign Platform</b>", styles['DocuSignBody'])
+                Paragraph(f"<font color='{EsignivaSummaryEngine.GRAY_600}'>Summary ID:</font> <b>{summary_id}</b>", styles['DocuSignBody']),
+                Paragraph(f"<font color='{EsignivaSummaryEngine.GRAY_600}'>Generated:</font> <b>{gen_time}</b>", styles['DocuSignBody']),
+                Paragraph(f"<font color='{EsignivaSummaryEngine.GRAY_600}'>Verified by:</font> <b>Esigniva Platform</b>", styles['DocuSignBody'])
             ]
         ]
         snapshot_table = Table(snapshot_data, colWidths=[180, 180, 140], hAlign='LEFT')
         snapshot_table.setStyle(TableStyle([
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('LINEBELOW', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY)),
+            ('LINEBELOW', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaSummaryEngine.BRAND_PRIMARY)),
         ]))
         story.append(snapshot_table)
         story.append(Spacer(1, 20))
         
         # Verification Badges - High Professional Look
-        badge_style = ParagraphStyle('BadgeStyle', fontSize=10, textColor=colors.HexColor(SafeSignSummaryEngine.SUCCESS), fontName='Helvetica-Bold', leading=14)
+        badge_style = ParagraphStyle('BadgeStyle', fontSize=10, textColor=colors.HexColor(EsignivaSummaryEngine.SUCCESS), fontName='Helvetica-Bold', leading=14)
         
         badges = [
-            [Paragraph(f"<font color='{SafeSignSummaryEngine.SUCCESS}'>✔</font> Document Integrity Verified", badge_style)],
-            [Paragraph(f"<font color='{SafeSignSummaryEngine.SUCCESS}'>✔</font> Electronic Consent Recorded", badge_style)],
-            [Paragraph(f"<font color='{SafeSignSummaryEngine.SUCCESS}'>✔</font> Audit Trail Available", badge_style)]
+            [Paragraph(f"<font color='{EsignivaSummaryEngine.SUCCESS}'>✔</font> Document Integrity Verified", badge_style)],
+            [Paragraph(f"<font color='{EsignivaSummaryEngine.SUCCESS}'>✔</font> Electronic Consent Recorded", badge_style)],
+            [Paragraph(f"<font color='{EsignivaSummaryEngine.SUCCESS}'>✔</font> Audit Trail Available", badge_style)]
         ]
         badge_table = Table(badges, colWidths=[400], hAlign='LEFT')
         badge_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignSummaryEngine.SUCCESS_LIGHT)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.SUCCESS_LIGHT)),
             ('LEFTPADDING', (0, 0), (-1, -1), 15),
             ('TOPPADDING', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignSummaryEngine.SUCCESS)),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaSummaryEngine.SUCCESS)),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
             ('TOPPADDING', (0, 2), (-1, 2), 5),
         ]))
@@ -867,15 +867,15 @@ class SafeSignSummaryEngine:
         )
 
         sections = [
-            ("Platform Governance & Trust", "SafeSign is a secure digital signature platform designed to provide legally binding electronic transactions. Our infrastructure utilizes industry-standard encryption, multi-factor authentication, and tamper-evident technology to ensure document integrity throughout the lifecycle of every envelope. We adhere to stringent technical standards to maintain the highest level of trust and security for all participating parties."),
-            ("Electronic Record and Signature Disclosure", "By participating in this electronic transaction, all parties acknowledge and agree to conduct transactions electronically in accordance with the SafeSign Electronic Consent Policy and applicable international laws, including the US ESIGN Act, UETA, and EU eIDAS regulations. Electronic signatures captured on this platform are legally binding and carry the same weight as traditional handwritten signatures."),
-            ("Document Integrity & Immutability", "This certificate attests that the document associated with this SafeSign envelope remains in the precise state in which it existed at the time of completion. SafeSign records cryptographic evidence and system metadata designed to detect and prevent unauthorized post-signing modifications. Any alteration to the document after finalization will invalidate the recorded verification chain."),
-            ("Signature Validity & Forensic Audit", "Electronic signatures captured within SafeSign are technically bound to the document content. Each signing event is recorded with high-fidelity contextual data, including precise UTC timestamps, IP addresses, and secure access tokens, forming a permanent, tamper-evident audit history for legal and compliance review."),
-            ("Audit Trail & Traceability", "SafeSign maintains a comprehensive audit trail that logs every critical recipient action, including document access, field interactions, authentication challenges, and final approvals. This traceability is designed to support independent transaction review and evidentiary validation in the event of a dispute."),
-            ("Account & Transaction Context", "This transaction was initiated and managed by the authorized account holder ('Sender') identified in the document metadata. SafeSign validates recipient access through secure delivery channels and secondary identity verification mechanisms where configured. All transaction logs are maintained within SafeSign's secure vault for the duration of the retention period."),
-            ("Platform Security Assurance", "SafeSign applies advanced technical and organizational safeguards to protect signature data and transaction records. System controls—including data-at-rest encryption and secure transit protocols—are designed to support reliability, service continuity, and long-term evidentiary preservation."),
-            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or email us at <u>support@devopstrioglobal.com</u>. SafeSign provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
-            ("Certificate Limitations & Legal Disclaimer", "This certificate is a system-generated summary derived from SafeSign's encrypted transaction records. It does not constitute legal advice, nor does it independently validate the ultimate legal enforceability of specific clauses under localized jurisdictions. Enforceability is subject to applicable law and the specific consent of the involved parties.")
+            ("Platform Governance & Trust", "Esigniva is a secure digital signature platform designed to provide legally binding electronic transactions. Our infrastructure utilizes industry-standard encryption, multi-factor authentication, and tamper-evident technology to ensure document integrity throughout the lifecycle of every envelope. We adhere to stringent technical standards to maintain the highest level of trust and security for all participating parties."),
+            ("Electronic Record and Signature Disclosure", "By participating in this electronic transaction, all parties acknowledge and agree to conduct transactions electronically in accordance with the Esigniva Electronic Consent Policy and applicable international laws, including the US ESIGN Act, UETA, and EU eIDAS regulations. Electronic signatures captured on this platform are legally binding and carry the same weight as traditional handwritten signatures."),
+            ("Document Integrity & Immutability", "This certificate attests that the document associated with this Esigniva envelope remains in the precise state in which it existed at the time of completion. Esigniva records cryptographic evidence and system metadata designed to detect and prevent unauthorized post-signing modifications. Any alteration to the document after finalization will invalidate the recorded verification chain."),
+            ("Signature Validity & Forensic Audit", "Electronic signatures captured within Esigniva are technically bound to the document content. Each signing event is recorded with high-fidelity contextual data, including precise UTC timestamps, IP addresses, and secure access tokens, forming a permanent, tamper-evident audit history for legal and compliance review."),
+            ("Audit Trail & Traceability", "Esigniva maintains a comprehensive audit trail that logs every critical recipient action, including document access, field interactions, authentication challenges, and final approvals. This traceability is designed to support independent transaction review and evidentiary validation in the event of a dispute."),
+            ("Account & Transaction Context", "This transaction was initiated and managed by the authorized account holder ('Sender') identified in the document metadata. Esigniva validates recipient access through secure delivery channels and secondary identity verification mechanisms where configured. All transaction logs are maintained within Esigniva's secure vault for the duration of the retention period."),
+            ("Platform Security Assurance", "Esigniva applies advanced technical and organizational safeguards to protect signature data and transaction records. System controls—including data-at-rest encryption and secure transit protocols—are designed to support reliability, service continuity, and long-term evidentiary preservation."),
+            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or email us at <u>support@devopstrioglobal.com</u>. Esigniva provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
+            ("Certificate Limitations & Legal Disclaimer", "This certificate is a system-generated summary derived from Esigniva's encrypted transaction records. It does not constitute legal advice, nor does it independently validate the ultimate legal enforceability of specific clauses under localized jurisdictions. Enforceability is subject to applicable law and the specific consent of the involved parties.")
         ]
 
         for i, (title, content) in enumerate(sections):
@@ -897,22 +897,22 @@ class SafeSignSummaryEngine:
             ["Transaction Origin Context", ""],
             ["Account Holder", owner_name],
             ["Email Address", owner_email],
-            ["Platform Node", "SafeSign Global Architecture"],
+            ["Platform Node", "Esigniva Global Architecture"],
             ["Verification Standard", "ISO/IEC 27001 Compliant Infrastructure"]
         ]
         
         sender_table = Table(sender_info_data, colWidths=[150, 350], hAlign='LEFT')
         sender_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignSummaryEngine.GRAY_900)),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaSummaryEngine.GRAY_900)),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor(SafeSignSummaryEngine.BRAND_PRIMARY)),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor(EsignivaSummaryEngine.BRAND_PRIMARY)),
             
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 1), (0, -1), colors.HexColor(SafeSignSummaryEngine.GRAY_700)),
+            ('TEXTCOLOR', (0, 1), (0, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
             ('TOPPADDING', (0, 1), (-1, -1), 6),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -922,22 +922,22 @@ class SafeSignSummaryEngine:
         story.append(Spacer(1, 15))
 
         # Final Branding Footer
-        footer_style = ParagraphStyle('FinalFooter', fontSize=8, textColor=colors.HexColor(SafeSignSummaryEngine.GRAY_600), alignment=TA_CENTER)
+        footer_style = ParagraphStyle('FinalFooter', fontSize=8, textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_600), alignment=TA_CENTER)
         
         # Horizontal Rule
         hr_table = Table([['']], colWidths=[doc.width], hAlign='CENTER')
         hr_table.setStyle(TableStyle([
-            ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.HexColor(SafeSignSummaryEngine.GRAY_300)),
+            ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.HexColor(EsignivaSummaryEngine.GRAY_300)),
         ]))
         story.append(hr_table)
         story.append(Spacer(1, 10))
         
-        story.append(Paragraph(f"© SafeSign | Secure Digital Signatures", footer_style))
+        story.append(Paragraph(f"© Esigniva | Secure Digital Signatures", footer_style))
         story.append(Paragraph(f"Generated: {gen_time} AM UTC | Summary ID: {summary_id}", footer_style))
 
         # ========== BUILD PDF ==========
         def on_page(canvas, doc):
-            SafeSignSummaryEngine.create_header(
+            EsignivaSummaryEngine.create_header(
                 canvas, 
                 doc, 
                 title="DOCUMENT SUMMARY",
@@ -946,7 +946,7 @@ class SafeSignSummaryEngine:
                 platform_name=platform_name,
                 tagline=tagline
             )
-            SafeSignSummaryEngine.create_footer(
+            EsignivaSummaryEngine.create_footer(
                 canvas, 
                 doc,
                 certificate_id=summary_id
@@ -956,7 +956,7 @@ class SafeSignSummaryEngine:
             doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
         except Exception as e:
             print(f"Error building PDF: {e}")
-            return SafeSignSummaryEngine._create_fallback_pdf(summary_data)
+            return EsignivaSummaryEngine._create_fallback_pdf(summary_data)
         
         buffer.seek(0)
         return buffer.getvalue()
@@ -992,7 +992,7 @@ class SafeSignSummaryEngine:
         # Platform Info
         c.setFont("Helvetica-Bold", 24)
         c.setFillColor(WHITE)
-        c.drawString(50, height - 45, "SafeSign")
+        c.drawString(50, height - 45, "Esigniva")
         
         c.setFont("Helvetica", 9)
         c.setFillColor(WHITE)
@@ -1118,7 +1118,7 @@ class SafeSignSummaryEngine:
         
         c.setFont("Helvetica-Oblique", 7)
         c.setFillColor(GRAY_TEXT)
-        legal_text = "EVIDENCE: This document contains a cryptographically verified summary of the signing process. For every signature captured, the IP address, timestamp, and authentication method were recorded. SafeSign maintains the original encrypted transaction audit logs for evidentiary purposes in compliance with global electronic signature regulations."
+        legal_text = "EVIDENCE: This document contains a cryptographically verified summary of the signing process. For every signature captured, the IP address, timestamp, and authentication method were recorded. Esigniva maintains the original encrypted transaction audit logs for evidentiary purposes in compliance with global electronic signature regulations."
         
         # Wrap legal text
         text_object = c.beginText(50, 60)
@@ -1140,7 +1140,7 @@ class SafeSignSummaryEngine:
         # Branding & Bottom Line
         c.setFont("Helvetica-Bold", 8)
         c.setFillColor(TEAL)
-        c.drawString(50, 20, "SAFESIGN VERIFIED")
+        c.drawString(50, 20, "ESIGNIVA VERIFIED")
         
         c.setFont("Helvetica", 7)
         c.setFillColor(GRAY_TEXT)
@@ -1156,7 +1156,7 @@ class SafeSignSummaryEngine:
 # REDESIGNED PROFESSIONAL CERTIFICATE ENGINE - MATCHING SUMMARY STYLE
 # ======================
 
-class SafeSignCertificateEngine:
+class EsignivaCertificateEngine:
     """Professional Certificate of Completion - Matching Summary Document Style"""
     
     # Brand color palette - Professional DocuSign Style
@@ -1189,7 +1189,7 @@ class SafeSignCertificateEngine:
     WHITE = "#FFFFFF"
     
     @staticmethod
-    def create_header(canvas, doc, title="CERTIFICATE OF COMPLETION", envelope_id=None, logo_img=None, platform_name="SafeSign", tagline="Secure Digital Signatures"):
+    def create_header(canvas, doc, title="CERTIFICATE OF COMPLETION", envelope_id=None, logo_img=None, platform_name="Esigniva", tagline="Secure Digital Signatures"):
         """Professional Header matching Summary Style with Absolute Positioning"""
         canvas.saveState()
         
@@ -1197,11 +1197,11 @@ class SafeSignCertificateEngine:
         HEADER_BASE = PAGE_HEIGHT - 95
         
         # White header background
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.WHITE))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.WHITE))
         canvas.rect(0, HEADER_BASE, PAGE_WIDTH, 95, fill=1, stroke=0)
         
         # Subtle teal divider
-        canvas.setStrokeColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
+        canvas.setStrokeColor(colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY))
         canvas.setLineWidth(1.25)
         canvas.line(40, HEADER_BASE, PAGE_WIDTH - 40, HEADER_BASE)
         
@@ -1217,21 +1217,21 @@ class SafeSignCertificateEngine:
         
         # Branding
         canvas.setFont("Helvetica-Bold", 20)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.BLACK))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
         canvas.drawString(text_x_offset, HEADER_BASE + 55, platform_name)
         
         canvas.setFont("Helvetica", 7.5)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
         canvas.drawString(text_x_offset, HEADER_BASE + 42, tagline)
         
         # Certificate Title (Right)
         canvas.setFont("Helvetica-Bold", 15)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.BLACK))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
         canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 55, title)
         
         if envelope_id:
             canvas.setFont("Helvetica", 7.5)
-            canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
+            canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
             canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 42, f"Envelope: {envelope_id}")
         
         canvas.restoreState()
@@ -1242,27 +1242,27 @@ class SafeSignCertificateEngine:
         canvas.saveState()
         
         # Light gray separator line
-        canvas.setStrokeColor(colors.HexColor(SafeSignCertificateEngine.GRAY_300))
+        canvas.setStrokeColor(colors.HexColor(EsignivaCertificateEngine.GRAY_300))
         canvas.setLineWidth(0.5)
         canvas.line(40, 35, doc.width + 40, 35)
         
         # Footer text - Professional Format
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %I:%M:%S %p UTC")
         footer_id = f"SUM-{certificate_id[:12].upper()}" if certificate_id else "N/A"
-        footer_text = f"© SafeSign | Secure Digital Signatures | Generated: {timestamp} | Summary ID: {footer_id}"
+        footer_text = f"© Esigniva | Secure Digital Signatures | Generated: {timestamp} | Summary ID: {footer_id}"
         
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
         canvas.drawString(40, 20, footer_text)
         
-        # SafeSign Branding
+        # Esigniva Branding
         canvas.setFont("Helvetica-Bold", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
-        canvas.drawRightString(doc.width + 40, 20, "SafeSign Verified")
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY))
+        canvas.drawRightString(doc.width + 40, 20, "Esigniva Verified")
         
         # Page number
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
+        canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
         canvas.drawRightString(doc.width + 40, 10, f"Page {doc.page}")
         
         canvas.restoreState()
@@ -1271,11 +1271,11 @@ class SafeSignCertificateEngine:
     def create_status_badge(text, status="completed"):
         """Create clean status badge"""
         if status == "completed":
-            color = SafeSignCertificateEngine.SUCCESS
-            bg_color = SafeSignCertificateEngine.SUCCESS_LIGHT
+            color = EsignivaCertificateEngine.SUCCESS
+            bg_color = EsignivaCertificateEngine.SUCCESS_LIGHT
         else:
-            color = SafeSignCertificateEngine.GRAY_600
-            bg_color = SafeSignCertificateEngine.GRAY_100
+            color = EsignivaCertificateEngine.GRAY_600
+            bg_color = EsignivaCertificateEngine.GRAY_100
             
         return f"<font name='Helvetica-Bold' size='8' color='{color}'><back color='{bg_color}'>  {text}  </back></font>"
     
@@ -1287,7 +1287,7 @@ class SafeSignCertificateEngine:
         buffer = io.BytesIO()
         
         # Fetch branding
-        logo_img, platform_name, tagline = SafeSignSummaryEngine._get_branding_data()
+        logo_img, platform_name, tagline = EsignivaSummaryEngine._get_branding_data()
         
         doc = SimpleDocTemplate(
             buffer,
@@ -1296,8 +1296,8 @@ class SafeSignCertificateEngine:
             leftMargin=45,
             topMargin=100,    # Reduced to optimize space
             bottomMargin=45,
-            title=f"SafeSign Certificate - {certificate_data.get('envelope_id', 'Document')}",
-            author="SafeSign",
+            title=f"Esigniva Certificate - {certificate_data.get('envelope_id', 'Document')}",
+            author="Esigniva",
             subject="Certificate of Completion"
         )
         
@@ -1311,7 +1311,7 @@ class SafeSignCertificateEngine:
             name='CertTitle',
             parent=styles['Heading1'],
             fontSize=22,
-            textColor=colors.HexColor(SafeSignCertificateEngine.BLACK),
+            textColor=colors.HexColor(EsignivaCertificateEngine.BLACK),
             alignment=TA_CENTER,
             spaceAfter=10,
             spaceBefore=0,
@@ -1324,7 +1324,7 @@ class SafeSignCertificateEngine:
             name='CertSection',
             parent=styles['Heading2'],
             fontSize=13,
-            textColor=colors.HexColor(SafeSignCertificateEngine.BLACK),
+            textColor=colors.HexColor(EsignivaCertificateEngine.BLACK),
             alignment=TA_LEFT,
             spaceBefore=6,
             spaceAfter=3,
@@ -1338,7 +1338,7 @@ class SafeSignCertificateEngine:
             name='CertSubSection',
             parent=styles['Heading3'],
             fontSize=11,
-            textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_700),
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_700),
             alignment=TA_LEFT,
             spaceBefore=8,
             spaceAfter=4,
@@ -1352,7 +1352,7 @@ class SafeSignCertificateEngine:
             name='CertBody',
             parent=styles['Normal'],
             fontSize=8.5,
-            textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_800),
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_800),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=12,
@@ -1364,7 +1364,7 @@ class SafeSignCertificateEngine:
             name='CertLabel',
             parent=styles['Normal'],
             fontSize=8,
-            textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_600),
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_600),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=11,
@@ -1376,7 +1376,7 @@ class SafeSignCertificateEngine:
             name='CertValue',
             parent=styles['Normal'],
             fontSize=9.5,
-            textColor=colors.HexColor(SafeSignCertificateEngine.BLACK),
+            textColor=colors.HexColor(EsignivaCertificateEngine.BLACK),
             alignment=TA_LEFT,
             fontName='Helvetica',
             leading=13,
@@ -1399,15 +1399,15 @@ class SafeSignCertificateEngine:
         
         envelope_card = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
         envelope_card.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 15),
             ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
@@ -1432,8 +1432,8 @@ class SafeSignCertificateEngine:
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(SafeSignCertificateEngine.BLACK)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor(EsignivaCertificateEngine.BLACK)),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1468,8 +1468,8 @@ class SafeSignCertificateEngine:
         metrics_table = Table(metrics_data, colWidths=[120, 120, 120, 120], hAlign='LEFT')
         metrics_table.setStyle(TableStyle([
             # Header
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.WHITE)),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
@@ -1477,17 +1477,17 @@ class SafeSignCertificateEngine:
             # Values
             ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, 1), 16),
-            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
+            ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY)),
             ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
             
             # Descriptions
             ('FONTNAME', (0, 2), (-1, 2), 'Helvetica'),
             ('FONTSIZE', (0, 2), (-1, 2), 8),
-            ('TEXTCOLOR', (0, 2), (-1, 2), colors.HexColor(SafeSignCertificateEngine.GRAY_600)),
+            ('TEXTCOLOR', (0, 2), (-1, 2), colors.HexColor(EsignivaCertificateEngine.GRAY_600)),
             ('ALIGN', (0, 2), (-1, 2), 'CENTER'),
             
-            ('GRID', (0, 0), (-1, 1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignCertificateEngine.GRAY_300)),
+            ('GRID', (0, 0), (-1, 1), 0.5, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaCertificateEngine.GRAY_300)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
             ('TOPPADDING', (0, 1), (-1, 1), 8),
@@ -1521,10 +1521,10 @@ class SafeSignCertificateEngine:
                         action = "Viewed"
                     else:
                         action = "Completed"
-                    action_color = SafeSignCertificateEngine.SUCCESS
+                    action_color = EsignivaCertificateEngine.SUCCESS
                 else:
                     action = "Pending"
-                    action_color = SafeSignCertificateEngine.GRAY_600
+                    action_color = EsignivaCertificateEngine.GRAY_600
                 
                 signer_data.append([
                     Paragraph(f"<font name='Helvetica-Bold' size='8'>{signer.get('name', 'N/A')}</font>", styles['CertBody']),
@@ -1538,18 +1538,18 @@ class SafeSignCertificateEngine:
             signer_table = Table(signer_data, colWidths=[80, 110, 60, 60, 100, 70], hAlign='LEFT', repeatRows=1)
             signer_table.setStyle(TableStyle([
                 # Header
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.WHITE)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
                 ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
                 
                 # Data rows
                 ('FONTSIZE', (0, 1), (-1, -1), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(SafeSignCertificateEngine.WHITE), 
-                  colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
+                 [colors.HexColor(EsignivaCertificateEngine.WHITE), 
+                  colors.HexColor(EsignivaCertificateEngine.GRAY_50)]),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
@@ -1559,7 +1559,7 @@ class SafeSignCertificateEngine:
             story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
-                f"<font name='Helvetica' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>No signer events recorded.</font>",
+                f"<font name='Helvetica' size='11' color='{EsignivaCertificateEngine.GRAY_600}'>No signer events recorded.</font>",
                 styles['Normal']
             ))
         
@@ -1577,15 +1577,15 @@ class SafeSignCertificateEngine:
         
         owner_table = Table(owner_data, colWidths=[100, 400], hAlign='LEFT')
         owner_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(SafeSignCertificateEngine.BLACK)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(EsignivaCertificateEngine.BLACK)),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
@@ -1605,27 +1605,27 @@ class SafeSignCertificateEngine:
                 disclosure_data.append([
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('name', 'N/A')}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('email', 'N/A')}</font>", styles['CertBody']),
-                    Paragraph(f"<font name='Helvetica-Bold' size='8' color='{SafeSignCertificateEngine.SUCCESS}'>Accepted</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica-Bold' size='8' color='{EsignivaCertificateEngine.SUCCESS}'>Accepted</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{recipient.get('terms_accepted_date', '—')[:10] if recipient.get('terms_accepted_date') else '—'}</font>", styles['CertBody']),
                 ])
             
             disclosure_table = Table(disclosure_data, colWidths=[110, 150, 80, 140], hAlign='LEFT', repeatRows=1)
             disclosure_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.WHITE)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(SafeSignCertificateEngine.WHITE), 
-                  colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
+                 [colors.HexColor(EsignivaCertificateEngine.WHITE), 
+                  colors.HexColor(EsignivaCertificateEngine.GRAY_50)]),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
             
             story.append(disclosure_table)
         else:
             story.append(Paragraph(
-                f"<font name='Helvetica' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>No electronic record disclosures recorded.</font>",
+                f"<font name='Helvetica' size='11' color='{EsignivaCertificateEngine.GRAY_600}'>No electronic record disclosures recorded.</font>",
                 styles['Normal']
             ))
         
@@ -1648,11 +1648,11 @@ class SafeSignCertificateEngine:
             
             activity_table = Table(activity_data, colWidths=[80, 100, 100, 200], hAlign='LEFT', repeatRows=1)
             activity_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.GRAY_50)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
@@ -1662,7 +1662,7 @@ class SafeSignCertificateEngine:
             story.append(Spacer(1, 10))
         else:
             story.append(Paragraph(
-                f"<font name='Helvetica' size='11' color='{SafeSignCertificateEngine.GRAY_600}'>No document activity recorded.</font>",
+                f"<font name='Helvetica' size='11' color='{EsignivaCertificateEngine.GRAY_600}'>No document activity recorded.</font>",
                 styles['Normal']
             ))
 
@@ -1686,14 +1686,14 @@ class SafeSignCertificateEngine:
             
             history_table = Table(field_history_data, colWidths=[90, 110, 50, 130, 100], hAlign='LEFT', repeatRows=1)
             history_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(SafeSignCertificateEngine.WHITE)),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(EsignivaCertificateEngine.WHITE)),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), 
-                 [colors.HexColor(SafeSignCertificateEngine.WHITE), 
-                  colors.HexColor(SafeSignCertificateEngine.GRAY_50)]),
+                 [colors.HexColor(EsignivaCertificateEngine.WHITE), 
+                  colors.HexColor(EsignivaCertificateEngine.GRAY_50)]),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
             
@@ -1709,7 +1709,7 @@ class SafeSignCertificateEngine:
                 'AuthTitle',
                 parent=styles['Heading2'],
                 fontSize=18,
-                textColor=colors.HexColor(SafeSignCertificateEngine.BLACK),
+                textColor=colors.HexColor(EsignivaCertificateEngine.BLACK),
                 fontName='Helvetica-Bold',
                 spaceBefore=10,
                 spaceAfter=20,
@@ -1722,7 +1722,7 @@ class SafeSignCertificateEngine:
             parent=styles['Normal'],
             fontSize=8.5,
             leading=12,
-            textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_800),
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_800),
             fontName='Helvetica',
             spaceAfter=10,
             alignment=TA_CENTER
@@ -1730,11 +1730,11 @@ class SafeSignCertificateEngine:
         
         # Center terms
         story.append(Paragraph("<b>Electronic Record and Signature Disclosure</b>", 
-            ParagraphStyle('AuthLabelCenter', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor(SafeSignCertificateEngine.BLACK), fontName='Helvetica-Bold', spaceAfter=10, alignment=TA_CENTER)))
+            ParagraphStyle('AuthLabelCenter', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor(EsignivaCertificateEngine.BLACK), fontName='Helvetica-Bold', spaceAfter=10, alignment=TA_CENTER)))
         
         story.append(Paragraph(
             "By participating in this electronic transaction, all parties consent to receive and "
-            "sign documents electronically in accordance with the <b>SafeSign Electronic Consent Policy</b>. "
+            "sign documents electronically in accordance with the <b>Esigniva Electronic Consent Policy</b>. "
             "The signatures captured represent legally binding agreements equivalent to handwritten signatures "
             "under applicable electronic transaction laws (including the ESIGN Act and UETA).",
             auth_style
@@ -1743,17 +1743,17 @@ class SafeSignCertificateEngine:
         story.append(Spacer(1, 15))
         
         # Two-column layout for details
-        sub_auth_style = ParagraphStyle('SubAuth', parent=auth_style, fontSize=8, textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_700), alignment=TA_LEFT)
+        sub_auth_style = ParagraphStyle('SubAuth', parent=auth_style, fontSize=8, textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_700), alignment=TA_LEFT)
         
         # Extended Legal Disclosure
-        disclosure_style = ParagraphStyle('CertDisclosure', parent=auth_style, fontSize=8, textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_700), alignment=TA_JUSTIFY, leading=11, spaceAfter=8)
+        disclosure_style = ParagraphStyle('CertDisclosure', parent=auth_style, fontSize=8, textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_700), alignment=TA_JUSTIFY, leading=11, spaceAfter=8)
         
         story.append(Paragraph("<b>System Governance & Legal Framework</b>", ParagraphStyle('SubAuthBold', parent=sub_auth_style, fontSize=9, spaceAfter=5)))
         story.append(Paragraph(
-            "SafeSign operates as a trusted third-party service provider under global electronic transaction frameworks. "
+            "Esigniva operates as a trusted third-party service provider under global electronic transaction frameworks. "
             "Our platform infrastructure is engineered for high-availability and cryptographic security, ensuring that "
             "every signature event is uniquely linked to the signer and the document content at the moment of execution. "
-            "By utilizing this service, all parties acknowledge that SafeSign maintains the master audit record of this transaction.",
+            "By utilizing this service, all parties acknowledge that Esigniva maintains the master audit record of this transaction.",
             disclosure_style
         ))
         
@@ -1764,7 +1764,7 @@ class SafeSignCertificateEngine:
             f"This envelope was prepared and transmitted by <b>{owner_name}</b> ({owner_email}). "
             "The sender is responsible for the accuracy of the recipient information provided and for "
             "ensuring that the underlying document content complies with all applicable business and legal requirements. "
-            "SafeSign conducts automated delivery and identity challenges as directed by the sender's configuration.",
+            "Esigniva conducts automated delivery and identity challenges as directed by the sender's configuration.",
             disclosure_style
         ))
         
@@ -1778,7 +1778,7 @@ class SafeSignCertificateEngine:
         # Two-column layout for evidence details - Enhanced
         evidence_data = [
             [Paragraph("<b>Document Integrity</b>", sub_auth_style), Paragraph("<b>Authentication Record</b>", sub_auth_style)],
-            [Paragraph("SafeSign employs multi-layered security protocols to maintain document immutability throughout the lifecycle. Any attempt to modify the completion record or signature metadata will invalidate the verification chain.", sub_auth_style),
+            [Paragraph("Esigniva employs multi-layered security protocols to maintain document immutability throughout the lifecycle. Any attempt to modify the completion record or signature metadata will invalidate the verification chain.", sub_auth_style),
              Paragraph("Recipient identities are validated through secure access links and secondary authentication methods (where enabled). Every action is logged with system metadata for forensic audit trails.", sub_auth_style)]
         ]
         
@@ -1794,7 +1794,7 @@ class SafeSignCertificateEngine:
         
         story.append(Paragraph("<b>Global Support & Resource Center</b>", ParagraphStyle('SubAuthBold', parent=sub_auth_style, fontSize=9, spaceAfter=5)))
         story.append(Paragraph(
-            "For assistance regarding your SafeSign account, technical troubleshooting, or to report unauthorized access, "
+            "For assistance regarding your Esigniva account, technical troubleshooting, or to report unauthorized access, "
             "please email our platform support team at <u>support@devopstrioglobal.com</u>. "
             "Our platform support team is available 24/7 to assist with platform-specific inquiries.",
             disclosure_style
@@ -1803,10 +1803,10 @@ class SafeSignCertificateEngine:
         story.append(Spacer(1, 10))
         
         story.append(Paragraph(
-            "<i>This document summary is generated by SafeSign. SafeSign is not a party to the documents "
+            "<i>This document summary is generated by Esigniva. Esigniva is not a party to the documents "
             "or transactions conducted via its platform and makes no warranties regarding the legal "
             "enforceability or specific jurisdictional requirements of individual agreements. ALL DISCLAIMERS APPLY.</i>",
-            ParagraphStyle('Disclaimer', parent=auth_style, fontSize=7.5, textColor=colors.HexColor(SafeSignCertificateEngine.GRAY_600), italic=True)
+            ParagraphStyle('Disclaimer', parent=auth_style, fontSize=7.5, textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_600), italic=True)
         ))
         
         story.append(Spacer(1, 20))
@@ -1820,15 +1820,15 @@ class SafeSignCertificateEngine:
         
         cert_meta_table = Table(cert_meta_data, colWidths=[100, 400], hAlign='LEFT')
         cert_meta_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(SafeSignCertificateEngine.GRAY_700)),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY)),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_50)),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY)),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(SafeSignCertificateEngine.GRAY_200)),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
@@ -1836,7 +1836,7 @@ class SafeSignCertificateEngine:
         
         # ========== BUILD PDF ==========
         def first_page(canvas, doc):
-            SafeSignCertificateEngine.create_header(
+            EsignivaCertificateEngine.create_header(
                 canvas,
                 doc,
                 title="CERTIFICATE OF COMPLETION",
@@ -1845,14 +1845,14 @@ class SafeSignCertificateEngine:
                 platform_name=platform_name,
                 tagline=tagline
             )
-            SafeSignCertificateEngine.create_footer(
+            EsignivaCertificateEngine.create_footer(
                 canvas,
                 doc,
                 certificate_id=certificate_data.get('certificate_id')
             )
         
         def later_pages(canvas, doc):
-            SafeSignCertificateEngine.create_header(
+            EsignivaCertificateEngine.create_header(
                 canvas,
                 doc,
                 title="CERTIFICATE OF COMPLETION",
@@ -1861,7 +1861,7 @@ class SafeSignCertificateEngine:
                 platform_name=platform_name,
                 tagline=tagline
             )
-            SafeSignCertificateEngine.create_footer(
+            EsignivaCertificateEngine.create_footer(
                 canvas,
                 doc,
                 certificate_id=certificate_data.get('certificate_id')
@@ -1871,7 +1871,7 @@ class SafeSignCertificateEngine:
             doc.build(story, onFirstPage=first_page, onLaterPages=later_pages)
         except Exception as e:
             print(f"Error building certificate PDF: {e}")
-            return SafeSignCertificateEngine._create_fallback_pdf(certificate_data)
+            return EsignivaCertificateEngine._create_fallback_pdf(certificate_data)
         
         buffer.seek(0)
         return buffer.getvalue()
@@ -1886,28 +1886,28 @@ class SafeSignCertificateEngine:
         width, height = A4
         
         # Professional background area
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.WHITE))
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.WHITE))
         c.rect(0, 0, width, height, fill=1, stroke=0)
         
         # Heading area
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.BRAND_PRIMARY))
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY))
         c.rect(0, height - 10, width, 10, fill=1, stroke=0)
         
         c.setFont("Helvetica-Bold", 24)
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.BLACK))
-        c.drawString(60, height - 60, "SafeSign")
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
+        c.drawString(60, height - 60, "Esigniva")
         
         c.setFont("Helvetica-Bold", 16)
         c.drawRightString(width - 60, height - 60, "Certificate of Completion")
         
         # Main info board
         box_y = height - 280
-        c.setStrokeColor(colors.HexColor(SafeSignCertificateEngine.GRAY_200))
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_50))
+        c.setStrokeColor(colors.HexColor(EsignivaCertificateEngine.GRAY_200))
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_50))
         c.roundRect(60, box_y, width - 120, 180, 6, fill=1, stroke=1)
         
         c.setFont("Helvetica-Bold", 11)
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.BLACK))
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
         c.drawString(80, box_y + 155, "Certificate Verification Summary")
         
         details_y = box_y + 125
@@ -1927,14 +1927,14 @@ class SafeSignCertificateEngine:
             details_y -= 20
             
         # Success Badge if COMPLETED
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.SUCCESS))
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.SUCCESS))
         c.setFont("Helvetica-Bold", 12)
         c.drawCentredString(width/2, box_y + 20, "✔ VERIFIED COMPLETED DOCUMENT")
         
         # Footer
         c.setFont("Helvetica", 8)
-        c.setFillColor(colors.HexColor(SafeSignCertificateEngine.GRAY_600))
-        c.drawString(50, 50, "Verified by SafeSign Secure Digital Signature Platform")
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
+        c.drawString(50, 50, "Verified by Esigniva Secure Digital Signature Platform")
         
         c.save()
         buffer.seek(0)
@@ -1960,13 +1960,13 @@ def get_standard_email_footer():
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9; background-color: #ffffff;">
                                 <!-- Policy Links -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://safesign.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://safesign.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://safesign.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://safesign.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
-                                    <a href="https://safesign.devopstrio.co.uk/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="https://esigniva.devopstrio.co.uk/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
                                 </div>
 
                                 <!-- Social Icons in Rounded Boxes (Teal Branding) -->
@@ -2027,7 +2027,7 @@ def send_email(to_email: str, subject: str, html_content: str, images: Optional[
         # DYNAMIC SENDER NAME
         try:
             branding = db.branding.find_one({}) or {}
-            platform_name = branding.get("platform_name", "SafeSign Team")
+            platform_name = branding.get("platform_name", "Esigniva Team")
             if "Team" not in platform_name:
                 display_name = f"{platform_name} Team"
             else:
@@ -2102,7 +2102,7 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     
     # Get branding info
     branding = db.branding.find_one({}) or {}
-    platform_name = branding.get("platform_name", "SafeSign")
+    platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     current_year = datetime.now().strftime('%Y')
     complaints_url = f"{FRONTEND_URL}/e-sign/complaints"
@@ -2440,7 +2440,7 @@ def send_recipient_activity_notification_to_owner(
     try:
         # Get branding info
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         current_year = datetime.now().strftime('%Y')
         
@@ -2701,7 +2701,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
     
     # Get branding info
     branding = db.branding.find_one({}) or {}
-    platform_name = branding.get("platform_name", "SafeSign")
+    platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     current_year = datetime.now().strftime('%Y')
     complaints_url = f"{FRONTEND_URL}/e-sign/complaints"
@@ -2815,7 +2815,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
                         <!-- Banner Image -->
                         <tr>
                             <td style="padding: 0;">
-                                <img src="{BACKEND_URL}/static/email/banner.png" alt="SafeSign Banner" style="width: 100%; height: auto; display: block; border: 0;" />
+                                <img src="{BACKEND_URL}/static/email/banner.png" alt="Esigniva Banner" style="width: 100%; height: auto; display: block; border: 0;" />
                             </td>
                         </tr>
                         
@@ -3013,7 +3013,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     
     # Get branding info
     branding = db.branding.find_one({}) or {}
-    platform_name = branding.get("platform_name", "SafeSign")
+    platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     
     standard_footer = get_standard_email_footer()
@@ -3273,7 +3273,7 @@ def send_document_email(
                             <!-- Header -->
                             <tr>
                                 <td style="padding: 20px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-                                    <span class="brand-name">SafeSign</span>
+                                    <span class="brand-name">Esigniva</span>
                                 </td>
                             </tr>
                             
@@ -3421,7 +3421,7 @@ async def send_completed_document_to_recipients(document_id: str):
         
         # Get branding info
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
         # Track results
@@ -3533,7 +3533,7 @@ async def send_document_completion_email(
     recipient_role: str,
     recipient: dict = None,
     logo_url: str = None,
-    platform_name: str = "SafeSign"
+    platform_name: str = "Esigniva"
 ) -> bool:
     """
     Send completed/signed document to recipient with professional email template.
@@ -3541,7 +3541,7 @@ async def send_document_completion_email(
     try:
         # Get branding info
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         current_year = datetime.now().strftime('%Y')
         FRONTEND_URL = os.getenv("FRONTEND_URL", "https://yourdomain.com")
@@ -3898,7 +3898,7 @@ async def send_completed_document_package(document_id: str):
         
         # Get branding info
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
         # Get all recipients
@@ -4134,7 +4134,7 @@ async def generate_document_package(
             # 3. Generate and add DOCUMENT SUMMARY
             try:
                 summary_data = await prepare_summary_data(document, recipient)
-                summary_pdf_bytes = SafeSignSummaryEngine.create_document_summary_pdf(summary_data)
+                summary_pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
                 summary_filename = f"summary_{base_name}.pdf"
                 zip_file.writestr(summary_filename, summary_pdf_bytes)
                 print(f"Added document summary: {summary_filename}")
@@ -4144,7 +4144,7 @@ async def generate_document_package(
             # 4. Generate and add CERTIFICATE OF COMPLETION
             try:
                 certificate_data = await prepare_certificate_data(document, recipient)
-                certificate_pdf_bytes = SafeSignCertificateEngine.create_certificate_pdf(certificate_data)
+                certificate_pdf_bytes = EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
                 certificate_filename = f"certificate_{base_name}.pdf"
                 zip_file.writestr(certificate_filename, certificate_pdf_bytes)
                 print(f"Added certificate: {certificate_filename}")
@@ -4405,7 +4405,7 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
             "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}",
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
-            "platform": "SafeSign Professional"
+            "platform": "Esigniva Professional"
         }
         
         return summary_data
@@ -4438,7 +4438,7 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
             "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}",
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
-            "platform": "SafeSign"
+            "platform": "Esigniva"
         }
 
 
@@ -4615,7 +4615,7 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
             "generated_by_name": recipient.get("name", "Unknown Recipient"),
-            "platform": "SafeSign Professional"
+            "platform": "Esigniva Professional"
         }
         
         return certificate_data
@@ -4636,7 +4636,7 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             "certificate_id": f"CERT-{uuid.uuid4().hex[:8]}",
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
-            "platform": "SafeSign"
+            "platform": "Esigniva"
         }
 
 
@@ -4849,7 +4849,7 @@ async def send_expiration_email_to_owner(document: dict):
     
     # Get branding info
     branding = db.branding.find_one({}) or {}
-    platform_name = branding.get("platform_name", "SafeSign")
+    platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     
     current_year = datetime.utcnow().year
@@ -4957,7 +4957,7 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
     
     # Get branding info
     branding = db.branding.find_one({}) or {}
-    platform_name = branding.get("platform_name", "SafeSign")
+    platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     
     current_year = datetime.utcnow().year

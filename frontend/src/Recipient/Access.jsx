@@ -222,7 +222,7 @@ const Access = () => {
               letterSpacing: 0.3,
             }}
           >
-            SafeSign
+            Esigniva
           </Typography>
         </Box>
         <Container maxWidth="md" sx={{ pt: { xs: 7, sm: 8 } }}>

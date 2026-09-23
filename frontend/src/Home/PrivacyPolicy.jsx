@@ -27,11 +27,11 @@ const PrivacyPolicy = () => {
     {
       id: 'introduction',
       title: 'Introduction & Scope',
-      content: `SafeSign ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our electronic signature platform, website, and related services (collectively, the "Services").
+      content: `Esigniva ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our electronic signature platform, website, and related services (collectively, the "Services").
 
 This policy applies to information we collect:
 - Through our website and mobile applications
-- In email, text, and other electronic messages between you and SafeSign
+- In email, text, and other electronic messages between you and Esigniva
 - When you interact with our advertising and applications on third-party websites
 - From our business partners and service providers`,
       subSections: []
@@ -257,7 +257,7 @@ We encourage you to review this Privacy Policy periodically for any changes.`
       title: 'Contact Information',
       content: `If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
-SafeSign Privacy Team
+Esigniva Privacy Team
 Email: support@devopstrioglobal.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
@@ -295,7 +295,7 @@ Email: support@devopstrioglobal.com`
             </div>
             <h1 className="safe-hero-title">Privacy Policy</h1>
             <p className="safe-hero-subtitle">
-              How we collect, use, and protect your information when you use SafeSign services
+              How we collect, use, and protect your information when you use Esigniva services
             </p>
             
             <div className="safe-hero-meta">
@@ -463,7 +463,7 @@ Email: support@devopstrioglobal.com`
                   <FileText size={18} />
                   <div>
                     <h4>Terms of Service</h4>
-                    <p>Legal terms governing use of SafeSign</p>
+                    <p>Legal terms governing use of Esigniva</p>
                   </div>
                   <ExternalLink size={14} />
                 </a>

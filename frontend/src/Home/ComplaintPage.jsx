@@ -109,7 +109,7 @@ export default function ComplaintPage() {
           <h1>Abuse Report Form</h1>
           <p className="intro">
             Report phishing, fraud, or unauthorized e-signature requests.
-            SafeSign’s Trust & Security team will investigate.
+            Esigniva’s Trust & Security team will investigate.
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -233,7 +233,7 @@ export default function ComplaintPage() {
           </form>
 
           <div className="footer-note">
-            This report is confidential and reviewed by SafeSign’s Trust & Security team.
+            This report is confidential and reviewed by Esigniva’s Trust & Security team.
           </div>
           {success && <div className="success-box">Complaint submitted successfully.</div>}
           {error && <div className="error-box"> {error}</div>}

@@ -1,9 +1,11 @@
-// HeroCard.jsx
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import ProductDemoModal from "../components/ProductDemoModal";
 
 const HeroCard = () => {
   const navigate = useNavigate();
+  const [demoOpen, setDemoOpen] = useState(false);
+
   return (
     <div className="herocss-min-h-screen">
       <div className="herocss-container">
@@ -21,27 +23,27 @@ const HeroCard = () => {
           
           {/* CTA Buttons */}
           <div className="herocss-cta-buttons">
-  <button
-    className="herocss-btn-primary"
-    onClick={() => navigate("/login")}
-  >
-    Get Started
-  </button>
+            <button
+              className="herocss-btn-primary"
+              onClick={() => navigate("/login")}
+            >
+              Get Started Free
+            </button>
 
-  <button
-    className="herocss-btn-secondary"
-    onClick={() => navigate("/login")}
-  >
-    Book Demo
-  </button>
-</div>
+            <button
+              className="herocss-btn-secondary"
+              onClick={() => setDemoOpen(true)}
+            >
+              Watch Product Demo
+            </button>
+          </div>
         </section>
 
         <section className="herocss-hero-visual">
             <img src="/images/herocard.png" alt="herocard" />
         </section>
 
-        
+        <ProductDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
       </div>
 
       <style jsx>{`

@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../style/WorkflowAutomationHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
@@ -6,10 +7,11 @@ import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
 const WorkflowAutomationHome = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     setPageTitle(
-      "Automated Document Workflows & Tracking | SafeSign",
-      "Streamline your document processes with SafeSign's workflow automation. Track real-time document status, manage recipient actions, and automate follow-ups for faster completions."
+      "Automated Document Workflows & Tracking | Esigniva",
+      "Streamline your document processes with Esigniva's workflow automation. Track real-time document status, manage recipient actions, and automate follow-ups for faster completions."
     );
   }, []);
   return (
@@ -33,8 +35,8 @@ const WorkflowAutomationHome = () => {
           </p>
 
           <div className="wfa-hero-buttons">
-            <button className="wfa-btn-primary">Request a demo</button>
-            <button className="wfa-btn-outline">Start free trial</button>
+            <button className="wfa-btn-primary" onClick={() => navigate("/login")}>Request a demo</button>
+            <button className="wfa-btn-outline" onClick={() => navigate("/login")}>Start free trial</button>
           </div>
         </div>
 

@@ -34,7 +34,7 @@ const MainNavbar = () => {
   const featuresRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const [brandName, setBrandName] = useState("Safesign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
 
   useEffect(() => {

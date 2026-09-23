@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../style/TemplatesHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
@@ -6,10 +7,11 @@ import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
 const TemplatesHome = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     setPageTitle(
-      "Document Templates & Real-Time Tracking | SafeSign",
-      "Access professional document templates and track document status in real-time with SafeSign. Our platform provides live updates and activity timelines for all your signed documents."
+      "Document Templates & Real-Time Tracking | Esigniva",
+      "Access professional document templates and track document status in real-time with Esigniva. Our platform provides live updates and activity timelines for all your signed documents."
     );
   }, []);
   return (
@@ -33,8 +35,8 @@ const TemplatesHome = () => {
           </p>
 
           <div className="tmh-hero-buttons">
-            <button className="tmh-btn-primary">Request a demo</button>
-            <button className="tmh-btn-outline">Start free trial</button>
+            <button className="tmh-btn-primary" onClick={() => navigate("/login")}>Request a demo</button>
+            <button className="tmh-btn-outline" onClick={() => navigate("/login")}>Start free trial</button>
           </div>
         </div>
 

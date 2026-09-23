@@ -21,8 +21,8 @@ function ContactUs() {
 
   useEffect(() => {
     setPageTitle(
-      "Contact SafeSign | Sales, Support & Partnership Inquiries",
-      "Contact the SafeSign team for enterprise sales, customer support, or partnership opportunities. We provide secure e-signature solutions and dedicated support for global teams."
+      "Contact Esigniva | Sales, Support & Partnership Inquiries",
+      "Contact the Esigniva team for enterprise sales, customer support, or partnership opportunities. We provide secure e-signature solutions and dedicated support for global teams."
     );
   }, []);
 
@@ -67,7 +67,7 @@ function ContactUs() {
         buttonRef.current.focus();
       }
 
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const API_URL = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || "http://localhost:9000";
 
       const response = await fetch(`${API_URL}/api/contact`, {
         method: "POST",
@@ -77,34 +77,34 @@ function ContactUs() {
         body: JSON.stringify({
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
-          subject: formData.subject.trim() || null,
+          subject: formData.subject.trim() || "General Inquiry",
           message: formData.message.trim(),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to submit form");
-      }
-
       const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Failed to submit form");
+      }
 
       // Set button to "sent" state after animation
       setTimeout(() => {
         setButtonState("sent");
       }, 800);
 
-      setSubmitStatus("" + result.message);
+      setSubmitStatus("" + (result.message || "✅ Thank you! Your message has been sent successfully. Check your email for confirmation."));
 
       // Reset form after delay
       setTimeout(() => {
         setFormData({ name: "", email: "", subject: "", message: "" });
         setAgreeToPolicy(false);
         setIsSubmitting(false);
-      }, 2000);
+      }, 3000);
 
     } catch (error) {
       console.error("Error submitting contact form:", error);
-      setSubmitStatus("❌ Failed to send message. Please try again later.");
+      setSubmitStatus("❌ " + (error.message || "Failed to send message. Please try again later."));
       setIsSubmitting(false);
       // Reset button state on error
       setButtonState("default");

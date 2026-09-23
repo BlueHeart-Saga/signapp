@@ -41,85 +41,85 @@ const navigate = useNavigate();
     image: "/images/Union1.png",
     title: "Human Resources",
     description:
-      "Use SafeSign to digitally sign offer letters, onboarding documents, and HR policies with secure, legally valid e-signatures",
+      "Use Esigniva to digitally sign offer letters, onboarding documents, and HR policies with secure, legally valid e-signatures",
   },
   {
     image: "/images/Union2.png",
     title: "Legal",
     description:
-      "SafeSign enables law teams to execute contracts, NDAs, and compliance documents with tamper-proof digital signatures",
+      "Esigniva enables law teams to execute contracts, NDAs, and compliance documents with tamper-proof digital signatures",
   },
   {
     image: "/images/Union3.png",
     title: "Marketing",
     description:
-      "With SafeSign, marketing teams can instantly approve creative briefs, contracts, and vendor agreements online",
+      "With Esigniva, marketing teams can instantly approve creative briefs, contracts, and vendor agreements online",
   },
   {
     image: "/images/Union4.png",
     title: "Sales",
     description:
-      "Close deals faster using SafeSign by allowing clients to sign proposals and sales contracts anytime, anywhere",
+      "Close deals faster using Esigniva by allowing clients to sign proposals and sales contracts anytime, anywhere",
   },
   {
     image: "/images/Union5.png",
     title: "Finance",
     description:
-      "SafeSign helps finance teams securely approve invoices, purchase orders, and financial agreements digitally",
+      "Esigniva helps finance teams securely approve invoices, purchase orders, and financial agreements digitally",
   },
   {
     image: "/images/Union6.png",
     title: "Real Estate",
     description:
-      "Sign lease agreements, property documents, and closing paperwork remotely using SafeSign e-signature workflows",
+      "Sign lease agreements, property documents, and closing paperwork remotely using Esigniva e-signature workflows",
   },
   {
     image: "/images/Union7.png",
     title: "Healthcare",
     description:
-      "SafeSign enables secure digital signing of patient consent forms, agreements, and healthcare documentation",
+      "Esigniva enables secure digital signing of patient consent forms, agreements, and healthcare documentation",
   },
   {
     image: "/images/Union8.png",
     title: "Education",
     description:
-      "Educational institutions use SafeSign to digitally sign enrollment forms, consent documents, and approvals",
+      "Educational institutions use Esigniva to digitally sign enrollment forms, consent documents, and approvals",
   },
   {
     image: "/images/Union9.png",
     title: "Procurement",
     description:
-      "Speed up vendor onboarding and contract approvals with SafeSign’s secure digital signature platform",
+      "Speed up vendor onboarding and contract approvals with Esigniva’s secure digital signature platform",
   },
   {
     image: "/images/Union10.png",
     title: "IT & Operations",
     description:
-      "Authorize internal policies, access requests, and operational documents using SafeSign e-signatures",
+      "Authorize internal policies, access requests, and operational documents using Esigniva e-signatures",
   },
   {
     image: "/images/Union11.png",
     title: "Customer Support",
     description:
-      "Finalize service agreements and customer documents faster with SafeSign’s online signing experience",
+      "Finalize service agreements and customer documents faster with Esigniva’s online signing experience",
   },
   {
     image: "/images/Union12.png",
     title: "Startups",
     description:
-      "Startups rely on SafeSign to sign founder agreements, investor documents, and employee contracts digitally",
+      "Startups rely on Esigniva to sign founder agreements, investor documents, and employee contracts digitally",
   },
   {
     image: "/images/Union13.png",
     title: "Government",
     description:
-      "SafeSign helps government bodies digitize approvals, citizen forms, and official documentation securely",
+      "Esigniva helps government bodies digitize approvals, citizen forms, and official documentation securely",
   },
   {
     image: "/images/Union14.png",
     title: "Freelancers & Agencies",
     description:
-      "Send, sign, and manage client contracts and statements of work using SafeSign’s simple e-signature tools",
+      "Send, sign, and manage client contracts and statements of work using Esigniva’s simple e-signature tools",
   }
 ];
 
@@ -237,7 +237,7 @@ const navigate = useNavigate();
       {/* Use Cases Section */}
       <section className="use-cases-section">
   <div className="container1">
-    <h2 className="section-title1">Where SafeSign Delivers the Most Impact</h2>
+    <h2 className="section-title1">Where Esigniva Delivers the Most Impact</h2>
 
     <div className="use-cases-marquee">
       <div className="use-cases-track">

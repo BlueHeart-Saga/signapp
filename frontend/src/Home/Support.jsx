@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, { useState } from 'react';
 import {
   HelpCircle,
@@ -44,6 +45,7 @@ import {
 } from 'lucide-react';
 
 const Support = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('contact');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState(null);
@@ -172,16 +174,16 @@ const Support = () => {
       icon: <Settings size={20} />,
       questions: [
         {
-          q: 'What are the system requirements for SafeSign?',
-          a: 'SafeSign works on all modern browsers (Chrome, Firefox, Safari, Edge) and on any device with internet access. No software installation is required for signers.'
+          q: 'What are the system requirements for Esigniva?',
+          a: 'Esigniva works on all modern browsers (Chrome, Firefox, Safari, Edge) and on any device with internet access. No software installation is required for signers.'
         },
         {
-          q: 'How do I integrate SafeSign with my application?',
+          q: 'How do I integrate Esigniva with my application?',
           a: 'We provide comprehensive REST APIs, webhooks, and SDKs for popular programming languages. Check our API documentation for detailed integration guides.'
         },
         {
           q: 'What file formats are supported?',
-          a: 'SafeSign supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TIFF files. Maximum file size is 100MB per document.'
+          a: 'Esigniva supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, and TIFF files. Maximum file size is 100MB per document.'
         }
       ]
     },
@@ -191,8 +193,8 @@ const Support = () => {
       icon: <Lock size={20} />,
       questions: [
         {
-          q: 'Is SafeSign compliant with global regulations?',
-          a: 'Yes, SafeSign complies with ESIGN, UETA, eIDAS, GDPR, HIPAA, and other global regulations. We provide comprehensive audit trails for all documents.'
+          q: 'Is Esigniva compliant with global regulations?',
+          a: 'Yes, Esigniva complies with ESIGN, UETA, eIDAS, GDPR, HIPAA, and other global regulations. We provide comprehensive audit trails for all documents.'
         },
         {
           q: 'How is my data protected?',
@@ -265,7 +267,7 @@ const Support = () => {
           <div className="safe-hero-content">
             <div className="safe-hero-badge">
               <LifeBuoy size={20} />
-              <span>SafeSign Support Center</span>
+              <span>Esigniva Support Center</span>
             </div>
             <h1 className="safe-hero-title">How can we help you today?</h1>
             <p className="safe-hero-subtitle">
@@ -463,7 +465,7 @@ const Support = () => {
               <div className="safe-guides-header">
                 <div className="safe-guides-title-section">
                   <h2 className="safe-section-title">Guides & Tutorials</h2>
-                  <p className="safe-section-subtitle">Step-by-step guides to help you get the most out of SafeSign</p>
+                  <p className="safe-section-subtitle">Step-by-step guides to help you get the most out of Esigniva</p>
                 </div>
                 <div className="safe-guides-filters">
                   <div className="safe-category-filters">
@@ -549,7 +551,7 @@ const Support = () => {
                       { title: 'Integration Guides', icon: <GitBranch size={18} />, pages: 32 },
                       { title: 'Compliance Docs', icon: <FileText size={18} />, pages: 19 }
                     ].map((doc, index) => (
-                      <a key={index} href="#" className="safe-doc-link">
+                      <a key={index} href="/login" onClick={(e) => { e.preventDefault(); navigate("/login"); }} className="safe-doc-link">
                         <div className="safe-doc-icon">
                           {doc.icon}
                         </div>
@@ -648,7 +650,7 @@ const Support = () => {
               <div className="safe-status-header">
                 <div className="safe-status-title-section">
                   <h2 className="safe-section-title">System Status</h2>
-                  <p className="safe-section-subtitle">Current status of SafeSign services and infrastructure</p>
+                  <p className="safe-section-subtitle">Current status of Esigniva services and infrastructure</p>
                 </div>
                 <div className="safe-status-updated">
                   <Clock size={16} />
@@ -690,7 +692,7 @@ const Support = () => {
                             <TrendingUp size={12} />
                             {service.uptime} uptime
                           </span>
-                          <a href="#" className="safe-service-details">View Details</a>
+                          <a href="/login" onClick={(e) => { e.preventDefault(); navigate("/login"); }} className="safe-service-details">View Details</a>
                         </div>
                       </div>
                     ))}

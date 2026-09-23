@@ -4365,7 +4365,7 @@ const DocumentBuilder = () => {
   useEffect(() => {
     setPageTitle(
       "Edit Document",
-      "Edit and prepare your document for signing using SafeSign’s builder."
+      "Edit and prepare your document for signing using Esigniva’s builder."
     );
   }, []);
 

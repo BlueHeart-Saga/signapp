@@ -120,7 +120,7 @@ export default function DynamicLogo() {
             )}
 
             <h3 style={styles.previewTitle}>
-              {platformName || "SafeSign"}
+              {platformName || "Esigniva"}
             </h3>
             <p style={styles.previewTagline}>
               {tagline || "Secure Digital Document Signing"}

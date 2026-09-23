@@ -388,7 +388,7 @@ const DocumentDetails = () => {
                         letterSpacing: 0.3,
                       }}
                     >
-                      SafeSign
+                      Esigniva
                     </Typography>
                   </Box>
       <Container maxWidth="xl" sx={{ py: 4 }}>

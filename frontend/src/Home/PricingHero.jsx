@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import "../style/PricingHero.css";
 import { useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiShield, FiZap } from "react-icons/fi";
+import ProductDemoModal from "../components/ProductDemoModal";
 
 
 const PricingHero = () => {
     const navigate = useNavigate();
+    const [demoOpen, setDemoOpen] = useState(false);
   return (
     <section className="pricing-hero">
 
@@ -50,7 +52,7 @@ const PricingHero = () => {
           </div>
            <div className="about-hero-actions1">
           <button className="btn-primary1" onClick={() => navigate("/login")}>Get Started</button>
-          <button className="herocss-btn-secondary" onClick={() => navigate("/login")}>Book Demo</button>
+          <button className="herocss-btn-secondary" onClick={() => setDemoOpen(true)}>Book Demo</button>
         </div>
         </div>
         
@@ -66,6 +68,8 @@ const PricingHero = () => {
         </div>
 
       </div>
+
+      <ProductDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   );
 };

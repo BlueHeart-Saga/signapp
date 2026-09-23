@@ -168,7 +168,7 @@ const PremiumBannerSlider = ({ navigate: propNavigate }) => {
         // boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
       }}>
         <div style={{
-          color: '#ffffff',
+          color: '#000000ff',
           fontSize: '24px',
           fontWeight: 600,
           animation: 'pulse 2s infinite',

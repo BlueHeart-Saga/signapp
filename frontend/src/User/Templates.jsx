@@ -354,6 +354,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaFilePdf,
+  FaFileWord,
   FaFileImage,
   FaFileAlt,
   FaTrash,
@@ -593,10 +594,8 @@ export default function DocumentsAndTemplates() {
 
 
   useEffect(() => {
-    if (activeTab === "trash") {
-      loadTrashDocuments();
-    }
-  }, [activeTab, loadTrashDocuments]);
+    loadTrashDocuments();
+  }, [loadTrashDocuments]);
 
 
   const handleDelete = async (documentId) => {
@@ -604,9 +603,12 @@ export default function DocumentsAndTemplates() {
       setDocumentsError('');
       await documentsAPI.deleteDocument(documentId);
       setDocuments(documents.filter(d => d.id !== documentId));
+      loadTrashDocuments();
       setDeleteConfirm(null);
+      setSnackbar({ open: true, message: "Document moved to trash successfully", severity: "success" });
     } catch (err) {
       setDocumentsError(err.message || 'Failed to delete document');
+      setSnackbar({ open: true, message: err.message || "Failed to move document to trash", severity: "error" });
     }
   };
 
@@ -651,13 +653,14 @@ export default function DocumentsAndTemplates() {
 
   const handleViewDocumentPdf = async (document) => {
     try {
-      if (!document?.id) {
+      const docId = document?.id || document?._id;
+      if (!docId) {
         alert("Document ID missing");
         return;
       }
 
       const res = await fetch(
-        `${API_BASE}/documents/${document.id}/download`,
+        `${API_BASE}/documents/${docId}/download`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -667,8 +670,9 @@ export default function DocumentsAndTemplates() {
 
       if (!res.ok) throw new Error("Failed to load document PDF");
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const arrayBuffer = await res.arrayBuffer();
+      const pdfBlob = new Blob([arrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(pdfBlob);
 
       setPdfUrl(url);
       setShowPdfViewer(true);
@@ -904,9 +908,14 @@ export default function DocumentsAndTemplates() {
         severity: "success",
       });
 
-      // Navigate to prepare-send with ID
+      // Navigate to Document Builder / Editor so user can review, modify & edit template content first
       const docId = uploadedDocument.id || uploadedDocument._id;
-      navigate(`/user/prepare-send/${docId}`, {
+      setSnackbar({
+        open: true,
+        message: "Template loaded! You can now review, edit, and fill content.",
+        severity: "success",
+      });
+      navigate(`/user/documentbuilder/${docId}`, {
         state: {
           document: uploadedDocument,
           fromTemplate: true,
@@ -928,7 +937,7 @@ export default function DocumentsAndTemplates() {
     }
   };
 
-  const handleDownloadTemplate = async (templateId, templateTitle, isFree) => {
+  const handleDownloadTemplate = async (templateId, templateTitle, isFree, format = 'pdf') => {
     try {
       if (!templateId) {
         alert("Template ID is missing");
@@ -942,8 +951,9 @@ export default function DocumentsAndTemplates() {
         if (!confirmPurchase) return;
       }
 
+      const formatQuery = format === 'docx' ? 'docx' : 'pdf';
       const res = await fetch(
-        `${API_BASE}/admin/templates/user/download/${templateId}?format=original`,
+        `${API_BASE}/admin/templates/user/download/${templateId}?format=${formatQuery}`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -954,8 +964,9 @@ export default function DocumentsAndTemplates() {
       const a = document.createElement("a");
       a.href = url;
 
+      const ext = format === 'docx' ? '.docx' : '.pdf';
       const contentDisposition = res.headers.get("Content-Disposition");
-      let filename = templateTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".pdf";
+      let filename = templateTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ext;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
         if (filenameMatch && filenameMatch[1]) {
@@ -969,7 +980,11 @@ export default function DocumentsAndTemplates() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      // alert(`Template "${templateTitle}" downloaded successfully!`);
+      setSnackbar({
+        open: true,
+        message: `Template downloaded successfully as ${format.toUpperCase()}!`,
+        severity: "success"
+      });
       fetchPopularTemplates();
     } catch (err) {
       alert(err.message || "Failed to download template");
@@ -1027,14 +1042,15 @@ export default function DocumentsAndTemplates() {
     }
   };
 
-  const downloadSelectedTemplate = () => {
+  const downloadSelectedTemplate = (format = 'pdf') => {
     if (selectedTemplate) {
       const templateId = getTemplateId(selectedTemplate);
       if (templateId) {
         handleDownloadTemplate(
           templateId,
           selectedTemplate.title,
-          selectedTemplate.is_free
+          selectedTemplate.is_free,
+          format
         );
         closePreviewModal();
       } else {
@@ -1043,50 +1059,24 @@ export default function DocumentsAndTemplates() {
     }
   };
 
-  const handleUseDocument = async (document) => {
+  const handleUseDocument = (document) => {
     try {
-      const token = localStorage.getItem("token");
+      const docId = document?.id || document?._id;
+      if (!docId) throw new Error("Document ID missing");
 
-      // Download existing document
-      const res = await fetch(`${API_BASE}/documents/${document.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to download document");
-
-      const blob = await res.blob();
-
-      // Create File object
-      const file = new File([blob], document.filename, {
-        type: document.mime_type || "application/pdf",
-      });
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      // Upload again (same as template use)
-      const uploadRes = await fetch(`${API_BASE}/documents/upload`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!uploadRes.ok) throw new Error("Upload failed");
-
-      const result = await uploadRes.json();
-      const uploadedDocument = result.document || result;
-
-      const docId = uploadedDocument.id || uploadedDocument._id;
+      // Navigate directly to prepare-send for instant document opening
       navigate(`/user/prepare-send/${docId}`, {
         state: {
-          document: uploadedDocument,
+          document,
           fromDocument: true,
         },
       });
     } catch (err) {
-      alert(err.message || "Failed to use document");
+      setSnackbar({
+        open: true,
+        message: err.message || "Failed to use document",
+        severity: "error",
+      });
     }
   };
 
@@ -1162,6 +1152,7 @@ export default function DocumentsAndTemplates() {
         >
           <FaTrash className="dt-tab-icon" />
           Trash
+          <span className="dt-tab-badge">{trashDocuments.length}</span>
         </button>
 
       </div>
@@ -1722,37 +1713,31 @@ export default function DocumentsAndTemplates() {
                             )}
                           </div>
 
-                          <div className="dt-card-footer">
+                          <div className="dt-card-footer" style={{ gap: '6px', flexWrap: 'wrap' }}>
                             <button
                               onClick={() => handlePreview(templateId)}
                               className="dt-btn dt-btn-outline dt-btn-sm"
                               disabled={!templateId}
+                              title="Preview Template"
                             >
                               <FaEye /> Preview
                             </button>
-                            {/* <button
-                              onClick={() => handleDownloadTemplate(
-                                templateId,
-                                template.title,
-                                template.is_free
-                              )}
-                              className={`dt-btn dt-btn-sm ${template.is_free ? 'dt-btn-outline' : 'dt-btn-premium'}`}
+                            <button
+                              onClick={() => handleDownloadTemplate(templateId, template.title, template.is_free, 'pdf')}
+                              className="dt-btn dt-btn-outline dt-btn-sm"
                               disabled={!templateId}
+                              title="Download PDF"
                             >
-                              <FaDownload /> Download
-                            </button> */}
-
-                            {/* const templateId = getTemplateId(template); */}
-
-                            {/* <button
-  disabled={!templateId}
-  onClick={() => handleViewPdf(templateId)}
-  className="dt-btn dt-btn-outline dt-btn-sm"
->
-  <FaEye /> View PDF
-</button> */}
-
-
+                              <FaFilePdf /> PDF
+                            </button>
+                            <button
+                              onClick={() => handleDownloadTemplate(templateId, template.title, template.is_free, 'docx')}
+                              className="dt-btn dt-btn-outline dt-btn-sm"
+                              disabled={!templateId}
+                              title="Download Word (.docx)"
+                            >
+                              <FaFileWord /> Word
+                            </button>
                             <button
                               onClick={() => handleUseTemplate(templateId, template.title)}
                               className="dt-btn dt-btn-primary dt-btn-sm"
@@ -2240,7 +2225,7 @@ export default function DocumentsAndTemplates() {
                   </div>
                 )}
               </div>
-              <div className="dt-preview-actions">
+              <div className="dt-preview-actions" style={{ gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={useSelectedTemplate}
                   className="dt-btn dt-btn-primary"
@@ -2252,15 +2237,23 @@ export default function DocumentsAndTemplates() {
                   onClick={() => handleViewPdf(getTemplateId(selectedTemplate))}
                   className="dt-btn dt-btn-outline"
                 >
-                  View PDF
+                  <FaEye /> View PDF
                 </button>
 
                 <button
-                  onClick={downloadSelectedTemplate}
-                  className={`dt-btn ${selectedTemplate.is_free ? 'dt-btn-outline' : 'dt-btn-premium'}`}
+                  onClick={() => downloadSelectedTemplate('pdf')}
+                  className="dt-btn dt-btn-outline"
                   disabled={!getTemplateId(selectedTemplate)}
                 >
-                  {selectedTemplate.is_free ? "Download Free" : "Purchase & Download"}
+                  <FaFilePdf /> Download PDF
+                </button>
+
+                <button
+                  onClick={() => downloadSelectedTemplate('docx')}
+                  className="dt-btn dt-btn-outline"
+                  disabled={!getTemplateId(selectedTemplate)}
+                >
+                  <FaFileWord /> Download Word (.docx)
                 </button>
                 <button className="dt-btn dt-btn-secondary" onClick={closePreviewModal}>
                   Cancel

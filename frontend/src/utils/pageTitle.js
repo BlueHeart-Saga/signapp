@@ -1,5 +1,5 @@
 export const setPageTitle = (pageName, metaDescription) => {
-  const platform = window.__PLATFORM_NAME__ || "Safesign";
+  const platform = window.__PLATFORM_NAME__ || "Esigniva";
   const tagline = "AI-Powered E-Signature & Document Management";
 
   // Browser tab title - Professional Format: Page | Platform - Tagline

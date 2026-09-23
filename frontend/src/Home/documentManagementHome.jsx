@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../style/DocumentManagementHome.css";
 import IntegrationsScroll from "./IntegrationsScroll";
 
@@ -6,10 +7,11 @@ import { setPageTitle } from "../utils/pageTitle";
 import { useEffect } from "react";
 
 const DocumentManagementHome = () => {
+  const navigate = useNavigate();
   useEffect(() => {
     setPageTitle(
-      "Recipient & Document Lifecycle Management | SafeSign",
-      "Manage document recipients, assign roles, and control the signing order with SafeSign. Our enterprise document management tools ensure a secure and compliant signing process."
+      "Recipient & Document Lifecycle Management | Esigniva",
+      "Manage document recipients, assign roles, and control the signing order with Esigniva. Our enterprise document management tools ensure a secure and compliant signing process."
     );
   }, []);
   return (
@@ -32,8 +34,8 @@ const DocumentManagementHome = () => {
           </p>
 
           <div className="dmh-hero-buttons">
-            <button className="dmh-btn-primary">Request a demo</button>
-            <button className="dmh-btn-outline">Start free trial</button>
+            <button className="dmh-btn-primary" onClick={() => navigate("/login")}>Request a demo</button>
+            <button className="dmh-btn-outline" onClick={() => navigate("/login")}>Start free trial</button>
           </div>
         </div>
 

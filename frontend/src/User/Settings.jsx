@@ -7,13 +7,41 @@ import {
   FaEdit,
   FaSignature,
   FaStamp,
-  FaUpload
+  FaUpload,
+  FaEye,
+  FaEyeSlash
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
+const getTimezones = () => {
+  try {
+    if (typeof Intl !== "undefined" && Intl.supportedValuesOf) {
+      return Intl.supportedValuesOf("timeZone");
+    }
+  } catch (e) {}
+  return [
+    "Asia/Kolkata",
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "Europe/London",
+    "Europe/Paris",
+    "Europe/Berlin",
+    "Asia/Tokyo",
+    "Asia/Shanghai",
+    "Asia/Singapore",
+    "Asia/Dubai",
+    "Australia/Sydney",
+    "UTC"
+  ];
+};
+
 const Settings = () => {
+  const { setUser: setAuthUser } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
@@ -26,8 +54,10 @@ const Settings = () => {
     last_name: "",
     company: "",
     job_title: "",
-    date_format: "MMM dd yyyy HH:mm z",
+    date_format: "DD/MM/YYYY",
     time_zone: "Asia/Kolkata",
+    signature_text: "",
+    initials_text: "",
   });
 
   // Password Form State
@@ -36,6 +66,10 @@ const Settings = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Schedule Form State
   const [scheduleForm, setScheduleForm] = useState({
@@ -72,14 +106,21 @@ const Settings = () => {
       });
       const data = await response.json();
       setUser(data);
+
+      const defaultTz = data.time_zone || (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "Asia/Kolkata") || "Asia/Kolkata";
+      const sigText = data.signature_text || `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.full_name || "User Signature";
+      const initText = data.initials_text || `${data.first_name?.charAt(0) || ""}${data.last_name?.charAt(0) || ""}`.toUpperCase() || "US";
+
       setProfileForm({
         full_name: data.full_name || "",
         first_name: data.first_name || "",
         last_name: data.last_name || "",
         company: data.company || "",
         job_title: data.job_title || "",
-        date_format: data.date_format || "MMM dd yyyy HH:mm z",
-        time_zone: data.time_zone || "Asia/Kolkata",
+        date_format: data.date_format || "DD/MM/YYYY",
+        time_zone: defaultTz,
+        signature_text: sigText,
+        initials_text: initText,
       });
       setScheduleForm({
         reminder_days: data.reminder_days || 3,
@@ -105,7 +146,8 @@ const Settings = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("full_name", profileForm.full_name);
+      const derivedFullName = `${profileForm.first_name} ${profileForm.last_name}`.trim() || profileForm.full_name;
+      formData.append("full_name", derivedFullName);
       formData.append("first_name", profileForm.first_name);
       formData.append("last_name", profileForm.last_name);
       formData.append("company", profileForm.company);
@@ -114,6 +156,8 @@ const Settings = () => {
       formData.append("time_zone", profileForm.time_zone);
       formData.append("reminder_days", scheduleForm.reminder_days);
       formData.append("expiry_days", scheduleForm.expiry_days);
+      formData.append("signature_text", profileForm.signature_text || getSignatureText());
+      formData.append("initials_text", profileForm.initials_text || getInitialText());
 
       if (profilePic) {
         formData.append("profile_picture", profilePic);
@@ -135,6 +179,7 @@ const Settings = () => {
         const updatedData = await response.json();
         localStorage.setItem("user", JSON.stringify(updatedData.user));
         setUser(updatedData.user);
+        if (setAuthUser) setAuthUser(updatedData.user);
 
         // Refresh previews from server data
         if (updatedData.user.profile_picture) {
@@ -146,7 +191,8 @@ const Settings = () => {
         setStampFile(null); // Clear local file state
         setProfilePic(null);
       } else {
-        toast.error("Failed to update profile");
+        const errJson = await response.json().catch(() => ({}));
+        toast.error(errJson.detail || "Failed to update profile");
       }
     } catch (error) {
       toast.error("An error occurred");
@@ -157,10 +203,23 @@ const Settings = () => {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match");
+    if (!passwordForm.currentPassword) {
+      toast.error("Please enter your current password");
       return;
     }
+    if (!passwordForm.newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters long");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New password and confirm password do not match");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
@@ -175,15 +234,16 @@ const Settings = () => {
         }),
       });
 
+      const resData = await response.json();
+
       if (response.ok) {
         toast.success("Password changed successfully");
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.detail || "Failed to change password");
+        toast.error(resData.detail || "Failed to change password");
       }
     } catch (error) {
-      toast.error("An error occurred");
+      toast.error("An error occurred while changing password");
     } finally {
       setLoading(false);
     }
@@ -343,12 +403,36 @@ const Settings = () => {
               {/* Signature Row */}
               <div className="form-row">
                 <label className="row-label">Signature and initial</label>
-                <div className="row-input signature-container">
-                  <div className="signature-preview-box handwriting">
-                    {getSignatureText()}
+                <div className="row-input signature-container" style={{ flexDirection: 'column', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
+                    <div className="signature-preview-box handwriting">
+                      {profileForm.signature_text || getSignatureText()}
+                    </div>
+                    <div className="initial-preview-box handwriting">
+                      {profileForm.initials_text || getInitialText()}
+                    </div>
                   </div>
-                  <div className="initial-preview-box handwriting">
-                    {getInitialText()}
+                  <div style={{ display: 'flex', gap: '12px', width: '100%', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '180px' }}>
+                      <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '4px', display: 'block' }}>Signature Name</label>
+                      <input
+                        type="text"
+                        value={profileForm.signature_text}
+                        placeholder={getSignatureText()}
+                        onChange={(e) => setProfileForm({ ...profileForm, signature_text: e.target.value })}
+                        className="styled-input"
+                      />
+                    </div>
+                    <div style={{ width: '100px' }}>
+                      <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '4px', display: 'block' }}>Initials</label>
+                      <input
+                        type="text"
+                        value={profileForm.initials_text}
+                        placeholder={getInitialText()}
+                        onChange={(e) => setProfileForm({ ...profileForm, initials_text: e.target.value })}
+                        className="styled-input"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -388,7 +472,17 @@ const Settings = () => {
                   <input
                     type="text"
                     value={profileForm.first_name}
-                    onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
+                    onChange={(e) => {
+                      const fn = e.target.value;
+                      const sigText = `${fn} ${profileForm.last_name}`.trim();
+                      const initText = `${fn.charAt(0)}${profileForm.last_name.charAt(0)}`.toUpperCase();
+                      setProfileForm({
+                        ...profileForm,
+                        first_name: fn,
+                        signature_text: profileForm.signature_text ? profileForm.signature_text : sigText,
+                        initials_text: profileForm.initials_text ? profileForm.initials_text : initText
+                      });
+                    }}
                     className="styled-input"
                   />
                 </div>
@@ -400,7 +494,17 @@ const Settings = () => {
                   <input
                     type="text"
                     value={profileForm.last_name}
-                    onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
+                    onChange={(e) => {
+                      const ln = e.target.value;
+                      const sigText = `${profileForm.first_name} ${ln}`.trim();
+                      const initText = `${profileForm.first_name.charAt(0)}${ln.charAt(0)}`.toUpperCase();
+                      setProfileForm({
+                        ...profileForm,
+                        last_name: ln,
+                        signature_text: profileForm.signature_text ? profileForm.signature_text : sigText,
+                        initials_text: profileForm.initials_text ? profileForm.initials_text : initText
+                      });
+                    }}
                     className="styled-input"
                   />
                 </div>
@@ -447,13 +551,44 @@ const Settings = () => {
 
               <div className="form-row">
                 <label className="row-label">Time zone</label>
-                <div className="row-input">
-                  <input
-                    type="text"
+                <div className="row-input" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select
                     value={profileForm.time_zone}
                     onChange={(e) => setProfileForm({ ...profileForm, time_zone: e.target.value })}
-                    className="styled-input disabled-like"
-                  />
+                    className="styled-select"
+                    style={{ flex: 1, minWidth: '200px' }}
+                  >
+                    {getTimezones().map((tz) => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        if (detected) {
+                          setProfileForm(prev => ({ ...prev, time_zone: detected }));
+                          toast.success(`Detected timezone: ${detected}`);
+                        }
+                      } catch (err) {
+                        toast.error("Could not auto-detect timezone");
+                      }
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      backgroundColor: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#0f766e',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Auto-Detect
+                  </button>
                 </div>
               </div>
 
@@ -472,40 +607,97 @@ const Settings = () => {
             <form onSubmit={handlePasswordChange} className="profile-form-layout narrow-form">
               <div className="form-row">
                 <label className="row-label">Current Password</label>
-                <div className="row-input">
+                <div className="row-input" style={{ position: "relative" }}>
                   <input
-                    type="password"
+                    type={showCurrentPassword ? "text" : "password"}
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                     className="styled-input"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
+
               <div className="form-row">
                 <label className="row-label">New Password</label>
-                <div className="row-input">
+                <div className="row-input" style={{ position: "relative" }}>
                   <input
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     className="styled-input"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
+
               <div className="form-row">
                 <label className="row-label">Confirm Password</label>
-                <div className="row-input">
+                <div className="row-input" style={{ position: "relative" }}>
                   <input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                     className="styled-input"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center"
+                    }}
+                  >
+                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
+
               <div className="form-actions-footer password-actions">
                 <button type="submit" className="update-btn" disabled={loading}>
                   {loading ? "Changing..." : "Change Password"}
@@ -531,25 +723,35 @@ const Settings = () => {
                 <div className="row-input">
                   <input
                     type="number"
+                    min="1"
                     value={scheduleForm.reminder_days}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, reminder_days: parseInt(e.target.value) })}
+                    onChange={(e) => setScheduleForm({
+                      ...scheduleForm,
+                      reminder_days: Math.max(1, parseInt(e.target.value) || 1)
+                    })}
                     className="styled-input mini"
                   />
                   <span className="input-hint-text">days</span>
                 </div>
               </div>
+
               <div className="form-row">
                 <label className="row-label">Expiry Days</label>
                 <div className="row-input">
                   <input
                     type="number"
+                    min="1"
                     value={scheduleForm.expiry_days}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, expiry_days: parseInt(e.target.value) })}
+                    onChange={(e) => setScheduleForm({
+                      ...scheduleForm,
+                      expiry_days: Math.max(1, parseInt(e.target.value) || 1)
+                    })}
                     className="styled-input mini"
                   />
                   <span className="input-hint-text">days</span>
                 </div>
               </div>
+
               <div className="form-actions-footer">
                 <button type="submit" className="update-btn" disabled={loading}>
                   {loading ? "Saving..." : "Save Schedule"}

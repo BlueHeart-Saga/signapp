@@ -212,7 +212,7 @@ const Completion = () => {
 
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/package`,
-      `SafeSign_Package_${documentInfo?.envelope_id || 'Document'}.zip`
+      `Esigniva_Package_${documentInfo?.envelope_id || 'Document'}.zip`
     );
   };
 
@@ -399,7 +399,7 @@ const Completion = () => {
             letterSpacing: 0.3,
           }}
         >
-          SafeSign
+          Esigniva
         </Typography>
       </Box>
 

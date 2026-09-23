@@ -1,109 +1,101 @@
 import React from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Zap } from 'lucide-react';
 
 function FeatureComparisonTable() {
+  const plans = [
+    { key: 'free', label: 'FREE TRIAL', color: '#64748b' },
+    { key: 'starter', label: 'STARTER ($5)', color: '#0284c7' },
+    { key: 'standard', label: 'STANDARD ($15)', color: '#0f766e' },
+    { key: 'professional', label: 'PRO ($50)', color: '#7c3aed' },
+    { key: 'enterprise', label: 'ENTERPRISE ($200)', color: '#2563eb' },
+    { key: 'custom', label: 'CUSTOM PRICE', color: '#059669' }
+  ];
+
   const features = [
     {
-      category: 'DOCUMENT FEATURES',
+      category: 'CREDITS & ALLOCATIONS',
       items: [
         {
-          name: 'Monthly Envelopes',
-          basic: 'Unlimited',
-          standard: 'Unlimited',
-          enterprise: 'Unlimited'
+          name: 'Included Credit Volume',
+          free: '100 Credits',
+          starter: '500 Credits',
+          standard: '2,000 Credits',
+          professional: '10,000 Credits',
+          enterprise: '50,000 Credits',
+          custom: '100,000+ Custom'
         },
         {
-          name: 'Templates',
-          basic: 'Basic (5)',
-          standard: 'Unlimited',
-          enterprise: 'Advanced Library'
+          name: 'Credit Expiration Policy',
+          free: '15 Days Trial',
+          starter: 'Never Expire',
+          standard: 'Never Expire',
+          professional: 'Never Expire',
+          enterprise: 'Never Expire',
+          custom: 'Never Expire'
         },
         {
-          name: 'Reusable Fields',
-          basic: <Check size={16} color="#10b981" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
-        },
-        {
-          name: 'AI Document Parsing',
-          basic: <X size={16} color="#ef4444" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
+          name: 'Estimated Document Signings',
+          free: '~20 Documents',
+          starter: '~100 Documents',
+          standard: '~400 Documents',
+          professional: '~2,000 Documents',
+          enterprise: '~10,000 Documents',
+          custom: 'Custom Volume'
         }
       ]
     },
     {
-      category: 'SECURITY & COMPLIANCE',
+      category: 'DOCUMENT & AI CAPABILITIES',
       items: [
         {
-          name: 'Real-time Audit Trails',
-          basic: <Check size={16} color="#10b981" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
+          name: 'AI Agreement Generator',
+          free: <Check size={16} color="#16a34a" />,
+          starter: <Check size={16} color="#16a34a" />,
+          standard: <Check size={16} color="#16a34a" />,
+          professional: <Check size={16} color="#16a34a" />,
+          enterprise: <Check size={16} color="#16a34a" />,
+          custom: <Check size={16} color="#16a34a" />
         },
         {
-          name: 'SOC2 Compliance',
-          basic: <Check size={16} color="#10b981" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
+          name: 'AI Field Auto-Positioning',
+          free: <X size={16} color="#ef4444" />,
+          starter: <X size={16} color="#ef4444" />,
+          standard: <Check size={16} color="#16a34a" />,
+          professional: <Check size={16} color="#16a34a" />,
+          enterprise: <Check size={16} color="#16a34a" />,
+          custom: <Check size={16} color="#16a34a" />
         },
         {
-          name: 'Two-Factor Authentication',
-          basic: <Check size={16} color="#10b981" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
-        },
-        {
-          name: 'SSO Integration (SAML)',
-          basic: <X size={16} color="#ef4444" />,
+          name: 'Bulk Send & Custom Branding',
+          free: <X size={16} color="#ef4444" />,
+          starter: <X size={16} color="#ef4444" />,
           standard: <X size={16} color="#ef4444" />,
-          enterprise: <Check size={16} color="#10b981" />
+          professional: <Check size={16} color="#16a34a" />,
+          enterprise: <Check size={16} color="#16a34a" />,
+          custom: <Check size={16} color="#16a34a" />
         }
       ]
     },
     {
-      category: 'WORKFLOW & INTEGRATION',
+      category: 'SECURITY & SUPPORT',
       items: [
         {
-          name: 'Bulk Send',
-          basic: <X size={16} color="#ef4444" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
+          name: 'Real-time Audit Certificates',
+          free: <Check size={16} color="#16a34a" />,
+          starter: <Check size={16} color="#16a34a" />,
+          standard: <Check size={16} color="#16a34a" />,
+          professional: <Check size={16} color="#16a34a" />,
+          enterprise: <Check size={16} color="#16a34a" />,
+          custom: <Check size={16} color="#16a34a" />
         },
         {
-          name: 'Custom Branding (Logos)',
-          basic: <X size={16} color="#ef4444" />,
-          standard: <Check size={16} color="#10b981" />,
-          enterprise: <Check size={16} color="#10b981" />
-        },
-        {
-          name: 'API Access',
-          basic: <X size={16} color="#ef4444" />,
-          standard: <X size={16} color="#ef4444" />,
-          enterprise: <Check size={16} color="#10b981" />
-        }
-      ]
-    },
-    {
-      category: 'SUPPORT',
-      items: [
-        {
-          name: 'Customer Support',
-          basic: 'Standard Email',
-          standard: 'Priority Chat',
-          enterprise: 'Dedicated Manager'
-        },
-        {
-          name: 'Response Time',
-          basic: '48 Hours',
-          standard: '24 Hours',
-          enterprise: '< 1 Hour'
-        },
-        {
-          name: 'SLA Guarantee',
-          basic: <X size={16} color="#ef4444" />,
-          standard: <X size={16} color="#ef4444" />,
-          enterprise: <Check size={16} color="#10b981" />
+          name: 'Support Tier',
+          free: 'Email Support',
+          starter: 'Standard Support',
+          standard: 'Priority Support',
+          professional: '24/7 Priority',
+          enterprise: 'VIP Support',
+          custom: 'Dedicated Manager'
         }
       ]
     }
@@ -114,184 +106,106 @@ function FeatureComparisonTable() {
       width: '100%',
       background: '#ffffff',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      padding: '60px 0'
+      padding: '50px 0'
     }}>
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
         padding: '0 20px'
       }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
+            Feature & Specs Comparison
+          </h2>
+          <p style={{ fontSize: '16px', color: '#64748b' }}>
+            Compare credit allocations, feature support, and support tiers across all 6 Esigniva credit plans.
+          </p>
+        </div>
+
         <div style={{
           overflowX: 'auto',
           background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e5e7eb'
+          borderRadius: '16px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0'
         }}>
           <table style={{
             width: '100%',
             borderCollapse: 'collapse',
-            minWidth: '800px'
+            minWidth: '900px'
           }}>
-            {/* Table Header */}
             <thead>
-              <tr style={{
-                background: '#f9fafb'
-              }}>
+              <tr style={{ background: '#f8fafc' }}>
                 <th style={{
-                  padding: '20px 24px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#111827',
+                  padding: '20px 20px',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  color: '#0f172a',
                   textAlign: 'left',
-                  borderBottom: '2px solid #e5e7eb',
-                  width: '25%'
+                  borderBottom: '2px solid #e2e8f0',
+                  width: '22%'
                 }}>
-                  <div style={{
-                    fontSize: '20px',
-                    fontWeight: '700',
-                    color: '#111827',
-                    marginBottom: '4px'
-                  }}>FEATURE</div>
-                  <div style={{
-                    fontSize: '14px',
-                    color: '#6b7280',
-                    fontWeight: '400'
-                  }}>Compare all plans</div>
+                  CREDIT SPECIFICATIONS
                 </th>
-                <th style={{
-                  padding: '20px 24px',
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#ff6a34',
-                  textAlign: 'center',
-                  borderBottom: '2px solid #e5e7eb',
-                  width: '25%'
-                }}>
-                  BASIC
-                </th>
-                <th style={{
-                  padding: '20px 24px',
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#1e6afb',
-                  textAlign: 'center',
-                  borderBottom: '2px solid #e5e7eb',
-                  width: '25%'
-                }}>
-                  STANDARD
-                </th>
-                <th style={{
-                  padding: '20px 24px',
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#00c25a',
-                  textAlign: 'center',
-                  borderBottom: '2px solid #e5e7eb',
-                  width: '25%'
-                }}>
-                  ENTERPRISE
-                </th>
+                {plans.map((p) => (
+                  <th key={p.key} style={{
+                    padding: '16px 10px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    color: p.color,
+                    textAlign: 'center',
+                    borderBottom: '2px solid #e2e8f0'
+                  }}>
+                    {p.label}
+                  </th>
+                ))}
               </tr>
             </thead>
 
-            {/* Table Body */}
             <tbody>
-              {features.map((category, categoryIndex) => (
-                <React.Fragment key={categoryIndex}>
-                  {/* Category Separator */}
-                  {categoryIndex > 0 && (
-                    <tr>
-                      <td colSpan="4" style={{
-                        padding: '16px 0',
-                        borderTop: '1px solid #e5e7eb'
-                      }}>
-                        <div style={{
-                          height: '1px',
-                          background: '#e5e7eb',
-                          width: '100%'
-                        }}></div>
-                      </td>
-                    </tr>
-                  )}
-                  
-                  {/* Category Header */}
-                  <tr style={{
-                    background: '#f9fafb'
-                  }}>
-                    <td colSpan="4" style={{
-                      padding: '16px 24px',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      color: '#111827',
-                      borderBottom: '1px solid #e5e7eb'
+              {features.map((cat, catIdx) => (
+                <React.Fragment key={catIdx}>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <td colSpan="7" style={{
+                      padding: '12px 20px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      color: '#0f172a',
+                      letterSpacing: '0.5px',
+                      borderBottom: '1px solid #e2e8f0'
                     }}>
-                      {category.category}
+                      {cat.category}
                     </td>
                   </tr>
 
-                  {/* Category Items */}
-                  {category.items.map((item, itemIndex) => (
-                    <tr 
-                      key={itemIndex}
+                  {cat.items.map((item, itemIdx) => (
+                    <tr
+                      key={itemIdx}
                       style={{
-                        borderBottom: itemIndex === category.items.length - 1 
-                          ? '2px solid #e5e7eb' 
-                          : '1px solid #f3f4f6',
-                        background: itemIndex % 2 === 0 ? '#ffffff' : '#f9fafb'
+                        borderBottom: '1px solid #f1f5f9',
+                        background: itemIdx % 2 === 0 ? '#ffffff' : '#fafafa'
                       }}
                     >
                       <td style={{
-                        padding: '16px 24px',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#374151'
+                        padding: '14px 20px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#334155'
                       }}>
                         {item.name}
                       </td>
-                      <td style={{
-                        padding: '16px 24px',
-                        fontSize: '14px',
-                        color: '#4b5563',
-                        textAlign: 'center',
-                        fontWeight: '500'
-                      }}>
-                        {item.basic}
-                      </td>
-                      <td style={{
-                        padding: '16px 24px',
-                        fontSize: '14px',
-                        color: '#4b5563',
-                        textAlign: 'center',
-                        fontWeight: '500'
-                      }}>
-                        {item.standard}
-                      </td>
-                      <td style={{
-                        padding: '16px 24px',
-                        fontSize: '14px',
-                        color: '#4b5563',
-                        textAlign: 'center',
-                        fontWeight: '500'
-                      }}>
-                        {item.enterprise}
-                      </td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#475569', textAlign: 'center', fontWeight: '600' }}>{item.free}</td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#0284c7', textAlign: 'center', fontWeight: '600' }}>{item.starter}</td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#0f766e', textAlign: 'center', fontWeight: '700' }}>{item.standard}</td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#7c3aed', textAlign: 'center', fontWeight: '700' }}>{item.professional}</td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#2563eb', textAlign: 'center', fontWeight: '700' }}>{item.enterprise}</td>
+                      <td style={{ padding: '14px 10px', fontSize: '12px', color: '#059669', textAlign: 'center', fontWeight: '700' }}>{item.custom}</td>
                     </tr>
                   ))}
                 </React.Fragment>
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Footnote */}
-        <div style={{
-          marginTop: '24px',
-          fontSize: '14px',
-          color: '#6b7280',
-          textAlign: 'center'
-        }}>
-          <p>● = Included, — = Not included</p>
         </div>
       </div>
     </div>

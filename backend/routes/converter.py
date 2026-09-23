@@ -362,6 +362,40 @@ def test_libreoffice():
         return False
 
 
+def convert_pdf_to_docx(pdf_bytes: bytes) -> bytes:
+    """Convert PDF bytes to Word (.docx) document bytes using pdf2docx"""
+    if not pdf_bytes:
+        return None
+    try:
+        from pdf2docx import Converter
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
+            tmp_pdf.write(pdf_bytes)
+            tmp_pdf_path = tmp_pdf.name
+
+        tmp_docx_path = tmp_pdf_path.replace(".pdf", ".docx")
+        try:
+            cv = Converter(tmp_pdf_path)
+            cv.convert(tmp_docx_path, start=0, end=None)
+            cv.close()
+            with open(tmp_docx_path, "rb") as f:
+                docx_bytes = f.read()
+            return docx_bytes
+        finally:
+            if os.path.exists(tmp_pdf_path):
+                try:
+                    os.remove(tmp_pdf_path)
+                except Exception:
+                    pass
+            if os.path.exists(tmp_docx_path):
+                try:
+                    os.remove(tmp_docx_path)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[PDF-CONVERT] PDF to DOCX conversion failed: {e}")
+        return None
+
+
 # Run test if executed directly
 if __name__ == "__main__":
     print("[PDF-CONVERT] Testing converter...")

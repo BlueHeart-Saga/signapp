@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer,
   BarChart, Bar,
@@ -35,6 +36,7 @@ const DashboardAnalyticsInline = ({
   timeRange = '30',
   onTimeRangeChange
 }) => {
+  const navigate = useNavigate();
 
   // Prepare chart data from real analytics
   const documentChartData = [
@@ -442,55 +444,144 @@ const DashboardAnalyticsInline = ({
     </div>
   );
 
-  // Subscription Analytics Section
+  // Credit-Based Subscription & Live Credits Section
   const SubscriptionSection = () => {
-    const planType = analyticsData.subscription?.plan_type || 'free';
-    const isActive = analyticsData.subscription?.has_active;
-    
-    const getPlanIcon = () => {
-      switch(planType) {
-        case 'enterprise': return <Award size={24} />;
-        case 'yearly': return <Crown size={24} />;
-        case 'monthly': return <Zap size={24} />;
-        case 'lifetime': return <Gem size={24} />;
-        default: return <Star size={24} />;
-      }
-    };
+    const creds = analyticsData.credits || {};
+    const availableCredits = creds.available ?? 0;
+    const consumedCredits = creds.total_consumed ?? 0;
+    const allocatedCredits = creds.total_allocated ?? (availableCredits + consumedCredits);
+    const planName = creds.plan_name || 'Credit-Based Account';
+
+    const docTotal = analyticsData.documents?.total || 0;
+    const docSent = analyticsData.documents?.sent || 0;
 
     return (
       <div className="analytics-section-content">
-        <div className={`subscription-premium-card ${planType}`} data-active={isActive}>
+        {/* Dynamic Credit Plan Card */}
+        <div className="subscription-premium-card enterprise" data-active={true}>
           <div className="premium-card-header">
             <div className="plan-icon-wrapper">
-              {getPlanIcon()}
+              <Zap size={28} />
             </div>
             <div className="plan-main-info">
-              <span className="plan-badge">
-                {isActive ? 'ACTIVE' : 'INACTIVE'}
-              </span>
-              <h3 className="plan-display-name">{analyticsData.subscription?.plan || 'Free Account'}</h3>
+              <span className="plan-badge">CREDIT PLAN ACTIVE</span>
+              <h3 className="plan-display-name">{planName}</h3>
             </div>
           </div>
-          
+
           <div className="premium-card-details">
-            {analyticsData.subscription?.days_left > 0 && (
-              <div className="detail-item">
-                <Clock size={14} />
-                <span>{analyticsData.subscription.days_left} days remaining</span>
-              </div>
-            )}
             <div className="detail-item">
-              <Calendar size={14} />
-              <span>Status: {analyticsData.subscription?.status || 'Inactive'}</span>
+              <CreditCard size={14} />
+              <span>Available Credits: <strong>{availableCredits}</strong></span>
+            </div>
+            <div className="detail-item">
+              <Activity size={14} />
+              <span>Consumed Credits: <strong>{consumedCredits}</strong></span>
+            </div>
+            <div className="detail-item">
+              <Award size={14} />
+              <span>Total Allocated: <strong>{allocatedCredits}</strong></span>
             </div>
           </div>
-          
-          {planType === 'enterprise' && (
-            <div className="enterprise-feature-tag">
-              <Shield size={12} />
-              <span>Enterprise Grade Security Enabled</span>
-            </div>
-          )}
+
+          <div className="enterprise-feature-tag">
+            <Shield size={12} />
+            <span>Pay-as-you-go Credits System Enabled • Top-up Anytime</span>
+          </div>
+        </div>
+
+        {/* Real Credit Balance & Usage Breakdown Table */}
+        <div className="subscription-credits-container">
+          <div className="subscription-credits-header">
+            <h4><CreditCard size={16} /> Live Credit Balance & Action Cost Breakdown</h4>
+            <span className="subscription-last-sync">Live Balance: {availableCredits} Credits</span>
+          </div>
+
+          <div className="subscription-credits-table-wrapper">
+            <table className="subscription-credits-table">
+              <thead>
+                <tr>
+                  <th>Action / Feature</th>
+                  <th>Credit Cost</th>
+                  <th>Usage / Sent</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong>Document Dispatch & E-Signing</strong>
+                    <span className="sub-table-desc">Send document for recipient signature</span>
+                  </td>
+                  <td><strong>1 Credit</strong> / doc</td>
+                  <td><strong>{docSent}</strong> dispatched</td>
+                  <td>
+                    <span className="sub-status-chip active">
+                      <CheckCircle size={12} /> Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>AI Template Generation</strong>
+                    <span className="sub-table-desc">Create custom legal agreement via AI prompt</span>
+                  </td>
+                  <td><strong>3 Credits</strong> / template</td>
+                  <td><strong>{docTotal}</strong> generated</td>
+                  <td>
+                    <span className="sub-status-chip active">
+                      <CheckCircle size={12} /> Ready
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Audit Trail & Certificate</strong>
+                    <span className="sub-table-desc">Legal compliance certificate & IP timestamping</span>
+                  </td>
+                  <td><strong>Included</strong> (0 extra)</td>
+                  <td>Auto-attached</td>
+                  <td>
+                    <span className="sub-status-chip success">
+                      <Shield size={12} /> Included
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Recipient OTP Verification</strong>
+                    <span className="sub-table-desc">2FA email code verification</span>
+                  </td>
+                  <td><strong>Included</strong> (0 extra)</td>
+                  <td>Unlimited</td>
+                  <td>
+                    <span className="sub-status-chip success">
+                      <CheckCircle size={12} /> Verified
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Action Bar */}
+          <div className="subscription-action-bar">
+            <button
+              className="sub-action-btn primary"
+              onClick={() => navigate('/pricing')}
+            >
+              <Zap size={15} />
+              Buy Credit Pack / Top-up
+            </button>
+
+            <button
+              className="sub-action-btn secondary"
+              onClick={() => navigate('/user/documents')}
+            >
+              <FileText size={15} />
+              View Document History
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -678,7 +769,7 @@ const DashboardAnalyticsInline = ({
         {expandedSections.trends && <TrendsSection />}
       </div>
 
-      {/* System & Plan Section */}
+      {/* System & Credit Plan Section */}
       <div className="analytics-section">
         <div
           className="analytics-section-header"
@@ -686,8 +777,14 @@ const DashboardAnalyticsInline = ({
         >
           <div className="header-left">
             <Award size={18} className="section-icon" />
-            <span>Enterprise Account</span>
-            <span className="section-percent">{analyticsData.subscription?.plan || 'Free'}</span>
+            <span>
+              {analyticsData.credits?.plan_name || 'Credit Plan & Usage'}
+            </span>
+            <span className="section-percent">
+              {analyticsData.credits?.available !== undefined
+                ? `${analyticsData.credits.available} Credits`
+                : 'ACTIVE'}
+            </span>
           </div>
           {expandedSections.subscription ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </div>

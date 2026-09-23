@@ -235,7 +235,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
   // ==================== DATA FETCHING ====================
   useEffect(() => {
-    setPageTitle("Edit Document", "Edit and prepare your document for signing using SafeSign's builder.");
+    setPageTitle("Edit Document", "Edit and prepare your document for signing using Esigniva's builder.");
   }, []);
 
   useEffect(() => {

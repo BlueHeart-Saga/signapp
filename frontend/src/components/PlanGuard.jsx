@@ -5,10 +5,11 @@ import { CircularProgress, Container, Box } from "@mui/material";
 
 /**
  * PlanGuard Component
- * Wraps premium features and blocks access if user doesn't have an active subscription.
+ * Pure Credit-Based Architecture: Unrestricted feature navigation.
+ * Metered actions are authorized at execution time via credit balance.
  */
 const PlanGuard = ({ children }) => {
-    const { user, subscription, loading } = useAuth();
+    const { loading } = useAuth();
 
     if (loading) {
         return (
@@ -18,17 +19,8 @@ const PlanGuard = ({ children }) => {
         );
     }
 
-    // Check if user has an active subscription
-    // If we have detailed subscription data, trust its 'is_active' status
-    // Otherwise fallback to the user document's cached flag
-    const hasActivePlan = subscription
-        ? subscription.is_active
-        : user?.has_active_subscription;
-
-    if (!hasActivePlan) {
-        return <SubscriptionExpiredBlock />;
-    }
-
+    // Pure Credit Model: Always allow navigation.
+    // Metered actions handle authorization atomically on execution.
     return children;
 };
 

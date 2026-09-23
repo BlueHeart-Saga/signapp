@@ -48,7 +48,7 @@ Cookies make your browsing experience better by allowing websites to remember yo
       id: 'types',
       title: 'Types of Cookies We Use',
       icon: <Database size={18} />,
-      content: `We use several types of cookies on the SafeSign platform:`,
+      content: `We use several types of cookies on the Esigniva platform:`,
       subSections: [
         {
           title: 'Essential Cookies',
@@ -108,11 +108,11 @@ Examples: Facebook pixel, LinkedIn Insight Tag, advertising network cookies.`
       id: 'specific-cookies',
       title: 'Specific Cookies We Use',
       icon: <Shield size={18} />,
-      content: `Below is a detailed list of cookies used on the SafeSign platform:`,
+      content: `Below is a detailed list of cookies used on the Esigniva platform:`,
       subSections: [
         {
           title: 'First-Party Cookies',
-          content: `These cookies are set by SafeSign directly:
+          content: `These cookies are set by Esigniva directly:
 
 • session_id: Essential for maintaining user sessions
 • csrf_token: Security cookie for form submissions
@@ -220,7 +220,7 @@ We encourage you to review this policy periodically to stay informed about our u
       icon: <Mail size={18} />,
       content: `If you have questions about our use of cookies or this Cookie Policy, please contact us:
 
-SafeSign Privacy Team
+Esigniva Privacy Team
 Email: support@devopstrioglobal.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
@@ -323,7 +323,7 @@ Email: support@devopstrioglobal.com`
             </div>
             <h1 className="safe-hero-title">Cookie Policy</h1>
             <p className="safe-hero-subtitle">
-              Learn how we use cookies and similar technologies on the SafeSign platform
+              Learn how we use cookies and similar technologies on the Esigniva platform
             </p>
             
             <div className="safe-hero-meta">
@@ -600,7 +600,7 @@ Email: support@devopstrioglobal.com`
                   <FileText size={18} />
                   <div>
                     <h4>Terms of Service</h4>
-                    <p>Legal terms governing use of SafeSign</p>
+                    <p>Legal terms governing use of Esigniva</p>
                   </div>
                   <ExternalLink size={14} />
                 </a>

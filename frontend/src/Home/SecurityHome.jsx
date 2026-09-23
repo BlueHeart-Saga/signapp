@@ -27,8 +27,8 @@ import { useEffect } from "react";
 const SecurityHome = () => {
   useEffect(() => {
     setPageTitle(
-      "Enterprise-Grade Data Security & Compliance | SafeSign",
-      "SafeSign protects your sensitive documents with bank-level 256-bit AES encryption, SOC 2 Type II compliance, and global legal validity (eIDAS, HIPAA, GDPR). Trust the most secure e-signature platform."
+      "Enterprise-Grade Data Security & Compliance | Esigniva",
+      "Esigniva protects your sensitive documents with bank-level 256-bit AES encryption, SOC 2 Type II compliance, and global legal validity (eIDAS, HIPAA, GDPR). Trust the most secure e-signature platform."
     );
   }, []);
   const navigate = useNavigate();
@@ -396,7 +396,7 @@ const SecurityHome = () => {
             <Shield size={48} className="security-cta-icon" />
             <h2 className="security-cta-title">Ready to secure your documents?</h2>
             <p className="security-cta-subtitle">
-              Join thousands of organizations that trust SafeSign for their most sensitive signing needs
+              Join thousands of organizations that trust Esigniva for their most sensitive signing needs
             </p>
             <div className="security-cta-actions">
               <button onClick={() => navigate("/login")} className="security-btn security-btn-primary security-btn-large">

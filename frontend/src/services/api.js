@@ -7,13 +7,25 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Notify online status
+    window.dispatchEvent(new CustomEvent('backend_status', { detail: { isOffline: false } }));
+
+    // Notify AuthContext to refresh credit balance immediately after any action
+    if (response.config && ['post', 'put', 'delete', 'patch'].includes(response.config.method?.toLowerCase())) {
+      window.dispatchEvent(new Event('credits_updated'));
+    }
+    return response;
+  },
   (error) => {
-    // ❌ No response → network / server down
-    if (!error.response) {
-      // Still transform network errors since they don't have response data
-      const networkError = new Error("Unable to connect to server. Please try again later.");
-      networkError.response = { status: 0, data: { detail: "Network error" } };
+    // ❌ No response or 502/503/504 → network / server down
+    if (!error.response || [0, 502, 503, 504].includes(error.response?.status) || error.code === 'ERR_NETWORK') {
+      window.dispatchEvent(new CustomEvent('backend_status', { detail: { isOffline: true, message: error.message } }));
+
+      const networkError = error.response ? error : new Error("Unable to connect to server. Please try again later.");
+      if (!networkError.response) {
+        networkError.response = { status: 0, data: { detail: "Network error" } };
+      }
       return Promise.reject(networkError);
     }
 
@@ -295,7 +307,9 @@ export const documentsAPI = {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    if (a && a.parentNode) {
+      a.parentNode.removeChild(a);
+    }
   },
 };
 

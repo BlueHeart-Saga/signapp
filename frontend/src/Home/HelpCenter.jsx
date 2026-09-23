@@ -47,7 +47,7 @@ const HelpCenter = () => {
       title: 'Getting Started',
       icon: <Zap size={24} />,
       color: '#0f766e',
-      description: 'Learn the basics of SafeSign'
+      description: 'Learn the basics of Esigniva'
     },
     {
       id: 'signing-documents',
@@ -125,13 +125,13 @@ const HelpCenter = () => {
         tags: ['beginner', 'documents', 'quick-start']
       },
       {
-        question: 'Is SafeSign legally binding?',
-        answer: 'Yes, SafeSign complies with ESIGN, UETA, eIDAS, and other global e-signature laws. All signatures are court-admissible and legally binding worldwide. We provide detailed audit trails and certificate of completion for every signed document.',
+        question: 'Is Esigniva legally binding?',
+        answer: 'Yes, Esigniva complies with ESIGN, UETA, eIDAS, and other global e-signature laws. All signatures are court-admissible and legally binding worldwide. We provide detailed audit trails and certificate of completion for every signed document.',
         tags: ['legal', 'compliance', 'security']
       },
       {
         question: 'What file formats are supported?',
-        answer: 'SafeSign supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, and image files (JPG, PNG, TIFF). Maximum file size is 100MB per document. For optimal results, we recommend using PDF format.',
+        answer: 'Esigniva supports PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, and image files (JPG, PNG, TIFF). Maximum file size is 100MB per document. For optimal results, we recommend using PDF format.',
         tags: ['files', 'formats', 'limitations']
       }
     ],
@@ -154,7 +154,7 @@ const HelpCenter = () => {
     ],
     'security-privacy': [
       {
-        question: 'How secure is my data with SafeSign?',
+        question: 'How secure is my data with Esigniva?',
         answer: 'We use bank-level 256-bit AES encryption, SOC 2 Type II compliance, GDPR-ready data centers, and regular security audits. Documents are encrypted both in transit and at rest.',
         tags: ['encryption', 'security', 'compliance']
       },
@@ -252,10 +252,10 @@ const HelpCenter = () => {
           <div className="safe-header-content">
             <h1 className="safe-header-title">
               <HelpCircle size={32} />
-              SafeSign Help Center
+              Esigniva Help Center
             </h1>
             <p className="safe-header-subtitle">
-              Find answers, guides, and troubleshooting tips for all things SafeSign
+              Find answers, guides, and troubleshooting tips for all things Esigniva
             </p>
             
             {/* Search Bar */}

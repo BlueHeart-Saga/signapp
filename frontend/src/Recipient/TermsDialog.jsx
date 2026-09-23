@@ -199,7 +199,7 @@ const TermsDialog = ({
       icon: <GavelIcon sx={{ fontSize: '1rem', color: '#1976d2' }} />,
       title: "Terms of Service",
       content: [
-        "This agreement governs your use of the electronic signature services provided by SafeSign. By accepting these terms, you acknowledge that electronic signatures carry the same legal weight and enforceability as traditional handwritten signatures under applicable laws including the Electronic Signatures in Global and National Commerce Act (ESIGN), Uniform Electronic Transactions Act (UETA), and eIDAS Regulation in the European Union.",
+        "This agreement governs your use of the electronic signature services provided by Esigniva. By accepting these terms, you acknowledge that electronic signatures carry the same legal weight and enforceability as traditional handwritten signatures under applicable laws including the Electronic Signatures in Global and National Commerce Act (ESIGN), Uniform Electronic Transactions Act (UETA), and eIDAS Regulation in the European Union.",
         "You warrant that you have the legal capacity and authority to execute this document on behalf of yourself or the entity you represent. The document signer represents that they are authorized to bind the party for whom they are signing.",
         "All transactions conducted through this platform are subject to the laws and regulations of the jurisdiction where the document is executed. The platform provider shall not be liable for any disputes arising from the content or execution of signed documents.",
         "You agree that the electronic record of this transaction, including timestamps, IP addresses, and audit trails, constitutes legally admissible evidence of the signing process."

@@ -45,7 +45,7 @@ const ProfileScreen = ({ navigation }) => {
                         <Text style={styles.menuItemText}>Privacy Policy</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.menuItem}>
-                        <Text style={styles.menuItemText}>About SafeSign</Text>
+                        <Text style={styles.menuItemText}>About Esigniva</Text>
                     </TouchableOpacity>
                 </View>
 

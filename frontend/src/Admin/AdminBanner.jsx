@@ -446,7 +446,7 @@ export default function AdminBanner() {
             {loading && banners.length === 0 ? (
               <div className="abm-loading">
                 <span className="abm-spinner-dark" />
-                <span>Loading banners...</span>
+                <span style={{ color: "#000000", fontWeight: "600" }}>Loading banners...</span>
               </div>
             ) : filteredBanners.length === 0 ? (
               <div className="abm-empty">

@@ -395,7 +395,7 @@ const InitialDashboard = () => {
   useEffect(() => {
     setPageTitle(
       "Organization Dashboard",
-      "View your activity, recent documents, and quick actions from your SafeSign dashboard."
+      "View your activity, recent documents, and quick actions from your Esigniva dashboard."
     );
   }, []);
 

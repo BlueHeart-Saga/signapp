@@ -15,3 +15,21 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Logo Transparency Preservation */
+.safe-logo-img,
+.hero-logo,
+.logo-img,
+.esigniva-footer-logo-img,
+.ss-fp-logo,
+.header-logo,
+.esigniva-sidebar__logo img,
+.brand-logo img,
+img[alt="logo"],
+img[alt*="logo"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  mix-blend-mode: normal !important;
+  object-fit: contain;
+  box-shadow: none;
+}

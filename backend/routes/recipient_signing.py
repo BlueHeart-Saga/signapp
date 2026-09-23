@@ -12,7 +12,7 @@ from .documents import _log_event, get_merged_pdf, load_document_pdf, apply_comp
 from database import db
 from config import BACKEND_URL
 from .auth import get_current_user
-from .email_service import send_completed_document_to_recipients, SafeSignSummaryEngine, SafeSignCertificateEngine, generate_otp, send_role_based_email
+from .email_service import send_completed_document_to_recipients, EsignivaSummaryEngine, EsignivaCertificateEngine, generate_otp, send_role_based_email
 import re
 import uuid
 
@@ -306,7 +306,7 @@ async def _get_voided_document_preview(document, recipient, request):
     
     # Add professional status banner
     voided_at = document.get("voided_at", datetime.utcnow())
-    info_text = f"SafeSign Verified • VOIDED ON {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    info_text = f"Esigniva Verified • VOIDED ON {voided_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
     pdf_bytes = PDFEngine.apply_watermark(
         pdf_bytes,
         info_text,
@@ -2479,7 +2479,7 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         signatures=signatures,
         fields=all_form_fields,
         add_footer=True,
-        signer_email="system@safesign.ai",
+        signer_email="system@esigniva.ai",
         ip=request.client.host if request and request.client else "system",
         timestamp=datetime.utcnow().isoformat(),
         # Passing these ensures the header is applied
@@ -3265,7 +3265,7 @@ async def download_recipient_package(
         sender_organization = owner.get("organization_name", "") if owner else ""
         
         branding = db.branding.find_one({}) or {}
-        platform_name = branding.get("platform_name", "SafeSign")
+        platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
         # Generate the package
@@ -3600,7 +3600,7 @@ async def download_professional_summary(
     Download a professional, detailed document summary report.
     
     Features:
-    - SafeSign branded header with teal color (#0d9488)
+    - Esigniva branded header with teal color (#0d9488)
     - Document information card with complete metadata
     - Recipient's personal participation summary
     - SIGNATURE AND INITIALS displayed directly in summary
@@ -3842,19 +3842,19 @@ async def download_professional_summary(
             "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}",
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
-            "platform": "SafeSign Professional"
+            "platform": "Esigniva Professional"
         }
         
         # ========== GENERATE PROFESSIONAL SUMMARY PDF ==========
         try:
-            pdf_bytes = SafeSignSummaryEngine.create_document_summary_pdf(summary_data)
+            pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
         except Exception as e:
             print(f"Error creating summary PDF: {str(e)}")
             import traceback
             traceback.print_exc()
             
             # Use the newly professionalized fallback engine
-            pdf_bytes = SafeSignSummaryEngine._create_fallback_pdf(summary_data)
+            pdf_bytes = EsignivaSummaryEngine._create_fallback_pdf(summary_data)
 
         
         # ========== CREATE FILENAME ==========
@@ -3862,7 +3862,7 @@ async def download_professional_summary(
         base_name = safe_name.rsplit('.', 1)[0][:50]
         recipient_name = re.sub(r'[^\w\s-]', '', recipient.get('name', 'recipient'))[:20]
         
-        filename = f"SafeSign_Summary_{envelope_id}_{recipient_name}_{base_name}.pdf"
+        filename = f"Esigniva_Summary_{envelope_id}_{recipient_name}_{base_name}.pdf"
         filename = re.sub(r'\s+', '_', filename)
         
         # ========== LOG THE DOWNLOAD ==========
@@ -4147,12 +4147,12 @@ async def download_professional_certificate(
             "generated_at": datetime.utcnow().isoformat(),
             "generated_by": recipient.get("email", "unknown"),
             "generated_by_name": recipient.get("name", "Unknown Recipient"),
-            "platform": "SafeSign Professional"
+            "platform": "Esigniva Professional"
         }
         
         # ========== GENERATE PROFESSIONAL CERTIFICATE PDF ==========
         try:
-            pdf_bytes = SafeSignCertificateEngine.create_certificate_pdf(certificate_data)
+            pdf_bytes = EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
         except Exception as e:
             print(f"Error creating certificate PDF: {str(e)}")
             import traceback
@@ -4164,7 +4164,7 @@ async def download_professional_certificate(
         base_name = safe_name.rsplit('.', 1)[0][:40]
         envelope_short = document.get('envelope_id', certificate_id)[-8:]
         
-        filename = f"SafeSign_Certificate_{envelope_short}_{base_name}.pdf"
+        filename = f"Esigniva_Certificate_{envelope_short}_{base_name}.pdf"
         filename = re.sub(r'\s+', '_', filename)
         
         # ========== LOG THE DOWNLOAD ==========
@@ -4723,7 +4723,7 @@ async def manually_complete_recipient(
                 
                 # Send invites to the next level
                 from .email_service import send_bulk_invites
-                sender_email = recipient.get("sender_info", {}).get("email") or document.get("owner_email") or "system@safesign.ai"
+                sender_email = recipient.get("sender_info", {}).get("email") or document.get("owner_email") or "system@esigniva.ai"
                 
                 background_tasks.add_task(
                     send_bulk_invites,

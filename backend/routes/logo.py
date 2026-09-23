@@ -19,13 +19,13 @@ async def get_branding_config():
 
     if not config:
         return {
-            "platform_name": "SafeSign",
+            "platform_name": "Esigniva",
             "tagline": "Secure Digital Document Signing",
             "logo_url": None
         }
 
     return {
-        "platform_name": config.get("platform_name", "SafeSign"),
+        "platform_name": config.get("platform_name", "Esigniva"),
         "tagline": config.get("tagline", ""),
         "logo_url": "/branding/logo/file" if config.get("logo_file_path") else None
     }
@@ -129,33 +129,46 @@ async def upload_logo(
         "size": len(content)
     }
 
+DEFAULT_LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="180" height="48" viewBox="0 0 180 48" fill="none">
+  <g transform="translate(6, 10)">
+    <rect width="28" height="28" rx="8" fill="#0f766e"/>
+    <path d="M14 6C14 6 20 7.2 20 12.8C20 19.6 14 25.2 14 25.2C14 25.2 8 19.6 8 12.8C8 7.2 14 6 14 6Z" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M10.8 13.6L12.8 15.6L16.8 10.8" stroke="#5eead4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <text x="44" y="31" fill="#0f766e" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.5">Esigniva</text>
+</svg>"""
+
 @router.get("/logo/file", summary="Serve platform logo from Azure Storage")
 async def serve_logo():
     branding = db.branding.find_one({})
 
-    if not branding or not branding.get("logo_file_path"):
-        raise HTTPException(status_code=404, detail="Logo not found")
+    if branding and branding.get("logo_file_path"):
+        try:
+            image_bytes = storage.download(branding["logo_file_path"])
+            content_type = branding.get("logo_content_type", "image/png")
+            filename = branding.get("logo_filename", "logo.png")
+            
+            return StreamingResponse(
+                io.BytesIO(image_bytes),
+                media_type=content_type,
+                headers={
+                    "Content-Disposition": f'inline; filename="{filename}"',
+                    "Cache-Control": "public, max-age=86400",
+                    "Content-Length": str(len(image_bytes))
+                }
+            )
+        except Exception as e:
+            print(f"Error downloading logo from storage: {e}")
 
-    try:
-        # ============================================
-        # Download from Azure Blob Storage
-        # ============================================
-        image_bytes = storage.download(branding["logo_file_path"])
-        
-        # Get content type
-        content_type = branding.get("logo_content_type", "image/png")
-        filename = branding.get("logo_filename", "logo.png")
-        
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Logo file missing: {str(e)}")
-
+    # Serve fallback Esigniva logo SVG
+    svg_bytes = DEFAULT_LOGO_SVG.encode("utf-8")
     return StreamingResponse(
-        io.BytesIO(image_bytes),
-        media_type=content_type,
+        io.BytesIO(svg_bytes),
+        media_type="image/svg+xml",
         headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
+            "Content-Disposition": 'inline; filename="esigniva_logo.svg"',
             "Cache-Control": "public, max-age=86400",
-            "Content-Length": str(len(image_bytes))
+            "Content-Length": str(len(svg_bytes))
         }
     )
 

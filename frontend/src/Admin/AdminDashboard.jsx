@@ -480,7 +480,7 @@ export default function AdminDashboard() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <DashboardIcon sx={{ color: '#0f766e', fontSize: 28 }} />
               <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.25rem' }}>
-                SafeSign Admin
+                Esigniva Admin
               </Typography>
               <Chip
                 label="PRODUCTION"

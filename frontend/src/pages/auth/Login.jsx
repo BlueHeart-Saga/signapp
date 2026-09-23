@@ -885,7 +885,7 @@ import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
 
 const Login = ({ onLogin, onError, compact = false }) => {
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
   const { setUser, setToken } = useAuth();
 
@@ -1064,7 +1064,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
   useEffect(() => {
     setPageTitle(
       "Login",
-      "Sign in to your SafeSign account to manage documents, signatures, and workflows."
+      "Sign in to your Esigniva account to manage documents, signatures, and workflows."
     );
   }, []);
 

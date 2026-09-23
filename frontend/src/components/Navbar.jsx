@@ -20,7 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-import SubscriptionBadge from "./SubscriptionBadge";
+import CreditBadge from "./CreditBadge";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import "../style/Navbar.css";
@@ -43,6 +43,21 @@ const STATUS_CONFIG = {
   voided: { icon: XCircle, color: '#ef4444', label: 'Voided' },
   declined: { icon: AlertCircle, color: '#ef4444', label: 'Declined' }
 };
+
+const SYSTEM_SHORTCUTS = [
+  { keywords: ["document", "documents", "my documents", "files", "manage"], title: "My Documents & Envelopes", path: "/user/documents", category: "Navigation" },
+  { keywords: ["credit", "credits", "wallet", "buy credits", "balance", "subscription"], title: "Credit Wallet & Packages", path: "/user/subscription", category: "Wallet" },
+  { keywords: ["builder", "create", "new document", "upload", "sign"], title: "Document Builder", path: "/user/document-builder", category: "Action" },
+  { keywords: ["template", "templates", "ai template"], title: "Document Templates & AI", path: "/user/templates", category: "Templates" },
+  { keywords: ["trash", "deleted", "deleted documents", "bin"], title: "Trash / Deleted Documents", path: "/user/documents/trash", category: "Navigation" },
+  { keywords: ["setting", "settings", "profile", "account"], title: "Account & Profile Settings", path: "/user/settings", category: "Settings" },
+  { keywords: ["contact", "contacts", "recipient", "recipients"], title: "Contacts & Address Book", path: "/user/contacts", category: "Contacts" },
+  // Admin shortcuts
+  { keywords: ["admin", "dashboard", "admin dashboard"], title: "Admin Dashboard Overview", path: "/admin/dashboard", category: "Admin", role: "admin" },
+  { keywords: ["user management", "users", "manage users"], title: "User Management", path: "/admin/users", category: "Admin", role: "admin" },
+  { keywords: ["envelope management", "admin envelopes", "envelopes"], title: "Envelope Management", path: "/admin/envelopes", category: "Admin", role: "admin" },
+  { keywords: ["logo", "branding", "platform logo"], title: "Platform Branding Settings", path: "/admin/logo", category: "Admin", role: "admin" },
+];
 
 // ============================================
 // CUSTOM HOOKS
@@ -86,14 +101,14 @@ const useRecentSearches = (maxItems = SEARCH_CONFIG.MAX_RECENT_SEARCHES) => {
   // Save to localStorage
   const saveRecentSearch = useCallback((query, document) => {
     const newSearch = {
-      id: document.id,
+      id: document.id || document.path || Date.now(),
       query,
-      filename: document.filename,
+      filename: document.filename || document.title || query,
       timestamp: Date.now()
     };
 
     setRecentSearches(prev => {
-      const updated = [newSearch, ...prev.filter(s => s.id !== document.id)]
+      const updated = [newSearch, ...prev.filter(s => s.id !== newSearch.id)]
         .slice(0, maxItems);
       localStorage.setItem("recentSearches", JSON.stringify(updated));
       return updated;
@@ -179,18 +194,16 @@ const formatRelativeDate = (dateString) => {
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays === 1) return 'Today';
+    if (diffDays === 2) return 'Yesterday';
+    if (diffDays <= 7) return `${diffDays} days ago`;
 
     return date.toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric',
-      year: diffDays > 365 ? 'numeric' : undefined
+      day: 'numeric'
     });
   } catch {
-    return 'Invalid date';
+    return 'Unknown';
   }
 };
 
@@ -201,36 +214,7 @@ const formatRelativeDate = (dateString) => {
 /**
  * Subscription Warning Chip
  */
-const SubscriptionWarning = ({ subscription, onClick }) => {
-  if (!subscription) return null;
-
-  const isExpired = subscription.status === "expired";
-  const showWarning = isExpired || (subscription.days_remaining <= 3);
-
-  if (!showWarning) return null;
-
-  const tooltipTitle = isExpired
-    ? "Your subscription has expired. Renew to continue using all features."
-    : `Your subscription expires in ${subscription.days_remaining} days`;
-
-  const label = isExpired ? "Expired" : `${subscription.days_remaining}d left`;
-
-  return (
-    <Tooltip title={tooltipTitle} arrow>
-      <Chip
-        color="warning"
-        size="small"
-        label={label}
-        onClick={onClick}
-        sx={{
-          fontWeight: 600,
-          cursor: 'pointer',
-          '&:hover': { opacity: 0.9 }
-        }}
-      />
-    </Tooltip>
-  );
-};
+const SubscriptionWarning = () => null;
 
 /**
  * Search Results Component
@@ -242,8 +226,19 @@ const SearchResults = ({
   recentSearches,
   onResultClick,
   onViewAll,
-  onRecentClick
+  onRecentClick,
+  userRole
 }) => {
+  const qClean = (query || "").trim().toLowerCase();
+
+  const matchedShortcuts = useMemo(() => {
+    if (!qClean || qClean.length < 2) return [];
+    return SYSTEM_SHORTCUTS.filter(s => {
+      if (s.role && s.role !== userRole) return false;
+      return s.title.toLowerCase().includes(qClean) || s.keywords.some(k => k.includes(qClean) || qClean.includes(k));
+    });
+  }, [qClean, userRole]);
+
   if (!query) {
     // Recent searches view
     return (
@@ -278,15 +273,16 @@ const SearchResults = ({
         ) : (
           <div className="signapp-search-empty small">
             <Sparkles size={24} />
-            <p>No recent searches</p>
-            <span>Start typing to search documents</span>
+            <p>Search Documents, Pages & Actions</p>
+            <span>Type a document name, envelope ID, recipient email, or page name</span>
           </div>
         )}
 
         <div className="signapp-search-tips">
           <span className="tips-label">💡 Search tips:</span>
-          <span className="tip">Use "filename:contract" to search by name</span>
-          <span className="tip">Use "status:completed" to filter by status</span>
+          <span className="tip">Type filename or envelope ID (e.g. "contract" or "ENV-")</span>
+          <span className="tip">Search recipient name or email</span>
+          <span className="tip">Type "wallet", "templates", or "settings" for shortcuts</span>
         </div>
       </>
     );
@@ -297,81 +293,120 @@ const SearchResults = ({
     return (
       <div className="signapp-search-loading">
         <Loader size={24} className="spinning" />
-        <span>Searching documents...</span>
+        <span>Searching documents & pages...</span>
       </div>
     );
   }
 
-  if (results.length === 0) {
+  if (results.length === 0 && matchedShortcuts.length === 0) {
     return (
       <div className="signapp-search-empty">
         <Search size={32} />
-        <p>No documents found for "{query}"</p>
-        <span>Try different keywords or filters</span>
+        <p>No results found for "{query}"</p>
+        <span>Try searching by document title, envelope ID, recipient email, or status</span>
       </div>
     );
   }
 
   return (
     <>
-      <div className="signapp-search-header">
-        <span className="signapp-search-header-title">
-          <Search size={14} />
-          Search Results
-        </span>
-        <span className="signapp-search-header-count">
-          {results.length} found
-        </span>
-      </div>
-
-      {results.map((doc) => {
-        const status = STATUS_CONFIG[doc.status] || STATUS_CONFIG.draft;
-        const StatusIcon = status.icon;
-
-        return (
-          <div
-            key={doc.id}
-            className="signapp-search-item"
-            onClick={() => onResultClick(doc)}
-          >
-            <div className="signapp-search-item-icon">
-              <FileText size={18} />
-            </div>
-            <div className="signapp-search-item-content">
-              <div className="signapp-search-item-title">
-                {doc.filename}
-                <span className="signapp-search-item-status">
-                  <StatusIcon size={14} color={status.color} />
-                  <span className={`status-badge status-${doc.status}`}>
-                    {status.label}
-                  </span>
-                </span>
-              </div>
-              <div className="signapp-search-item-meta">
-                <span className="meta-item">
-                  <Clock size={12} />
-                  {formatRelativeDate(doc.uploaded_at)}
-                </span>
-                <span className="meta-item">
-                  <Eye size={12} />
-                  {doc.recipient_count || 0} recipients
-                </span>
-                {doc.envelope_id && (
-                  <span className="meta-item envelope">
-                    ID: {doc.envelope_id}
-                  </span>
-                )}
-              </div>
-            </div>
+      {/* System Shortcuts */}
+      {matchedShortcuts.length > 0 && (
+        <>
+          <div className="signapp-search-header">
+            <span className="signapp-search-header-title">
+              <Sparkles size={14} />
+              Quick Navigation
+            </span>
           </div>
-        );
-      })}
+          {matchedShortcuts.map((sc, idx) => (
+            <div
+              key={`sc-${idx}`}
+              className="signapp-search-item shortcut"
+              onClick={() => onResultClick({ isShortcut: true, path: sc.path, filename: sc.title })}
+            >
+              <div className="signapp-search-item-icon">
+                <Sparkles size={18} color="#0f766e" />
+              </div>
+              <div className="signapp-search-item-content">
+                <div className="signapp-search-item-title">
+                  {sc.title}
+                  <span className="signapp-search-item-status">
+                    <span className="status-badge status-sent">{sc.category}</span>
+                  </span>
+                </div>
+                <div className="signapp-search-item-meta">
+                  <span className="meta-item">Jump directly to {sc.title}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Document Results */}
+      {results.length > 0 && (
+        <>
+          <div className="signapp-search-header">
+            <span className="signapp-search-header-title">
+              <FileText size={14} />
+              Documents & Envelopes
+            </span>
+            <span className="signapp-search-header-count">
+              {results.length} found
+            </span>
+          </div>
+
+          {results.map((doc) => {
+            const status = STATUS_CONFIG[doc.status] || STATUS_CONFIG.draft;
+            const StatusIcon = status.icon;
+
+            return (
+              <div
+                key={doc.id}
+                className="signapp-search-item"
+                onClick={() => onResultClick(doc)}
+              >
+                <div className="signapp-search-item-icon">
+                  <FileText size={18} />
+                </div>
+                <div className="signapp-search-item-content">
+                  <div className="signapp-search-item-title">
+                    {doc.filename}
+                    <span className="signapp-search-item-status">
+                      <StatusIcon size={14} color={status.color} />
+                      <span className={`status-badge status-${doc.status}`}>
+                        {status.label}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="signapp-search-item-meta">
+                    <span className="meta-item">
+                      <Clock size={12} />
+                      {formatRelativeDate(doc.uploaded_at)}
+                    </span>
+                    <span className="meta-item">
+                      <Eye size={12} />
+                      {doc.recipient_count || 0} recipients
+                    </span>
+                    {doc.envelope_id && (
+                      <span className="meta-item envelope">
+                        ID: {doc.envelope_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
 
       <div
         className="signapp-search-view-all"
         onClick={onViewAll}
       >
-        <span>View all results</span>
+        <span>View all documents in dashboard</span>
         <ChevronRight size={16} />
       </div>
     </>
@@ -479,21 +514,40 @@ const Navbar = ({ toggleSidebar }) => {
   // HANDLERS
   // ============================================
 
-  const handleDocumentClick = useCallback((doc) => {
-    saveRecentSearch(searchQuery, doc);
+  const handleDocumentClick = useCallback((item) => {
+    saveRecentSearch(searchQuery, item);
     setShowResults(false);
     setSearchQuery("");
 
-    navigate(userRole === 'admin'
-      ? `/admin/documents/${doc.id}`
-      : `/user/documents/${doc.id}`
-    );
+    if (item.isShortcut) {
+      navigate(item.path);
+      return;
+    }
+
+    if (userRole === 'admin') {
+      navigate(`/admin/envelopes`);
+      return;
+    }
+
+    if (item.status === 'draft') {
+      navigate(`/user/documentbuilder/${item.id}`);
+    } else if (item.status === 'in_progress' || item.status === 'sent') {
+      navigate(`/user/prepare-send/${item.id}`);
+    } else if (item.status === 'completed' || item.status === 'voided' || item.status === 'declined') {
+      navigate(`/user/document-summary/${item.id}`);
+    } else {
+      navigate(`/user/documents`);
+    }
   }, [searchQuery, saveRecentSearch, navigate, userRole]);
 
   const handleViewAllResults = useCallback(() => {
     setShowResults(false);
-    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-  }, [searchQuery, navigate]);
+    if (userRole === 'admin') {
+      navigate(`/admin/envelopes`);
+    } else {
+      navigate(`/user/documents`);
+    }
+  }, [navigate, userRole]);
 
   const handleRecentClick = useCallback((query) => {
     setSearchQuery(query);
@@ -542,20 +596,13 @@ const Navbar = ({ toggleSidebar }) => {
               }
             }}
           >
-            SafeSign
+            Esigniva
           </h1>
         </div>
 
         {/* Right Section */}
         <div className="signapp-navbar-right">
-          <SubscriptionBadge subscription={subscription} />
-
-          {showSubscriptionWarning && (
-            <SubscriptionWarning
-              subscription={subscription}
-              onClick={() => navigate('/subscription')}
-            />
-          )}
+          <CreditBadge />
 
           {/* Search */}
           <div className="signapp-navbar-search-wrapper" ref={searchRef}>
@@ -565,7 +612,7 @@ const Navbar = ({ toggleSidebar }) => {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search documents... (⌘K)"
+                placeholder="Search documents, pages... (⌘K)"
                 className="signapp-navbar-search-input"
                 value={searchQuery}
                 onChange={(e) => {
@@ -604,6 +651,7 @@ const Navbar = ({ toggleSidebar }) => {
                   onResultClick={handleDocumentClick}
                   onViewAll={handleViewAllResults}
                   onRecentClick={handleRecentClick}
+                  userRole={userRole}
                 />
               </div>
             )}
@@ -644,7 +692,7 @@ const Navbar = ({ toggleSidebar }) => {
             )}
 
             <span className="signapp-navbar-username desktop-only">
-              {user?.full_name || user?.email || "SafeSign User"}
+              {user?.full_name || user?.email || "Esigniva User"}
             </span>
           </div>
         </div>

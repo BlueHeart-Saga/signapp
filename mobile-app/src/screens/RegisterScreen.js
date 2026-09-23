@@ -40,7 +40,7 @@ const RegisterScreen = ({ navigation }) => {
                             resizeMode="contain"
                         />
                         <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join SafeSign for secure document management</Text>
+                        <Text style={styles.subtitle}>Join Esigniva for secure document management</Text>
                     </View>
 
                     <View style={styles.formSection}>

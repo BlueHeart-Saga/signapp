@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, { useState } from 'react';
 import {
   TrendingUp,
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react';
 
 const CaseStudies = () => {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -54,21 +56,21 @@ const CaseStudies = () => {
     {
       name: 'Sarah Chen',
       role: 'COO, LegalTech Solutions',
-      quote: 'SafeSign reduced our contract turnaround from 5 days to 15 minutes. The ROI was immediate and substantial.',
+      quote: 'Esigniva reduced our contract turnaround from 5 days to 15 minutes. The ROI was immediate and substantial.',
       company: 'LegalTech Solutions',
       industry: 'Legal Services'
     },
     {
       name: 'Michael Rodriguez',
       role: 'Director of Operations, HealthFirst',
-      quote: 'Implementing SafeSign saved us over $400K annually in paper, printing, and courier costs alone.',
+      quote: 'Implementing Esigniva saved us over $400K annually in paper, printing, and courier costs alone.',
       company: 'HealthFirst',
       industry: 'Healthcare'
     },
     {
       name: 'David Wilson',
       role: 'VP of Compliance, SecureBank',
-      quote: 'The audit trail features gave our compliance team complete confidence. SafeSign is now our standard.',
+      quote: 'The audit trail features gave our compliance team complete confidence. Esigniva is now our standard.',
       company: 'SecureBank',
       industry: 'Financial Services'
     }
@@ -82,7 +84,7 @@ const CaseStudies = () => {
       industry: 'Legal Services',
       logo: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&h=300&fit=crop',
       challenge: 'Manual contract signing processes causing delays and compliance risks across 15 international offices.',
-      solution: 'Implemented SafeSign with custom workflows and enterprise security features.',
+      solution: 'Implemented Esigniva with custom workflows and enterprise security features.',
       results: [
         { metric: 'Signing Time Reduced', value: 'From 7 days to 15 minutes', icon: <Clock size={16} /> },
         { metric: 'Cost Savings', value: '$850K annually', icon: <DollarSign size={16} /> },
@@ -100,7 +102,7 @@ const CaseStudies = () => {
       industry: 'Real Estate',
       logo: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
       challenge: 'Paper-based signing process delaying property closings and frustrating clients.',
-      solution: 'Deployed SafeSign with mobile-first signing capabilities and template library.',
+      solution: 'Deployed Esigniva with mobile-first signing capabilities and template library.',
       results: [
         { metric: 'Transaction Speed', value: '2x faster closings', icon: <Zap size={16} /> },
         { metric: 'Client Satisfaction', value: '95% positive feedback', icon: <Heart size={16} /> },
@@ -118,7 +120,7 @@ const CaseStudies = () => {
       industry: 'Healthcare',
       logo: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=400&h=300&fit=crop',
       challenge: 'HIPAA compliance requirements for patient consent forms and medical records.',
-      solution: 'SafeSign with enhanced security features and HIPAA-compliant workflows.',
+      solution: 'Esigniva with enhanced security features and HIPAA-compliant workflows.',
       results: [
         { metric: 'Compliance Rate', value: '100% HIPAA compliant', icon: <Shield size={16} /> },
         { metric: 'Processing Time', value: '85% reduction', icon: <Clock size={16} /> },
@@ -136,7 +138,7 @@ const CaseStudies = () => {
       industry: 'Financial Services',
       logo: 'https://images.unsplash.com/photo-1551836026-d5c2c5af78e4?w=400&h=300&fit=crop',
       challenge: 'Lengthy client onboarding process causing customer drop-off.',
-      solution: 'Integrated SafeSign with existing CRM systems for seamless onboarding.',
+      solution: 'Integrated Esigniva with existing CRM systems for seamless onboarding.',
       results: [
         { metric: 'Onboarding Time', value: 'From 2 weeks to 2 days', icon: <Clock size={16} /> },
         { metric: 'Client Acquisition', value: '40% increase', icon: <Users size={16} /> },
@@ -154,7 +156,7 @@ const CaseStudies = () => {
       industry: 'Technology',
       logo: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop',
       challenge: 'Rapid growth overwhelming manual document processes.',
-      solution: 'SafeSign with API integration and automated workflows.',
+      solution: 'Esigniva with API integration and automated workflows.',
       results: [
         { metric: 'Document Volume', value: '10x increase handled', icon: <FileText size={16} /> },
         { metric: 'Team Efficiency', value: '300 hours saved monthly', icon: <Users size={16} /> },
@@ -172,7 +174,7 @@ const CaseStudies = () => {
       industry: 'Insurance',
       logo: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop',
       challenge: 'Paper-based claims creating bottlenecks and customer complaints.',
-      solution: 'SafeSign implementation with custom claims processing workflows.',
+      solution: 'Esigniva implementation with custom claims processing workflows.',
       results: [
         { metric: 'Processing Speed', value: '75% faster claims', icon: <Zap size={16} /> },
         { metric: 'Customer Satisfaction', value: '4.8/5 rating', icon: <Star size={16} /> },
@@ -214,9 +216,9 @@ const CaseStudies = () => {
               <Award size={20} />
               <span>Success Stories</span>
             </div>
-            <h1 className="safe-hero-title">Real Results with SafeSign</h1>
+            <h1 className="safe-hero-title">Real Results with Esigniva</h1>
             <p className="safe-hero-subtitle">
-              Discover how leading companies transformed their document workflows and achieved remarkable results with SafeSign
+              Discover how leading companies transformed their document workflows and achieved remarkable results with Esigniva
             </p>
             
             {/* Metrics */}
@@ -494,7 +496,7 @@ const CaseStudies = () => {
             <div className="safe-cta-text">
               <h2 className="safe-cta-title">Ready to Transform Your Document Workflow?</h2>
               <p className="safe-cta-subtitle">
-                Join thousands of companies that have revolutionized their operations with SafeSign
+                Join thousands of companies that have revolutionized their operations with Esigniva
               </p>
             </div>
             <div className="safe-cta-actions">

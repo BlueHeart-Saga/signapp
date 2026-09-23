@@ -93,7 +93,7 @@ INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/login "
 [PDF-CONVERT] Converting text: txt
 [PDF-CONVERT] Text conversion successful: 1141 bytes
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18'
@@ -120,7 +120,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1141'
@@ -147,7 +147,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17214'
@@ -174,7 +174,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:46 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17214'
@@ -205,7 +205,7 @@ INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 O
 INFO:httpx:HTTP Request: POST http://testserver/audit/log "HTTP/1.1 200 OK"
 INFO:httpx:HTTP Request: GET http://testserver/audit/document/69d4ac132c95015aa97d7f41 "HTTP/1.1 500 Internal Server Error"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/d62ab9ba-adae-488d-a38a-77bf701430d8_audit_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18'
@@ -232,7 +232,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/f21b3bd0-75d8-4a42-bf74-8dcc92a8991f_audit_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1141'
@@ -259,7 +259,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:45 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/93a43556-5ec6-4173-8ac8-4e2372e91d75_audit_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17214'
@@ -286,7 +286,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:02:46 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/5ad4f306-2af1-483e-be4a-d5d81236d929_audit_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17214'
@@ -354,7 +354,7 @@ INFO:httpx:HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
 INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/register "HTTP/1.1 200 OK"
 INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/auth/login "HTTP/1.1 200 OK"
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '67'
@@ -383,7 +383,7 @@ Response headers:
     'Date': 'Tue, 07 Apr 2026 07:03:10 GMT'
 INFO:httpx:HTTP Request: POST http://testserver/banners/ "HTTP/1.1 200 OK"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/banners/69d4ac2d2c95015aa97d7f4a/845218a8-74d1-4c97-b597-804fd6ee5e58_68091b00-f2b2-49f1-b882-b683587752e3_banner.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '67'
@@ -532,7 +532,7 @@ testing\tests\test_fields.py:55: AssertionError
 [PDF-CONVERT] Converting text: txt
 [PDF-CONVERT] Text conversion successful: 1139 bytes
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '24'
@@ -559,7 +559,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1139'
@@ -586,7 +586,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18708'
@@ -613,7 +613,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:17 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18708'
@@ -644,7 +644,7 @@ INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 O
 INFO:httpx:HTTP Request: POST http://testserver/recipients/69d4ac342c95015aa97d7f55/add "HTTP/1.1 200 OK"
 INFO:httpx:HTTP Request: POST http://testserver/documents/69d4ac342c95015aa97d7f55/fields "HTTP/1.1 422 Unprocessable Entity"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/7843b98a-eec3-47a4-9ea5-5292c1849be1_test_fields.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '24'
@@ -671,7 +671,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/8c1a2bd4-87f2-4811-8bd6-246deb74eccf_test_fields.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1139'
@@ -698,7 +698,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:16 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/1c70ed85-90a4-411c-a959-e085705aaaf0_test_fields.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18708'
@@ -725,7 +725,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:17 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c0bec191-e929-488c-a2be-bda76ae58e94_test_fields.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18708'
@@ -796,7 +796,7 @@ testing\tests\test_fields.py:110: AssertionError
 [PDF-CONVERT] Converting text: txt
 [PDF-CONVERT] Text conversion successful: 1146 bytes
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '23'
@@ -823,7 +823,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1146'
@@ -850,7 +850,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18451'
@@ -877,7 +877,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18451'
@@ -908,7 +908,7 @@ INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 O
 INFO:httpx:HTTP Request: POST http://testserver/recipients/69d4ac392c95015aa97d7f5d/add "HTTP/1.1 200 OK"
 INFO:httpx:HTTP Request: POST http://testserver/documents/69d4ac392c95015aa97d7f5d/fields "HTTP/1.1 422 Unprocessable Entity"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/a12bd44b-19fc-4bb5-8c8c-8b5d4c5b73e8_validate_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '23'
@@ -935,7 +935,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/a3c6a6cc-9fda-4e11-a90e-a03af25687f3_validate_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1146'
@@ -962,7 +962,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/890d04e9-9743-41f1-a139-4d6140fae765_validate_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18451'
@@ -989,7 +989,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:21 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/2173156c-a01f-4d72-b85e-657f6c8e755a_validate_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18451'
@@ -1219,7 +1219,7 @@ C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:180: T
 [PDF-CONVERT] Converting text: txt
 [PDF-CONVERT] Text conversion successful: 1144 bytes
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '20'
@@ -1246,7 +1246,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1144'
@@ -1273,7 +1273,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18079'
@@ -1300,7 +1300,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18079'
@@ -1329,7 +1329,7 @@ Response headers:
     'Date': 'Tue, 07 Apr 2026 07:03:59 GMT'
 INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/ba0dd456-df3f-4e44-992f-256181f092cd_summary_test.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '20'
@@ -1356,7 +1356,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/91f49b52-02f6-4303-9440-8e9e5c2a16bc_summary_test.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1144'
@@ -1383,7 +1383,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/2504de8b-c752-49c7-9a97-181e8a956552_summary_test.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18079'
@@ -1410,7 +1410,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:03:58 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/c4704a26-bf1c-4c20-8680-9bfeaa85d026_summary_test.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '18079'
@@ -1582,7 +1582,7 @@ C:\Users\mani\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py:180: T
 [PDF-CONVERT] Converting text: txt
 [PDF-CONVERT] Text conversion successful: 1142 bytes
 ---------------------------- Captured stderr call -----------------------------
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '14'
@@ -1609,7 +1609,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1142'
@@ -1636,7 +1636,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17410'
@@ -1663,7 +1663,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:06 GMT'
-INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
+INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17410'
@@ -1692,7 +1692,7 @@ Response headers:
     'Date': 'Tue, 07 Apr 2026 07:04:07 GMT'
 INFO:httpx:HTTP Request: POST http://testserver/documents/upload "HTTP/1.1 200 OK"
 ------------------------------ Captured log call ------------------------------
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/originals/93bbf27b-507a-449c-a2ed-f9ab79a92ca5_secret.txt'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '14'
@@ -1719,7 +1719,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/pdfs/9600eb42-dee4-48df-9fbe-263ea4b54161_secret.pdf'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '1142'
@@ -1746,7 +1746,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:05 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/previews/9b32d498-83dd-45dd-92ba-9027353973c1_secret.txt_preview.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17410'
@@ -1773,7 +1773,7 @@ Response headers:
     'x-ms-content-crc64': 'REDACTED'
     'x-ms-request-server-encrypted': 'REDACTED'
     'Date': 'Tue, 07 Apr 2026 07:04:06 GMT'
-INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/safesign/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
+INFO     azure.core.pipeline.policies.http_logging_policy:_universal.py:508 Request URL: 'https://marketingstorein.blob.core.windows.net/esigniva/users/69d4ac102c95015aa97d7f3f/thumbnails/pages/e4637fdb-0f6d-4dff-a239-213ce47fc649_secret.txt_page_1_thumb.png'
 Request method: 'PUT'
 Request headers:
     'Content-Length': '17410'

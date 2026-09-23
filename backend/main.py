@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from starlette.middleware.sessions import SessionMiddleware
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from routes import email_service, recipient_documents, recipient_history, recipient_otp, subscription, envelope_management
-from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, summary
+from routes import email_service, recipient_documents, recipient_history, recipient_otp, subscription, envelope_management, credits
+from routes import logo, banner, complaint, auth, documents, templates, box, google_drive, dropbox, onedrive, recipients, audit, signature, recipient_signing, recipient_logs, ai_template_builder, fields, contacts, admin_control, admin_template, summary, contact
 from fastapi.staticfiles import StaticFiles
 
 import asyncio
@@ -54,21 +54,20 @@ async def run_automated_tasks():
                         should_run = True
 
             if should_run:
-                print(f"🕒 [AUTO-TASKS] Lock acquired by PID {os.getpid()}. Starting tasks...")
+                print(f"[AUTO-TASKS] Lock acquired by PID {os.getpid()}. Starting tasks...")
                 
-                print("🕒 [AUTO-TASKS] Running expiration check...")
+                print("[AUTO-TASKS] Running expiration check...")
                 await expire_documents()
                 
-                print("🕒 [AUTO-TASKS] Running reminder scanner...")
+                print("[AUTO-TASKS] Running reminder scanner...")
                 await send_reminders()
                 
-                print("🕒 [AUTO-TASKS] Tasks finished. Lock maintained.")
+                print("[AUTO-TASKS] Tasks finished. Lock maintained.")
             else:
-                # print(f"🕒 [AUTO-TASKS] Worker {os.getpid()} skipped (lock held by another worker).")
                 pass
                 
         except Exception as e:
-            print(f"❌ [AUTO-TASKS] Error in background loop: {e}")
+            print(f"[AUTO-TASKS] Error in background loop: {e}")
             
         # Check every 5 minutes if we can acquire the lock
         await asyncio.sleep(300)
@@ -76,7 +75,7 @@ async def run_automated_tasks():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🚀 eSign App Backend Starting...")
+    print("[SERVER] eSign App Backend Starting...")
     
     # Ensure distributed lock collection has unique index
     try:
@@ -90,7 +89,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("eSign App Backend Shutting Down...")
+    print("[SERVER] eSign App Backend Shutting Down...")
     task.cancel()
     try:
         await task
@@ -125,8 +124,9 @@ app.add_middleware(
 
 origins = [
     "http://localhost:3001",  # Local frontend
-    "https://safesign.devopstrio.co.uk",  # Production frontend
-    "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",  # Azure frontend,
+    "https://esigniva.devopstrio.co.uk",  # Production custom domain
+    "https://esigniva-a9ecdcb9h2h8dwe7.southindia-01.azurewebsites.net",  # New Azure Web App
+    "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",  # QA Azure Web App
 ]
 
 
@@ -146,9 +146,11 @@ app.add_middleware(
 app.include_router(logo.router)
 app.include_router(banner.router)
 app.include_router(complaint.router)
+app.include_router(contact.router)
 
 app.include_router(auth.router)
 app.include_router(subscription.router)
+app.include_router(credits.router)
 app.include_router(admin_control.router)
 app.include_router(admin_template.router)
 app.include_router(templates.router)
@@ -186,4 +188,5 @@ app.include_router(recipient_otp.router)
 def home():
     return {"message": "SignApp Backend Running 🚀"}
 
+# Reload trigger
 port = int(os.environ.get("PORT", 8000))

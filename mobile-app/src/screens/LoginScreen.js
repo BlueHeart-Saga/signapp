@@ -95,7 +95,7 @@ const LoginScreen = () => {
                         />
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>New to SafeSign? </Text>
+                            <Text style={styles.footerText}>New to Esigniva? </Text>
                             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                                 <Text style={styles.registerLink}>Create Account</Text>
                             </TouchableOpacity>

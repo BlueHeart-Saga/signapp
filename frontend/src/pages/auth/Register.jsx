@@ -527,7 +527,7 @@ const Register = ({ onRegister }) => {
 
   const navigate = useNavigate();
   const { setToken, setUser, token: currentToken, user: currentUser } = useAuth();
-  const [brandName, setBrandName] = useState("SafeSign");
+  const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
 
   // Image carousel state
@@ -666,7 +666,7 @@ const Register = ({ onRegister }) => {
   useEffect(() => {
     setPageTitle(
       "Register",
-      "Create a SafeSign account and start signing and managing documents online today."
+      "Create a Esigniva account and start signing and managing documents online today."
     );
   }, []);
 
@@ -1146,7 +1146,7 @@ const Register = ({ onRegister }) => {
 
 
             {/* <div className="hero-text">
-              <h1>Join SafeSign Today</h1>
+              <h1>Join Esigniva Today</h1>
               <p className="hero-subtitle">
                 Start your journey with secure digital signatures and streamline your document workflow
               </p>

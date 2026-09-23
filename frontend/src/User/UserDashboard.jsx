@@ -129,7 +129,7 @@ const UserDashboard = () => {
   useEffect(() => {
     setPageTitle(
       "User Dashboard",
-      "Manage your documents, templates, and signatures from your SafeSign user dashboard."
+      "Manage your documents, templates, and signatures from your Esigniva user dashboard."
     );
   }, []);
 
@@ -660,9 +660,34 @@ const UserDashboard = () => {
   const handleViewTemplates = () => navigate('/user/templates');
   const handleViewAITemplates = () => navigate('/user/ai-template');
 
-  const filteredActivities = activeFilter === 'all'
-    ? activities
-    : activities.filter(activity => activity.status === activeFilter);
+  const handleFilterChange = async (filterKey) => {
+    setActiveFilter(filterKey);
+    try {
+      const freshActivities = await getRecentActivities(100, filterKey);
+      const processed = freshActivities.map(a => ({
+        id: a.id || a._id,
+        title: a.document_name || a.filename || 'Untitled',
+        status: a.status,
+        date: a.timestamp ? formatTimeAgo(a.timestamp) : 'Unknown time',
+        signersTotal: Number(a.signers_total ?? 0),
+        signersCompleted: Number(a.signers_completed ?? 0),
+        description: getActivityDescription(a),
+        sender: a.sender || a.email || 'System',
+        documentId: a.document_id || a.doc_id,
+        documentData: a
+      }));
+      setActivities(processed);
+    } catch (err) {
+      console.error("Error filtering activities:", err);
+    }
+  };
+
+  const filteredActivities = activities.filter(activity => {
+    if (activeFilter === 'all') return true;
+    const actStat = (activity.status || '').replace('-', '_').toLowerCase();
+    const filtStat = activeFilter.replace('-', '_').toLowerCase();
+    return actStat === filtStat;
+  });
 
   const displayedActivities = showAllActivities ? filteredActivities : filteredActivities.slice(0, 4);
 
@@ -729,7 +754,7 @@ const UserDashboard = () => {
         {/* <div className="signapp-ai-spotlight" onClick={handleViewAITemplates}>
           <div className="signapp-ai-spotlight-content">
             <h3>Start Your Business</h3>
-          <p>Create smart and instantly using and View your activity, recent documents, and quick actions from your SafeSign.</p> 
+          <p>Create smart and instantly using and View your activity, recent documents, and quick actions from your Esigniva.</p> 
             <button className="signapp-ai-btn">Explore AI Templates</button>
           </div>
         </div> */}
@@ -1097,14 +1122,23 @@ const UserDashboard = () => {
 
               {/* Filter Row */}
               <div className="ss-ra-filter-row">
-                {['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'expired', 'voided', 'deleted'].map((filter) => (
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'draft', label: 'Draft' },
+                  { key: 'sent', label: 'Sent' },
+                  { key: 'in_progress', label: 'In Progress' },
+                  { key: 'completed', label: 'Completed' },
+                  { key: 'declined', label: 'Declined' },
+                  { key: 'expired', label: 'Expired' },
+                  { key: 'voided', label: 'Voided' },
+                  { key: 'deleted', label: 'Deleted' }
+                ].map((filterObj) => (
                   <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter)}
-                    className={`ss-ra-filter-chip ${activeFilter === filter ? 'ss-ra-filter-chip-active' : ''
-                      }`}
+                    key={filterObj.key}
+                    onClick={() => handleFilterChange(filterObj.key)}
+                    className={`ss-ra-filter-chip ${activeFilter === filterObj.key ? 'ss-ra-filter-chip-active' : ''}`}
                   >
-                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    {filterObj.label}
                   </button>
                 ))}
               </div>
