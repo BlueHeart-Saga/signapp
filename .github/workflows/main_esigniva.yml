@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: github.repository == 'Devopstrio/SafeSign_Platform'
     runs-on: ubuntu-latest
 
     defaults:
