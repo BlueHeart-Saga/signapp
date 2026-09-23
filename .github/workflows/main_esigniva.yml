@@ -7,49 +7,54 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/main_esigniva.yml"
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
+
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: npm install, build, and test
+      - name: Create .env file
         run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+          echo "REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}" > .env
+          echo "REACT_APP_GOOGLE_API_KEY=${{ secrets.REACT_APP_GOOGLE_API_KEY }}" >> .env
+          echo "REACT_APP_GOOGLE_REDIRECT_URI=${{ secrets.REACT_APP_GOOGLE_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_DROPBOX_APP_KEY=${{ secrets.REACT_APP_DROPBOX_APP_KEY }}" >> .env
+          echo "REACT_APP_ONEDRIVE_CLIENT_ID=${{ secrets.REACT_APP_ONEDRIVE_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_CLIENT_ID=${{ secrets.REACT_APP_BOX_CLIENT_ID }}" >> .env
+          echo "REACT_APP_BOX_REDIRECT_URI=${{ secrets.REACT_APP_BOX_REDIRECT_URI }}" >> .env
+          echo "REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ secrets.REACT_APP_STRIPE_PUBLISHABLE_KEY }}" >> .env
+          echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}" >> .env
+          echo "GENERATE_SOURCEMAP=false" >> .env
+          echo "DISABLE_ESLINT_PLUGIN=true" >> .env
 
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: .
+      - name: Install dependencies
+        run: npm install
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: node-app
-      
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: Build frontend
+        run: CI=false npm run build
+
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'esigniva'
           slot-name: 'Production'
-          package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C997C57E240A477D8D38DEE90B8A7426 }}
+          package: frontend/build
