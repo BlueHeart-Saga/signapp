@@ -18,4 +18,4 @@ Allow: /logo512.png
 Allow: /favicon.ico
 
 # Sitemap location
-Sitemap: https://safesign.devopstrio.co.uk/sitemap.xml
+Sitemap: https://esigniva.devopstrio.co.uk/sitemap.xml

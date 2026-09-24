@@ -1,8 +1,8 @@
-# SafeSign - Enterprise Electronic Signature Solution
+# Esigniva - Enterprise Electronic Signature Solution
 
-![SignApp Logo](https://raw.githubusercontent.com/BlueHeart-Saga/signapp/main/frontend/public/logo192.png) 
+![Esigniva Logo](https://raw.githubusercontent.com/BlueHeart-Saga/signapp/main/frontend/public/logo192.png) 
 
-SafeSign is a modern, enterprise-grade electronic signature platform designed to streamline document workflows, enhance security, and provide AI-driven document intelligence. Built with a robust FastAPI backend and a high-performance React frontend, SafeSign offers a seamless experience for sending, signing, and managing documents at scale.
+Esigniva is a modern, enterprise-grade electronic signature platform designed to streamline document workflows, enhance security, and provide AI-driven document intelligence. Built with a robust FastAPI backend and a high-performance React frontend, Esigniva offers a seamless experience for sending, signing, and managing documents at scale.
 
 ## 🚀 Key Features
 
@@ -87,7 +87,7 @@ npm install
 ```
 
 ### 4. Running Locally
-SafeSign supports concurrent development for both services:
+Esigniva supports concurrent development for both services:
 ```bash
 # In the frontend directory
 npm run dev
@@ -121,7 +121,7 @@ SignApp/
 
 ## 🤝 Contributing
 
-We welcome contributions to SafeSign! Please follow these steps:
+We welcome contributions to Esigniva! Please follow these steps:
 1. Fork the repository.
 2. Create a feature branch: `git checkout -b feature-new-ui`
 3. Commit your changes: `git commit -m 'Add new UI features'`

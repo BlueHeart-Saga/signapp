@@ -75,13 +75,32 @@ async def run_automated_tasks():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("[SERVER] eSign App Backend Starting...")
+    print("[SERVER] Esigniva Backend Starting...")
     
     # Ensure distributed lock collection has unique index
     try:
         db.locks.create_index("name", unique=True)
     except:
         pass
+
+    # Ensure branding collection in MongoDB has platform_name set to Esigniva
+    try:
+        existing_branding = db.branding.find_one({})
+        if not existing_branding:
+            db.branding.insert_one({
+                "platform_name": "Esigniva",
+                "tagline": "Secure Digital Document Signing",
+                "updated_at": datetime.utcnow()
+            })
+            print("[SERVER] Initialized DB branding with platform_name: Esigniva")
+        elif existing_branding.get("platform_name") != "Esigniva":
+            db.branding.update_one(
+                {"_id": existing_branding["_id"]},
+                {"$set": {"platform_name": "Esigniva", "updated_at": datetime.utcnow()}}
+            )
+            print("[SERVER] Updated DB branding platform_name to Esigniva")
+    except Exception as branding_err:
+        print(f"[SERVER] Branding initialization notice: {branding_err}")
     
     # Start the background task loop
     task = asyncio.create_task(run_automated_tasks())
@@ -89,7 +108,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("[SERVER] eSign App Backend Shutting Down...")
+    print("[SERVER] Esigniva Backend Shutting Down...")
     task.cancel()
     try:
         await task
@@ -97,7 +116,7 @@ async def lifespan(app: FastAPI):
         pass
 
 app = FastAPI(
-    title="SignApp API",
+    title="Esigniva API",
     lifespan=lifespan
 )
 

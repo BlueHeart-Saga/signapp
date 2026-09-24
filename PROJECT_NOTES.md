@@ -1,4 +1,4 @@
-# SafeSign Project Notes & Technical Reference
+# Esigniva Project Notes & Technical Reference
 
 ## 📝 Developer Quick Reference
 

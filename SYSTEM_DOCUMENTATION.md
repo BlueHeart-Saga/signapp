@@ -1,7 +1,7 @@
-# SafeSign: Enterprise Systems Documentation
+# Esigniva: Enterprise Systems Documentation
 
 ## 1. System Overview
-SafeSign is a high-performance, enterprise-grade electronic signature platform designed for secure, legally binding document workflows. The system integrates advanced AI capabilities with robust file management and multi-cloud interoperability.
+Esigniva is a high-performance, enterprise-grade electronic signature platform designed for secure, legally binding document workflows. The system integrates advanced AI capabilities with robust file management and multi-cloud interoperability.
 
 ### Technical Core
 - **Backend Architecture:** FastAPI (Python 3.11) with Asynchronous I/O.

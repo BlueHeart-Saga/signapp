@@ -1,6 +1,6 @@
-# 🧪 SafeSign: Product Testing Manager Reference Notes
+# 🧪 Esigniva: Product Testing Manager Reference Notes
 
-This document serves as the primary reference for the Quality Assurance and Testing Management team. It outlines critical verification paths, edge-case scenarios, and compliance checks required to maintain the enterprise integrity of SafeSign.
+This document serves as the primary reference for the Quality Assurance and Testing Management team. It outlines critical verification paths, edge-case scenarios, and compliance checks required to maintain the enterprise integrity of Esigniva.
 
 ---
 
@@ -76,5 +76,6 @@ This document serves as the primary reference for the Quality Assurance and Test
 - [ ] Audit logs reflect accurate timestamps in UTC.
 
 ---
+
 **Lead QA Contact:** [Insert Name]
-**Latest Test Environment:** `https://testing.safesign.dev/`
+**Latest Test Environment:** `https://testing.esigniva.dev/`

@@ -1,19 +1,19 @@
 {
-  "short_name": "Safesign",
-  "name": "Safesign - AI-Powered E-Signature Platform",
+  "short_name": "Esigniva",
+  "name": "Esigniva - Enterprise E-Signature Platform",
   "icons": [
     {
-      "src": "logo192.png?v=2",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     },
     {
-      "src": "logo192.png?v=2",
+      "src": "logo192.png?v=3",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png?v=2",
+      "src": "logo512.png?v=3",
       "type": "image/png",
       "sizes": "512x512"
     }

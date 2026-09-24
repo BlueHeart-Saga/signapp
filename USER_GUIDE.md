@@ -1,6 +1,6 @@
-# 🖋️ SafeSign: User Guide & Helpful Tips
+# 🖋️ Esigniva: User Guide & Helpful Tips
 
-Welcome to **SafeSign**! We’ve built this platform to make your document signing process as smooth, secure, and fast as possible. Whether you’re sending a simple contract or a complex multi-party agreement, this guide will walk you through the process step-by-step.
+Welcome to **Esigniva**! We’ve built this platform to make your document signing process as smooth, secure, and fast as possible. Whether you’re sending a simple contract or a complex multi-party agreement, this guide will walk you through the process step-by-step.
 
 ---
 
@@ -52,7 +52,7 @@ Want extra security? Enable **Email OTP (One-Time Password)**. Your signer will 
 Tired of reading 50-page contracts? Use our **AI Summary** feature to get a 1-paragraph breakdown of the most important terms before you sign.
 
 ### 📱 Sign Anywhere
-SafeSign works perfectly on **Smartphones and Tablets**. Your recipients can sign with their finger or a stylus while on the go.
+Esigniva works perfectly on **Smartphones and Tablets**. Your recipients can sign with their finger or a stylus while on the go.
 
 ### 🗃️ Management
 Organize your documents into folders, archive old ones, and keep your workspace tidy from the **My Documents** dashboard.
@@ -73,4 +73,4 @@ If a signer refuses to sign, the process stops, and you will be notified immedia
 ---
 
 *Happy Signing!*
-**The SafeSign Team** ❤️
+**The Esigniva Team** ❤️
