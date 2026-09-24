@@ -51,7 +51,10 @@ jobs:
         run: npm install
 
       - name: Build frontend
-        run: CI=false npm run build
+        run: |
+          CI=false npm run build
+          cp server.js build/
+          cp package.json build/
 
       - name: Deploy to Azure Web App (QA)
         uses: azure/webapps-deploy@v3

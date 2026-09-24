@@ -84,7 +84,10 @@ jobs:
         run: npm install
 
       - name: Build frontend
-        run: CI=false npm run build
+        run: |
+          CI=false npm run build
+          cp server.js build/
+          cp package.json build/
 
       - name: Deploy Frontend to Azure Web App (esigniva)
         uses: azure/webapps-deploy@v3
