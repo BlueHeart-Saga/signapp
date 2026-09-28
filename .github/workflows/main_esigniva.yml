@@ -129,9 +129,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy Backend to Azure Web App (signapp-backend-docker)
+      - name: Deploy Backend to Azure Web App (esigniva-backend)
         uses: azure/webapps-deploy@v3
         with:
-          app-name: signapp-backend-docker
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          app-name: esigniva-backend
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_ESIGNIVA_BACKEND }}
           images: devopstrio/signapp-backend:${{ github.sha }}
