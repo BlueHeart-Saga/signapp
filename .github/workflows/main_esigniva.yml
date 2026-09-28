@@ -38,10 +38,8 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-              - '.github/workflows/main_esigniva.yml'
             backend:
               - 'backend/**'
-              - '.github/workflows/main_esigniva.yml'
 
   # =============================================================
   # 1. Build & Deploy Frontend (React -> Azure Web App esigniva)
