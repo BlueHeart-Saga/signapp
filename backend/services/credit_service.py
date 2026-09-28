@@ -5,15 +5,15 @@ from typing import Dict, Any, Optional, List
 from bson import ObjectId
 from fastapi import HTTPException, status
 
-from database import db
+from database import db, get_collection
 from config.credit_costs import CREDIT_COSTS
 
 logger = logging.getLogger(__name__)
 
-users_collection = db["users"]
-subscriptions_collection = db["subscriptions"]
-credit_transactions_collection = db["credit_transactions"]
-credit_buckets_collection = db["credit_buckets"]
+users_collection = get_collection("users")
+subscriptions_collection = get_collection("subscriptions")
+credit_transactions_collection = get_collection("credit_transactions")
+credit_buckets_collection = get_collection("credit_buckets")
 
 async def db_find_one(collection, filter_dict):
     return await asyncio.to_thread(collection.find_one, filter_dict)

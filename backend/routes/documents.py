@@ -22,7 +22,7 @@ import re
 from .pdf_engine import PDFEngine 
 from .fields import serialize_field_with_recipient
 from .converter import convert_to_pdf, get_pdf_page_count
-from database import db
+from database import db, get_collection
 from .auth import get_current_user
 from .fields import normalize_field_value
 from .email_service import send_completed_document_to_recipients, EsignivaCertificateEngine, EsignivaSummaryEngine
@@ -57,7 +57,7 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 # fs = gridfs.GridFS(db)
 
 # MongoDB Collections
-templates_collection = db["document_templates"]
+templates_collection = get_collection("document_templates")
 
 
 EVENT_TITLES = {

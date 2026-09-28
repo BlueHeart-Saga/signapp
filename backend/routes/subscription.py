@@ -9,7 +9,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, status, Request
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict, ValidationInfo
 
-from database import db
+from database import db, get_collection
 from routes.auth import get_current_user
 from services.credit_service import CreditService
 
@@ -68,9 +68,9 @@ async def db_delete_many(collection, filter):
 # DATABASE COLLECTIONS
 # ============================================
 # Get collections from db
-users_collection = db["users"]
-subscriptions_collection = db["subscriptions"]
-payments_collection = db["payments"]
+users_collection = get_collection("users")
+subscriptions_collection = get_collection("subscriptions")
+payments_collection = get_collection("payments")
 
 # ============================================
 # ENUMS & CONSTANTS
@@ -969,7 +969,7 @@ async def request_enterprise_quote(
             "created_at": datetime.utcnow()
         }
 
-        await db_insert_one(db["enterprise_contacts"], quote_data)
+        await db_insert_one(get_collection("enterprise_contacts"), quote_data)
 
         return {
             "success": True,

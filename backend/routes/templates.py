@@ -19,17 +19,17 @@ import base64
 import gridfs
 from fastapi.responses import StreamingResponse
 # Import your existing dependencies
-from database import db
+from database import db, get_collection
 from .auth import get_current_user
 from .converter import convert_to_pdf
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
-fs = gridfs.GridFS(db)
+fs = gridfs.GridFS(db) if db is not None else None
 
 # MongoDB Collections
-templates_collection = db["templates"]
-pdf_files_collection = db["pdf_files"]
+templates_collection = get_collection("templates")
+pdf_files_collection = get_collection("pdf_files")
 
 # Constants
 
