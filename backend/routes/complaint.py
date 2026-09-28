@@ -14,7 +14,7 @@ from database import db
 
 router = APIRouter(prefix="/e-sign/complaints", tags=["Complaints"])
 
-fs = gridfs.GridFS(db)
+fs = gridfs.GridFS(db) if db is not None else None
 
 class ComplaintCreate(BaseModel):
     name: str
