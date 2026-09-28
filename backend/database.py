@@ -48,8 +48,4 @@ documents_collection = get_collection("documents")
 ai_logs_collection = get_collection("ai_logs")
 document_versions_collection = get_collection("document_versions")
 complaints_collection = get_collection("complaint")
-
-if db.auth_logs is not None:
-    collection_exists = "auth_logs" in db.list_collection_names()
-if collection_exists:
-    auth_logs_collection = get_collection("auth_logs")
+auth_logs_collection = get_collection("auth_logs")
