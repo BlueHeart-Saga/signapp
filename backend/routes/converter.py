@@ -3,7 +3,10 @@ import tempfile
 import os
 from PIL import Image
 import io
-from fpdf import FPDF
+try:
+    from fpdf import FPDF
+except Exception:
+    FPDF = None
 import shutil
 import platform
 import fitz
