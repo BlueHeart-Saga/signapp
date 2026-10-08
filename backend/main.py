@@ -185,12 +185,14 @@ app.add_middleware(
 
 
 origins = [
-    "http://localhost:3001",  # Local frontend
-    "https://esigniva.devopstrio.co.uk",  # Production custom domain
-    "https://esigniva.com",  # Production custom domain (esigniva.com)
-    "https://www.esigniva.com",  # Production custom domain (www.esigniva.com)
-    "https://esigniva-a9ecdcb9h2h8dwe7.southindia-01.azurewebsites.net",  # New Azure Web App
-    "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",  # QA Azure Web App
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://esigniva.com",
+    "https://www.esigniva.com",
+    "https://esigniva.devopstrio.co.uk",
+    "https://signapp-qa-d2esc6cxgha9hsbg.southindia-01.azurewebsites.net",  # New QA App Service
+    "https://esigniva-a9ecdcb9h2h8dwe7.southindia-01.azurewebsites.net",     # Azure Web App
+    "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",
     "https://safesign.devopstrio.co.uk"
 ]
 
