@@ -9,6 +9,6 @@ if (!API_BASE_URL) {
 // Log the API base URL for debugging (remove in production)
 console.log('API Base URL:', API_BASE_URL);
 
-export const GOOGLE_CLIENT_ID = "970128405795-i22pohhkf8bli0b1736eoa0rscs0c3qv.apps.googleusercontent.com";
+export const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "432906890842-1rc8ck80lu07h6r4cjjrd4nmcbnjc204.apps.googleusercontent.com";
 export default API_BASE_URL;
 
