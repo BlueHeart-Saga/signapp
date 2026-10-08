@@ -82,7 +82,7 @@ def get_file_from_storage(file_path: str):
         print(f"Error getting file from storage: {str(e)}")
         return None
 
-def validate_category_exists(category_id: str):
+async def validate_category_exists(category_id: str):
     """Validate that category exists"""
     if not ObjectId.is_valid(category_id):
         raise HTTPException(
@@ -90,7 +90,7 @@ def validate_category_exists(category_id: str):
             detail="Invalid category ID format"
         )
     
-    category = db.template_categories.find_one({
+    category = await db.template_categories.find_one({
         "_id": ObjectId(category_id),
         "is_active": True
     })
@@ -112,7 +112,7 @@ async def create_category(
     """Create a new template category"""
     try:
         # Check if category already exists
-        existing_category = db.template_categories.find_one({
+        existing_category = await db.template_categories.find_one({
             "name": {"$regex": f"^{category.name}$", "$options": "i"},
             "is_active": True
         })
@@ -134,7 +134,7 @@ async def create_category(
         }
         
         # Insert category
-        result = db.template_categories.insert_one(category_doc)
+        result = await db.template_categories.insert_one(category_doc)
         
         return {
             "message": "Category created successfully",
@@ -156,7 +156,7 @@ async def get_categories(
 ):
     """Get all template categories"""
     try:
-        categories = list(db.template_categories.find({"is_active": True}).sort("name", 1))
+        categories = await db.template_categories.find({"is_active": True}).sort("name", 1).to_list(length=1000)
         
         return {
             "categories": serialize_doc(categories),
@@ -183,7 +183,7 @@ async def delete_category(
             )
         
         # Check if category has active templates
-        active_templates = db.document_templates.count_documents({
+        active_templates = await db.document_templates.count_documents({
             "category_id": category_id,
             "is_active": True
         })
@@ -195,7 +195,7 @@ async def delete_category(
             )
         
         # Soft delete category
-        result = db.template_categories.update_one(
+        result = await db.template_categories.update_one(
             {"_id": ObjectId(category_id)},
             {"$set": {
                 "is_active": False,
@@ -238,7 +238,7 @@ async def update_category(
             )
         
         # Check if another category has the same name
-        duplicate_category = db.template_categories.find_one({
+        duplicate_category = await db.template_categories.find_one({
             "name": {"$regex": f"^{category.name}$", "$options": "i"},
             "is_active": True,
             "_id": {"$ne": ObjectId(category_id)}
@@ -258,13 +258,13 @@ async def update_category(
             "updated_by": str(current_user["id"])
         }
         
-        result = db.template_categories.update_one(
+        result = await db.template_categories.update_one(
             {"_id": ObjectId(category_id)},
             {"$set": update_data}
         )
         
         # If name changed, update all templates in this category
-        db.document_templates.update_many(
+        await db.document_templates.update_many(
             {"category_id": category_id},
             {"$set": {"category_name": category.name}}
         )
@@ -296,7 +296,7 @@ async def upload_template(
     """Upload a new document template"""
     try:
         # Validate category
-        category = validate_category_exists(category_id)
+        category = await validate_category_exists(category_id)
         
         # Parse tags
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
@@ -316,7 +316,7 @@ async def upload_template(
         }
         
         # Insert template
-        result = db.document_templates.insert_one(template_doc)
+        result = await db.document_templates.insert_one(template_doc)
         template_id = str(result.inserted_id)
         
         # Prepare metadata for storage
@@ -348,7 +348,7 @@ async def upload_template(
         original_content_type = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'application/octet-stream'
         
         # Update template with file information
-        db.document_templates.update_one(
+        await db.document_templates.update_one(
             {"_id": result.inserted_id},
             {"$set": {
                 "filename": pdf_filename,
@@ -362,13 +362,13 @@ async def upload_template(
         )
         
         # Update category template count
-        db.template_categories.update_one(
+        await db.template_categories.update_one(
             {"_id": ObjectId(category_id)},
             {"$inc": {"template_count": 1}}
         )
         
         # Get the created template
-        created_template = db.document_templates.find_one({"_id": result.inserted_id})
+        created_template = await db.document_templates.find_one({"_id": result.inserted_id})
         
         return {
             "message": "Template uploaded successfully",
@@ -381,7 +381,7 @@ async def upload_template(
     except Exception as e:
         # Clean up if template was created but file upload failed
         if 'result' in locals():
-            db.document_templates.delete_one({"_id": result.inserted_id})
+            await db.document_templates.delete_one({"_id": result.inserted_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error uploading template: {str(e)}"
@@ -413,7 +413,7 @@ async def get_templates(
             ]
         
         # Count total matching templates
-        total_templates = db.document_templates.count_documents(query)
+        total_templates = await db.document_templates.count_documents(query)
         
         # Calculate pagination
         skip = (page - 1) * limit
@@ -453,7 +453,7 @@ async def get_template_details(
             )
         
         # Get template
-        template = db.document_templates.find_one({"_id": ObjectId(template_id)})
+        template = await db.document_templates.find_one({"_id": ObjectId(template_id)})
         if not template:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -485,7 +485,7 @@ async def update_template_status(
             )
         
         # Get template to get category ID
-        template = db.document_templates.find_one({"_id": ObjectId(template_id)})
+        template = await db.document_templates.find_one({"_id": ObjectId(template_id)})
         if not template:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -503,7 +503,7 @@ async def update_template_status(
             update_data["activated_by"] = str(current_user["id"])
             # Increment category count
             if template.get("category_id"):
-                db.template_categories.update_one(
+                await db.template_categories.update_one(
                     {"_id": ObjectId(template["category_id"])},
                     {"$inc": {"template_count": 1}}
                 )
@@ -512,12 +512,12 @@ async def update_template_status(
             update_data["deactivated_by"] = str(current_user["id"])
             # Decrement category count
             if template.get("category_id"):
-                db.template_categories.update_one(
+                await db.template_categories.update_one(
                     {"_id": ObjectId(template["category_id"])},
                     {"$inc": {"template_count": -1}}
                 )
         
-        result = db.document_templates.update_one(
+        result = await db.document_templates.update_one(
             {"_id": ObjectId(template_id)},
             {"$set": update_data}
         )
@@ -561,7 +561,7 @@ async def update_template(
             )
         
         # Get existing template
-        template = db.document_templates.find_one({"_id": ObjectId(template_id)})
+        template = await db.document_templates.find_one({"_id": ObjectId(template_id)})
         if not template:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -569,7 +569,7 @@ async def update_template(
             )
         
         # Validate category
-        category = validate_category_exists(category_id)
+        category = await validate_category_exists(category_id)
         
         # Parse tags
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()] if tags else []
@@ -634,7 +634,7 @@ async def update_template(
             update_data["original_content_type"] = original_content_type
         
         # Update template
-        result = db.document_templates.update_one(
+        result = await db.document_templates.update_one(
             {"_id": ObjectId(template_id)},
             {"$set": update_data}
         )
@@ -646,12 +646,12 @@ async def update_template(
         # Update category counts if changed
         if category_changed and template.get("is_active"):
             # Decrement old category
-            db.template_categories.update_one(
+            await db.template_categories.update_one(
                 {"_id": ObjectId(old_category_id)},
                 {"$inc": {"template_count": -1}}
             )
             # Increment new category
-            db.template_categories.update_one(
+            await db.template_categories.update_one(
                 {"_id": ObjectId(category_id)},
                 {"$inc": {"template_count": 1}}
             )
@@ -659,7 +659,7 @@ async def update_template(
         return {
             "message": "Template updated successfully",
             "template_id": template_id,
-            "template": serialize_doc(db.document_templates.find_one({"_id": ObjectId(template_id)}))
+            "template": serialize_doc(await db.document_templates.find_one({"_id": ObjectId(template_id)}))
         }
         
     except HTTPException:
@@ -684,7 +684,7 @@ async def delete_template(
             )
         
         # Get template
-        template = db.document_templates.find_one({"_id": ObjectId(template_id)})
+        template = await db.document_templates.find_one({"_id": ObjectId(template_id)})
         if not template:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -697,12 +697,12 @@ async def delete_template(
             delete_template_from_storage(file_path)
         
         # Delete template from database
-        result = db.document_templates.delete_one({"_id": ObjectId(template_id)})
+        result = await db.document_templates.delete_one({"_id": ObjectId(template_id)})
         
         # Decrement category template count
         category_id = template.get("category_id")
         if category_id and template.get("is_active"):
-            db.template_categories.update_one(
+            await db.template_categories.update_one(
                 {"_id": ObjectId(category_id)},
                 {"$inc": {"template_count": -1}}
             )
@@ -727,16 +727,16 @@ async def get_template_stats(
     """Get template statistics"""
     try:
         # Total counts
-        total_templates = db.document_templates.count_documents({})
-        active_templates = db.document_templates.count_documents({"is_active": True})
-        free_templates = db.document_templates.count_documents({"is_free": True, "is_active": True})
+        total_templates = await db.document_templates.count_documents({})
+        active_templates = await db.document_templates.count_documents({"is_active": True})
+        free_templates = await db.document_templates.count_documents({"is_free": True, "is_active": True})
         
         # Category distribution
-        categories = list(db.template_categories.find({"is_active": True}))
+        categories = await db.template_categories.find({"is_active": True}).to_list(length=1000)
         category_distribution = []
         for category in categories:
             category_id = str(category["_id"])
-            template_count = db.document_templates.count_documents({
+            template_count = await db.document_templates.count_documents({
                 "category_id": category_id,
                 "is_active": True
             })
@@ -783,7 +783,7 @@ async def download_template(
             )
         
         # Get template
-        template = db.document_templates.find_one({
+        template = await db.document_templates.find_one({
             "_id": ObjectId(template_id),
             "is_active": True
         })
@@ -818,7 +818,7 @@ async def download_template(
             )
         
         # Increment download count
-        db.document_templates.update_one(
+        await db.document_templates.update_one(
             {"_id": ObjectId(template_id)},
             {"$inc": {"download_count": 1}}
         )
@@ -873,7 +873,7 @@ async def get_user_templates(
             ]
         
         # Count total matching templates
-        total_templates = db.document_templates.count_documents(query)
+        total_templates = await db.document_templates.count_documents(query)
         
         # Calculate pagination
         skip = (page - 1) * limit
@@ -917,13 +917,13 @@ async def get_user_categories(
     """Get all active template categories with template counts for users"""
     try:
         # Get active categories with their template counts
-        categories = list(db.template_categories.find({"is_active": True}).sort("name", 1))
+        categories = await db.template_categories.find({"is_active": True}).sort("name", 1).to_list(length=1000)
         
         # Add template counts for each category
         enhanced_categories = []
         for category in categories:
             category_id = str(category["_id"])
-            template_count = db.document_templates.count_documents({
+            template_count = await db.document_templates.count_documents({
                 "category_id": category_id,
                 "is_active": True
             })
@@ -961,7 +961,7 @@ async def get_user_template_details(
             )
         
         # Get active template only
-        template = db.document_templates.find_one({
+        template = await db.document_templates.find_one({
             "_id": ObjectId(template_id),
             "is_active": True
         })
@@ -983,7 +983,7 @@ async def get_user_template_details(
         
         # Get category details
         if template.get("category_id"):
-            category = db.template_categories.find_one({
+            category = await db.template_categories.find_one({
                 "_id": ObjectId(template["category_id"]),
                 "is_active": True
             })
@@ -1019,7 +1019,7 @@ async def user_download_template(
         
         # Get active template
         query_id = ObjectId(template_id) if ObjectId.is_valid(template_id) else template_id
-        template = db.document_templates.find_one({
+        template = await db.document_templates.find_one({
             "$or": [{"_id": query_id}, {"_id": str(template_id)}],
             "is_active": {"$ne": False}
         })
@@ -1079,7 +1079,7 @@ async def user_download_template(
             )
         
         # Increment download count
-        db.document_templates.update_one(
+        await db.document_templates.update_one(
             {"_id": ObjectId(template_id)},
             {"$inc": {"download_count": 1}}
         )
@@ -1092,7 +1092,7 @@ async def user_download_template(
             "downloaded_at": datetime.utcnow(),
             "is_free": template.get("is_free", True)
         }
-        db.template_downloads.insert_one(download_log)
+        await db.template_downloads.insert_one(download_log)
         
         # Return file for download
         from fastapi.responses import StreamingResponse
@@ -1169,7 +1169,7 @@ async def get_search_suggestions(
         
         # Search in tags if we need more results
         if len(suggestions) < limit:
-            tag_matches = db.document_templates.aggregate([
+            tag_matches = await db.document_templates.aggregate([
                 {"$match": {
                     "tags": {"$regex": query, "$options": "i"},
                     "is_active": True
@@ -1213,7 +1213,7 @@ async def user_view_template(
     if not ObjectId.is_valid(template_id):
         raise HTTPException(status_code=400, detail="Invalid template ID")
 
-    template = db.document_templates.find_one({
+    template = await db.document_templates.find_one({
         "_id": ObjectId(template_id),
         "is_active": True
     })

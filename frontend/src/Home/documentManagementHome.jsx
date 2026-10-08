@@ -64,14 +64,14 @@ const DocumentManagementHome = () => {
         </div>
 
         <div className="dmh-feature-image">
-          <img src="/images/add-recipient.png" alt="add recipients" />
+          <img src="/images/add-recipient.png" alt="add recipients" loading="lazy" decoding="async" />
         </div>
       </section>
 
       {/* FEATURE 2 – ASSIGN ROLES */}
       <section className="dmh-feature dmh-feature-reverse">
         <div className="dmh-feature-image">
-          <img src="/images/assign-roles.png" alt="assign roles" />
+          <img src="/images/assign-roles.png" alt="assign roles" loading="lazy" decoding="async" />
         </div>
 
         <div className="dmh-feature-text">
@@ -98,7 +98,7 @@ const DocumentManagementHome = () => {
         </div>
 
         <div className="dmh-feature-image">
-          <img src="/images/signing-order.png" alt="set signing order" />
+          <img src="/images/signing-order.png" alt="set signing order" loading="lazy" decoding="async" />
         </div>
       </section>
 

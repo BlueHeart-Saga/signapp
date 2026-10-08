@@ -271,32 +271,32 @@ const navigate = useNavigate();
 
     <div className="compliance-badges">
       <div className="badge">
-        <img src="/images/gdpr.png" alt="GDPR"/>
+        <img src="/images/gdpr.png" alt="GDPR" loading="lazy" decoding="async" />
         <span>GDPR</span>
       </div>
 
       <div className="badge">
-        <img src="/images/aicpa.png" alt="AICPA SOC"/>
+        <img src="/images/aicpa.png" alt="AICPA SOC" loading="lazy" decoding="async" />
         <span>AICPA SOC</span>
       </div>
 
       <div className="badge">
-        <img src="/images/esign.png" alt="ESIGN"/>
+        <img src="/images/esign.png" alt="ESIGN" loading="lazy" decoding="async" />
         <span>eSIGN & UETA</span>
       </div>
 
       <div className="badge">
-        <img src="/images/eidas.png" alt="eIDAS"/>
+        <img src="/images/eidas.png" alt="eIDAS" loading="lazy" decoding="async" />
         <span>eIDAS</span>
       </div>
 
       <div className="badge">
-        <img src="/images/hipaa.png" alt="HIPAA"/>
+        <img src="/images/hipaa.png" alt="HIPAA" loading="lazy" decoding="async" />
         <span>HIPAA</span>
       </div>
 
       <div className="badge">
-        <img src="/images/fda.png" alt="21 CFR"/>
+        <img src="/images/fda.png" alt="21 CFR" loading="lazy" decoding="async" />
         <span>21 CFR</span>
       </div>
     </div>

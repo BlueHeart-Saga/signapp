@@ -27,6 +27,8 @@ from .auth import get_current_user
 from .fields import normalize_field_value
 from .email_service import send_completed_document_to_recipients, EsignivaCertificateEngine, EsignivaSummaryEngine
 ProfessionalCertificateEngine = EsignivaCertificateEngine
+from services.credit_service import CreditService
+from config.credit_costs import CREDIT_COSTS
 
 from reportlab.lib import colors
 from reportlab.platypus import PageBreak, KeepTogether
@@ -177,7 +179,7 @@ class BulkActionRequest(BaseModel):
 # ProfessionalCertificateEngine = EsignivaCertificateEngine (set in imports)
       
 # Add this near the top of your file, after the imports
-def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
+async def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
     """
     Generate a unique professional envelope ID.
     Format: {random12}-{date}-{random6}-{user_initials}
@@ -196,7 +198,7 @@ def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
     initials = ""
     if user_id:
         try:
-            user = db.users.find_one({"_id": ObjectId(user_id)})
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
             if user:
                 full_name = user.get("full_name") or user.get("name") or user.get("email", "")
                 # Extract initials from name
@@ -220,10 +222,10 @@ def generate_envelope_id(prefix: str = None, user_id: str = None) -> str:
     envelope_id = f"{random_prefix}-{date_str}-{random_mid}-{initials}".upper()
     
     # Check if it already exists
-    existing = db.documents.find_one({"envelope_id": envelope_id})
+    existing = await db.documents.find_one({"envelope_id": envelope_id})
     if existing:
         # If exists, generate another one with different random string
-        return generate_envelope_id(prefix, user_id)
+        return await generate_envelope_id(prefix, user_id)
     
     return envelope_id
 
@@ -346,7 +348,7 @@ async def search_documents(
         print(f"Error in search_documents: {e}")
         return {"results": [], "total": 0}
 
-def validate_envelope_id(envelope_id: str, current_document_id: str = None) -> bool:
+async def validate_envelope_id(envelope_id: str, current_document_id: str = None) -> bool:
     """
     Validate that an envelope ID is unique.
     Returns True if valid, False if duplicate.
@@ -358,7 +360,7 @@ def validate_envelope_id(envelope_id: str, current_document_id: str = None) -> b
     if current_document_id:
         query["_id"] = {"$ne": ObjectId(current_document_id)}
     
-    existing = db.documents.find_one(query)
+    existing = await db.documents.find_one(query)
     return existing is None
 
 
@@ -385,13 +387,13 @@ async def auto_generate_missing_envelope_ids():
                     continue
                 
                 # Generate envelope ID
-                new_envelope_id = generate_envelope_id(
+                new_envelope_id = await generate_envelope_id(
                     prefix="ENV",
                     user_id=str(owner_id)
                 )
                 
                 # Update document
-                db.documents.update_one(
+                await db.documents.update_one(
                     {"_id": doc["_id"]},
                     {"$set": {
                         "envelope_id": new_envelope_id,
@@ -442,30 +444,30 @@ async def get_user_from_request(request: Request):
 # SERIALIZER
 # -----------------------------
 
-def serialize_document(doc):
+async def serialize_document(doc):
     doc_id = doc["_id"]
 
     # Existing counts code...
-    total_recipients = db.recipients.count_documents({"document_id": doc_id})
-    signed_recipients = db.recipients.count_documents({
+    total_recipients = await db.recipients.count_documents({"document_id": doc_id})
+    signed_recipients = await db.recipients.count_documents({
         "document_id": doc_id,
         "status": "completed"
     })
 
     # Role counts...
-    def role_count(role):
-        return db.recipients.count_documents({
+    async def role_count(role):
+        return await db.recipients.count_documents({
             "document_id": doc_id,
             "role": role,
             "status": "completed"
         })
 
-    signer_count = role_count("signer")
-    in_person_signer_count = role_count("in_person_signer")
-    approver_count = role_count("approver")
-    witness_count = role_count("witness")
-    form_filler_count = role_count("form_filler")
-    viewer_count = role_count("viewer")
+    signer_count = await role_count("signer")
+    in_person_signer_count = await role_count("in_person_signer")
+    approver_count = await role_count("approver")
+    witness_count = await role_count("witness")
+    form_filler_count = await role_count("form_filler")
+    viewer_count = await role_count("viewer")
 
     # Get storage URLs
     preview_url = None
@@ -549,7 +551,7 @@ def serialize_document(doc):
 
 from .audit import log_audit_event
 
-def _log_event(
+async def _log_event(
     document_id: str,
     actor: dict | None,
     event_type: str,
@@ -580,7 +582,7 @@ def _log_event(
         })
 
     # Log to document timeline (for UI)
-    db.document_timeline.insert_one(event)
+    await db.document_timeline.insert_one(event)
     
     # Log to centralized audit log (for long-term audit trail)
     audit_data = {
@@ -593,7 +595,7 @@ def _log_event(
         "user_agent": event["metadata"].get("user_agent", "unknown")
     }
     try:
-        log_audit_event(audit_data)
+        await log_audit_event(audit_data)
     except Exception as e:
         print(f"Warning: Failed to log audit event: {e}")
 
@@ -603,7 +605,7 @@ async def permanent_delete(
     document_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    doc = db.documents.find_one(
+    doc = await db.documents.find_one(
         {"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])}
     )
 
@@ -653,12 +655,12 @@ async def permanent_delete(
                 pass
 
     # Delete DB dependencies
-    db.documents.delete_one({"_id": ObjectId(document_id)})
-    db.recipients.delete_many({"document_id": ObjectId(document_id)})
-    db.signatures.delete_many({"document_id": ObjectId(document_id)})
-    db.document_files.delete_many({"document_id": ObjectId(document_id)})
+    await db.documents.delete_one({"_id": ObjectId(document_id)})
+    await db.recipients.delete_many({"document_id": ObjectId(document_id)})
+    await db.signatures.delete_many({"document_id": ObjectId(document_id)})
+    await db.document_files.delete_many({"document_id": ObjectId(document_id)})
 
-    _log_event(document_id, current_user, "permanent_delete", request=request)
+    await _log_event(document_id, current_user, "permanent_delete", request=request)
 
     return {"message": "Document permanently deleted"}
 
@@ -678,14 +680,14 @@ async def bulk_soft_delete(
     except:
         raise HTTPException(400, "Invalid document IDs")
     
-    result = db.documents.update_many(
+    result = await db.documents.update_many(
         {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": {"$ne": "deleted"}},
         {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}}
     )
     
     for doc_id in request_data.document_ids:
         try:
-            _log_event(doc_id, current_user, "soft_delete", request=request)
+            await _log_event(doc_id, current_user, "soft_delete", request=request)
         except:
             pass
         
@@ -703,14 +705,14 @@ async def bulk_restore(
     except:
         raise HTTPException(400, "Invalid document IDs")
     
-    result = db.documents.update_many(
+    result = await db.documents.update_many(
         {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": "deleted"},
         {"$set": {"status": "draft", "restored_at": datetime.utcnow()}}
     )
     
     for doc_id in request_data.document_ids:
         try:
-            _log_event(doc_id, current_user, "restore_document", request=request)
+            await _log_event(doc_id, current_user, "restore_document", request=request)
         except:
             pass
         
@@ -739,7 +741,7 @@ async def empty_trash(
     request: Request = None
 ):
     user_id = ObjectId(current_user["id"])
-    trash_docs = list(db.documents.find({"owner_id": user_id, "status": "deleted"}, {"_id": 1}))
+    trash_docs = await db.documents.find({"owner_id": user_id, "status": "deleted"}, {"_id": 1}).to_list(length=1000)
     
     deleted_count = 0
     for doc in trash_docs:
@@ -761,7 +763,7 @@ async def get_document_status(
     """
     Get real-time processing status of a document.
     """
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -777,9 +779,9 @@ async def get_document_status(
         "page_count": doc.get("page_count", 0)
     }
     
-def log_activity(document_id, user, action):
+async def log_activity(document_id, user, action):
     try:
-        db.document_activity.insert_one({
+        await db.document_activity.insert_one({
             "document_id": str(document_id),
             "user_id": str(user["id"]),
             "user_email": user["email"],
@@ -1023,13 +1025,13 @@ def generate_and_store_page_thumbnails(pdf_bytes: bytes, document_id: str, filen
         print(f"[generate_and_store_page_thumbnails] Error: {e}")
         return []
 
-def update_document_summary_metadata(document_id: str):
+async def update_document_summary_metadata(document_id: str):
     """
     Recalculates a document's total page count and its flattened list 
     of page thumbnails based on all the files it currently contains.
     """
     doc_id = ObjectId(document_id)
-    all_files = list(db.document_files.find({"document_id": doc_id}).sort("order", 1))
+    all_files = await db.document_files.find({"document_id": doc_id}).sort("order", 1).to_list(length=1000)
     
     total_pages = 0
     all_global_thumbs = []
@@ -1057,7 +1059,7 @@ def update_document_summary_metadata(document_id: str):
             total_pages += f["page_count"]
             
     # Update main doc record
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc_id},
         {"$set": {
             "page_count": total_pages,
@@ -1090,20 +1092,20 @@ def apply_status_watermark(pdf_bytes: bytes, status: str) -> bytes:
     return pdf_bytes
 
 
-def update_document_role_counts(doc_id):
-    def count(role):
-        return db.recipients.count_documents({
+async def update_document_role_counts(doc_id):
+    async def count(role):
+        return await db.recipients.count_documents({
             "document_id": ObjectId(doc_id),
             "role": role,
             "status": "completed"
         })
 
-    signer_count = count("signer")
-    in_person_signer_count = count("in_person_signer")
-    approver_count = count("approver")
-    witness_count = count("witness")
-    form_filler_count = count("form_filler")
-    viewer_count = count("viewer")
+    signer_count = await count("signer")
+    in_person_signer_count = await count("in_person_signer")
+    approver_count = await count("approver")
+    witness_count = await count("witness")
+    form_filler_count = await count("form_filler")
+    viewer_count = await count("viewer")
 
     signed_count = (
         signer_count
@@ -1114,7 +1116,7 @@ def update_document_role_counts(doc_id):
         + viewer_count
     )
 
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(doc_id)},
         {"$set": {
             "signer_count": signer_count,
@@ -1688,7 +1690,7 @@ def process_fields_for_rendering(fields: list) -> tuple:
     return signatures, form_fields, all_fields_data
 
 # Add this function to your documents.py if it's not already there
-def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: dict = None) -> bytes:
+async def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: dict = None) -> bytes:
     """
     Apply ALL completed fields (signatures AND form fields) to PDF.
     """
@@ -1696,7 +1698,7 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
     from bson import ObjectId
     
     if not document:
-        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        document = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not document:
             return pdf_bytes
     
@@ -1705,7 +1707,7 @@ def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, document: 
         "document_id": ObjectId(document_id),
         "completed_at": {"$exists": True}
     }
-    completed_fields = list(db.signature_fields.find(completed_fields_query))
+    completed_fields = await db.signature_fields.find(completed_fields_query).to_list(length=1000)
     
     if not completed_fields:
         return pdf_bytes
@@ -1868,7 +1870,7 @@ async def get_active_subscription(email: str) -> Optional[Dict]:
     """
     try:
         # Find active subscription by user_email
-        subscription = db.subscriptions.find_one({
+        subscription = await db.subscriptions.find_one({
             "user_email": email,
             "status": "active",
             "expiry_date": {"$gte": datetime.utcnow()}
@@ -1917,7 +1919,7 @@ async def process_document_upload_task(
         # 1. Start processing (already at 20% from initial read)
         
         # 2. Convert to PDF (Progress: 40%)
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"progress": 30, "processing_status": "Converting to PDF..."}}
         )
@@ -1925,14 +1927,14 @@ async def process_document_upload_task(
         converted_pdf_bytes = convert_to_pdf(content, filename)
 
         if not converted_pdf_bytes:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": doc_oid},
                 {"$set": {"status": "error", "processing_status": "PDF conversion failed", "progress": 0}}
             )
             return
 
         page_count = get_pdf_page_count(converted_pdf_bytes)
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"page_count": page_count, "progress": 45, "processing_status": "Saving to storage..."}}
         )
@@ -1963,7 +1965,7 @@ async def process_document_upload_task(
             folder=f"users/{user_id}/thumbnails/previews"
         )
         
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"progress": 70, "processing_status": "Generating page thumbnails..."}}
         )
@@ -1987,7 +1989,7 @@ async def process_document_upload_task(
             # Incremental progress for many pages
             if page_count > 0:
                 current_progress = 70 + int((page_num + 1) / page_count * 25)
-                db.documents.update_one(
+                await db.documents.update_one(
                     {"_id": doc_oid},
                     {"$set": {"progress": min(current_progress, 95)}}
                 )
@@ -2003,10 +2005,10 @@ async def process_document_upload_task(
             "processing_status": "Complete"
         }
         
-        db.documents.update_one({"_id": doc_oid}, {"$set": final_updates})
+        await db.documents.update_one({"_id": doc_oid}, {"$set": final_updates})
         
         # Also insert entry into document_files for consistency
-        db.document_files.insert_one({
+        await db.document_files.insert_one({
             "document_id": doc_oid,
             "file_path": pdf_file_path,
             "thumbnail_path": preview_thumb_path,
@@ -2027,11 +2029,11 @@ async def process_document_upload_task(
         
         # Create a mock actor dict for _log_event
         actor = {"id": user_id, "email": email, "role": "owner"}
-        _log_event(document_id, actor, "upload_document", log_metadata, request)
+        await _log_event(document_id, actor, "upload_document", log_metadata, request)
         
     except Exception as e:
         print(f"CRITICAL ERROR in document processing task: {e}")
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {"status": "error", "processing_status": f"System error: {str(e)}", "progress": 0}}
         )
@@ -2079,14 +2081,14 @@ async def upload_document(
     elif envelope_id:
         envelope_id_value = envelope_id
     elif auto_generate_envelope:
-        envelope_id_value = generate_envelope_id(
+        envelope_id_value = await generate_envelope_id(
             prefix=envelope_prefix,
             user_id=current_user["id"]
         )
 
     # Check if envelope_id already exists (if provided)
     if envelope_id_value:
-        existing_doc = db.documents.find_one({"envelope_id": envelope_id_value})
+        existing_doc = await db.documents.find_one({"envelope_id": envelope_id_value})
         if existing_doc:
             raise HTTPException(
                 status_code=400,
@@ -2117,12 +2119,12 @@ async def upload_document(
         "envelope_id": envelope_id_value
     }
     
-    result = db.documents.insert_one(doc_data)
+    result = await db.documents.insert_one(doc_data)
     document_id = str(result.inserted_id)
 
     # 2. Read content synchronously (Progress: 20%)
     content = await file.read()
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": result.inserted_id},
         {"$set": {"size": len(content), "progress": 20}}
     )
@@ -2144,7 +2146,7 @@ async def upload_document(
     # Return immediately with document metadata
     return {
         "message": "Document upload initiated", 
-        "document": serialize_document(doc_data), # note: doc_data has _id but not as string yet? serialize_document handles it
+        "document": await serialize_document(doc_data), # note: doc_data has _id but not as string yet? serialize_document handles it
         "document_id": document_id,
         "status": "processing",
         "progress": 20
@@ -2166,7 +2168,7 @@ async def process_add_file_task(
         doc_oid = ObjectId(document_id)
         
         # 1. Convert to PDF (Progress: 50%)
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"progress": 40, "processing_status": "Converting to PDF..."}}
         )
@@ -2174,7 +2176,7 @@ async def process_add_file_task(
         pdf_bytes = convert_to_pdf(content, filename)
 
         if not pdf_bytes:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": doc_oid},
                 {"$set": {"progress": 0, "status": "error", "processing_status": "Conversion failed"}}
             )
@@ -2182,7 +2184,7 @@ async def process_add_file_task(
 
         page_count = get_pdf_page_count(pdf_bytes)
         
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"progress": 60, "processing_status": "Uploading to storage..."}}
         )
@@ -2195,7 +2197,7 @@ async def process_add_file_task(
         )
 
         # 3. Handle document_files entry
-        last = db.document_files.find_one(
+        last = await db.document_files.find_one(
             {"document_id": doc_oid},
             sort=[("order", -1)]
         )
@@ -2213,7 +2215,7 @@ async def process_add_file_task(
             pdf_bytes, str(document_id), filename, user_id
         )
 
-        db.document_files.insert_one({
+        await db.document_files.insert_one({
             "document_id": doc_oid,
             "file_path": pdf_file_path,
             "thumbnail_path": preview_thumb_path,
@@ -2227,19 +2229,19 @@ async def process_add_file_task(
         })
 
         # 4. Final Updates
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"progress": 90, "processing_status": "Updating document metadata..."}}
         )
         
-        update_document_summary_metadata(document_id)
+        await update_document_summary_metadata(document_id)
 
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
         )
 
-        _log_event(
+        await _log_event(
             document_id,
             {"id": user_id, "email": email, "role": "owner"},
             "file_added",
@@ -2253,7 +2255,7 @@ async def process_add_file_task(
 
     except Exception as e:
         print(f"ERROR in add_file task: {e}")
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {"status": "error", "processing_status": f"System error: {str(e)}", "progress": 0}}
         )
@@ -2266,7 +2268,7 @@ async def add_file_to_document(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2287,14 +2289,14 @@ async def add_file_to_document(
     )
 
     # Start progress
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$set": {"status": "processing", "progress": 10, "processing_status": "Receiving file..."}}
     )
 
     content = await file.read()
     
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$set": {"progress": 25, "processing_status": "Processing initiated..."}}
     )
@@ -2314,11 +2316,9 @@ async def add_file_to_document(
 
 @router.get("/{document_id}/files")
 async def list_files(document_id: str, current_user: dict = Depends(get_current_user)):
-    files = list(
-        db.document_files
-        .find({"document_id": ObjectId(document_id)})
-        .sort("order", 1)
-    )
+    files = await db.document_files.find(
+        {"document_id": ObjectId(document_id)}
+    ).sort("order", 1).to_list(length=None)
 
     current_page = 1
     response = []
@@ -2357,14 +2357,14 @@ async def get_file_thumbnails(
     file_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    file = db.document_files.find_one({
+    file = await db.document_files.find_one({
         "_id": ObjectId(file_id),
         "document_id": ObjectId(document_id)
     })
@@ -2372,11 +2372,9 @@ async def get_file_thumbnails(
         raise HTTPException(404, "File not found")
 
     # Calculate combined start_page
-    files = list(
-        db.document_files
-        .find({"document_id": ObjectId(document_id)})
-        .sort("order", 1)
-    )
+    files = await db.document_files.find(
+        {"document_id": ObjectId(document_id)}
+    ).sort("order", 1).to_list(length=None)
 
     current_page = 1
     start_page = 1
@@ -2426,7 +2424,7 @@ async def view_file_preview(
     except JWTError:
         raise HTTPException(401, "Invalid token")
 
-    file = db.document_files.find_one({
+    file = await db.document_files.find_one({
         "_id": ObjectId(file_id),
         "document_id": ObjectId(document_id)
     })
@@ -2489,14 +2487,14 @@ async def get_page_thumbnail(
     user = await get_user_from_request(request)
     
     # Verify owner or recipient access
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": doc_id,
         "owner_id": ObjectId(user["id"])
     })
     
     if not doc:
         # Check if it's a recipient access
-        recipient = db.recipients.find_one({
+        recipient = await db.recipients.find_one({
             "document_id": doc_id,
             "email": user["email"]
         })
@@ -2504,7 +2502,7 @@ async def get_page_thumbnail(
             raise HTTPException(403, "Not authorized to view this document")
         
         # Load the base document for recipient too
-        doc = db.documents.find_one({"_id": doc_id})
+        doc = await db.documents.find_one({"_id": doc_id})
 
     # Validate page number
     if page_number < 1 or page_number > doc.get("page_count", 0):
@@ -2565,7 +2563,7 @@ async def delete_document_file(
         raise HTTPException(400, "Invalid ID")
 
     # Owner only
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": doc_id,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2577,7 +2575,7 @@ async def delete_document_file(
         raise HTTPException(400, "Cannot delete files after document is sent")
 
     # Fetch file
-    file = db.document_files.find_one({
+    file = await db.document_files.find_one({
         "_id": file_oid,
         "document_id": doc_id
     })
@@ -2585,7 +2583,7 @@ async def delete_document_file(
         raise HTTPException(404, "File not found")
 
     # Fetch remaining files count
-    total_files = db.document_files.count_documents({"document_id": doc_id})
+    total_files = await db.document_files.count_documents({"document_id": doc_id})
 
     # ============================================
     # Delete from Azure Blob Storage
@@ -2602,12 +2600,12 @@ async def delete_document_file(
         print(f"Error deleting from storage: {e}")
 
     # Remove DB record
-    db.document_files.delete_one({"_id": file_oid})
+    await db.document_files.delete_one({"_id": file_oid})
 
     # Update document state
     if total_files <= 1:
         # If it was the last file, clear all document-level summary fields
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_id},
             {
                 "$set": {
@@ -2622,20 +2620,18 @@ async def delete_document_file(
         )
     else:
         # Reorder remaining files
-        remaining = list(
-            db.document_files.find({"document_id": doc_id}).sort("order", 1)
-        )
+        remaining = await db.document_files.find({"document_id": doc_id}).sort("order", 1).to_list(length=1000)
         for idx, f in enumerate(remaining, start=1):
-            db.document_files.update_one(
+            await db.document_files.update_one(
                 {"_id": f["_id"]},
                 {"$set": {"order": idx}}
             )
 
         # Refresh overall document metadata (page count, page_thumbnails)
-        update_document_summary_metadata(document_id)
+        await update_document_summary_metadata(document_id)
 
     # Audit log
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "file_deleted",
@@ -2657,7 +2653,7 @@ async def get_file_history(
     current_user: dict = Depends(get_current_user)
 ):
     # owner only
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2691,7 +2687,7 @@ async def reorder_files(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2699,7 +2695,7 @@ async def reorder_files(
         raise HTTPException(404, "Document not found")
 
     for item in items:
-        db.document_files.update_one(
+        await db.document_files.update_one(
             {
                 "_id": ObjectId(item.file_id),
                 "document_id": ObjectId(document_id)
@@ -2707,9 +2703,9 @@ async def reorder_files(
             {"$set": {"order": item.order}}
         )
         
-    update_document_summary_metadata(document_id)
+    await update_document_summary_metadata(document_id)
 
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "files_reordered",
@@ -2738,7 +2734,7 @@ async def replace_document_file(
         raise HTTPException(400, "Invalid document or file ID")
 
     # Owner + draft only
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": doc_oid,
         "owner_id": ObjectId(current_user["id"]),
         "status": "draft"
@@ -2747,7 +2743,7 @@ async def replace_document_file(
         raise HTTPException(404, "Document not found or not editable")
 
     # Fetch existing file
-    existing = db.document_files.find_one({
+    existing = await db.document_files.find_one({
         "_id": file_oid,
         "document_id": doc_oid
     })
@@ -2758,7 +2754,7 @@ async def replace_document_file(
     old_filename = existing["filename"]
 
     # Set to processing
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc_oid},
         {"$set": {"status": "processing", "progress": 30, "processing_status": "Replacing file..."}}
     )
@@ -2803,7 +2799,7 @@ async def replace_document_file(
     )
 
     # Update document_files
-    db.document_files.update_one(
+    await db.document_files.update_one(
         {"_id": file_oid},
         {"$set": {
             "file_path": new_pdf_path,
@@ -2816,16 +2812,16 @@ async def replace_document_file(
     )
 
     # Update overall document summary (metadata)
-    update_document_summary_metadata(document_id)
+    await update_document_summary_metadata(document_id)
 
     # Return to draft
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc_oid},
         {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
     )
 
     # Timeline log
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "file_replaced",
@@ -2866,7 +2862,7 @@ async def rename_document_file(
     # -------------------------
     # Owner + draft check
     # -------------------------
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": doc_oid,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2879,7 +2875,7 @@ async def rename_document_file(
     # -------------------------
     # Fetch file
     # -------------------------
-    file = db.document_files.find_one({
+    file = await db.document_files.find_one({
         "_id": file_oid,
         "document_id": doc_oid
     })
@@ -2902,7 +2898,7 @@ async def rename_document_file(
     # -------------------------
     # Update filename
     # -------------------------
-    db.document_files.update_one(
+    await db.document_files.update_one(
         {"_id": file_oid},
         {"$set": {
             "filename": new_name,
@@ -2913,7 +2909,7 @@ async def rename_document_file(
     # -------------------------
     # Timeline log
     # -------------------------
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "file_renamed",
@@ -2926,7 +2922,7 @@ async def rename_document_file(
     )
 
     # Fetch updated field to return its adjusted coordinates
-    updated_field = db.signature_fields.find_one({"_id": fid})
+    updated_field = await db.signature_fields.find_one({"_id": fid})
     
     # Process updated_field for JSON serialization
     from bson import json_util
@@ -2970,7 +2966,7 @@ async def merge_selected_files(
     doc_oid = ObjectId(document_id)
 
     # Owner + draft check
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": doc_oid,
         "owner_id": ObjectId(current_user["id"]),
         "status": "draft"
@@ -2979,7 +2975,7 @@ async def merge_selected_files(
         raise HTTPException(404, "Document not found or not editable")
 
     # Set to processing
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc_oid},
         {"$set": {"status": "processing", "progress": 20, "processing_status": "Merging files..."}}
     )
@@ -2987,7 +2983,7 @@ async def merge_selected_files(
     # Fetch selected files IN USER ORDER
     selected_files = []
     for fid in file_ids:
-        f = db.document_files.find_one({
+        f = await db.document_files.find_one({
             "_id": ObjectId(fid),
             "document_id": doc_oid
         })
@@ -3034,7 +3030,7 @@ async def merge_selected_files(
 
     # Update base file with merged content
     base_file = selected_files[0]
-    db.document_files.update_one(
+    await db.document_files.update_one(
         {"_id": base_file["_id"]},
         {"$set": {
             "file_path": merged_pdf_path,
@@ -3056,7 +3052,7 @@ async def merge_selected_files(
         except Exception as e:
             print(f"Error deleting file: {e}")
         
-        db.document_files.delete_one({"_id": f["_id"]})
+        await db.document_files.delete_one({"_id": f["_id"]})
 
     # Reorder remaining files
     remaining = list(
@@ -3066,22 +3062,22 @@ async def merge_selected_files(
     )
 
     for idx, f in enumerate(remaining, start=1):
-        db.document_files.update_one(
+        await db.document_files.update_one(
             {"_id": f["_id"]},
             {"$set": {"order": idx}}
         )
 
     # Refresh document global metadata
-    update_document_summary_metadata(document_id)
+    await update_document_summary_metadata(document_id)
 
     # Return to draft
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc_oid},
         {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
     )
 
     # Timeline log
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "files_merged",
@@ -3126,7 +3122,7 @@ async def create_document_from_template(
         raise HTTPException(status_code=400, detail="Invalid template ID")
 
     # 2️⃣ Fetch ACTIVE template (admin uploaded)
-    template = db.document_templates.find_one({
+    template = await db.document_templates.find_one({
         "_id": template_oid,
         "is_active": True
     })
@@ -3152,7 +3148,7 @@ async def create_document_from_template(
     )
 
     # 5️⃣ Generate envelope ID
-    envelope_id = generate_envelope_id(
+    envelope_id = await generate_envelope_id(
         prefix="ENV",
         user_id=current_user["id"]
     )
@@ -3187,9 +3183,9 @@ async def create_document_from_template(
         "expires_at": datetime.utcnow() + timedelta(days=expiry_days)
     }
 
-    result = db.documents.insert_one(document)
+    result = await db.documents.insert_one(document)
     
-    db.document_files.insert_one({
+    await db.document_files.insert_one({
         "document_id": result.inserted_id,
         "file_path": pdf_file_path,
         "filename": f"{payload.title}.pdf",
@@ -3199,7 +3195,7 @@ async def create_document_from_template(
         "source": "template"
     })
 
-    _log_event(
+    await _log_event(
         str(result.inserted_id),
         current_user,
         "create_document_from_template",
@@ -3236,7 +3232,7 @@ async def rename_document(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid document ID")
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": oid,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -3265,7 +3261,7 @@ async def rename_document(
         new_name = f"{new_name}.{ext}"
 
     # Update document
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": oid},
         {"$set": {
             "filename": new_name,
@@ -3274,7 +3270,7 @@ async def rename_document(
     )
 
     # Audit log
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "rename_document",
@@ -3295,33 +3291,78 @@ async def rename_document(
 # -----------------------------
 # LIST DOCUMENTS
 # -----------------------------
+DOCUMENT_LIST_PROJECTION = {
+    "filename": 1,
+    "title": 1,
+    "uploaded_at": 1,
+    "deleted_at": 1,
+    "voided_at": 1,
+    "restored_at": 1,
+    "has_preview": 1,
+    "preview_thumbnail_path": 1,
+    "owner_id": 1,
+    "owner_email": 1,
+    "page_count": 1,
+    "size": 1,
+    "mime_type": 1,
+    "status": 1,
+    "common_message": 1,
+    "recipient_count": 1,
+    "signed_count": 1,
+    "source": 1,
+    "envelope_id": 1
+}
+
 @router.get("")
 @router.get("/")
 async def list_documents(
     current_user: dict = Depends(get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(30, ge=1, le=100),
+    cursor: str | None = Query(None),
     status: str | None = Query(None),
     include_deleted: bool = Query(False),
-    envelope_id: str | None = Query(None)  # Add envelope_id filter
+    envelope_id: str | None = Query(None)
 ):
     """
-    List documents owned by the current user.
-    Filter by envelope_id if provided.
+    List documents owned by current user with projections and cursor/keyset pagination.
     """
-    query = {"owner_id": ObjectId(current_user["id"])}
+    owner_id = ObjectId(current_user["id"])
+    query = {"owner_id": owner_id}
 
     if status:
         query["status"] = status
     elif not include_deleted:
         query["status"] = {"$ne": "deleted"}
         
-    # Add envelope_id filter if provided
     if envelope_id:
         query["envelope_id"] = envelope_id
 
-    docs = db.documents.find(query).sort("uploaded_at", -1).skip(skip).limit(limit)
-    return [serialize_document(d) for d in docs]
+    if cursor:
+        try:
+            query["_id"] = {"$lt": ObjectId(cursor)}
+        except Exception:
+            pass
+
+    max_limit = min(max(limit, 1), 100)
+
+    docs = await db.documents.find(
+        query,
+        DOCUMENT_LIST_PROJECTION
+    ).sort("_id", -1).skip(skip).limit(max_limit + 1).to_list(length=max_limit + 1)
+
+    has_more = len(docs) > max_limit
+    items = docs[:max_limit]
+    next_cursor = str(items[-1]["_id"]) if items and has_more else None
+
+    serialized_items = [await serialize_document(d) for d in items]
+
+    return {
+        "items": serialized_items,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "count": len(serialized_items)
+    } if cursor is not None else serialized_items
 
 @router.get("/paged")
 async def list_documents_paged(
@@ -3332,7 +3373,6 @@ async def list_documents_paged(
     include_deleted: bool = Query(False)
 ):
     owner_id = ObjectId(current_user["id"])
-
     query = {"owner_id": owner_id}
 
     if status:
@@ -3340,23 +3380,23 @@ async def list_documents_paged(
     elif not include_deleted:
         query["status"] = {"$ne": "deleted"}
 
-    total = db.documents.count_documents(query)
+    max_page_size = min(max(page_size, 1), 100)
+    total = await db.documents.count_documents(query)
+    skip = (page - 1) * max_page_size
 
-    skip = (page - 1) * page_size
+    docs = await db.documents.find(
+        query,
+        DOCUMENT_LIST_PROJECTION
+    ).sort("_id", -1).skip(skip).limit(max_page_size).to_list(length=max_page_size)
 
-    docs = list(
-        db.documents.find(query)
-        .sort("uploaded_at", -1)
-        .skip(skip)
-        .limit(page_size)
-    )
+    serialized_docs = [await serialize_document(d) for d in docs]
 
     return {
         "page": page,
-        "page_size": page_size,
+        "page_size": max_page_size,
         "total": total,
-        "total_pages": (total + page_size - 1) // page_size,
-        "documents": [serialize_document(d) for d in docs]
+        "total_pages": (total + max_page_size - 1) // max_page_size,
+        "documents": serialized_docs
     }
 
 
@@ -3370,7 +3410,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         owner_filter = user_id_str
 
     # Count deleted documents
-    deleted_count = db.documents.count_documents({
+    deleted_count = await db.documents.count_documents({
         "owner_id": owner_filter,
         "$or": [{"is_deleted": True}, {"status": "deleted"}]
     })
@@ -3382,13 +3422,13 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     }
 
     stats = {
-        "draft": db.documents.count_documents({**active_base, "status": "draft"}),
-        "sent": db.documents.count_documents({**active_base, "status": "sent"}),
-        "in_progress": db.documents.count_documents({**active_base, "status": {"$in": ["in_progress", "in-progress"]}}),
-        "completed": db.documents.count_documents({**active_base, "status": "completed"}),
-        "declined": db.documents.count_documents({**active_base, "status": "declined"}),
-        "expired": db.documents.count_documents({**active_base, "status": "expired"}),
-        "voided": db.documents.count_documents({**active_base, "status": "voided"}),
+        "draft": await db.documents.count_documents({**active_base, "status": "draft"}),
+        "sent": await db.documents.count_documents({**active_base, "status": "sent"}),
+        "in_progress": await db.documents.count_documents({**active_base, "status": {"$in": ["in_progress", "in-progress"]}}),
+        "completed": await db.documents.count_documents({**active_base, "status": "completed"}),
+        "declined": await db.documents.count_documents({**active_base, "status": "declined"}),
+        "expired": await db.documents.count_documents({**active_base, "status": "expired"}),
+        "voided": await db.documents.count_documents({**active_base, "status": "voided"}),
         "deleted": deleted_count
     }
 
@@ -3477,12 +3517,12 @@ async def get_recent_activities(
         doc_id = doc["_id"]
         latest_evt = latest_event_by_doc.get(doc_id, {})
 
-        total_signers = db.recipients.count_documents({
+        total_signers = await db.recipients.count_documents({
             "document_id": doc_id,
             "role": "signer"
         })
 
-        completed_signers = db.recipients.count_documents({
+        completed_signers = await db.recipients.count_documents({
             "document_id": doc_id,
             "role": "signer",
             "status": "completed"
@@ -3528,7 +3568,7 @@ async def update_common_message(
     Can be used at any stage (draft, sent, in_progress).
     """
     try:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3542,12 +3582,12 @@ async def update_common_message(
             raise HTTPException(status_code=400, detail="Common message cannot be empty")
         
         # Update document
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {"common_message": common_message}}
         )
         
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "update_common_message",
@@ -3576,7 +3616,7 @@ async def update_document_settings(
     """
     try:
         doc_oid = ObjectId(document_id)
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3621,12 +3661,12 @@ async def update_document_settings(
         if not update_data:
             return {"message": "No changes provided"}
 
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": update_data}
         )
         
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "update_settings",
@@ -3650,7 +3690,7 @@ async def get_common_message(
     Get common message for a document.
     """
     try:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3685,7 +3725,7 @@ async def get_expiring_documents(
         "expires_at": {"$lte": threshold, "$gte": now}
     }).sort("expires_at", 1))
 
-    return [serialize_document(d) for d in docs]
+    return [await serialize_document(d) for d in docs]
 
 
 # -----------------------------
@@ -3700,7 +3740,7 @@ async def get_document(document_id: str, current_user: dict = Depends(get_curren
     except Exception:
         raise HTTPException(400, "Invalid document ID")
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": oid,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -3708,7 +3748,7 @@ async def get_document(document_id: str, current_user: dict = Depends(get_curren
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    return serialize_document(doc)
+    return await serialize_document(doc)
 
 
 @router.post("/{document_id}/remind-all")
@@ -3721,7 +3761,7 @@ async def remind_all_recipients(
     """Send reminders to all incomplete recipients of a document"""
     try:
         doc_oid = ObjectId(document_id)
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3753,7 +3793,7 @@ async def remind_all_recipients(
                 current_user["email"]
             )
             
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "remind_all_recipients",
@@ -3779,7 +3819,7 @@ async def expire_document_now(
     """Immediately expire a document"""
     try:
         doc_oid = ObjectId(document_id)
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3790,7 +3830,7 @@ async def expire_document_now(
         if document.get("status") in ["draft", "completed", "voided", "expired"]:
             raise HTTPException(status_code=400, detail=f"Cannot expire document in {document.get('status')} status")
 
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {
                 "status": "expired",
@@ -3798,7 +3838,7 @@ async def expire_document_now(
             }}
         )
         
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "document_expired_manually",
@@ -3828,7 +3868,7 @@ async def extend_document_expiry(
             raise HTTPException(status_code=400, detail="Extension days must be greater than 0")
 
         doc_oid = ObjectId(document_id)
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -3845,7 +3885,7 @@ async def extend_document_expiry(
         base_date = document.get("sent_at") or document.get("uploaded_at") or datetime.utcnow()
         new_expires_at = base_date + timedelta(days=new_expiry_days)
 
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_oid},
             {"$set": {
                 "expiry_days": new_expiry_days,
@@ -3854,7 +3894,7 @@ async def extend_document_expiry(
             }}
         )
         
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "document_expiry_extended",
@@ -3874,6 +3914,50 @@ async def extend_document_expiry(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{document_id}/download-url", summary="Get private short-lived direct SAS download URL")
+async def get_document_download_url(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    expires_in: int = Query(900, ge=60, le=3600)
+):
+    """
+    Generate short-lived signed SAS URL for direct Object Storage / Azure Blob downloads.
+    Validates owner, recipient, or admin authorization before generating SAS URL.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid document ID")
+
+    doc = await db.documents.find_one({"_id": doc_oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    user_id = str(current_user["id"])
+    is_owner = str(doc.get("owner_id")) == user_id
+    is_recipient = False
+
+    if not is_owner and current_user.get("role") != "admin":
+        rec = await db.recipients.find_one({"document_id": doc_oid, "email": current_user.get("email")})
+        is_recipient = rec is not None
+
+    if not is_owner and not is_recipient and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied to document download")
+
+    file_path = doc.get("signed_pdf_path") or doc.get("pdf_path") or doc.get("file_path") or doc.get("preview_thumbnail_path")
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Document file path not recorded")
+
+    signed_url = storage.generate_signed_url(file_path, expires_in_seconds=expires_in)
+
+    return {
+        "document_id": document_id,
+        "download_url": signed_url,
+        "expires_in_seconds": expires_in,
+        "storage_provider": getattr(storage, "container_name", "local")
+    }
+
+
 # -----------------------------
 # DOWNLOAD ORIGINAL FILE
 # -----------------------------
@@ -3888,7 +3972,7 @@ async def download_document(
     """
     current_user = await get_user_from_request(request)
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id), 
         "owner_id": ObjectId(current_user["id"])
     })
@@ -3929,7 +4013,7 @@ async def download_document(
             raise HTTPException(status_code=404, detail=f"File not found in storage: {str(e)}")
 
     # Log download
-    _log_event(
+    await _log_event(
         document_id, 
         current_user, 
         "download_original", 
@@ -3961,16 +4045,16 @@ async def soft_delete_document(document_id: str, current_user: dict = Depends(ge
     """
     Soft delete: mark document as deleted. Files remain in storage and can be restored.
     """
-    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
     if doc.get("status") == "deleted":
         raise HTTPException(status_code=400, detail="Document already deleted")
 
-    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}})
+    await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}})
 
-    _log_event(document_id, current_user, "soft_delete", request=request)
+    await _log_event(document_id, current_user, "soft_delete", request=request)
     return {"message": "Document moved to trash"}
 
 
@@ -3979,10 +4063,10 @@ async def soft_delete_document(document_id: str, current_user: dict = Depends(ge
 # -----------------------------
 @router.get("/{document_id}/timeline")
 async def get_document_timeline(document_id: str, current_user: dict = Depends(get_current_user)):
-    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
     if not doc:
         # Check if the user is a recipient of this document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "recipients.email": current_user.get("email")
         })
@@ -4061,7 +4145,7 @@ async def get_document_timeline(document_id: str, current_user: dict = Depends(g
 @router.get("/{document_id}/stats")
 async def get_document_stats(document_id: str, current_user: dict = Depends(get_current_user)):
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -4069,8 +4153,8 @@ async def get_document_stats(document_id: str, current_user: dict = Depends(get_
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    total = db.recipients.count_documents({"document_id": ObjectId(document_id)})
-    signed = db.recipients.count_documents({
+    total = await db.recipients.count_documents({"document_id": ObjectId(document_id)})
+    signed = await db.recipients.count_documents({
         "document_id": ObjectId(document_id),
         "status": "completed"
     })
@@ -4108,7 +4192,7 @@ async def get_document_preview(
         except JWTError:
             raise HTTPException(401, "Invalid token")
             
-        recipient = db.recipients.find_one({
+        recipient = await db.recipients.find_one({
             "document_id": doc_id,
             "$or": [
                 {"email": payload.get("email")},
@@ -4118,7 +4202,7 @@ async def get_document_preview(
         if not recipient:
             raise HTTPException(403, "Not authorized")
     elif current_user:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_id,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -4128,7 +4212,7 @@ async def get_document_preview(
         raise HTTPException(401, "Authentication required")
     
     # Get document
-    doc = db.documents.find_one({"_id": doc_id})
+    doc = await db.documents.find_one({"_id": doc_id})
     if not doc:
         raise HTTPException(404, "Document not found")
     
@@ -4192,12 +4276,12 @@ async def download_signed(
     """
     current_user = await get_user_from_request(request)
 
-    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
     is_owner = doc["owner_id"] == ObjectId(current_user["id"])
-    is_recipient = db.recipients.find_one({
+    is_recipient = await db.recipients.find_one({
         "document_id": ObjectId(document_id), 
         "email": current_user["email"]
     })
@@ -4218,7 +4302,7 @@ async def download_signed(
         raise HTTPException(404, "PDF file not found in storage")
     
     # APPLY COMPLETED FIELDS (CRITICAL FIX)
-    pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+    pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
     
     # Add envelope header
     envelope_id = doc.get("envelope_id")
@@ -4232,7 +4316,7 @@ async def download_signed(
     name = doc["filename"].rsplit(".", 1)[0]
     filename = f"{name}_signed.pdf"
 
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "download_signed_or_current_pdf",
@@ -4268,7 +4352,7 @@ async def download_summary_pdf(
     except:
         raise HTTPException(400, "Invalid document ID")
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": oid,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -4277,9 +4361,9 @@ async def download_summary_pdf(
         raise HTTPException(404, "Document not found")
         
     # Get details for summary
-    all_recipients = list(db.recipients.find({"document_id": oid}).sort("signing_order", 1))
-    all_fields = list(db.signature_fields.find({"document_id": oid}))
-    timeline = list(db.document_timeline.find({"document_id": oid}).sort("timestamp", -1).limit(50))
+    all_recipients = await db.recipients.find({"document_id": oid}).sort("signing_order", 1).to_list(length=1000)
+    all_fields = await db.signature_fields.find({"document_id": oid}).to_list(length=1000)
+    timeline = await db.document_timeline.find({"document_id": oid}).sort("timestamp", -1).limit(50).to_list(length=1000)
     
     # Format dates
     created_date = doc.get("uploaded_at")
@@ -4377,13 +4461,13 @@ async def download_summary_pdf(
     }
     
     # Generate PDF via unified engine
-    pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
+    pdf_bytes = await EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
     
     # Sanitized filename
     clean_name = re.sub(r'[^\w\s-]', '', doc.get('filename', 'document'))
     filename = f"Esigniva_Summary_{doc.get('envelope_id', 'doc')}_{clean_name}.pdf"
     
-    _log_event(document_id, current_user, "download_professional_summary", {"filename": filename, "format": "pdf"}, request)
+    await _log_event(document_id, current_user, "download_professional_summary", {"filename": filename, "format": "pdf"}, request)
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -4401,7 +4485,7 @@ async def builder_pdf(
 ):
     user = await get_user_from_request(request)
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(doc_id),
         "owner_id": ObjectId(user["id"])
     })
@@ -4459,7 +4543,7 @@ async def owner_preview(
     print(f"\n--- Owner Preview: {doc_id} ---")
     print(f"👤 User: {user.get('email')}")
 
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(doc_id),
         "owner_id": ObjectId(user["id"])
     })
@@ -4497,7 +4581,7 @@ async def owner_preview(
     # Enrich fields with recipient info and completion status
     enriched_fields = []
     for field in fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
         # Add recipient info
@@ -4526,7 +4610,7 @@ async def owner_preview(
         # Get sender info
         sender_email = doc.get("owner_email", user.get("email", ""))
         sender_name = ""
-        user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+        user_record = await db.users.find_one({"_id": ObjectId(user["id"])})
         if user_record:
             sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
         
@@ -4598,8 +4682,8 @@ async def owner_preview(
     if doc.get("status") == "draft":
         watermark_text = "DRAFT"
     elif doc.get("status") in ["sent", "in_progress"]:
-        total_recipients = db.recipients.count_documents({"document_id": ObjectId(doc_id)})
-        completed_recipients = db.recipients.count_documents({
+        total_recipients = await db.recipients.count_documents({"document_id": ObjectId(doc_id)})
+        completed_recipients = await db.recipients.count_documents({
             "document_id": ObjectId(doc_id),
             "status": "completed"
         })
@@ -4638,7 +4722,7 @@ async def owner_preview(
     #                 rect.y1 - 20
     #             )
                 
-    #             all_recipients = list(db.recipients.find({"document_id": ObjectId(doc_id)}))
+    #             all_recipients = await db.recipients.find({"document_id": ObjectId(doc_id)}).to_list(length=1000)
     #             total = len(all_recipients)
     #             completed = sum(1 for r in all_recipients if r.get("status") == "completed")
     #             pending = total - completed
@@ -4685,7 +4769,7 @@ async def owner_preview(
     filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_owner_preview.pdf"
     
     # Log the view
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "owner_preview",
@@ -4727,13 +4811,13 @@ async def view_document(
     user = await get_user_from_request(request)
 
     # Get document
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
     # Check permissions
     is_owner = doc.get("owner_id") == ObjectId(user["id"])
-    is_recipient = db.recipients.find_one({
+    is_recipient = await db.recipients.find_one({
         "document_id": ObjectId(doc_id), 
         "email": user.get("email")
     })
@@ -4750,7 +4834,7 @@ async def view_document(
     # Enrich fields with consistent value normalization
     enriched_fields = []
     for field in fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
         # CRITICAL: Normalize ALL field values using the same function
@@ -4845,7 +4929,7 @@ async def view_document(
     filename = f"{filename_base}_{preview_suffix}.pdf"
     
     # Log the view
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "view_document",
@@ -4883,13 +4967,13 @@ async def view_signed_preview(
     """
     user = await get_user_from_request(request)
 
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
     # Check permissions
     is_owner = doc.get("owner_id") == ObjectId(user["id"])
-    is_recipient = db.recipients.find_one({
+    is_recipient = await db.recipients.find_one({
         "document_id": ObjectId(doc_id), 
         "email": user.get("email")
     })
@@ -4908,7 +4992,7 @@ async def view_signed_preview(
         # Only get fields that should be visible in signed preview
         query["type"] = {"$nin": ["attachment"]}  # Exclude attachment fields
     
-    completed_fields = list(db.signature_fields.find(query))
+    completed_fields = await db.signature_fields.find(query).to_list(length=1000)
     
     if not completed_fields:
         # If no completed fields, get placeholder fields for preview
@@ -4919,7 +5003,7 @@ async def view_signed_preview(
     # Enrich fields with consistent normalization
     enriched_fields = []
     for field in completed_fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         enriched["display_value"] = normalize_field_value(field)
         enriched["value"] = field.get("value")
@@ -5010,7 +5094,7 @@ async def view_signed_preview(
     #     )
     
     # Apply "SIGNED" watermark if all recipients completed
-    all_recipients = list(db.recipients.find({"document_id": ObjectId(doc_id)}))
+    all_recipients = await db.recipients.find({"document_id": ObjectId(doc_id)}).to_list(length=1000)
     all_completed = all(r.get("status") == "completed" for r in all_recipients)
     
     if all_completed:
@@ -5023,7 +5107,7 @@ async def view_signed_preview(
     filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_signed_preview.pdf"
     
     # Log the view
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "view_signed_preview",
@@ -5055,7 +5139,7 @@ async def view_document_with_fields(
     """
     View document with field overlays or final signatures.
     """
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -5070,7 +5154,7 @@ async def view_document_with_fields(
     
     enriched_fields = []
     for field in fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched_fields.append(enriched)
     
     # Load PDF
@@ -5114,7 +5198,7 @@ async def view_field_preview(
     """
     user = await get_user_from_request(request)
 
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
@@ -5130,7 +5214,7 @@ async def view_field_preview(
     # Enrich fields
     enriched_fields = []
     for field in fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
         # ALWAYS normalize completed field values
@@ -5186,7 +5270,7 @@ async def view_field_preview(
     filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_field_preview.pdf"
     
     # Log the view
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "view_field_preview",
@@ -5212,15 +5296,15 @@ async def view_field_preview(
 # -----------------------------
 @router.post("/{document_id}/void")
 async def void_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None):
-    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
     if doc.get("status") == "voided":
         raise HTTPException(status_code=400, detail="Document already voided")
 
-    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "voided", "voided_at": datetime.utcnow()}})
-    _log_event(document_id, current_user, "void_document", request=request)
+    await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "voided", "voided_at": datetime.utcnow()}})
+    await _log_event(document_id, current_user, "void_document", request=request)
     return {"message": "Document voided successfully"}
 
 @router.post("/{document_id}/unvoid")
@@ -5229,19 +5313,19 @@ async def unvoid_document(
     document_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    doc = db.documents.find_one({"_id": ObjectId(document_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
     if doc.get("status") != "voided":
         raise HTTPException(status_code=400, detail="Document is not voided")
 
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$set": {"status": "draft", "unvoided_at": datetime.utcnow()}}
     )
 
-    _log_event(document_id, current_user, "unvoid_document", request=request)
+    await _log_event(document_id, current_user, "unvoid_document", request=request)
 
     return {"message": "Void canceled. Document is now draft."}
 
@@ -5250,15 +5334,15 @@ async def unvoid_document(
 # -----------------------------
 @router.post("/{document_id}/restore")
 async def restore_document(document_id: str, current_user: dict = Depends(get_current_user), request: Request = None):
-    doc = db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
+    doc = await db.documents.find_one({"_id": ObjectId(document_id), "owner_id": ObjectId(current_user["id"])})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
     if doc.get("status") not in ["deleted", "voided"]:
         raise HTTPException(status_code=400, detail="Document cannot be restored")
 
-    db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "draft", "restored_at": datetime.utcnow()}})
-    _log_event(document_id, current_user, "restore_document", request=request)
+    await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "draft", "restored_at": datetime.utcnow()}})
+    await _log_event(document_id, current_user, "restore_document", request=request)
     return {"message": "Document restored successfully"}
 
 
@@ -5276,7 +5360,7 @@ async def decline_document(
     except:
         raise HTTPException(400, "Invalid recipient ID")
 
-    recipient = db.recipients.find_one({
+    recipient = await db.recipients.find_one({
         "_id": rid,
         "email": current_user["email"]
     })
@@ -5286,7 +5370,7 @@ async def decline_document(
     if recipient["status"] in ["completed", "declined", "expired"]:
         raise HTTPException(400, "Cannot decline at this stage")
 
-    doc = db.documents.find_one({"_id": recipient["document_id"]})
+    doc = await db.documents.find_one({"_id": recipient["document_id"]})
     guard_document_active(doc)
 
     if doc["status"] not in ["sent", "in_progress"]:
@@ -5295,7 +5379,7 @@ async def decline_document(
     now = datetime.utcnow()
 
     # 1️⃣ Mark recipient declined
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": rid},
         {"$set": {
             "status": "declined",
@@ -5305,7 +5389,7 @@ async def decline_document(
     )
 
     # 2️⃣ Expire all other pending recipients
-    db.recipients.update_many(
+    await db.recipients.update_many(
         {
             "document_id": doc["_id"],
             "_id": {"$ne": rid},
@@ -5315,7 +5399,7 @@ async def decline_document(
     )
 
     # 3️⃣ Auto-cancel document
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": doc["_id"]},
         {"$set": {
             "status": "declined",
@@ -5324,7 +5408,7 @@ async def decline_document(
     )
 
     # 4️⃣ Audit log
-    _log_event(
+    await _log_event(
         str(doc["_id"]),
         current_user,
         "recipient_declined",
@@ -5343,7 +5427,7 @@ async def set_document_expiry(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -5361,12 +5445,12 @@ async def set_document_expiry(
 
     # 🔹 Remove expiry
     if expiry_days is None:
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$unset": {"expires_at": "", "expiry_days": ""}}
         )
 
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "expiry_removed",
@@ -5385,7 +5469,7 @@ async def set_document_expiry(
 
     expires_at = datetime.utcnow() + timedelta(days=expiry_days)
 
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$set": {
             "expires_at": expires_at,
@@ -5394,7 +5478,7 @@ async def set_document_expiry(
         }}
     )
 
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "expiry_set",
@@ -5418,7 +5502,7 @@ async def set_envelope_id(
     """
     Set or update envelope ID for a document.
     """
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -5439,7 +5523,7 @@ async def set_envelope_id(
         )
     
     # Check if envelope_id already exists for another document
-    if not validate_envelope_id(envelope_id, document_id):
+    if not await validate_envelope_id(envelope_id, document_id):
         raise HTTPException(
             status_code=400,
             detail=f"Envelope ID '{envelope_id}' is already in use by another document"
@@ -5452,12 +5536,12 @@ async def set_envelope_id(
         "envelope_updated_at": datetime.utcnow()
     }
     
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$set": update_data}
     )
     
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "set_envelope_id",
@@ -5476,7 +5560,7 @@ async def remove_envelope_id(
     """
     Remove envelope ID from a document.
     """
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -5488,12 +5572,12 @@ async def remove_envelope_id(
         raise HTTPException(status_code=400, detail="Document has no envelope ID")
     
     # Remove envelope_id
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(document_id)},
         {"$unset": {"envelope_id": ""}}
     )
     
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "remove_envelope_id",
@@ -5510,7 +5594,7 @@ async def get_document_by_envelope_id(
     """
     Get document by envelope ID.
     """
-    doc = db.documents.find_one({
+    doc = await db.documents.find_one({
         "envelope_id": envelope_id,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -5518,7 +5602,7 @@ async def get_document_by_envelope_id(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    return serialize_document(doc)
+    return await serialize_document(doc)
 
 @router.get("/search/envelope")
 async def search_by_envelope_id(
@@ -5537,7 +5621,7 @@ async def search_by_envelope_id(
     
     docs = db.documents.find(query).sort("uploaded_at", -1).skip(skip).limit(limit)
     
-    return [serialize_document(d) for d in docs]
+    return [await serialize_document(d) for d in docs]
 
 @router.get("/{doc_id}/envelope-preview")
 async def view_document_with_envelope(
@@ -5553,13 +5637,13 @@ async def view_document_with_envelope(
     user = await get_user_from_request(request)
 
     # Get document
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
     # Check permissions
     is_owner = doc.get("owner_id") == ObjectId(user["id"])
-    is_recipient = db.recipients.find_one({
+    is_recipient = await db.recipients.find_one({
         "document_id": ObjectId(doc_id), 
         "email": user.get("email")
     })
@@ -5582,7 +5666,7 @@ async def view_document_with_envelope(
     sender_name = ""
     
     # Try to get sender name from users collection
-    user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+    user_record = await db.users.find_one({"_id": ObjectId(user["id"])})
     if user_record:
         sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
     
@@ -5618,7 +5702,7 @@ async def view_document_with_envelope(
     # Enrich fields
     enriched_fields = []
     for field in fields:
-        enriched = serialize_field_with_recipient(field)
+        enriched = await serialize_field_with_recipient(field)
         enriched["is_completed"] = field.get("completed_at") is not None
         
         # ALWAYS normalize completed field values
@@ -5679,7 +5763,7 @@ async def view_document_with_envelope(
     filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_envelope_{envelope_id}.pdf"
     
     # Log the view
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "view_envelope_preview",
@@ -5712,7 +5796,7 @@ async def get_final_document_with_envelope(
     user = await get_user_from_request(request)
 
     # Get document
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     if not doc:
         raise HTTPException(404, "Document not found")
 
@@ -5739,7 +5823,7 @@ async def get_final_document_with_envelope(
     if completed_fields:
         field_data = []
         for field in completed_fields:
-            enriched = serialize_field_with_recipient(field)
+            enriched = await serialize_field_with_recipient(field)
             enriched["is_completed"] = True
 
             render_data = get_field_render_data(enriched)
@@ -5758,7 +5842,7 @@ async def get_final_document_with_envelope(
     # Get sender info
     sender_email = doc.get("owner_email", user.get("email", ""))
     sender_name = ""
-    user_record = db.users.find_one({"_id": ObjectId(user["id"])})
+    user_record = await db.users.find_one({"_id": ObjectId(user["id"])})
     if user_record:
         sender_name = user_record.get("full_name") or user_record.get("name") or sender_email
     
@@ -5794,7 +5878,7 @@ async def get_final_document_with_envelope(
     filename = f"{document_name.rsplit('.', 1)[0]}_envelope_{envelope_id}_final.pdf"
     
     # Log the generation
-    _log_event(
+    await _log_event(
         doc_id,
         user,
         "generate_final_with_envelope",
@@ -5831,7 +5915,7 @@ async def download_certificate_owner(
             raise HTTPException(400, "Invalid document ID format")
         
         # Get document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -5876,13 +5960,13 @@ async def download_certificate_owner(
         
         # Get owner/user details
         owner_name = ""
-        owner_record = db.users.find_one({"_id": doc.get("owner_id")})
+        owner_record = await db.users.find_one({"_id": doc.get("owner_id")})
         if owner_record:
             owner_name = owner_record.get("full_name") or owner_record.get("name") or doc.get("owner_email", "")
         
         # Get sender IP from document creation
         sender_ip = None
-        creation_log = db.document_timeline.find_one({
+        creation_log = await db.document_timeline.find_one({
             "document_id": doc_oid,
             "action": "upload_document"
         })
@@ -5928,7 +6012,7 @@ async def download_certificate_owner(
         field_history = []
         if include_timeline:
             for field in completed_fields[:25]:
-                field_recipient = db.recipients.find_one({"_id": field.get("recipient_id")})
+                field_recipient = await db.recipients.find_one({"_id": field.get("recipient_id")})
                 if field_recipient:
                     completion_time = field.get("completed_at")
                     field_history.append({
@@ -6008,7 +6092,7 @@ async def download_certificate_owner(
         
         # ========== GENERATE PROFESSIONAL CERTIFICATE PDF ==========
         try:
-            pdf_bytes = ProfessionalCertificateEngine.create_certificate_pdf(certificate_data)
+            pdf_bytes = await ProfessionalCertificateEngine.create_certificate_pdf(certificate_data)
         except Exception as e:
             print(f"Error creating certificate PDF: {str(e)}")
             import traceback
@@ -6057,7 +6141,7 @@ async def download_certificate_owner(
         
         # ========== LOG THE DOWNLOAD ==========
         try:
-            _log_event(
+            await _log_event(
                 str(doc["_id"]),
                 current_user,
                 "download_certificate",
@@ -6112,7 +6196,7 @@ async def email_document_owner(
         doc_oid = ObjectId(document_id)
         
         # Get document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -6156,7 +6240,7 @@ async def email_document_owner(
             raise HTTPException(404, "PDF file not found in storage")
         
         # APPLY COMPLETED FIELDS (CRITICAL FIX)
-        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
         
         # Add envelope header if exists
         envelope_id = doc.get("envelope_id")
@@ -6208,7 +6292,7 @@ async def email_document_owner(
                 failed_recipients.append(recipient["email"])
         
         # Log the email event
-        _log_event(
+        await _log_event(
             str(doc["_id"]),
             current_user,
             "email_document",
@@ -6259,7 +6343,7 @@ async def download_signed_document_owner(
             raise HTTPException(400, "Invalid document ID format")
         
         # Get document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -6278,7 +6362,7 @@ async def download_signed_document_owner(
             raise HTTPException(404, "PDF file not found in storage")
         
         # APPLY COMPLETED FIELDS (CRITICAL FIX)
-        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
         
         # Apply "SIGNED" watermark
         try:
@@ -6312,7 +6396,7 @@ async def download_signed_document_owner(
         
         # Log the download
         try:
-            _log_event(
+            await _log_event(
                 str(doc["_id"]),
                 current_user,
                 "download_signed_document",
@@ -6365,7 +6449,7 @@ async def download_original_document_owner(
             raise HTTPException(400, "Invalid document ID format")
         
         # Get document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -6416,7 +6500,7 @@ async def download_original_document_owner(
         
         # Log the download
         try:
-            _log_event(
+            await _log_event(
                 str(doc["_id"]),
                 current_user,
                 "download_original_document",
@@ -6467,7 +6551,7 @@ async def download_document_package_owner(
             raise HTTPException(400, "Invalid document ID format")
         
         # Get document and verify ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -6487,14 +6571,14 @@ async def download_document_package_owner(
         sender_name = owner.get("full_name", "") or owner.get("name", "")
         sender_organization = owner.get("organization_name", "")
         
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         # Use request.base_url to get current backend URL
         base_url = str(request.base_url).rstrip('/')
         logo_url = f"{base_url}/branding/logo/file" if branding.get("logo_file_path") else None
         
         # Get first recipient for context if needed for summary/certificate
-        recipient = db.recipients.find_one({"document_id": doc_oid})
+        recipient = await db.recipients.find_one({"document_id": doc_oid})
         if not recipient:
             # Fallback to a dummy recipient object for core info if no recipients exist (unlikely for completed)
             recipient = {
@@ -6519,7 +6603,7 @@ async def download_document_package_owner(
             raise HTTPException(500, "Could not generate document package")
             
         # Log the event
-        log_activity(document_id, current_user, "package_downloaded")
+        await log_activity(document_id, current_user, "package_downloaded")
         
         # Return ZIP as streaming response
         return StreamingResponse(
@@ -6554,7 +6638,7 @@ async def send_completed_document(
     Only works if document is completed.
     """
     try:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -6581,7 +6665,7 @@ async def send_completed_document(
             document_id=document_id
         )
         
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "trigger_completed_document_email",
@@ -6714,7 +6798,7 @@ async def search_documents(
         for doc in documents:
             try:
                 # Get recipient count
-                recipient_count = db.recipients.count_documents({
+                recipient_count = await db.recipients.count_documents({
                     "document_id": doc['_id']
                 })
                 
@@ -6766,7 +6850,7 @@ async def get_complete_analytics(
         
         # 1. Consolidated Document & Recipient Aggregation
         # Using $facet to run multiple independent aggregations in ONE database call
-        agg_results = list(db.documents.aggregate([
+        agg_results = await (db.documents.aggregate([
             {"$match": {"owner_id": owner_id, "status": {"$ne": "deleted"}}},
             {"$facet": {
                 "document_stats": [
@@ -6870,7 +6954,7 @@ async def get_complete_analytics(
             recip_stats["by_role"][role] = item["count"]
 
         # 2. Field Analysis Pipeline
-        field_agg = list(db.signature_fields.aggregate([
+        field_agg = await (db.signature_fields.aggregate([
             {"$lookup": {
                 "from": "documents",
                 "localField": "document_id",
@@ -6950,7 +7034,7 @@ async def get_complete_analytics(
             start_date = now - timedelta(days=days)
             timeline_match["timestamp"] = {"$gte": start_date}
 
-        timeline_agg = list(db.document_timeline.aggregate([
+        timeline_agg = await (db.document_timeline.aggregate([
             {"$match": timeline_match},
             {"$facet": {
                 "events": [{"$sort": {"timestamp": -1}}, {"$limit": 500}],
@@ -7116,7 +7200,7 @@ async def get_complete_analytics(
                 "total_consumed": credit_summary.get("total_consumed", 0),
                 "plan_name": "Credit-Based Plan"
             },
-            "contacts": {"total_contacts": db.contacts.count_documents({"owner_id": owner_id})}
+            "contacts": {"total_contacts": await db.contacts.count_documents({"owner_id": owner_id})}
         }
         
     except Exception as exc:

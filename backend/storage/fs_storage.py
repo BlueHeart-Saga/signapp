@@ -50,3 +50,7 @@ class FileSystemStorage(StorageProvider):
             return f"{BACKEND_URL}/static/uploads/{safe_id}"
         except ImportError:
             return f"/static/uploads/{safe_id}"
+
+    def generate_signed_url(self, file_identifier: str, expires_in_seconds: int = 900) -> str:
+        """Generate download URL (for filesystem storage)"""
+        return self.get_url(file_identifier)

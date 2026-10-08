@@ -202,7 +202,7 @@ def serialize_field(field: Dict) -> Dict:
     return serialized
 
 
-def serialize_field_with_recipient(field, recipient_info=None):
+async def serialize_field_with_recipient(field, recipient_info=None):
     """Enhanced serialization with recipient info and completion status."""
     # 🔴 CRITICAL FIX: Get completion status from the field document
     is_completed = field.get("completed_at") is not None
@@ -257,7 +257,7 @@ def serialize_field_with_recipient(field, recipient_info=None):
     else:
         # Fetch recipient from database
         try:
-            recipient = db.recipients.find_one({"_id": ObjectId(field["recipient_id"])})
+            recipient = await db.recipients.find_one({"_id": ObjectId(field["recipient_id"])})
             if recipient:
                 # 🔴 IMPORTANT: Ensure recipient has a color field
                 # Generate color if not present
@@ -489,7 +489,7 @@ def convert_canvas_to_pdf_points(
 
 
 
-def get_document_or_404(document_id: str, user_id: str):
+async def get_document_or_404(document_id: str, user_id: str):
     """Get document with proper authorization."""
     try:
         doc_id = ObjectId(document_id)
@@ -499,7 +499,7 @@ def get_document_or_404(document_id: str, user_id: str):
             detail="Invalid document ID"
         )
 
-    document = db.documents.find_one({
+    document = await db.documents.find_one({
         "_id": doc_id,
         "owner_id": ObjectId(user_id)
     })
@@ -512,7 +512,7 @@ def get_document_or_404(document_id: str, user_id: str):
 
     return document
 
-def get_recipient_or_400(document_id: str, recipient_id: Optional[str]):
+async def get_recipient_or_400(document_id: str, recipient_id: Optional[str]):
     """Validate recipient belongs to document."""
     if not recipient_id:
         # Return a mock for unassigned fields (common in draft/builders)
@@ -526,7 +526,7 @@ def get_recipient_or_400(document_id: str, recipient_id: Optional[str]):
             detail="Invalid recipient ID"
         )
 
-    recipient = db.recipients.find_one({
+    recipient = await db.recipients.find_one({
         "_id": rid,
         "document_id": ObjectId(document_id)
     })
@@ -623,7 +623,7 @@ async def get_all_fields(
         try:
             query["document_id"] = ObjectId(document_id)
             # Verify user has access to this document
-            get_document_or_404(document_id, current_user["id"])
+            await get_document_or_404(document_id, current_user["id"])
         except:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -681,7 +681,7 @@ async def add_or_replace_fields(
     
     Stores coordinates in both canvas pixels AND PDF points for accurate placement.
     """
-    document = get_document_or_404(document_id, current_user["id"])
+    document = await get_document_or_404(document_id, current_user["id"])
     
     # Debug logging
     print(f"📄 Document {document_id} status: {document.get('status')}")
@@ -701,7 +701,7 @@ async def add_or_replace_fields(
     
     # Validate all fields before any database operation
     for f in fields:
-        recipient = get_recipient_or_400(document_id, f.recipient_id)
+        recipient = await get_recipient_or_400(document_id, f.recipient_id)
         role = str(recipient.get("role", "signer"))
         validate_field_role(role, f.type)  
         validate_field_coordinates(f.x, f.y, f.width, f.height)
@@ -710,13 +710,13 @@ async def add_or_replace_fields(
     # Start transaction-like pattern
     try:
         # 🔥 Replace mode: Delete all existing fields for this document
-        db.signature_fields.delete_many({
+        await db.signature_fields.delete_many({
             "document_id": ObjectId(document_id)
         })
 
         # Insert all new fields
         for f in fields:
-            recipient = get_recipient_or_400(document_id, f.recipient_id)
+            recipient = await get_recipient_or_400(document_id, f.recipient_id)
             
             # Convert canvas coordinates to PDF points
             pdf_coords = convert_canvas_to_pdf_points(
@@ -772,12 +772,12 @@ async def add_or_replace_fields(
                 "coordinate_type": "pdf_points_from_bottom"
             }
 
-            result = db.signature_fields.insert_one(field_doc)
+            result = await db.signature_fields.insert_one(field_doc)
             field_doc["_id"] = result.inserted_id
             created_fields.append(serialize_field(field_doc))
 
         # Update document's last modified timestamp
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {"last_modified": datetime.utcnow()}}
         )
@@ -812,7 +812,7 @@ async def get_document_fields(
     
     Returns coordinates in PDF points as stored.
     """
-    get_document_or_404(document_id, current_user["id"])
+    await get_document_or_404(document_id, current_user["id"])
 
     query = {"document_id": ObjectId(document_id)}
 
@@ -848,7 +848,7 @@ async def get_field(
     current_user: dict = Depends(get_current_user)
 ):
     """Get a specific field by ID."""
-    get_document_or_404(document_id, current_user["id"])
+    await get_document_or_404(document_id, current_user["id"])
 
     try:
         field_obj_id = ObjectId(field_id)
@@ -858,7 +858,7 @@ async def get_field(
             detail="Invalid field ID"
         )
 
-    field = db.signature_fields.find_one({
+    field = await db.signature_fields.find_one({
         "_id": field_obj_id,
         "document_id": ObjectId(document_id)
     })
@@ -884,7 +884,7 @@ async def update_field(
     Note: When updating coordinates, you need to provide all canvas info again
     or we'll need to store the original canvas context.
     """
-    document = get_document_or_404(document_id, current_user["id"])
+    document = await get_document_or_404(document_id, current_user["id"])
 
     if document["status"] != "draft":
         raise HTTPException(
@@ -901,7 +901,7 @@ async def update_field(
         )
 
     # Get existing field
-    field = db.signature_fields.find_one({
+    field = await db.signature_fields.find_one({
         "_id": field_obj_id,
         "document_id": ObjectId(document_id)
     })
@@ -914,7 +914,7 @@ async def update_field(
 
     # Get recipient for role validation if type is being changed
     if update_data.type:
-        recipient = db.recipients.find_one({"_id": field["recipient_id"]})
+        recipient = await db.recipients.find_one({"_id": field["recipient_id"]})
         if recipient:
             validate_field_role(recipient["role"], update_data.type.value)
 
@@ -933,7 +933,7 @@ async def update_field(
     update_dict["modified_at"] = datetime.utcnow()
 
     # Perform update
-    result = db.signature_fields.update_one(
+    result = await db.signature_fields.update_one(
         {"_id": field_obj_id},
         {"$set": update_dict}
     )
@@ -945,7 +945,7 @@ async def update_field(
         )
 
     # Return updated field
-    updated_field = db.signature_fields.find_one({"_id": field_obj_id})
+    updated_field = await db.signature_fields.find_one({"_id": field_obj_id})
     return serialize_field(updated_field)
 
 @router.delete("/{document_id}/fields/{field_id}")
@@ -955,7 +955,7 @@ async def delete_field(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a specific field."""
-    document = get_document_or_404(document_id, current_user["id"])
+    document = await get_document_or_404(document_id, current_user["id"])
 
     if document["status"] != "draft":
         raise HTTPException(
@@ -971,7 +971,7 @@ async def delete_field(
             detail="Invalid field ID"
         )
 
-    result = db.signature_fields.delete_one({
+    result = await db.signature_fields.delete_one({
         "_id": field_obj_id,
         "document_id": ObjectId(document_id)
     })
@@ -993,7 +993,7 @@ async def get_fields_by_recipient(
     """
     Get all fields assigned to a specific recipient in a document.
     """
-    get_document_or_404(document_id, current_user["id"])
+    await get_document_or_404(document_id, current_user["id"])
 
     try:
         rid = ObjectId(recipient_id)

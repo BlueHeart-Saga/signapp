@@ -105,12 +105,12 @@ async def get_user_document_stats(user_id: str) -> Dict[str, int]:
             return {"documents_created": 0, "documents_signed": 0}
         
         # Count documents created by user
-        documents_created = db.documents.count_documents({
+        documents_created = await db.documents.count_documents({
             "created_by": user_id
         })
         
         # Count documents signed by user (if recipient)
-        documents_signed = db.documents.count_documents({
+        documents_signed = await db.documents.count_documents({
             "recipients.user_id": user_id,
             "recipients.signed_at": {"$exists": True}
         })
@@ -127,7 +127,7 @@ async def get_user_login_stats(user_id: str) -> Dict[str, Any]:
     """Get login statistics for a user"""
     try:
         # Get user first
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             return {"last_login_at": None, "login_count_30d": 0}
         
@@ -140,14 +140,14 @@ async def get_user_login_stats(user_id: str) -> Dict[str, Any]:
             }
         
         # Get last login from auth logs
-        last_login = db.auth_logs.find_one(
+        last_login = await db.auth_logs.find_one(
             {"user_id": user_id, "action": "login"},
             sort=[("created_at", -1)]
         )
         
         # Count logins in last 30 days
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        login_count_30d = db.auth_logs.count_documents({
+        login_count_30d = await db.auth_logs.count_documents({
             "user_id": user_id,
             "action": "login",
             "created_at": {"$gte": thirty_days_ago}
@@ -189,7 +189,7 @@ async def get_all_users(
         query = build_user_query(search_query)
         
         # Count total matching users
-        total_users = db.users.count_documents(query)
+        total_users = await db.users.count_documents(query)
         
         # Calculate pagination
         total_pages = math.ceil(total_users / pagination.limit)
@@ -266,7 +266,7 @@ async def get_user_details(
             )
         
         # Get user
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -373,7 +373,7 @@ async def create_user_admin(
     """
     try:
         # Check if user already exists
-        existing_user = db.users.find_one({"email": user_data.email.lower()})
+        existing_user = await db.users.find_one({"email": user_data.email.lower()})
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -414,10 +414,10 @@ async def create_user_admin(
             })
         
         # Insert user
-        result = db.users.insert_one(user_doc)
+        result = await db.users.insert_one(user_doc)
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "create_user",
@@ -432,7 +432,7 @@ async def create_user_admin(
         })
         
         # Get the created user
-        created_user = db.users.find_one({"_id": result.inserted_id})
+        created_user = await db.users.find_one({"_id": result.inserted_id})
         
         return {
             "message": "User created successfully",
@@ -474,7 +474,7 @@ async def update_user(
             )
         
         # Get user
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -505,7 +505,7 @@ async def update_user(
         update_dict["updated_at"] = datetime.utcnow()
         
         # Perform update
-        result = db.users.update_one(
+        result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": update_dict}
         )
@@ -517,7 +517,7 @@ async def update_user(
             )
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "update_user",
@@ -528,7 +528,7 @@ async def update_user(
         })
         
         # Get updated user
-        updated_user = db.users.find_one({"_id": ObjectId(user_id)})
+        updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
         
         return {
             "message": "User updated successfully",
@@ -563,7 +563,7 @@ async def delete_user(
             )
         
         # Get user
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -589,13 +589,13 @@ async def delete_user(
             "updated_at": datetime.utcnow()
         }
         
-        result = db.users.update_one(
+        result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": delete_update}
         )
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "delete_user",
@@ -639,7 +639,7 @@ async def reset_user_password_admin(
             )
         
         # Get user
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -649,7 +649,7 @@ async def reset_user_password_admin(
         # Update password
         hashed_password = pwd_ctx.hash(new_password)
         
-        result = db.users.update_one(
+        result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "password": hashed_password,
@@ -660,7 +660,7 @@ async def reset_user_password_admin(
         )
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "reset_password",
@@ -701,7 +701,7 @@ async def activate_user(
             )
         
         # Activate user
-        result = db.users.update_one(
+        result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "is_active": True,
@@ -718,7 +718,7 @@ async def activate_user(
             )
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "activate_user",
@@ -757,7 +757,7 @@ async def deactivate_user(
             )
         
         # Get user
-        user = db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -772,7 +772,7 @@ async def deactivate_user(
             )
         
         # Deactivate user
-        result = db.users.update_one(
+        result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "is_active": False,
@@ -783,7 +783,7 @@ async def deactivate_user(
         )
         
         # Log the action
-        db.admin_logs.insert_one({
+        await db.admin_logs.insert_one({
             "admin_id": str(current_user["id"]),
             "admin_email": current_user["email"],
             "action": "deactivate_user",
@@ -828,32 +828,32 @@ async def get_user_statistics(
         thirty_days_ago = now - timedelta(days=30)
         
         # Total users
-        total_users = db.users.count_documents({})
+        total_users = await db.users.count_documents({})
         
         # Active users
-        active_users = db.users.count_documents({"is_active": True})
+        active_users = await db.users.count_documents({"is_active": True})
         
         # Verified users
-        verified_users = db.users.count_documents({"email_verified": True})
+        verified_users = await db.users.count_documents({"email_verified": True})
         
         # Users by role
         users_by_role = {}
         roles = ["admin", "user", "recipient"]
         for role in roles:
-            users_by_role[role] = db.users.count_documents({"role": role})
+            users_by_role[role] = await db.users.count_documents({"role": role})
         
         # New users in last 7 days
-        new_users_7d = db.users.count_documents({
+        new_users_7d = await db.users.count_documents({
             "created_at": {"$gte": seven_days_ago}
         })
         
         # New users in last 30 days
-        new_users_30d = db.users.count_documents({
+        new_users_30d = await db.users.count_documents({
             "created_at": {"$gte": thirty_days_ago}
         })
         
         # Recipients with signatures
-        recipients_with_signatures = db.users.count_documents({
+        recipients_with_signatures = await db.users.count_documents({
             "role": "recipient",
             "signature_count": {"$gt": 0}
         })
@@ -872,7 +872,7 @@ async def get_user_statistics(
             month_start = datetime(now.year, now.month - i, 1) if now.month > i else datetime(now.year - 1, now.month + 12 - i, 1)
             month_end = datetime(month_start.year, month_start.month % 12 + 1, 1) if month_start.month < 12 else datetime(month_start.year + 1, 1, 1)
             
-            monthly_count = db.users.count_documents({
+            monthly_count = await db.users.count_documents({
                 "created_at": {"$gte": month_start, "$lt": month_end}
             })
             
@@ -891,7 +891,7 @@ async def get_user_statistics(
                 hour_end = hour_start + timedelta(hours=1)
                 
                 # Count logins in this hour
-                login_count = db.auth_logs.count_documents({
+                login_count = await db.auth_logs.count_documents({
                     "action": "login",
                     "created_at": {"$gte": hour_start, "$lt": hour_end}
                 })
@@ -950,12 +950,12 @@ async def get_user_activity_stats(
         start_date = end_date - timedelta(days=days)
         
         # Get active users in period
-        active_users = db.users.count_documents({
+        active_users = await db.users.count_documents({
             "updated_at": {"$gte": start_date}
         })
         
         # Get new users in period
-        new_users = db.users.count_documents({
+        new_users = await db.users.count_documents({
             "created_at": {"$gte": start_date}
         })
         
@@ -967,7 +967,7 @@ async def get_user_activity_stats(
                 day = start_date + timedelta(days=i)
                 day_str = day.strftime("%Y-%m-%d")
                 
-                login_count = db.auth_logs.count_documents({
+                login_count = await db.auth_logs.count_documents({
                     "action": "login",
                     "created_at": {"$gte": day, "$lt": day + timedelta(days=1)}
                 })
@@ -979,14 +979,14 @@ async def get_user_activity_stats(
         # Get document creation activity - only if documents exists
         document_creation = 0
         if "documents" in db.list_collection_names():
-            document_creation = db.documents.count_documents({
+            document_creation = await db.documents.count_documents({
                 "created_at": {"$gte": start_date}
             })
         
         # Get signature activity - only if documents exists
         signature_activity = 0
         if "documents" in db.list_collection_names():
-            signature_activity = db.documents.count_documents({
+            signature_activity = await db.documents.count_documents({
                 "recipients.signed_at": {"$gte": start_date}
             })
         
@@ -1003,11 +1003,11 @@ async def get_user_activity_stats(
                 {"$limit": 10}
             ]
             
-            top_active_users = list(db.activity_logs.aggregate(pipeline))
+            top_active_users = await db.activity_logs.aggregate(pipeline).to_list(length=1000)
             
             # Convert to readable format
             for user in top_active_users:
-                user_doc = db.users.find_one({"_id": ObjectId(user["_id"])})
+                user_doc = await db.users.find_one({"_id": ObjectId(user["_id"])})
                 if user_doc:
                     top_users_formatted.append({
                         "user_id": str(user_doc["_id"]),
@@ -1074,7 +1074,7 @@ async def export_users_csv(
     """
     try:
         # Get all users
-        users = list(db.users.find({}))
+        users = await db.users.find({}).to_list(length=1000)
         
         # Create CSV header
         csv_header = [
@@ -1179,7 +1179,7 @@ async def get_admin_logs(
                 query["created_at"] = date_query
         
         # Count total logs
-        total_logs = db.admin_logs.count_documents(query)
+        total_logs = await db.admin_logs.count_documents(query)
         
         # Calculate pagination
         total_pages = math.ceil(total_logs / limit)
@@ -1224,15 +1224,15 @@ async def get_dashboard_summary(
         last_month = now - timedelta(days=30)
         
         # User statistics - check if collections exist
-        total_users = db.users.count_documents({})
-        active_users = db.users.count_documents({"is_active": True})
-        new_users_today = db.users.count_documents({"created_at": {"$gte": yesterday}})
-        new_users_week = db.users.count_documents({"created_at": {"$gte": last_week}})
+        total_users = await db.users.count_documents({})
+        active_users = await db.users.count_documents({"is_active": True})
+        new_users_today = await db.users.count_documents({"created_at": {"$gte": yesterday}})
+        new_users_week = await db.users.count_documents({"created_at": {"$gte": last_week}})
         
         # Document statistics
-        total_documents = db.documents.count_documents({})
-        pending_documents = db.documents.count_documents({"status": "pending"})
-        completed_documents = db.documents.count_documents({"status": "completed"})
+        total_documents = await db.documents.count_documents({})
+        pending_documents = await db.documents.count_documents({"status": "pending"})
+        completed_documents = await db.documents.count_documents({"status": "completed"})
         
         # Recent users
         recent_users = list(db.users.find({}, {"email": 1, "full_name": 1, "role": 1, "created_at": 1})
@@ -1264,7 +1264,7 @@ async def get_dashboard_summary(
             completion_rate = 0
         
         # Calculate user growth percentage
-        users_last_month = db.users.count_documents({
+        users_last_month = await db.users.count_documents({
             "created_at": {"$gte": last_month, "$lt": last_week}
         })
         if users_last_month > 0:
@@ -1293,7 +1293,7 @@ async def get_dashboard_summary(
             "performance": {
                 "avg_response_time": 125,  # ms - you can calculate this from logs
                 "uptime": 99.8,  # percentage
-                "active_sessions": db.sessions.count_documents({}) if "sessions" in db.list_collection_names() else 0
+                "active_sessions": await db.sessions.count_documents({}) if "sessions" in db.list_collection_names() else 0
             }
         }
         

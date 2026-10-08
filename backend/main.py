@@ -22,19 +22,18 @@ async def run_automated_tasks():
     """
     while True:
         try:
-            # Atomic lock check/set using MongoDB
-            # We use a lock that expires every 50 minutes (slightly less than the 1h sleep)
+            # Atomic lock check/set using MongoDB AsyncMongoClient
             lock_name = "automated_tasks_lock"
             now = datetime.utcnow()
             
             # Find the lock or create it
-            lock = db.locks.find_one({"name": lock_name})
+            lock = await db.locks.find_one({"name": lock_name})
             
             should_run = False
             if not lock:
                 # Create lock
                 try:
-                    db.locks.insert_one({
+                    await db.locks.insert_one({
                         "name": lock_name,
                         "last_run": now,
                         "locked_by": os.getpid()
@@ -46,7 +45,7 @@ async def run_automated_tasks():
                 # Check if lock is old enough (at least 55 mins since last run)
                 last_run = lock.get("last_run")
                 if last_run and (now - last_run).total_seconds() > 3300:
-                    result = db.locks.update_one(
+                    result = await db.locks.update_one(
                         {"name": lock_name, "last_run": last_run}, # Atomic check
                         {"$set": {"last_run": now, "locked_by": os.getpid()}}
                     )
@@ -72,29 +71,55 @@ async def run_automated_tasks():
         # Check every 5 minutes if we can acquire the lock
         await asyncio.sleep(300)
 
+from services.job_queue import JobQueue
+import time
+import uuid
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("[SERVER] Esigniva Backend Starting...")
     
+    # Start JobQueue Background Worker Pool
+    try:
+        await JobQueue.start_worker(poll_interval_seconds=2.0)
+        print("[SERVER] JobQueue background worker initialized.")
+    except Exception as jq_err:
+        print(f"[SERVER] JobQueue worker startup notice: {jq_err}")
+
     # Ensure distributed lock collection has unique index
     try:
-        db.locks.create_index("name", unique=True)
-    except:
+        await db.locks.create_index("name", unique=True)
+    except Exception:
         pass
+
+    # Ensure application DB indexes exist for high-performance query execution
+    try:
+        await db.documents.create_index([("owner_id", 1), ("status", 1), ("created_at", -1)])
+        await db.documents.create_index([("owner_id", 1), ("updated_at", -1)])
+        await db.recipients.create_index([("document_id", 1), ("signing_order", 1)])
+        await db.recipients.create_index([("email", 1), ("status", 1)])
+        await db.recipients.create_index([("signing_token_hash", 1)], unique=True)
+        await db.audit_logs.create_index([("document_id", 1), ("created_at", 1)])
+        await db.notifications.create_index([("user_id", 1), ("read", 1), ("created_at", -1)])
+        await db.jobs.create_index([("status", 1), ("scheduled_at", 1)])
+        await db.jobs.create_index("idempotency_key", unique=True, sparse=True)
+        print("[SERVER] Database indexes initialized successfully.")
+    except Exception as index_err:
+        print(f"[SERVER] Database index initialization notice: {index_err}")
 
     # Ensure branding collection in MongoDB has platform_name set to Esigniva
     try:
-        existing_branding = db.branding.find_one({})
+        existing_branding = await db.branding.find_one({})
         if not existing_branding:
-            db.branding.insert_one({
+            await db.branding.insert_one({
                 "platform_name": "Esigniva",
                 "tagline": "Secure Digital Document Signing",
                 "updated_at": datetime.utcnow()
             })
             print("[SERVER] Initialized DB branding with platform_name: Esigniva")
         elif existing_branding.get("platform_name") != "Esigniva":
-            db.branding.update_one(
+            await db.branding.update_one(
                 {"_id": existing_branding["_id"]},
                 {"$set": {"platform_name": "Esigniva", "updated_at": datetime.utcnow()}}
             )
@@ -109,6 +134,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("[SERVER] Esigniva Backend Shutting Down...")
+    await JobQueue.stop_worker()
     task.cancel()
     try:
         await task
@@ -119,6 +145,23 @@ app = FastAPI(
     title="Esigniva API",
     lifespan=lifespan
 )
+
+# Structured Request Timing Middleware
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.perf_counter()
+    
+    response = await call_next(request)
+    
+    process_time_ms = (time.perf_counter() - start_time) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time-MS"] = f"{process_time_ms:.2f}"
+    
+    if process_time_ms > 1000:
+        print(f"[SLOW-REQUEST] {request.method} {request.url.path} took {process_time_ms:.2f}ms (Status: {response.status_code}, ID: {request_id})")
+        
+    return response
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(BASE_DIR, "static")
@@ -144,8 +187,11 @@ app.add_middleware(
 origins = [
     "http://localhost:3001",  # Local frontend
     "https://esigniva.devopstrio.co.uk",  # Production custom domain
+    "https://esigniva.com",  # Production custom domain (esigniva.com)
+    "https://www.esigniva.com",  # Production custom domain (www.esigniva.com)
     "https://esigniva-a9ecdcb9h2h8dwe7.southindia-01.azurewebsites.net",  # New Azure Web App
     "https://signapp-dtg2a4a8dca0evb8.southindia-01.azurewebsites.net",  # QA Azure Web App
+    "https://safesign.devopstrio.co.uk"
 ]
 
 

@@ -69,9 +69,9 @@ class EsignivaSummaryEngine:
     WHITE = "#FFFFFF"
 
     @staticmethod
-    def _get_branding_data():
+    async def _get_branding_data():
         """Retrieve logo and platform name from DB/Azure"""
-        branding = db.branding.find_one({})
+        branding = await db.branding.find_one({})
         logo_img = None
         platform_name = "Esigniva"
         tagline = "Secure Digital Signatures"
@@ -325,7 +325,7 @@ class EsignivaSummaryEngine:
         return story
     
     @staticmethod
-    def create_document_summary_pdf(summary_data):
+    async def create_document_summary_pdf(summary_data):
         """
         Generate professional DocuSign-style document summary PDF
         Clean green, black & white design with all detailed information
@@ -348,7 +348,7 @@ class EsignivaSummaryEngine:
         story = []
         
         # Fetch platform branding
-        logo_img, platform_name, tagline = EsignivaSummaryEngine._get_branding_data()
+        logo_img, platform_name, tagline = await EsignivaSummaryEngine._get_branding_data()
         
         # ========== CUSTOM STYLES - DocuSign Inspired ==========
         
@@ -1280,14 +1280,14 @@ class EsignivaCertificateEngine:
         return f"<font name='Helvetica-Bold' size='8' color='{color}'><back color='{bg_color}'>  {text}  </back></font>"
     
     @staticmethod
-    def create_certificate_pdf(certificate_data):
+    async def create_certificate_pdf(certificate_data):
         """
         Generate professional Certificate of Completion matching summary style
         """
         buffer = io.BytesIO()
         
         # Fetch branding
-        logo_img, platform_name, tagline = EsignivaSummaryEngine._get_branding_data()
+        logo_img, platform_name, tagline = await EsignivaSummaryEngine._get_branding_data()
         
         doc = SimpleDocTemplate(
             buffer,
@@ -2017,7 +2017,7 @@ def get_standard_email_footer():
     """
 
 
-def send_email(to_email: str, subject: str, html_content: str, images: Optional[Dict[str, bytes]] = None) -> bool:
+async def send_email(to_email: str, subject: str, html_content: str, images: Optional[Dict[str, bytes]] = None) -> bool:
     """Send email using SMTP with support for embedded images (CIDs)"""
     try:
         # Create message - 'related' is required for embedding images (CID)
@@ -2026,7 +2026,7 @@ def send_email(to_email: str, subject: str, html_content: str, images: Optional[
         
         # DYNAMIC SENDER NAME
         try:
-            branding = db.branding.find_one({}) or {}
+            branding = await db.branding.find_one({}) or {}
             platform_name = branding.get("platform_name", "Esigniva Team")
             if "Team" not in platform_name:
                 display_name = f"{platform_name} Team"
@@ -2057,11 +2057,15 @@ def send_email(to_email: str, subject: str, html_content: str, images: Optional[
                     msg_image.add_header('Content-Disposition', 'inline', filename=f"{cid}.{subtype}")
                     msg.attach(msg_image)
         
-        # Connect to SMTP server and send
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.send_message(msg)
+        # Connect to SMTP server and send off-thread
+        def _send_smtp():
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
+
+        import asyncio
+        await asyncio.to_thread(_send_smtp)
         
         print(f"Email sent to {to_email}")
         return True
@@ -2095,13 +2099,13 @@ def get_action_button_text(role: str) -> str:
     return action_texts.get(role, "Review Document")
 
 # Add this function
-def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = False) -> bool:
+async def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = False) -> bool:
     """Send OTP email to recipient for verification with consistent UI design"""
     action_url = f"{FRONTEND_URL}/verify/{recipient['_id']}"
     role = recipient.get('role', 'signer')
     
     # Get branding info
-    branding = db.branding.find_one({}) or {}
+    branding = await db.branding.find_one({}) or {}
     platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     current_year = datetime.now().strftime('%Y')
@@ -2109,7 +2113,7 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     login_url = f"{FRONTEND_URL}/login"
     
     # Get sender information
-    sender = db.users.find_one({"_id": document["owner_id"]})
+    sender = await db.users.find_one({"_id": document["owner_id"]})
     sender_name = sender.get("full_name", "") or sender.get("name", "") if sender else document.get("owner_email", "")
     sender_email = document.get("owner_email", "")
     sender_organization = sender.get("organization_name", "") if sender else ""
@@ -2377,7 +2381,7 @@ def send_otp_email(recipient: dict, document: dict, otp: str, is_resend: bool = 
     """
     
     subject = f"{'🔐' if not is_resend else '🔁'} OTP Verification - {document['filename']}"
-    return send_email(recipient['email'], subject, html_content)
+    return await send_email(recipient['email'], subject, html_content)
 
 def build_completion_summary_html(recipients: list) -> str:
     """Build a professional HTML table showing recipient completion status and timeline."""
@@ -2428,7 +2432,7 @@ def build_completion_summary_html(recipients: list) -> str:
     </div>
     """
 
-def send_recipient_activity_notification_to_owner(
+async def send_recipient_activity_notification_to_owner(
     recipient: dict,
     document: dict,
     status: str = "completed"
@@ -2439,13 +2443,13 @@ def send_recipient_activity_notification_to_owner(
     """
     try:
         # Get branding info
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         current_year = datetime.now().strftime('%Y')
         
         # Get owner/sender info
-        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner = await db.users.find_one({"_id": document["owner_id"]})
         owner_email = document.get("owner_email") or (owner.get("email") if owner else "")
         if not owner_email:
             print("❌ Cannot notify owner: Owner email missing")
@@ -2588,7 +2592,7 @@ def send_recipient_activity_notification_to_owner(
         """
         
         # Check idempotency to avoid double notifications for the same status
-        existing = db.document_activity.find_one({
+        existing = await db.document_activity.find_one({
             "document_id": document["_id"],
             "action": f"owner_notified_{status}",
             "recipient_email": recipient_email
@@ -2604,11 +2608,11 @@ def send_recipient_activity_notification_to_owner(
             receiver_url = f"https://{receiver_url}"
 
         # Send email
-        success = send_email(owner_email, subject, html_content, images=images)
+        success = await send_email(owner_email, subject, html_content, images=images)
         
         if success:
             # Log the notification in activity
-            db.document_activity.insert_one({
+            await db.document_activity.insert_one({
                 "document_id": document["_id"],
                 "action": f"owner_notified_{status}",
                 "recipient_email": recipient_email,
@@ -2691,7 +2695,7 @@ def get_role_emoji(role: str) -> str:
     }
     return emojis.get(role, "📄")
 
-def send_role_based_email(recipient: dict, document: dict, otp: str, 
+async def send_role_based_email(recipient: dict, document: dict, otp: str, 
                          common_message: str = "", personal_message: str = "") -> bool:
     """Send role-based email to recipient with common and personal messages"""
     action_url = f"{FRONTEND_URL}/verify/{recipient['_id']}"
@@ -2700,7 +2704,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
     action_button = get_action_button_text(role)
     
     # Get branding info
-    branding = db.branding.find_one({}) or {}
+    branding = await db.branding.find_one({}) or {}
     platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     current_year = datetime.now().strftime('%Y')
@@ -2708,7 +2712,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
     login_url = f"{FRONTEND_URL}/login"
     
     # Get sender (owner) information
-    sender = db.users.find_one({"_id": document["owner_id"]})
+    sender = await db.users.find_one({"_id": document["owner_id"]})
     sender_name = sender.get("full_name", "") or sender.get("name", "") if sender else document.get("owner_email", "")
     sender_email = document.get("owner_email", "")
     sender_organization = sender.get("organization_name", "") if sender else ""
@@ -2891,7 +2895,7 @@ def send_role_based_email(recipient: dict, document: dict, otp: str,
         """
     
     subject = f"Action Required: Please {role_description} - {document['filename']}"
-    return send_email(recipient['email'], subject, html_content)
+    return await send_email(recipient['email'], subject, html_content)
 
 async def send_bulk_invites(
     document_id: str, 
@@ -2901,11 +2905,11 @@ async def send_bulk_invites(
     sender_email: str
 ):
     """Send invitation emails to multiple recipients with role-based content and messages"""
-    document = db.documents.find_one({"_id": ObjectId(document_id)})
+    document = await db.documents.find_one({"_id": ObjectId(document_id)})
     
     # Update document with common message if not already set
     if common_message:
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {"common_message": common_message}}
         )
@@ -2933,13 +2937,13 @@ async def send_bulk_invites(
                 "personal_message": personal_message
             }
             
-            db.recipients.update_one(
+            await db.recipients.update_one(
                 {"_id": recipient["_id"]},
                 {"$set": update_data}
             )
             
             # Send role-based email with both messages
-            success = send_role_based_email(
+            success = await send_role_based_email(
                 recipient=recipient,
                 document=document,
                 otp=otp,
@@ -2948,7 +2952,7 @@ async def send_bulk_invites(
             )
             
             if success:
-                db.recipients.update_one(
+                await db.recipients.update_one(
                     {"_id": recipient["_id"]},
                     {"$set": {
                         "status": "sent",
@@ -2959,7 +2963,7 @@ async def send_bulk_invites(
                 print(f"{recipient.get('role', 'signer').title()} invitation sent to {recipient['email']}")
                 
                 # Log successful send
-                db.document_activity.insert_one({
+                await db.document_activity.insert_one({
                     "document_id": ObjectId(document_id),
                     "action": "invite_sent",
                     "recipient_email": recipient["email"],
@@ -2972,7 +2976,7 @@ async def send_bulk_invites(
                 })
             else:
                 print(f"❌ Failed to send invitation to {recipient['email']}")
-                db.recipients.update_one(
+                await db.recipients.update_one(
                     {"_id": recipient["_id"]},
                     {"$set": {"status": "invite_failed"}}
                 )
@@ -2980,7 +2984,7 @@ async def send_bulk_invites(
         except Exception as e:
             print(f" Error sending to {recipient['email']}: {str(e)}")
             # Log error
-            db.error_logs.insert_one({
+            await db.error_logs.insert_one({
                 "document_id": ObjectId(document_id),
                 "recipient_email": recipient.get("email"),
                 "error": str(e),
@@ -2998,7 +3002,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     otp_digits_html = "".join([f'<span class="otp-digit">{d}</span>' for d in str(new_otp)])
     
     # Update recipient with new OTP
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": recipient["_id"]},
         {"$set": {
             "otp": new_otp,
@@ -3012,7 +3016,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     action_button = get_action_button_text(role)
     
     # Get branding info
-    branding = db.branding.find_one({}) or {}
+    branding = await db.branding.find_one({}) or {}
     platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     
@@ -3120,7 +3124,7 @@ async def send_reminder_email(recipient: dict, document: dict, sender_email: str
     """
     
     subject = f"Reminder: {document['filename']}"
-    success = send_email(recipient['email'], subject, html_content)
+    success = await send_email(recipient['email'], subject, html_content)
     
     if success:
         print(f"Reminder sent to {recipient['email']} | New OTP: {new_otp}")
@@ -3342,7 +3346,7 @@ async def send_completed_document_to_recipients(document_id: str):
     """
     try:
         # Get document
-        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        document = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not document:
             print(f"❌ Document {document_id} not found")
             return False
@@ -3364,7 +3368,7 @@ async def send_completed_document_to_recipients(document_id: str):
                 
             # Apply all completed fields dynamically
             print(f"Generating optimized signed PDF for completion emails (Document ID: {document_id})")
-            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+            pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
             
             # ADDING ENVELOPE HEADER & WATERMARK (MATCHES DOWNLOAD)
             # This ensures emailed documents look professional and consistent
@@ -3408,19 +3412,19 @@ async def send_completed_document_to_recipients(document_id: str):
                 return False
         
         # Get all recipients
-        recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+        recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
         if not recipients:
             print(f"❌ No recipients found for document {document_id}")
             return False
         
         # Get document owner/sender info
-        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner = await db.users.find_one({"_id": document["owner_id"]})
         sender_email = document.get("owner_email", "")
         sender_name = owner.get("full_name", "") or owner.get("name", "") if owner else ""
         sender_organization = owner.get("organization_name", "") if owner else ""
         
         # Get branding info
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
@@ -3459,7 +3463,7 @@ async def send_completed_document_to_recipients(document_id: str):
                     print(f"Sent completed document to {recipient_email}")
                     
                     # Log the email send
-                    db.document_activity.insert_one({
+                    await db.document_activity.insert_one({
                         "document_id": ObjectId(document_id),
                         "action": "completed_document_sent",
                         "recipient_email": recipient_email,
@@ -3496,14 +3500,14 @@ async def send_completed_document_to_recipients(document_id: str):
         
         # Only update if we actually sent emails (success or failure)
         if success_count > 0 or len(failed_recipients) > 0:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": ObjectId(document_id)},
                 {"$set": update_data}
             )
             
             # Store failed recipients for retry purposes
             if failed_recipients:
-                db.failed_email_attempts.insert_one({
+                await db.failed_email_attempts.insert_one({
                     "document_id": ObjectId(document_id),
                     "timestamp": datetime.utcnow(),
                     "failed_recipients": failed_recipients,
@@ -3540,7 +3544,7 @@ async def send_document_completion_email(
     """
     try:
         # Get branding info
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         current_year = datetime.now().strftime('%Y')
@@ -3880,7 +3884,7 @@ async def send_completed_document_package(document_id: str):
     """
     try:
         # Get document
-        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        document = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not document:
             print(f"❌ Document {document_id} not found")
             return False
@@ -3891,18 +3895,18 @@ async def send_completed_document_package(document_id: str):
             return False
         
         # Get document owner/sender info
-        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner = await db.users.find_one({"_id": document["owner_id"]})
         sender_email = document.get("owner_email", "")
         sender_name = owner.get("full_name", "") or owner.get("name", "") if owner else ""
         sender_organization = owner.get("organization_name", "") if owner else ""
         
         # Get branding info
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
         # Get all recipients
-        recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+        recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
         if not recipients:
             print(f"❌ No recipients found for document {document_id}")
             return False
@@ -3974,7 +3978,7 @@ async def send_completed_document_package(document_id: str):
                         
                         # Log the email send
                         current_recipient = target["recipient_obj"]
-                        db.document_activity.insert_one({
+                        await db.document_activity.insert_one({
                             "document_id": ObjectId(document_id),
                             "action": "completed_package_sent",
                             "recipient_email": recipient_email,
@@ -4019,14 +4023,14 @@ async def send_completed_document_package(document_id: str):
         
         # Only update if we actually sent emails (success or failure)
         if success_count > 0 or len(failed_recipients) > 0:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": ObjectId(document_id)},
                 {"$set": update_data}
             )
             
             # Store failed recipients for retry purposes
             if failed_recipients:
-                db.failed_email_attempts.insert_one({
+                await db.failed_email_attempts.insert_one({
                     "document_id": ObjectId(document_id),
                     "timestamp": datetime.utcnow(),
                     "failed_recipients": failed_recipients,
@@ -4086,7 +4090,7 @@ async def generate_document_package(
                 # Use unified rendering logic to get the perfect signed PDF
                 signed_pdf_bytes = load_document_pdf(document, str(document["_id"]))
                 if signed_pdf_bytes:
-                    signed_pdf_bytes = apply_completed_fields_to_pdf(signed_pdf_bytes, str(document["_id"]), document)
+                    signed_pdf_bytes = await apply_completed_fields_to_pdf(signed_pdf_bytes, str(document["_id"]), document)
                     
                     # Ensure filename has .pdf extension
                     bare_filename = base_name
@@ -4134,7 +4138,7 @@ async def generate_document_package(
             # 3. Generate and add DOCUMENT SUMMARY
             try:
                 summary_data = await prepare_summary_data(document, recipient)
-                summary_pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
+                summary_pdf_bytes = await EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
                 summary_filename = f"summary_{base_name}.pdf"
                 zip_file.writestr(summary_filename, summary_pdf_bytes)
                 print(f"Added document summary: {summary_filename}")
@@ -4144,7 +4148,7 @@ async def generate_document_package(
             # 4. Generate and add CERTIFICATE OF COMPLETION
             try:
                 certificate_data = await prepare_certificate_data(document, recipient)
-                certificate_pdf_bytes = EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
+                certificate_pdf_bytes = await EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
                 certificate_filename = f"certificate_{base_name}.pdf"
                 zip_file.writestr(certificate_filename, certificate_pdf_bytes)
                 print(f"Added certificate: {certificate_filename}")
@@ -4175,7 +4179,7 @@ async def generate_document_package(
                                 
                                 # Use recipient name if possible
                                 rec_id = attr.get("recipient_id")
-                                rec = db.recipients.find_one({"_id": ObjectId(rec_id)})
+                                rec = await db.recipients.find_one({"_id": ObjectId(rec_id)})
                                 rec_name = re.sub(r'[^\w\s-]', '', rec.get('name', 'recipient'))[:20] if rec else "unknown"
                                 
                                 # Construct filename
@@ -4249,7 +4253,7 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
         }).sort("timestamp", -1).limit(20))
         
         # Get document owner info
-        owner = db.users.find_one({"_id": document.get("owner_id")})
+        owner = await db.users.find_one({"_id": document.get("owner_id")})
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
         
         # Format dates
@@ -4497,12 +4501,12 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
             })
         
         # Get document owner
-        owner = db.users.find_one({"_id": document.get("owner_id")})
+        owner = await db.users.find_one({"_id": document.get("owner_id")})
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
         
         # Get sender IP
         sender_ip = "Unknown"
-        sent_log = db.document_timeline.find_one({
+        sent_log = await db.document_timeline.find_one({
             "document_id": document_id,
             "action": "upload_document"
         })
@@ -4820,7 +4824,7 @@ async def trigger_completed_emails(
     Sends to all recipients and the document owner.
     """
     try:
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             return {"success": False, "message": "Document not found"}
             
@@ -4848,7 +4852,7 @@ async def send_expiration_email_to_owner(document: dict):
     envelope_id = document.get("envelope_id", "N/A")
     
     # Get branding info
-    branding = db.branding.find_one({}) or {}
+    branding = await db.branding.find_one({}) or {}
     platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     
@@ -4956,7 +4960,7 @@ async def send_expiration_email_to_recipient(recipient: dict, document: dict):
     owner_name = document.get("owner_name") or document.get("owner_email", "The sender")
     
     # Get branding info
-    branding = db.branding.find_one({}) or {}
+    branding = await db.branding.find_one({}) or {}
     platform_name = branding.get("platform_name", "Esigniva")
     logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
     

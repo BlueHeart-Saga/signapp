@@ -24,3 +24,8 @@ class StorageProvider(ABC):
     def get_url(self, file_identifier: str) -> str:
         """Get public URL for file (if applicable)"""
         pass
+
+    @abstractmethod
+    def generate_signed_url(self, file_identifier: str, expires_in_seconds: int = 900) -> str:
+        """Generate short-lived signed URL (SAS URL) for private direct transfers"""
+        pass

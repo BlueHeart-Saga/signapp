@@ -65,14 +65,14 @@ const TemplatesHome = () => {
         </div>
 
         <div className="tmh-feature-image">
-          <img src="/images/live-status.png" alt="live status updates" />
+          <img src="/images/live-status.png" alt="live status updates" loading="lazy" decoding="async" />
         </div>
       </section>
 
       {/* FEATURE 2 */}
       <section className="tmh-feature tmh-feature-reverse">
         <div className="tmh-feature-image">
-          <img src="/images/activity-timeline.png" alt="activity timeline" />
+          <img src="/images/activity-timeline.png" alt="activity timeline" loading="lazy" decoding="async" />
         </div>
 
         <div className="tmh-feature-text">
@@ -101,7 +101,7 @@ const TemplatesHome = () => {
         </div>
 
         <div className="tmh-feature-image">
-          <img src="/images/manage-documents.png" alt="manage documents" />
+          <img src="/images/manage-documents.png" alt="manage documents" loading="lazy" decoding="async" />
         </div>
       </section>
 

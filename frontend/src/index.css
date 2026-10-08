@@ -33,3 +33,91 @@ img[alt*="logo"] {
   object-fit: contain;
   box-shadow: none;
 }
+
+/* =========================================================
+   PREMIUM SWEETALERT2 STYLING FOR ESIGNIVA
+   ========================================================= */
+
+.esigniva-swal-popup {
+  border-radius: 20px !important;
+  padding: 1.75rem 2rem !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+  background: #ffffff !important;
+  max-width: 480px !important;
+}
+
+.esigniva-swal-title {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em !important;
+  padding: 0.5rem 0 0 !important;
+}
+
+.esigniva-swal-html {
+  font-size: 0.95rem !important;
+  color: #475569 !important;
+  line-height: 1.6 !important;
+  margin-top: 0.5rem !important;
+}
+
+.esigniva-swal-confirm-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  padding: 0.65rem 1.6rem !important;
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+  transition: all 0.2s ease-in-out !important;
+  margin: 0.5rem 0.35rem !important;
+  cursor: pointer !important;
+}
+
+.esigniva-swal-confirm-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+}
+
+.esigniva-swal-cancel-btn {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  padding: 0.65rem 1.4rem !important;
+  border-radius: 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  transition: all 0.2s ease-in-out !important;
+  margin: 0.5rem 0.35rem !important;
+  cursor: pointer !important;
+}
+
+.esigniva-swal-cancel-btn:hover {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.esigniva-swal-icon {
+  margin: 0.75rem auto 0.25rem !important;
+  transform: scale(0.95) !important;
+}
+
+/* Custom SweetAlert Toast Styles */
+.esigniva-toast-popup {
+  border-radius: 14px !important;
+  padding: 0.85rem 1.25rem !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: #ffffff !important;
+}
+
+.esigniva-toast-title {
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}

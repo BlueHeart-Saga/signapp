@@ -51,10 +51,10 @@ ROLE_COLORS = {
 # HELPER FUNCTIONS
 # ======================
 
-def get_document_with_owner(document_id: str, current_user: dict):
+async def get_document_with_owner(document_id: str, current_user: dict):
     """Get document with owner verification."""
     try:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -64,12 +64,12 @@ def get_document_with_owner(document_id: str, current_user: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid document ID")
 
-def get_complete_document_data(document_id: str) -> Dict[str, Any]:
+async def get_complete_document_data(document_id: str) -> Dict[str, Any]:
     
     from routes.email_service import send_completed_document_to_recipients
     """Get all data related to a document."""
     try:
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             return None
         
@@ -106,7 +106,7 @@ def get_complete_document_data(document_id: str) -> Dict[str, Any]:
         
         users_map = {}
         if user_ids:
-            users = list(db.users.find({"_id": {"$in": list(user_ids)}}))
+            users = await db.users.find({"_id": {"$in": list(user_ids)}}).to_list(length=1000)
             for user in users:
                 users_map[str(user["_id"])] = {
                     "name": user.get("full_name") or user.get("name") or user.get("email", ""),
@@ -170,7 +170,7 @@ def get_complete_document_data(document_id: str) -> Dict[str, Any]:
         signing_duration = calculate_document_signing_duration(timeline_events, doc)
         
         return {
-            "document": serialize_document(doc),
+            "document": await serialize_document(doc),
             "recipients": enriched_recipients,
             "timeline_events": timeline_events,
             "audit_logs": audit_logs,
@@ -334,14 +334,14 @@ async def get_document_summary_json(
     request: Request = None
 ):
     """Get complete document summary in JSON format."""
-    doc = get_document_with_owner(document_id, current_user)
-    data = get_complete_document_data(document_id)
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
     
     if not data:
         raise HTTPException(status_code=404, detail="Document data not found")
     
     # Log the request
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "document_summary_generated",
@@ -360,17 +360,17 @@ async def get_minimal_summary(
     current_user: dict = Depends(get_current_user)
 ):
     """Get minimal summary (quick overview)."""
-    doc = get_document_with_owner(document_id, current_user)
+    doc = await get_document_with_owner(document_id, current_user)
     
     # Get basic counts
-    total_recipients = db.recipients.count_documents({"document_id": ObjectId(document_id)})
-    completed_recipients = db.recipients.count_documents({
+    total_recipients = await db.recipients.count_documents({"document_id": ObjectId(document_id)})
+    completed_recipients = await db.recipients.count_documents({
         "document_id": ObjectId(document_id),
         "status": "completed"
     })
     
-    total_fields = db.signature_fields.count_documents({"document_id": ObjectId(document_id)})
-    completed_fields = db.signature_fields.count_documents({
+    total_fields = await db.signature_fields.count_documents({"document_id": ObjectId(document_id)})
+    completed_fields = await db.signature_fields.count_documents({
         "document_id": ObjectId(document_id),
         "completed_at": {"$exists": True}
     })
@@ -422,8 +422,8 @@ async def export_recipients_csv(
     request: Request = None
 ):
     """Export recipients data as CSV."""
-    doc = get_document_with_owner(document_id, current_user)
-    data = get_complete_document_data(document_id)
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
     
     if not data:
         raise HTTPException(status_code=404, detail="Document data not found")
@@ -465,7 +465,7 @@ async def export_recipients_csv(
     filename = f"recipients_{doc.get('filename', 'document').split('.')[0]}_{doc.get('envelope_id', '') or 'no_envelope'}.csv"
     
     # Log the export
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "export_recipients_csv",
@@ -486,8 +486,8 @@ async def export_timeline_csv(
     request: Request = None
 ):
     """Export timeline events as CSV."""
-    doc = get_document_with_owner(document_id, current_user)
-    data = get_complete_document_data(document_id)
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
     
     if not data:
         raise HTTPException(status_code=404, detail="Document data not found")
@@ -529,7 +529,7 @@ async def export_timeline_csv(
     filename = f"timeline_{doc.get('filename', 'document').split('.')[0]}_{doc.get('envelope_id', '') or 'no_envelope'}.csv"
     
     # Log the export
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "export_timeline_csv",
@@ -550,10 +550,10 @@ async def export_fields_csv(
     request: Request = None
 ):
     """Export all fields data as CSV."""
-    doc = get_document_with_owner(document_id, current_user)
+    doc = await get_document_with_owner(document_id, current_user)
     
     # Get all fields with recipient info
-    fields = list(db.signature_fields.find({"document_id": ObjectId(document_id)}))
+    fields = await db.signature_fields.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
     
     if not fields:
         raise HTTPException(status_code=404, detail="No fields found for document")
@@ -572,7 +572,7 @@ async def export_fields_csv(
     # Write field rows
     for field in fields:
         # Get recipient info
-        recipient = db.recipients.find_one({"_id": field.get("recipient_id")})
+        recipient = await db.recipients.find_one({"_id": field.get("recipient_id")})
         
         completed_at = field.get("completed_at")
         if completed_at and hasattr(completed_at, 'isoformat'):
@@ -603,7 +603,7 @@ async def export_fields_csv(
     filename = f"fields_{doc.get('filename', 'document').split('.')[0]}_{doc.get('envelope_id', '') or 'no_envelope'}.csv"
     
     # Log the export
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "export_fields_csv",
@@ -628,8 +628,8 @@ async def generate_html_report(
     request: Request = None
 ):
     """Generate HTML report for document."""
-    doc = get_document_with_owner(document_id, current_user)
-    data = get_complete_document_data(document_id)
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
     
     if not data:
         raise HTTPException(status_code=404, detail="Document data not found")
@@ -969,7 +969,7 @@ async def generate_html_report(
     """
     
     # Log the HTML report generation
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "generate_html_report",
@@ -990,8 +990,8 @@ async def get_document_analytics(
     request: Request = None
 ):
     """Get detailed analytics for document signing process."""
-    doc = get_document_with_owner(document_id, current_user)
-    data = get_complete_document_data(document_id)
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
     
     if not data:
         raise HTTPException(status_code=404, detail="Document data not found")
@@ -1017,7 +1017,7 @@ async def get_document_analytics(
     }
     
     # Log the analytics request
-    _log_event(
+    await _log_event(
         document_id,
         current_user,
         "view_analytics",
@@ -1190,8 +1190,8 @@ async def bulk_export_document_summary(
     try:
         import zipfile
         
-        doc = get_document_with_owner(document_id, current_user)
-        data = get_complete_document_data(document_id)
+        doc = await get_document_with_owner(document_id, current_user)
+        data = await get_complete_document_data(document_id)
         
         if not data:
             raise HTTPException(status_code=404, detail="Document data not found")
@@ -1238,7 +1238,7 @@ Total timeline events: {len(data['timeline_events'])}
         filename = f"complete_export_{doc.get('filename', 'document').split('.')[0]}_{doc.get('envelope_id', '') or 'no_envelope'}.zip"
         
         # Log the bulk export
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "bulk_export_summary",

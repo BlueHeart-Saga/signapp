@@ -108,12 +108,12 @@ def generate_recipient_color(email: str) -> str:
 
     return f"hsl({hue}, {saturation}%, {lightness}%)"
 
-def save_contact_if_missing(name: str, email: str, user_id: str):
-    if not db.contacts.find_one({
+async def save_contact_if_missing(name: str, email: str, user_id: str):
+    if not await db.contacts.find_one({
         "email": email,
         "owner_id": ObjectId(user_id)
     }):
-        db.contacts.insert_one({
+        await db.contacts.insert_one({
             "name": name.strip(),
             "email": email,
             "favorite": False,
@@ -137,7 +137,7 @@ async def add_recipients(
         except InvalidId:
             raise HTTPException(status_code=400, detail="Invalid document ID format")
         
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": doc_oid,
             "owner_id": ObjectId(current_user["id"])
         })
@@ -146,7 +146,7 @@ async def add_recipients(
             raise HTTPException(status_code=404, detail="Document not found")
         
         # Get sender (owner) details from users collection
-        sender = db.users.find_one({"_id": ObjectId(current_user["id"])})
+        sender = await db.users.find_one({"_id": ObjectId(current_user["id"])})
         sender_info = {
             "name": sender.get("full_name", "") or sender.get("name", ""),
             "email": sender.get("email", ""),
@@ -159,7 +159,7 @@ async def add_recipients(
         for recipient_data in recipients_data.recipients:
             try:
                 # Check for duplicate email in this document
-                existing_recipient = db.recipients.find_one({
+                existing_recipient = await db.recipients.find_one({
                     "document_id": doc_oid,
                     "email": recipient_data.email
                 })
@@ -169,7 +169,7 @@ async def add_recipients(
                     continue
                 
                 # 🔹 Auto-save to contacts
-                save_contact_if_missing(
+                await save_contact_if_missing(
                     recipient_data.name,
                     recipient_data.email,
                     current_user["id"]
@@ -206,11 +206,11 @@ async def add_recipients(
                     "form_completed_at": None,
                     "witnessed_at": None,
                     "form_fields": [str(field) for field in recipient_data.form_fields] if recipient_data.form_fields else [],
-                    "witness_for": ObjectId(recipient_data.witness_for) if recipient_data.witness_for else None,
+                    "witness_for": ObjectId(recipient_data.witness_for) if recipient_data.witness_for and ObjectId.is_valid(str(recipient_data.witness_for)) else None,
                     "form_data": {}
                 }
                 
-                result = db.recipients.insert_one(recipient)
+                result = await db.recipients.insert_one(recipient)
                 recipient["_id"] = result.inserted_id
                 added_recipients.append(serialize_recipient(recipient))
                 
@@ -219,13 +219,13 @@ async def add_recipients(
         
         # Update document recipient count
         if added_recipients:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": doc_oid},
                 {"$inc": {"recipient_count": len(added_recipients)}}
             )
         
         # Log event
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "recipients_added",
@@ -264,7 +264,7 @@ async def update_personal_messages_bulk(
     """
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -278,7 +278,7 @@ async def update_personal_messages_bulk(
         for recipient_id, personal_message in payload.items():
             try:
                 # Verify recipient belongs to this document
-                recipient = db.recipients.find_one({
+                recipient = await db.recipients.find_one({
                     "_id": ObjectId(recipient_id),
                     "document_id": ObjectId(document_id)
                 })
@@ -288,7 +288,7 @@ async def update_personal_messages_bulk(
                     continue
                 
                 # Update personal message
-                db.recipients.update_one(
+                await db.recipients.update_one(
                     {"_id": ObjectId(recipient_id)},
                     {"$set": {"personal_message": str(personal_message).strip()}}
                 )
@@ -297,7 +297,7 @@ async def update_personal_messages_bulk(
             except Exception as e:
                 errors.append(f"Error updating recipient {recipient_id}: {str(e)}")
                 
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "personal_messages_bulk_updated",
@@ -328,7 +328,7 @@ async def get_messages_summary(
     """
     try:
         # Get document
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -337,10 +337,10 @@ async def get_messages_summary(
             raise HTTPException(status_code=404, detail="Document not found")
         
         # Get all recipients with their personal messages
-        recipients = list(db.recipients.find(
+        recipients = await db.recipients.find(
             {"document_id": ObjectId(document_id)},
             {"name": 1, "email": 1, "personal_message": 1, "role": 1}
-        ))
+        ).to_list(length=1000)
         
         # Format recipient messages
         recipient_messages = []
@@ -376,12 +376,12 @@ async def update_recipient_details(
 ):
     """Update recipient personal message and document info"""
     try:
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
         
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": recipient["document_id"],
             "owner_id": ObjectId(current_user["id"])
         })
@@ -395,15 +395,15 @@ async def update_recipient_details(
             "document_info": details.document_info
         }
         
-        db.recipients.update_one(
+        await db.recipients.update_one(
             {"_id": ObjectId(recipient_id)},
             {"$set": update_data}
         )
         
         # Get updated recipient
-        updated_recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        updated_recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             current_user,
             "recipient_details_updated",
@@ -513,14 +513,14 @@ async def edit_recipient(
     except Exception:
         raise HTTPException(400, "Invalid recipient ID")
 
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
 
     # -----------------------------
     # 2. Verify document ownership
     # -----------------------------
-    document = db.documents.find_one({
+    document = await db.documents.find_one({
         "_id": recipient["document_id"],
         "owner_id": ObjectId(current_user["id"])
     })
@@ -556,7 +556,7 @@ async def edit_recipient(
     # -----------------------------
     # 5. Prevent duplicate email
     # -----------------------------
-    duplicate = db.recipients.find_one({
+    duplicate = await db.recipients.find_one({
         "document_id": recipient["document_id"],
         "email": recipient_data.email,
         "_id": {"$ne": rid}
@@ -581,7 +581,7 @@ async def edit_recipient(
         except Exception:
             raise HTTPException(400, "Invalid witness target ID")
 
-        signer = db.recipients.find_one({
+        signer = await db.recipients.find_one({
             "_id": witness_for,
             "document_id": recipient["document_id"]
         })
@@ -612,15 +612,15 @@ async def edit_recipient(
     if recipient["email"] != recipient_data.email:
         update_data["color"] = generate_recipient_color(recipient_data.email)
 
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": rid},
         {"$set": update_data}
     )
 
-    updated = db.recipients.find_one({"_id": rid})
+    updated = await db.recipients.find_one({"_id": rid})
     
     
-    _log_event(
+    await _log_event(
         str(document["_id"]),
         current_user,
         "recipient_updated",
@@ -649,7 +649,7 @@ async def add_bulk_recipients_template(
     """Add multiple recipients using a template"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -673,7 +673,7 @@ async def add_bulk_recipients_template(
             recipient_email = f"recipient{recipient_number}@{template.email_domain}"
             
             # Check for duplicate email
-            existing_recipient = db.recipients.find_one({
+            existing_recipient = await db.recipients.find_one({
                 "document_id": ObjectId(document_id),
                 "email": recipient_email
             })
@@ -714,18 +714,18 @@ async def add_bulk_recipients_template(
                 "form_data": {}
             }
             
-            result = db.recipients.insert_one(recipient)
+            result = await db.recipients.insert_one(recipient)
             recipient["_id"] = result.inserted_id
             added_recipients.append(serialize_recipient(recipient))
         
         # Update document recipient count
         if added_recipients:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": ObjectId(document_id)},
                 {"$inc": {"recipient_count": len(added_recipients)}}
             )
             
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "recipients_bulk_template_added",
@@ -754,7 +754,7 @@ async def get_document_recipients(
     """Get all recipients for a document"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -762,9 +762,9 @@ async def get_document_recipients(
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "document_id": ObjectId(document_id)
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
         
         return [serialize_recipient(rec) for rec in recipients]
     except:
@@ -782,7 +782,7 @@ async def send_invites_to_recipients(
     """Send signing invites to multiple recipients with common + personal messages"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -798,10 +798,10 @@ async def send_invites_to_recipients(
             )
 
         # Get recipients - USE INVITES_DATA, NOT REQUEST
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "_id": {"$in": [ObjectId(rid) for rid in invites_data.recipient_ids]},
             "document_id": ObjectId(document_id)
-        }))
+        }).to_list(length=1000)
 
         if not recipients:
             raise HTTPException(status_code=404, detail="No recipients found")
@@ -811,7 +811,7 @@ async def send_invites_to_recipients(
         ROLES_WITHOUT_FIELDS = [RecipientRole.VIEWER, RecipientRole.APPROVER]
         
         # Get all fields for this document to check assignment
-        all_fields = list(db.signature_fields.find({"document_id": ObjectId(document_id)}))
+        all_fields = await db.signature_fields.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
         # Store assigned recipient IDs as strings for easy comparison
         assigned_recipient_ids = {str(f.get("recipient_id")) for f in all_fields if f.get("recipient_id")}
         
@@ -827,14 +827,14 @@ async def send_invites_to_recipients(
         # NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
         if invites_data.signing_order_enabled:
             # Find the minimum signing order across all document recipients
-            all_doc_recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+            all_doc_recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
             min_order = min(r.get("signing_order", 1) for r in all_doc_recipients)
             
             # Repopulate current recipients to only send email to those at the lowest order
             recipients = [r for r in all_doc_recipients if r.get("signing_order", 1) == min_order]
             
             # Log the sequential flow start
-            _log_event(
+            await _log_event(
                 document_id,
                 None,
                 "signing_order_activated",
@@ -843,7 +843,7 @@ async def send_invites_to_recipients(
             )
             
             # Mark all others as 'awaiting_previous'
-            db.recipients.update_many(
+            await db.recipients.update_many(
                 {
                     "document_id": ObjectId(document_id),
                     "signing_order": {"$gt": min_order}
@@ -884,14 +884,14 @@ async def send_invites_to_recipients(
             "signing_order_enabled": invites_data.signing_order_enabled  # Save this
         }
         
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": update_fields}
         )
         
         # Update recipient statuses - ONLY FOR THOSE BEING INVITED NOW
         invite_ids = [r["_id"] for r in recipients]
-        db.recipients.update_many(
+        await db.recipients.update_many(
             {
                 "_id": {"$in": invite_ids}
             },
@@ -904,7 +904,7 @@ async def send_invites_to_recipients(
         )
         
         # Log event - use request for client info, but data from invites_data
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "invites_sent",
@@ -939,12 +939,12 @@ async def send_reminder(
 ):
     """Send reminder to a specific recipient"""
     try:
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
         
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": recipient["document_id"],
             "owner_id": ObjectId(current_user["id"])
         })
@@ -983,7 +983,7 @@ async def send_reminder(
             current_user["email"]
         )
         
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             current_user,
             "reminder_sent",
@@ -1007,12 +1007,12 @@ async def get_recipient(
 ):
     """Get recipient details"""
     try:
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
         
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": recipient["document_id"],
             "owner_id": ObjectId(current_user["id"])
         })
@@ -1033,12 +1033,12 @@ async def delete_recipient(
 ):
     """Delete a recipient"""
     try:
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
         
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": recipient["document_id"],
             "owner_id": ObjectId(current_user["id"])
         })
@@ -1058,25 +1058,25 @@ async def delete_recipient(
             )
         
         # Delete recipient
-        db.recipients.delete_one({"_id": ObjectId(recipient_id)})
+        await db.recipients.delete_one({"_id": ObjectId(recipient_id)})
         
         # Update document recipient count
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": recipient["document_id"]},
             {"$inc": {"recipient_count": -1}}
         )
         
         # Delete associated signature if exists (for signers)
         if role == RecipientRole.SIGNER:
-            db.signatures.delete_one({"recipient_id": ObjectId(recipient_id)})
+            await db.signatures.delete_one({"recipient_id": ObjectId(recipient_id)})
         
         # Remove any witness references to this recipient
-        db.recipients.update_many(
+        await db.recipients.update_many(
             {"witness_for": ObjectId(recipient_id)},
             {"$set": {"witness_for": None}}
         )
         
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             current_user,
             "recipient_deleted",
@@ -1105,7 +1105,7 @@ async def bulk_delete_recipients(
     """Delete multiple recipients at once"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -1125,7 +1125,7 @@ async def bulk_delete_recipients(
         
         for recipient_id in recipient_ids:
             try:
-                recipient = db.recipients.find_one({
+                recipient = await db.recipients.find_one({
                     "_id": ObjectId(recipient_id),
                     "document_id": ObjectId(document_id)
                 })
@@ -1144,15 +1144,15 @@ async def bulk_delete_recipients(
                     continue
                 
                 # Delete recipient
-                db.recipients.delete_one({"_id": ObjectId(recipient_id)})
+                await db.recipients.delete_one({"_id": ObjectId(recipient_id)})
                 deleted_count += 1
                 
                 # Delete associated signature if exists
                 if role == "signer":
-                    db.signatures.delete_one({"recipient_id": ObjectId(recipient_id)})
+                    await db.signatures.delete_one({"recipient_id": ObjectId(recipient_id)})
                 
                 # Remove witness references
-                db.recipients.update_many(
+                await db.recipients.update_many(
                     {"witness_for": ObjectId(recipient_id)},
                     {"$set": {"witness_for": None}}
                 )
@@ -1162,12 +1162,12 @@ async def bulk_delete_recipients(
         
         # Update document recipient count
         if deleted_count > 0:
-            db.documents.update_one(
+            await db.documents.update_one(
                 {"_id": ObjectId(document_id)},
                 {"$inc": {"recipient_count": -deleted_count}}
             )
             
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "recipients_bulk_deleted",
@@ -1198,7 +1198,7 @@ async def reorder_recipients(
     """Update signing order for multiple recipients"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -1215,7 +1215,7 @@ async def reorder_recipients(
         
         # Validate all recipients belong to this document
         recipient_ids = [ObjectId(item.recipient_id) for item in new_order]
-        recipients_count = db.recipients.count_documents({
+        recipients_count = await db.recipients.count_documents({
             "_id": {"$in": recipient_ids},
             "document_id": ObjectId(document_id)
         })
@@ -1228,7 +1228,7 @@ async def reorder_recipients(
         
         # Update signing orders
         for item in new_order:
-            db.recipients.update_one(
+            await db.recipients.update_one(
                 {
                     "_id": ObjectId(item.recipient_id),
                     "document_id": ObjectId(document_id)
@@ -1236,7 +1236,7 @@ async def reorder_recipients(
                 {"$set": {"signing_order": item.signing_order}}
             )
             
-        _log_event(
+        await _log_event(
             document_id,
             current_user,
             "recipients_reordered",
@@ -1264,7 +1264,7 @@ async def search_recipients(
     """Search and filter recipients"""
     try:
         # Verify document ownership
-        document = db.documents.find_one({
+        document = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -1287,7 +1287,7 @@ async def search_recipients(
         if status:
             search_query["status"] = status
         
-        recipients = list(db.recipients.find(search_query).sort("signing_order", 1))
+        recipients = await db.recipients.find(search_query).sort("signing_order", 1).to_list(length=1000)
         
         return [serialize_recipient(rec) for rec in recipients]
         
@@ -1310,14 +1310,14 @@ async def complete_field(
     except Exception:
         raise HTTPException(400, "Invalid field ID")
 
-    field = db.signature_fields.find_one({"_id": field_oid})
+    field = await db.signature_fields.find_one({"_id": field_oid})
     if not field:
         raise HTTPException(404, "Field not found")
 
     # -----------------------------
     # 2. Validate recipient
     # -----------------------------
-    recipient = db.recipients.find_one({
+    recipient = await db.recipients.find_one({
         "_id": field["recipient_id"],
         "email": current_user["email"]
     })
@@ -1328,7 +1328,7 @@ async def complete_field(
         raise HTTPException(403, "OTP verification required")
     
     if recipient["status"] in ["invited", "viewed"]:
-        db.recipients.update_one(
+        await db.recipients.update_one(
             {"_id": recipient["_id"]},
             {"$set": {"status": "in_progress"}}
         )
@@ -1348,7 +1348,7 @@ async def complete_field(
     # 3A. Witness dependency
     # -----------------------------
     if role == "witness":
-        signer = db.recipients.find_one({
+        signer = await db.recipients.find_one({
             "_id": recipient.get("witness_for"),
             "status": "completed"
         })
@@ -1361,7 +1361,7 @@ async def complete_field(
     # -----------------------------
     # 4. Save field value
     # -----------------------------
-    db.signature_fields.update_one(
+    await db.signature_fields.update_one(
         {"_id": field_oid},
         {
             "$set": {
@@ -1375,18 +1375,18 @@ async def complete_field(
     
     
     # Get updated field with recipient info
-    updated_field = db.signature_fields.find_one({"_id": field_oid})
+    updated_field = await db.signature_fields.find_one({"_id": field_oid})
     
     # Fetch recipient details to include in response
-    recipient = db.recipients.find_one({"_id": recipient["_id"]})
+    recipient = await db.recipients.find_one({"_id": recipient["_id"]})
 
     # -----------------------------
     # 5. sent → in_progress
     # -----------------------------
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
 
     if doc and doc["status"] == "sent":
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {"status": "in_progress"}}
         )
@@ -1394,7 +1394,7 @@ async def complete_field(
     # -----------------------------
     # 6. Check remaining fields for THIS recipient
     # -----------------------------
-    remaining_fields = db.signature_fields.count_documents({
+    remaining_fields = await db.signature_fields.count_documents({
         "document_id": doc_id,
         "recipient_id": recipient["_id"],
         "completed_at": {"$exists": False}
@@ -1403,7 +1403,7 @@ async def complete_field(
     if remaining_fields > 0:
         return {
             "message": "Field saved. More fields pending.",
-            "field": serialize_field_with_recipient(updated_field, recipient),
+            "field": await serialize_field_with_recipient(updated_field, recipient),
             "remaining_fields": remaining_fields
         }
 
@@ -1423,7 +1423,7 @@ async def complete_field(
     elif role == "viewer":
         update["viewer_at"] = datetime.utcnow()
 
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": recipient["_id"]},
         {"$set": update}
     )
@@ -1431,18 +1431,18 @@ async def complete_field(
     # -----------------------------
     # 7B. Recompute role counts
     # -----------------------------
-    def count_role(r):
-        return db.recipients.count_documents({
+    async def count_role(r):
+        return await db.recipients.count_documents({
             "document_id": doc_id,
             "role": r,
             "status": "completed"
         })
 
-    signer_count = count_role("signer") + count_role("in_person_signer")
-    approver_count = count_role("approver")
-    witness_count = count_role("witness")
-    form_filler_count = count_role("form_filler")
-    viewer_count = count_role("viewer")
+    signer_count = await count_role("signer") + await count_role("in_person_signer")
+    approver_count = await count_role("approver")
+    witness_count = await count_role("witness")
+    form_filler_count = await count_role("form_filler")
+    viewer_count = await count_role("viewer")
 
     signed_count = (
         signer_count +
@@ -1452,7 +1452,7 @@ async def complete_field(
         viewer_count
     )
 
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(doc_id)},
         {"$set": {
             "signer_count": signer_count,
@@ -1476,7 +1476,7 @@ async def complete_field(
         "viewer"    # you chose KEEP viewer required
     ]
 
-    remaining = db.recipients.count_documents({
+    remaining = await db.recipients.count_documents({
         "document_id": doc_id,
         "role": {"$in": REQUIRED_ROLES},
         "status": {"$ne": "completed"}
@@ -1485,7 +1485,7 @@ async def complete_field(
     if remaining > 0:
         return {
             "message": "Recipient completed. Other recipients still pending.",
-            "field": serialize_field_with_recipient(updated_field, recipient),
+            "field": await serialize_field_with_recipient(updated_field, recipient),
             "recipient": serialize_recipient(recipient)
         }
 
@@ -1496,16 +1496,16 @@ async def complete_field(
     from routes.pdf_engine import PDFEngine  # adjust import to your project
 
     # 1) fetch PDF using load_document_pdf from documents.py
-    doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+    doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     
     # Use the unified load_document_pdf function
     pdf_bytes = load_document_pdf(doc, doc_id)
 
     # 2) collect all completed fields
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id),
         "completed_at": {"$exists": True}
-    }))
+    }).to_list(length=1000)
 
     # 3) prepare signature objects for engine
     signatures = []
@@ -1539,14 +1539,14 @@ async def complete_field(
     )
 
     # 6) update document
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": ObjectId(doc_id)},
         {
             "$set": {
                 "status": "completed",
                 "completed_at": datetime.utcnow(),
                 "signed_pdf_path": signed_pdf_path,
-                "signed_count": db.recipients.count_documents({
+                "signed_count": await db.recipients.count_documents({
                     "document_id": ObjectId(doc_id),
                     "status": "completed"
                 })
@@ -1554,7 +1554,7 @@ async def complete_field(
         }
     )
     
-    _log_event(
+    await _log_event(
         str(doc_id),
         recipient,
         "field_completed_via_recipients",

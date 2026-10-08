@@ -72,47 +72,45 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
 # ============================================
 
 async def db_find_one(collection, filter):
-    """Run find_one in thread pool"""
-    return await asyncio.to_thread(collection.find_one, filter)
+    """Run find_one directly on AsyncCollection"""
+    return await collection.find_one(filter)
 
-async def db_find(collection, filter=None, sort=None, limit=None):
-    """Run find in thread pool and return list"""
+async def db_find(collection, filter=None, sort=None, limit=None, skip=0):
+    """Run find directly on AsyncCollection and return list"""
     if filter is None:
         filter = {}
-    
-    def _find():
-        cursor = collection.find(filter)
-        if sort:
-            cursor = cursor.sort(sort)
-        if limit:
-            cursor = cursor.limit(limit)
-        return list(cursor)
-    
-    return await asyncio.to_thread(_find)
+    cursor = collection.find(filter)
+    if sort:
+        cursor = cursor.sort(sort)
+    if skip:
+        cursor = cursor.skip(skip)
+    if limit:
+        cursor = cursor.limit(limit)
+    return await cursor.to_list(length=limit if limit else None)
 
 async def db_insert_one(collection, document):
-    """Run insert_one in thread pool"""
-    return await asyncio.to_thread(collection.insert_one, document)
+    """Run insert_one directly on AsyncCollection"""
+    return await collection.insert_one(document)
 
 async def db_insert_many(collection, documents):
-    """Run insert_many in thread pool"""
-    return await asyncio.to_thread(collection.insert_many, documents)
+    """Run insert_many directly on AsyncCollection"""
+    return await collection.insert_many(documents)
 
 async def db_update_one(collection, filter, update, upsert=False):
-    """Run update_one in thread pool"""
-    return await asyncio.to_thread(collection.update_one, filter, update, upsert=upsert)
+    """Run update_one directly on AsyncCollection"""
+    return await collection.update_one(filter, update, upsert=upsert)
 
 async def db_update_many(collection, filter, update):
-    """Run update_many in thread pool"""
-    return await asyncio.to_thread(collection.update_many, filter, update)
+    """Run update_many directly on AsyncCollection"""
+    return await collection.update_many(filter, update)
 
 async def db_delete_many(collection, filter):
-    """Run delete_many in thread pool"""
-    return await asyncio.to_thread(collection.delete_many, filter)
+    """Run delete_many directly on AsyncCollection"""
+    return await collection.delete_many(filter)
 
 async def db_command(command):
-    """Run database command in thread pool"""
-    return await asyncio.to_thread(db.command, command)
+    """Run database command directly on AsyncMongoClient/Database"""
+    return await db.command(command)
 
 # ============================================
 # HELPER FUNCTIONS

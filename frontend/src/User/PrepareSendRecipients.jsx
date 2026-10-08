@@ -92,7 +92,7 @@ function DocumentFileBlock({ documentId, file, onPreview }) {
 
   useEffect(() => {
     fetch(
-      `/documents/${documentId}/files/${file.id}/thumbnails`,
+      `${API_BASE_URL}/documents/${documentId}/files/${file.id}/thumbnails`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,

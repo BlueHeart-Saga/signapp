@@ -120,7 +120,7 @@ async def get_recipient_history(
             # Get sender info
             sender_name = None
             if doc.get("owner_id"):
-                owner = db.users.find_one({"_id": doc["owner_id"]})
+                owner = await db.users.find_one({"_id": doc["owner_id"]})
                 if owner:
                     sender_name = owner.get("full_name") or owner.get("name")
             
@@ -171,7 +171,7 @@ async def get_recipient_history(
                 
                 sender_name = None
                 if doc.get("owner_id"):
-                    owner = db.users.find_one({"_id": doc["owner_id"]})
+                    owner = await db.users.find_one({"_id": doc["owner_id"]})
                     if owner:
                         sender_name = owner.get("full_name") or owner.get("name")
                 
@@ -213,7 +213,7 @@ async def get_recipient_history(
                 
                 sender_name = None
                 if doc.get("owner_id"):
-                    owner = db.users.find_one({"_id": doc["owner_id"]})
+                    owner = await db.users.find_one({"_id": doc["owner_id"]})
                     if owner:
                         sender_name = owner.get("full_name") or owner.get("name")
                 
@@ -314,7 +314,7 @@ async def get_signing_summary(
                 # Count signatures for this recipient
                 if role in ["signer", "in_person_signer", "witness"]:
                     # Count signature fields
-                    signature_count = db.signature_fields.count_documents({
+                    signature_count = await db.signature_fields.count_documents({
                         "document_id": doc["_id"],
                         "recipient_id": doc_recipient["_id"],
                         "type": {"$in": ["signature", "witness_signature"]},
@@ -379,12 +379,12 @@ async def get_document_history_for_recipient(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -395,7 +395,7 @@ async def get_document_history_for_recipient(
         # Get document owner info
         sender = None
         if doc.get("owner_id"):
-            sender = db.users.find_one({"_id": doc["owner_id"]})
+            sender = await db.users.find_one({"_id": doc["owner_id"]})
         
         # Get all events for this document related to this recipient
         events = list(db.document_timeline.find({
@@ -455,7 +455,7 @@ async def get_document_history_for_recipient(
             })
         
         # First view
-        first_view = db.document_timeline.find_one({
+        first_view = await db.document_timeline.find_one({
             "document_id": ObjectId(document_id),
             "actor.email": recipient["email"],
             "type": "view_live_document"
@@ -654,7 +654,7 @@ async def get_documents_grouped_by_sender(
             # Get sender name
             sender_name = sender_email
             if doc.get("owner_id"):
-                owner = db.users.find_one({"_id": doc["owner_id"]})
+                owner = await db.users.find_one({"_id": doc["owner_id"]})
                 if owner:
                     sender_name = owner.get("full_name") or owner.get("name") or sender_email
             

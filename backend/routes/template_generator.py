@@ -674,12 +674,12 @@
 #         # Save to database (silently fail if database not available)
 #         template_id = None
 #         try:
-#             result = generated_templates_collection.insert_one(template_doc)
+#             result = await generated_templates_collection.insert_one(template_doc)
 #             template_id = str(result.inserted_id)
             
 #             # Update with download URL
 #             try:
-#                 generated_templates_collection.update_one(
+#                 await generated_templates_collection.update_one(
 #                     {"_id": result.inserted_id},
 #                     {"$set": {"downloadUrl": f"/templates/download/{template_id}"}}
 #                 )
@@ -698,7 +698,7 @@
 #                 "action": "generate",
 #                 "timestamp": datetime.utcnow()
 #             }
-#             template_analytics_collection.insert_one(analytics_doc)
+#             await template_analytics_collection.insert_one(analytics_doc)
 #         except Exception as analytics_error:
 #             logger.debug(f"Analytics tracking failed: {str(analytics_error)}")
         
@@ -753,7 +753,7 @@
 #         # Find template
 #         template = None
 #         try:
-#             template = templates_collection.find_one({
+#             template = await templates_collection.find_one({
 #                 "_id": ObjectId(request.template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -762,7 +762,7 @@
         
 #         if not template:
 #             try:
-#                 template = generated_templates_collection.find_one({
+#                 template = await generated_templates_collection.find_one({
 #                     "_id": ObjectId(request.template_id),
 #                     "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #                 })
@@ -838,8 +838,8 @@
 #         templates = []
 #         generated = []
 #         try:
-#             templates = list(templates_collection.find(query).sort("createdAt", -1))
-#             generated = list(generated_templates_collection.find(query).sort("createdAt", -1))
+#             templates = await templates_collection.find(query).sort("createdAt", -1).to_list(length=1000)
+#             generated = await generated_templates_collection.find(query).sort("createdAt", -1).to_list(length=1000)
 #         except Exception as db_error:
 #             logger.warning(f"Database query failed: {str(db_error)}")
         
@@ -909,7 +909,7 @@
         
 #         template_id = None
 #         try:
-#             result = templates_collection.insert_one(template_doc)
+#             result = await templates_collection.insert_one(template_doc)
 #             template_id = str(result.inserted_id)
 #         except Exception as db_error:
 #             logger.warning(f"Database save failed: {str(db_error)}")
@@ -940,7 +940,7 @@
 #         # Try to find and update template
 #         updated = False
 #         try:
-#             template = templates_collection.find_one({
+#             template = await templates_collection.find_one({
 #                 "_id": ObjectId(template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -965,7 +965,7 @@
 #                 if template_data.canvasElements is not None:
 #                     update_data["canvasElements"] = [el.dict() for el in template_data.canvasElements]
                 
-#                 templates_collection.update_one(
+#                 await templates_collection.update_one(
 #                     {"_id": ObjectId(template_id)},
 #                     {"$set": update_data}
 #                 )
@@ -976,7 +976,7 @@
 #         if not updated:
 #             # Try generated templates collection
 #             try:
-#                 template = generated_templates_collection.find_one({
+#                 template = await generated_templates_collection.find_one({
 #                     "_id": ObjectId(template_id),
 #                     "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #                 })
@@ -1001,7 +1001,7 @@
 #                     if template_data.canvasElements is not None:
 #                         update_data["canvasElements"] = [el.dict() for el in template_data.canvasElements]
                     
-#                     generated_templates_collection.update_one(
+#                     await generated_templates_collection.update_one(
 #                         {"_id": ObjectId(template_id)},
 #                         {"$set": update_data}
 #                     )
@@ -1031,7 +1031,7 @@
 #         # Find template
 #         template = None
 #         try:
-#             template = templates_collection.find_one({
+#             template = await templates_collection.find_one({
 #                 "_id": ObjectId(template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -1040,7 +1040,7 @@
         
 #         if not template:
 #             try:
-#                 template = generated_templates_collection.find_one({
+#                 template = await generated_templates_collection.find_one({
 #                     "_id": ObjectId(template_id),
 #                     "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #                 })
@@ -1087,7 +1087,7 @@
 #         # Find template
 #         template = None
 #         try:
-#             template = templates_collection.find_one({
+#             template = await templates_collection.find_one({
 #                 "_id": ObjectId(template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -1096,7 +1096,7 @@
         
 #         if not template:
 #             try:
-#                 template = generated_templates_collection.find_one({
+#                 template = await generated_templates_collection.find_one({
 #                     "_id": ObjectId(template_id),
 #                     "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #                 })
@@ -1140,7 +1140,7 @@
 #         deleted = False
 #         # Try both collections
 #         try:
-#             result1 = templates_collection.delete_one({
+#             result1 = await templates_collection.delete_one({
 #                 "_id": ObjectId(template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -1149,7 +1149,7 @@
 #             pass
         
 #         try:
-#             result2 = generated_templates_collection.delete_one({
+#             result2 = await generated_templates_collection.delete_one({
 #                 "_id": ObjectId(template_id),
 #                 "createdBy": ObjectId(current_user.get("_id", "000000000000000000000000"))
 #             })
@@ -1159,7 +1159,7 @@
         
 #         # Try to delete analytics
 #         try:
-#             template_analytics_collection.delete_many({
+#             await template_analytics_collection.delete_many({
 #                 "template_id": ObjectId(template_id)
 #             })
 #         except:
@@ -1188,8 +1188,8 @@
 #         type_distribution = {}
         
 #         try:
-#             regular_count = templates_collection.count_documents({"createdBy": ObjectId(user_id)})
-#             generated_count = generated_templates_collection.count_documents({"createdBy": ObjectId(user_id)})
+#             regular_count = await templates_collection.count_documents({"createdBy": ObjectId(user_id)})
+#             generated_count = await generated_templates_collection.count_documents({"createdBy": ObjectId(user_id)})
             
 #             # Type distribution
 #             pipeline = [
@@ -1197,8 +1197,8 @@
 #                 {"$group": {"_id": "$template_type", "count": {"$sum": 1}}}
 #             ]
             
-#             regular_types = list(templates_collection.aggregate(pipeline))
-#             generated_types = list(generated_templates_collection.aggregate(pipeline))
+#             regular_types = await templates_collection.aggregate(pipeline).to_list(length=1000)
+#             generated_types = await generated_templates_collection.aggregate(pipeline).to_list(length=1000)
             
 #             for item in regular_types + generated_types:
 #                 type_name = item.get("_id", "Unknown")

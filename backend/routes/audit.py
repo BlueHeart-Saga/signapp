@@ -101,7 +101,7 @@ AUDIT_ACTIONS = {
 }
 
 
-def log_audit_event(
+async def log_audit_event(
     event_data: Dict[str, Any],
     background_tasks: BackgroundTasks = None,
     request=None
@@ -152,20 +152,20 @@ def log_audit_event(
     if background_tasks:
         background_tasks.add_task(_insert_audit_record, audit_record)
     else:
-        _insert_audit_record(audit_record)
+        await _insert_audit_record(audit_record)
 
 
-def _insert_audit_record(audit_record: Dict[str, Any]):
+async def _insert_audit_record(audit_record: Dict[str, Any]):
     """Helper function to insert audit record into database"""
     try:
-        db.audit.insert_one(audit_record)
+        await db.audit.insert_one(audit_record)
     except Exception as e:
         # Log the error but don't break the main operation
         print(f"Failed to insert audit record: {str(e)}")
         # You might want to log this to a file or external service
 
 
-def serialize_audit_event(audit_event: Dict) -> Dict[str, Any]:
+async def serialize_audit_event(audit_event: Dict) -> Dict[str, Any]:
     """Serialize audit event for API response"""
     serialized = {
         "id": str(audit_event["_id"]),
@@ -185,7 +185,7 @@ def serialize_audit_event(audit_event: Dict) -> Dict[str, Any]:
         serialized["performed_by"] = str(audit_event["performed_by"])
         
         # Try to get user details
-        user = db.users.find_one({"_id": ObjectId(audit_event["performed_by"])})
+        user = await db.users.find_one({"_id": ObjectId(audit_event["performed_by"])})
         if user:
             serialized["performed_by_email"] = user.get("email")
             serialized["performed_by_name"] = user.get("name")
@@ -213,7 +213,7 @@ async def create_audit_event(
             "timestamp": datetime.utcnow()
         }
         
-        log_audit_event(audit_data, background_tasks)
+        await log_audit_event(audit_data, background_tasks)
         
         return {"message": "Audit event logged successfully", "id": str(ObjectId())}
     
@@ -236,7 +236,7 @@ async def get_audit_for_document(
     """
     try:
         # Verify document ownership
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["_id"])
         })
@@ -261,7 +261,7 @@ async def get_audit_for_document(
         cursor = db.audit.find(query).sort("timestamp", -1).skip(offset).limit(limit)
         audit_events = list(cursor)
         
-        return [serialize_audit_event(event) for event in audit_events]
+        return [await serialize_audit_event(event) for event in audit_events]
     
     except HTTPException:
         raise
@@ -300,7 +300,7 @@ async def get_my_audit_events(
         cursor = db.audit.find(query).sort("timestamp", -1).skip(offset).limit(limit)
         audit_events = list(cursor)
         
-        return [serialize_audit_event(event) for event in audit_events]
+        return [await serialize_audit_event(event) for event in audit_events]
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch audit events: {str(e)}")
@@ -350,7 +350,7 @@ async def search_audit_events(
         cursor = db.audit.find(query).sort("timestamp", -1).skip(offset).limit(limit)
         audit_events = list(cursor)
         
-        return [serialize_audit_event(event) for event in audit_events]
+        return [await serialize_audit_event(event) for event in audit_events]
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to search audit events: {str(e)}")
@@ -383,7 +383,7 @@ async def get_audit_statistics(
             query["document_id"] = ObjectId(document_id)
         
         # Total events
-        total_events = db.audit.count_documents(query)
+        total_events = await db.audit.count_documents(query)
         
         # Events by action
         pipeline_actions = [
@@ -393,7 +393,7 @@ async def get_audit_statistics(
         ]
         events_by_action = {
             str(item["_id"]): item["count"] 
-            for item in db.audit.aggregate(pipeline_actions)
+            async for item in db.audit.aggregate(pipeline_actions)
         }
         
         # Events by user
@@ -404,9 +404,9 @@ async def get_audit_statistics(
             {"$limit": 10}
         ]
         events_by_user = {}
-        for item in db.audit.aggregate(pipeline_users):
+        async for item in db.audit.aggregate(pipeline_users):
             user_id = str(item["_id"])
-            user = db.users.find_one({"_id": ObjectId(user_id)})
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
             user_name = user.get("name") if user else f"User {user_id}"
             events_by_user[user_name] = item["count"]
         
@@ -425,7 +425,7 @@ async def get_audit_statistics(
             
             # Add user info
             if event.get("performed_by"):
-                user = db.users.find_one({"_id": ObjectId(event["performed_by"])})
+                user = await db.users.find_one({"_id": ObjectId(event["performed_by"])})
                 activity["user_name"] = user.get("name") if user else "Unknown User"
             
             recent_activity.append(activity)
@@ -461,7 +461,7 @@ async def export_audit_trail(
     try:
         # Verify user owns all documents
         for doc_id in export_request.document_ids:
-            doc = db.documents.find_one({
+            doc = await db.documents.find_one({
                 "_id": ObjectId(doc_id),
                 "owner_id": ObjectId(current_user["_id"])
             })
@@ -482,7 +482,7 @@ async def export_audit_trail(
                 query["timestamp"]["$lte"] = export_request.date_to
         
         # Get events for export
-        events = list(db.audit.find(query).sort("timestamp", -1))
+        events = await db.audit.find(query).sort("timestamp", -1).to_list(length=1000)
         
         # Schedule export generation
         export_id = str(ObjectId())
@@ -506,13 +506,13 @@ async def export_audit_trail(
         raise HTTPException(status_code=500, detail=f"Failed to start export: {str(e)}")
 
 
-def generate_audit_export(export_id: str, events: List[Dict], format: str, user_id: str):
+async def generate_audit_export(export_id: str, events: List[Dict], format: str, user_id: str):
     """
     Background task to generate audit export
     """
     try:
         # Serialize events
-        serialized_events = [serialize_audit_event(event) for event in events]
+        serialized_events = [await serialize_audit_event(event) for event in events]
         
         # Store export in database (you could also generate files and store in cloud storage)
         export_record = {
@@ -525,10 +525,10 @@ def generate_audit_export(export_id: str, events: List[Dict], format: str, user_
             "status": "completed"
         }
         
-        db.audit_exports.insert_one(export_record)
+        await db.audit_exports.insert_one(export_record)
         
         # Log the export activity
-        log_audit_event({
+        await log_audit_event({
             "action": "export_generated",
             "details": {
                 "export_id": export_id,
@@ -540,7 +540,7 @@ def generate_audit_export(export_id: str, events: List[Dict], format: str, user_
         
     except Exception as e:
         # Log failed export
-        db.audit_exports.insert_one({
+        await db.audit_exports.insert_one({
             "_id": ObjectId(export_id),
             "user_id": ObjectId(user_id),
             "format": format,
@@ -559,7 +559,7 @@ async def get_audit_export(
     Get generated audit export
     """
     try:
-        export = db.audit_exports.find_one({
+        export = await db.audit_exports.find_one({
             "_id": ObjectId(export_id),
             "user_id": ObjectId(current_user["_id"])
         })
@@ -593,7 +593,7 @@ async def cleanup_old_audit_events(
     Clean up old audit events (admin function)
     """
     try:
-        user = db.users.find_one({"_id": ObjectId(current_user["_id"])})
+        user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
 
         if not user.get("is_admin", False):
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -614,16 +614,16 @@ async def cleanup_old_audit_events(
 
 
 
-def perform_audit_cleanup(cutoff_date: datetime, user_id: str):
+async def perform_audit_cleanup(cutoff_date: datetime, user_id: str):
     """
     Background task to clean up old audit events
     """
     try:
         # Delete events older than cutoff date
-        result = db.audit.delete_many({"timestamp": {"$lt": cutoff_date}})
+        result = await db.audit.delete_many({"timestamp": {"$lt": cutoff_date}})
         
         # Log the cleanup
-        log_audit_event({
+        await log_audit_event({
             "action": "cleanup_performed",
             "details": {
                 "cutoff_date": cutoff_date.isoformat(),
@@ -665,7 +665,7 @@ async def log_request(request, call_next):
             user_id = getattr(request.state, 'user_id', None)
             
             if user_id and document_id:
-                log_audit_event({
+                await log_audit_event({
                     "document_id": document_id,
                     "action": action,
                     "details": {

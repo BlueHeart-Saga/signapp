@@ -16,32 +16,30 @@ credit_transactions_collection = get_collection("credit_transactions")
 credit_buckets_collection = get_collection("credit_buckets")
 
 async def db_find_one(collection, filter_dict):
-    return await asyncio.to_thread(collection.find_one, filter_dict)
+    return await collection.find_one(filter_dict)
 
 async def db_find(collection, filter_dict=None, sort=None, skip=0, limit=20):
     if filter_dict is None:
         filter_dict = {}
-    def _find():
-        cursor = collection.find(filter_dict)
-        if sort:
-            cursor = cursor.sort(sort)
-        if skip:
-            cursor = cursor.skip(skip)
-        if limit:
-            cursor = cursor.limit(limit)
-        return list(cursor)
-    return await asyncio.to_thread(_find)
+    cursor = collection.find(filter_dict)
+    if sort:
+        cursor = cursor.sort(sort)
+    if skip:
+        cursor = cursor.skip(skip)
+    if limit:
+        cursor = cursor.limit(limit)
+    return await cursor.to_list(length=limit if limit else None)
 
 async def db_count(collection, filter_dict=None):
     if filter_dict is None:
         filter_dict = {}
-    return await asyncio.to_thread(collection.count_documents, filter_dict)
+    return await collection.count_documents(filter_dict)
 
 async def db_insert_one(collection, document):
-    return await asyncio.to_thread(collection.insert_one, document)
+    return await collection.insert_one(document)
 
 async def db_update_one(collection, filter_dict, update_dict, upsert=False):
-    return await asyncio.to_thread(collection.update_one, filter_dict, update_dict, upsert=upsert)
+    return await collection.update_one(filter_dict, update_dict, upsert=upsert)
 
 class CreditService:
     @staticmethod
@@ -220,7 +218,7 @@ class CreditService:
         balance_after = balance_before - amount
 
         # Deduct from active buckets (oldest expiring first)
-        def _update_buckets():
+        async def _update_buckets():
             cursor = credit_buckets_collection.find({
                 "user_id": uid,
                 "remaining": {"$gt": 0}
@@ -231,7 +229,7 @@ class CreditService:
                 if remaining_to_deduct <= 0:
                     break
                 deduct_from_this = min(bucket["remaining"], remaining_to_deduct)
-                credit_buckets_collection.update_one(
+                await credit_buckets_collection.update_one(
                     {"_id": bucket["_id"]},
                     {"$inc": {"remaining": -deduct_from_this}}
                 )

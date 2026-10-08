@@ -139,7 +139,7 @@ async def request_otp(
         email = request.email.lower()
         
         # Find all recipients with this email
-        recipients = list(db.recipients.find({"email": email}))
+        recipients = await db.recipients.find({"email": email}).to_list(length=1000)
         
         if not recipients:
             # Don't reveal that email doesn't exist - for security
@@ -156,7 +156,7 @@ async def request_otp(
         # Store OTP for all recipients with this email
         # (they share the same OTP for simplicity)
         for recipient in recipients:
-            db.recipients.update_one(
+            await db.recipients.update_one(
                 {"_id": recipient["_id"]},
                 {
                     "$set": {
@@ -212,7 +212,7 @@ async def verify_otp(request: OTPVerify):
         
         # Mark all as verified
         for recipient in recipients:
-            db.recipients.update_one(
+            await db.recipients.update_one(
                 {"_id": recipient["_id"]},
                 {"$set": {"otp_verified": True}}
             )
@@ -222,7 +222,7 @@ async def verify_otp(request: OTPVerify):
         documents = []
         
         for doc_id in document_ids:
-            doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+            doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
             if doc:
                 # Get the specific recipient for this document
                 doc_recipient = next(
@@ -234,7 +234,7 @@ async def verify_otp(request: OTPVerify):
                     # Get sender info
                     sender_name = None
                     if doc.get("owner_id"):
-                        owner = db.users.find_one({"_id": doc["owner_id"]})
+                        owner = await db.users.find_one({"_id": doc["owner_id"]})
                         if owner:
                             sender_name = owner.get("full_name") or owner.get("name")
                     

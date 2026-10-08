@@ -134,7 +134,7 @@ async def get_all_signatures(
             query["signature_type"] = signature_type
         
         # Get total count
-        total = db.signatures.count_documents(query)
+        total = await db.signatures.count_documents(query)
         
         # Get signatures with pagination
         signatures = list(db.signatures.find(query)
@@ -177,7 +177,7 @@ async def create_signature(
             )
         
         # Check if signature with same name already exists
-        existing_signature = db.signatures.find_one({
+        existing_signature = await db.signatures.find_one({
             "name": name,
             "owner_id": MOCK_USER_ID
         })
@@ -238,7 +238,7 @@ async def create_signature(
         }
         
         # Insert into signatures collection
-        result = db.signatures.insert_one(signature_doc)
+        result = await db.signatures.insert_one(signature_doc)
         signature_doc["_id"] = result.inserted_id
         
         return {
@@ -260,7 +260,7 @@ async def get_signature_image(signature_id: str):
     Get signature image (direct image response)
     """
     try:
-        signature = db.signatures.find_one({
+        signature = await db.signatures.find_one({
             "_id": ObjectId(signature_id),
             "owner_id": MOCK_USER_ID
         })
@@ -309,7 +309,7 @@ async def delete_signature(signature_id: str):
     Delete a signature
     """
     try:
-        signature = db.signatures.find_one({
+        signature = await db.signatures.find_one({
             "_id": ObjectId(signature_id),
             "owner_id": MOCK_USER_ID
         })
@@ -328,7 +328,7 @@ async def delete_signature(signature_id: str):
                 print(f"Warning: Could not delete Azure file: {e}")
         
         # Delete from signatures collection
-        db.signatures.delete_one({"_id": ObjectId(signature_id)})
+        await db.signatures.delete_one({"_id": ObjectId(signature_id)})
         
         return {
             "message": "Signature deleted successfully",
@@ -349,7 +349,7 @@ async def get_signature_base64(signature_id: str):
     Get signature image as base64 encoded string
     """
     try:
-        signature = db.signatures.find_one({
+        signature = await db.signatures.find_one({
             "_id": ObjectId(signature_id),
             "owner_id": MOCK_USER_ID
         })
@@ -421,7 +421,7 @@ async def update_signature(
     Update an existing signature
     """
     try:
-        signature = db.signatures.find_one({
+        signature = await db.signatures.find_one({
             "_id": ObjectId(signature_id),
             "owner_id": MOCK_USER_ID
         })
@@ -437,7 +437,7 @@ async def update_signature(
         # Update name if provided
         if name is not None:
             # Check if new name conflicts with existing signature
-            existing = db.signatures.find_one({
+            existing = await db.signatures.find_one({
                 "name": name,
                 "owner_id": MOCK_USER_ID,
                 "_id": {"$ne": ObjectId(signature_id)}
@@ -496,13 +496,13 @@ async def update_signature(
             update_data["size"] = len(processed_image)
         
         # Update signature
-        db.signatures.update_one(
+        await db.signatures.update_one(
             {"_id": ObjectId(signature_id)},
             {"$set": update_data}
         )
         
         # Get updated signature
-        updated_signature = db.signatures.find_one({"_id": ObjectId(signature_id)})
+        updated_signature = await db.signatures.find_one({"_id": ObjectId(signature_id)})
         
         return {
             "message": "Signature updated successfully",

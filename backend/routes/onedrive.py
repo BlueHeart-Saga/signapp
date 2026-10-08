@@ -159,11 +159,11 @@ async def upload_onedrive_file(
             "storage_provider": "azure"
         }
         
-        result = db.documents.insert_one(doc)
+        result = await db.documents.insert_one(doc)
         doc["_id"] = result.inserted_id
 
         # Also save to document_files collection for consistency with main app
-        db.document_files.insert_one({
+        await db.document_files.insert_one({
             "document_id": result.inserted_id,
             "file_path": file_path,
             "filename": filename,
@@ -227,7 +227,7 @@ async def select_onedrive_file(
         "onedrive_access_token": access_token  # Store token for later download
     }
     
-    result = db.documents.insert_one(doc)
+    result = await db.documents.insert_one(doc)
     doc["_id"] = result.inserted_id
 
     return {
@@ -245,7 +245,7 @@ async def download_selected_onedrive_file(
     """Download a previously selected OneDrive file to Azure storage"""
     try:
         # Find the document
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["_id"]),
             "source": "onedrive",
@@ -292,7 +292,7 @@ async def download_selected_onedrive_file(
         )
 
         # Update document with file path
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(document_id)},
             {"$set": {
                 "file_path": file_path,
@@ -302,7 +302,7 @@ async def download_selected_onedrive_file(
         )
 
         # Add to document_files
-        db.document_files.insert_one({
+        await db.document_files.insert_one({
             "document_id": ObjectId(document_id),
             "file_path": file_path,
             "filename": doc["filename"],
@@ -313,7 +313,7 @@ async def download_selected_onedrive_file(
         })
 
         # Get updated document
-        updated_doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        updated_doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         
         return {
             "status": "success",

@@ -15,7 +15,7 @@ router = APIRouter(prefix="/branding", tags=["Branding / Logo Management"])
 
 @router.get("/config")
 async def get_branding_config():
-    config = db.branding.find_one({})
+    config = await db.branding.find_one({})
 
     if not config:
         return {
@@ -54,7 +54,7 @@ async def update_branding(
 
     update_data["updated_at"] = datetime.utcnow()
 
-    db.branding.update_one({}, {"$set": update_data}, upsert=True)
+    await db.branding.update_one({}, {"$set": update_data}, upsert=True)
 
     return {"message": "Branding updated successfully", "data": update_data}
 
@@ -80,7 +80,7 @@ async def upload_logo(
         )
 
     # Get current branding config
-    branding = db.branding.find_one({})
+    branding = await db.branding.find_one({})
 
     # ============================================
     # Delete old logo from Azure if exists
@@ -106,7 +106,7 @@ async def upload_logo(
     )
 
     # Save reference in branding collection
-    db.branding.update_one(
+    await db.branding.update_one(
         {},
         {
             "$set": {
@@ -140,7 +140,7 @@ DEFAULT_LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="180" height
 
 @router.get("/logo/file", summary="Serve platform logo from Azure Storage")
 async def serve_logo():
-    branding = db.branding.find_one({})
+    branding = await db.branding.find_one({})
 
     if branding and branding.get("logo_file_path"):
         try:
@@ -177,7 +177,7 @@ async def delete_logo(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Delete the platform logo"""
-    branding = db.branding.find_one({})
+    branding = await db.branding.find_one({})
 
     if not branding or not branding.get("logo_file_path"):
         raise HTTPException(status_code=404, detail="Logo not found")
@@ -191,7 +191,7 @@ async def delete_logo(
         print(f"Error deleting logo: {e}")
 
     # Remove logo reference from database
-    db.branding.update_one(
+    await db.branding.update_one(
         {},
         {
             "$unset": {
@@ -214,7 +214,7 @@ async def get_logo_info(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Get detailed information about the current logo"""
-    branding = db.branding.find_one({})
+    branding = await db.branding.find_one({})
 
     if not branding or not branding.get("logo_file_path"):
         return {"has_logo": False}

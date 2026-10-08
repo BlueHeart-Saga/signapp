@@ -44,7 +44,7 @@ async def create_contact(
     data: ContactCreate,
     current_user: dict = Depends(get_current_user)
 ):
-    existing = db.contacts.find_one({
+    existing = await db.contacts.find_one({
         "email": data.email,
         "owner_id": ObjectId(current_user["id"])
     })
@@ -60,7 +60,7 @@ async def create_contact(
         "created_at": datetime.utcnow()
     }
 
-    result = db.contacts.insert_one(contact)
+    result = await db.contacts.insert_one(contact)
     contact["_id"] = result.inserted_id
 
     return serialize_contact(contact)
@@ -76,9 +76,7 @@ async def get_contacts(
     if favorite is not None:
         query["favorite"] = favorite
 
-    contacts = list(
-        db.contacts.find(query).sort("created_at", -1)
-    )
+    contacts = await db.contacts.find(query).sort("created_at", -1).to_list(length=1000)
 
     return [serialize_contact(c) for c in contacts]
 
@@ -88,7 +86,7 @@ async def toggle_favorite(
     contact_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    contact = db.contacts.find_one({
+    contact = await db.contacts.find_one({
         "_id": ObjectId(contact_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -98,7 +96,7 @@ async def toggle_favorite(
 
     new_value = not contact.get("favorite", False)
 
-    db.contacts.update_one(
+    await db.contacts.update_one(
         {"_id": contact["_id"]},
         {"$set": {"favorite": new_value}}
     )
@@ -115,7 +113,7 @@ async def update_contact(
     data: ContactUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    contact = db.contacts.find_one({
+    contact = await db.contacts.find_one({
         "_id": ObjectId(contact_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -125,12 +123,12 @@ async def update_contact(
 
     update_data = {k: v for k, v in data.dict().items() if v is not None}
 
-    db.contacts.update_one(
+    await db.contacts.update_one(
         {"_id": contact["_id"]},
         {"$set": update_data}
     )
 
-    updated = db.contacts.find_one({"_id": contact["_id"]})
+    updated = await db.contacts.find_one({"_id": contact["_id"]})
     return serialize_contact(updated)
 
 @router.delete("/{contact_id}")
@@ -138,7 +136,7 @@ async def delete_contact(
     contact_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    result = db.contacts.delete_one({
+    result = await db.contacts.delete_one({
         "_id": ObjectId(contact_id),
         "owner_id": ObjectId(current_user["id"])
     })

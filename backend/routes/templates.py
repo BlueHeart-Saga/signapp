@@ -23,9 +23,11 @@ from database import db, get_collection
 from .auth import get_current_user
 from .converter import convert_to_pdf
 
+from gridfs.asynchronous.grid_file import AsyncGridFS
+
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
-fs = gridfs.GridFS(db) if db is not None else None
+fs = AsyncGridFS(db) if db is not None else None
 
 # MongoDB Collections
 templates_collection = get_collection("templates")
@@ -216,7 +218,7 @@ async def upload_pdf(
         "thumbnail": thumbnail
     }
 
-    result = templates_collection.insert_one(template_doc)
+    result = await templates_collection.insert_one(template_doc)
 
     return {
         "message": "Template uploaded successfully",
@@ -226,7 +228,7 @@ async def upload_pdf(
 
 # ----- 🧾 Create / Save Template -----
 @router.post("/save")
-def save_template(data: TemplateCreate, current_user: dict = Depends(get_current_user)):
+async def save_template(data: TemplateCreate, current_user: dict = Depends(get_current_user)):
     """Save a new PDF template with field coordinates"""
     try:
         template_doc = {
@@ -238,21 +240,21 @@ def save_template(data: TemplateCreate, current_user: dict = Depends(get_current
             "page_count": max([field.page for field in data.fields]) + 1 if data.fields else 1
         }
 
-        result = templates_collection.insert_one(template_doc)
+        result = await templates_collection.insert_one(template_doc)
         return {"message": "Template saved successfully", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving template: {str(e)}")
 
 # ----- ✏️ Update Template -----
 @router.put("/{template_id}")
-def update_template(
+async def update_template(
     template_id: str,
     data: TemplateUpdate,
     current_user: dict = Depends(get_current_user)
 ):
     """Update an existing template"""
     try:
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -270,7 +272,7 @@ def update_template(
             update_data["page_count"] = max([field.page for field in data.fields]) + 1
         
         if update_data:
-            templates_collection.update_one(
+            await templates_collection.update_one(
                 {"_id": ObjectId(template_id)},
                 {"$set": update_data}
             )
@@ -294,10 +296,10 @@ def list_templates(current_user: dict = Depends(get_current_user)):
 
 # ----- 📄 Get Template by ID -----
 @router.get("/{template_id}")
-def get_template(template_id: str, current_user: dict = Depends(get_current_user)):
+async def get_template(template_id: str, current_user: dict = Depends(get_current_user)):
     """Fetch a single template by ID"""
     try:
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -311,8 +313,8 @@ def get_template(template_id: str, current_user: dict = Depends(get_current_user
 
 # ----- 📄 Get PDF File -----
 @router.get("/{template_id}/pdf")
-def get_pdf_file(template_id: str, current_user: dict = Depends(get_current_user)):
-    template = templates_collection.find_one({
+async def get_pdf_file(template_id: str, current_user: dict = Depends(get_current_user)):
+    template = await templates_collection.find_one({
         "_id": ObjectId(template_id),
         "createdBy": ObjectId(current_user["id"])
     })
@@ -333,10 +335,10 @@ def get_pdf_file(template_id: str, current_user: dict = Depends(get_current_user
 
 # ----- 🔍 Re-detect Fields -----
 @router.post("/{template_id}/detect-fields")
-def redetect_fields(template_id: str, current_user: dict = Depends(get_current_user)):
+async def redetect_fields(template_id: str, current_user: dict = Depends(get_current_user)):
     """Re-detect fields in an existing template"""
     try:
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -350,7 +352,7 @@ def redetect_fields(template_id: str, current_user: dict = Depends(get_current_u
 
         
         # Update template with detected fields
-        templates_collection.update_one(
+        await templates_collection.update_one(
             {"_id": ObjectId(template_id)},
             {"$set": {"fields": detected_fields}}
         )
@@ -364,14 +366,14 @@ def redetect_fields(template_id: str, current_user: dict = Depends(get_current_u
 
 # ----- ✍️ Fill Template with Data -----
 @router.post("/fill")
-def fill_template(
+async def fill_template(
     data: FillTemplateRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """Fill template fields with provided data and signatures (GridFS-based)"""
     try:
         # 1️⃣ Fetch template
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(data.template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -466,10 +468,10 @@ def fill_template(
 
 # ----- 📊 Get Template Statistics -----
 @router.get("/{template_id}/stats")
-def get_template_stats(template_id: str, current_user: dict = Depends(get_current_user)):
+async def get_template_stats(template_id: str, current_user: dict = Depends(get_current_user)):
     """Get statistics about template fields"""
     try:
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -494,11 +496,11 @@ def get_template_stats(template_id: str, current_user: dict = Depends(get_curren
 
 # ----- 🗑️ Delete Template -----
 @router.delete("/{template_id}")
-def delete_template(template_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_template(template_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a saved template and associated files"""
     try:
         # Get template first to find file path
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
@@ -514,13 +516,13 @@ def delete_template(template_id: str, current_user: dict = Depends(get_current_u
                 pass  # Don't fail if file deletion fails
         
         # Delete from database
-        result = templates_collection.delete_one({
+        result = await templates_collection.delete_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })
         
         # Delete associated PDF file record
-        pdf_files_collection.delete_one({"template_id": ObjectId(template_id)})
+        await pdf_files_collection.delete_one({"template_id": ObjectId(template_id)})
         
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Template not found or unauthorized")
@@ -531,10 +533,10 @@ def delete_template(template_id: str, current_user: dict = Depends(get_current_u
 
 # ----- 📋 Export Template as JSON -----
 @router.get("/{template_id}/export")
-def export_template(template_id: str, current_user: dict = Depends(get_current_user)):
+async def export_template(template_id: str, current_user: dict = Depends(get_current_user)):
     """Export template as JSON configuration"""
     try:
-        template = templates_collection.find_one({
+        template = await templates_collection.find_one({
             "_id": ObjectId(template_id),
             "createdBy": ObjectId(current_user["id"]),
         })

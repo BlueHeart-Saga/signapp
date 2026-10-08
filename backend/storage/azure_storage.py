@@ -63,6 +63,32 @@ class AzureBlobStorage(StorageProvider):
     def get_url(self, file_identifier: str) -> str:
         blob_client = self.container_client.get_blob_client(file_identifier)
         return blob_client.url
+
+    def generate_signed_url(self, file_identifier: str, expires_in_seconds: int = 900) -> str:
+        """Generate short-lived SAS URL for private direct blob transfers"""
+        try:
+            from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+            from datetime import datetime, timedelta
+
+            blob_client = self.container_client.get_blob_client(file_identifier)
+            account_name = self.blob_service.account_name
+            account_key = self.blob_service.credential.account_key if hasattr(self.blob_service.credential, 'account_key') else None
+
+            if account_name and account_key:
+                sas_token = generate_blob_sas(
+                    account_name=account_name,
+                    container_name=self.container_name,
+                    blob_name=file_identifier,
+                    account_key=account_key,
+                    permission=BlobSasPermissions(read=True),
+                    expiry=datetime.utcnow() + timedelta(seconds=expires_in_seconds)
+                )
+                return f"{blob_client.url}?{sas_token}"
+        except Exception:
+            pass
+
+        # Fallback to default blob URL
+        return self.get_url(file_identifier)
     
     def _get_content_type(self, filename: str) -> str:
         """Determine content type based on file extension"""

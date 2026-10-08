@@ -82,7 +82,7 @@ async def submit_contact_form(data: ContactCreate, request: Request):
         "replied_at": None
     }
 
-    res = db.contact_submissions.insert_one(submission)
+    res = await db.contact_submissions.insert_one(submission)
     submission_id = str(res.inserted_id)
 
     # 1. Automatic "Thank You" email to submitter
@@ -183,14 +183,14 @@ async def list_contact_submissions(
     skip = (page - 1) * page_size
     cursor = db.contact_submissions.find(query).sort("created_at", -1).skip(skip).limit(page_size)
     items = [serialize_submission(c) for c in cursor]
-    total = db.contact_submissions.count_documents(query)
+    total = await db.contact_submissions.count_documents(query)
 
     counts = {
-        "all": db.contact_submissions.count_documents({}),
-        "new": db.contact_submissions.count_documents({"status": "new"}),
-        "in_progress": db.contact_submissions.count_documents({"status": "in_progress"}),
-        "replied": db.contact_submissions.count_documents({"status": "replied"}),
-        "archived": db.contact_submissions.count_documents({"status": "archived"}),
+        "all": await db.contact_submissions.count_documents({}),
+        "new": await db.contact_submissions.count_documents({"status": "new"}),
+        "in_progress": await db.contact_submissions.count_documents({"status": "in_progress"}),
+        "replied": await db.contact_submissions.count_documents({"status": "replied"}),
+        "archived": await db.contact_submissions.count_documents({"status": "archived"}),
     }
 
     return {
@@ -211,7 +211,7 @@ async def update_contact_status(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Update status of contact submission"""
-    res = db.contact_submissions.update_one(
+    res = await db.contact_submissions.update_one(
         {"_id": ObjectId(submission_id)},
         {"$set": {"status": data.status, "updated_at": datetime.utcnow()}}
     )
@@ -229,7 +229,7 @@ async def send_admin_reply(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Send SMTP email reply from admin directly to the submitter"""
-    submission = db.contact_submissions.find_one({"_id": ObjectId(submission_id)})
+    submission = await db.contact_submissions.find_one({"_id": ObjectId(submission_id)})
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
@@ -291,7 +291,7 @@ async def send_admin_reply(
     if not sent:
         raise HTTPException(status_code=500, detail="Failed to send reply email via SMTP. Please check server logs.")
 
-    db.contact_submissions.update_one(
+    await db.contact_submissions.update_one(
         {"_id": ObjectId(submission_id)},
         {"$set": {
             "status": "replied",
@@ -311,7 +311,7 @@ async def delete_contact_submission(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Delete a contact submission"""
-    res = db.contact_submissions.delete_one({"_id": ObjectId(submission_id)})
+    res = await db.contact_submissions.delete_one({"_id": ObjectId(submission_id)})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Submission not found")
     return {"success": True, "message": "Submission deleted successfully"}

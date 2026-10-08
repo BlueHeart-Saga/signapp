@@ -9,12 +9,12 @@ from fastapi.responses import StreamingResponse
 import io
 
 from database import complaints_collection
-import gridfs
+from gridfs.asynchronous.grid_file import AsyncGridFS
 from database import db
 
 router = APIRouter(prefix="/e-sign/complaints", tags=["Complaints"])
 
-fs = gridfs.GridFS(db) if db is not None else None
+fs = AsyncGridFS(db) if db is not None else None
 
 class ComplaintCreate(BaseModel):
     name: str
@@ -128,7 +128,7 @@ async def submit_complaint(
         "resolved_at": None,
     }
 
-    complaints_collection.insert_one(complaint)
+    await complaints_collection.insert_one(complaint)
 
     return {
         "success": True,
@@ -159,7 +159,7 @@ async def list_complaints(
     )
 
     complaints = [serialize_id(c) for c in cursor]
-    total = complaints_collection.count_documents(query)
+    total = await complaints_collection.count_documents(query)
 
     return {
         "items": complaints,
@@ -174,7 +174,7 @@ async def list_complaints(
 # ─────────────────────────────
 @router.get("/admin/{id}")
 async def get_complaint(id: str):
-    complaint = complaints_collection.find_one({"_id": ObjectId(id)})
+    complaint = await complaints_collection.find_one({"_id": ObjectId(id)})
     if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
@@ -193,7 +193,7 @@ async def update_status(id: str, data: ComplaintStatusUpdate):
     if data.status in ["resolved", "rejected"]:
         update["resolved_at"] = datetime.utcnow()
 
-    result = complaints_collection.update_one(
+    result = await complaints_collection.update_one(
         {"_id": ObjectId(id)},
         {"$set": update}
     )
@@ -209,7 +209,7 @@ async def update_status(id: str, data: ComplaintStatusUpdate):
 # ─────────────────────────────
 @router.put("/admin/{id}/note")
 async def add_admin_note(id: str, note: str):
-    complaints_collection.update_one(
+    await complaints_collection.update_one(
         {"_id": ObjectId(id)},
         {"$set": {"admin_note": note}}
     )
@@ -221,7 +221,7 @@ async def add_admin_note(id: str, note: str):
 # ─────────────────────────────
 @router.delete("/admin/{id}")
 async def delete_complaint(id: str):
-    result = complaints_collection.delete_one({"_id": ObjectId(id)})
+    result = await complaints_collection.delete_one({"_id": ObjectId(id)})
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Complaint not found")
@@ -230,7 +230,7 @@ async def delete_complaint(id: str):
 
 @router.get("/admin/{id}/evidence")
 async def download_evidence(id: str):
-    complaint = complaints_collection.find_one({"_id": ObjectId(id)})
+    complaint = await complaints_collection.find_one({"_id": ObjectId(id)})
     if not complaint or "evidence_file_id" not in complaint:
         raise HTTPException(status_code=404, detail="Evidence not found")
 

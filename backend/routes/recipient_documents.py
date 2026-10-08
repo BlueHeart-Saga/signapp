@@ -83,7 +83,7 @@ async def get_recipient_from_token(token: str):
             return None
         
         # Verify recipient still exists
-        recipient = db.recipients.find_one({
+        recipient = await db.recipients.find_one({
             "_id": ObjectId(recipient_id),
             "email": email
         })
@@ -92,7 +92,7 @@ async def get_recipient_from_token(token: str):
             return None
         
         # Verify document still exists
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             return None
         
@@ -172,7 +172,7 @@ async def access_recipient_documents(access: RecipientAccessRequest):
         documents = []
         
         for doc_id in document_ids:
-            doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+            doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
             if doc:
                 # Get recipient info for this document
                 doc_recipient = next(
@@ -192,7 +192,7 @@ async def access_recipient_documents(access: RecipientAccessRequest):
                     access_token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
                     
                     documents.append({
-                        "document": serialize_document_summary(doc),
+                        "document": await serialize_document_summary(doc),
                         "recipient": serialize_recipient_info(doc_recipient),
                         "access_token": access_token,
                         "access_url": f"/recipient-docs/document/{doc_id}?token={access_token}"
@@ -210,14 +210,14 @@ async def access_recipient_documents(access: RecipientAccessRequest):
         print(f"Error accessing recipient documents: {e}")
         raise HTTPException(500, "Error accessing documents")
 
-def serialize_document_summary(doc):
+async def serialize_document_summary(doc):
     """Serialize document for recipient view"""
     # Get sender info
     sender_name = None
     sender_organization = None
     
     if doc.get("owner_id"):
-        owner = db.users.find_one({"_id": doc["owner_id"]})
+        owner = await db.users.find_one({"_id": doc["owner_id"]})
         if owner:
             sender_name = owner.get("full_name") or owner.get("name")
             sender_organization = owner.get("organization_name")
@@ -234,7 +234,7 @@ def serialize_document_summary(doc):
         "sender_organization": sender_organization,
         "envelope_id": doc.get("envelope_id"),
         "page_count": doc.get("page_count", 0),
-        "file_count": db.document_files.count_documents({"document_id": doc["_id"]}) or 1,
+        "file_count": await db.document_files.count_documents({"document_id": doc["_id"]}) or 1,
         "thumbnail_url": f"/recipient-docs/thumbnail/{doc['_id']}"
     }
 
@@ -282,7 +282,7 @@ async def get_my_documents(
             query["status"] = status
         
         # Get documents
-        documents = list(db.documents.find(query).sort("uploaded_at", -1).limit(limit))
+        documents = await db.documents.find(query).sort("uploaded_at", -1).limit(limit).to_list(length=1000)
         
         # Map recipients to documents
         recipient_map = {str(r["document_id"]): r for r in recipients}
@@ -292,7 +292,7 @@ async def get_my_documents(
             doc_recipient = recipient_map.get(str(doc["_id"]))
             if doc_recipient:
                 result.append({
-                    "document": serialize_document_summary(doc),
+                    "document": await serialize_document_summary(doc),
                     "recipient": serialize_recipient_info(doc_recipient),
                     "access_url": f"/recipient-docs/document/{doc['_id']}"
                 })
@@ -318,12 +318,12 @@ async def get_document_details(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned to this document
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -384,7 +384,7 @@ async def get_document_details(
         )
         
         return DocumentDetailResponse(
-            document=serialize_document_summary(doc),
+            document=await serialize_document_summary(doc),
             recipient=serialize_recipient_info(recipient_doc),
             fields=field_list,
             all_recipients=[serialize_recipient_info(r) for r in all_recipients],
@@ -412,12 +412,12 @@ async def download_document(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -434,7 +434,7 @@ async def download_document(
         
         # Apply completed fields if requested and document is completed
         if include_signatures and doc.get("status") == "completed":
-            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, document_id)
+            pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id)
         
         # Add envelope header
         envelope_id = doc.get("envelope_id")
@@ -462,7 +462,7 @@ async def download_document(
         filename = f"{filename_base}_{suffix}.pdf"
         
         # Log download
-        _log_event(
+        await _log_event(
             document_id,
             recipient_doc,
             "document_downloaded",
@@ -501,12 +501,12 @@ async def preview_document(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -567,12 +567,12 @@ async def get_document_status(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -637,12 +637,12 @@ async def get_document_recipients(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -693,12 +693,12 @@ async def get_document_fields(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -717,14 +717,14 @@ async def get_document_fields(
             if doc.get("status") != "completed":
                 raise HTTPException(400, "Cannot view all fields until document is completed")
         
-        fields = list(db.signature_fields.find(query))
+        fields = await db.signature_fields.find(query).to_list(length=1000)
         
         field_list = []
         for field in fields:
             # Get recipient info for this field
             field_recipient = None
             if include_all and field.get("recipient_id"):
-                field_recipient = db.recipients.find_one({"_id": field["recipient_id"]})
+                field_recipient = await db.recipients.find_one({"_id": field["recipient_id"]})
             
             field_list.append({
                 "id": str(field["_id"]),
@@ -764,12 +764,12 @@ async def get_document_timeline(
     """
     try:
         # Verify document exists
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Verify recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -921,12 +921,12 @@ async def get_document_thumbnail(
         raise HTTPException(401, "Authentication required")
     
     try:
-        doc = db.documents.find_one({"_id": ObjectId(document_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(document_id)})
         if not doc:
             raise HTTPException(404, "Document not found")
         
         # Check if recipient is assigned
-        recipient_doc = db.recipients.find_one({
+        recipient_doc = await db.recipients.find_one({
             "document_id": ObjectId(document_id),
             "email": recipient["email"]
         })
@@ -1014,7 +1014,7 @@ async def search_documents(
         if status:
             query["status"] = status
         
-        documents = list(db.documents.find(query).sort("uploaded_at", -1).limit(50))
+        documents = await db.documents.find(query).sort("uploaded_at", -1).limit(50).to_list(length=1000)
         
         # Map recipients
         recipient_map = {str(r["document_id"]): r for r in recipients}
@@ -1024,7 +1024,7 @@ async def search_documents(
             doc_recipient = recipient_map.get(str(doc["_id"]))
             if doc_recipient:
                 result.append({
-                    "document": serialize_document_summary(doc),
+                    "document": await serialize_document_summary(doc),
                     "recipient": serialize_recipient_info(doc_recipient),
                     "match_reason": "filename" if q.lower() in doc.get("filename", "").lower() else "sender" if q.lower() in doc.get("owner_email", "").lower() else "envelope"
                 })

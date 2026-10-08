@@ -8,7 +8,7 @@ def generate_random_email():
     rand = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
     return f"signer_{rand}@example.com"
 
-def test_full_signing_flow(auth_client, client):
+async def test_full_signing_flow(auth_client, client):
     """Test the full flow: upload -> add recipient -> info -> terms -> view"""
     # 1. Upload a document
     file_content = b"Test document content for signing flow"
@@ -79,7 +79,7 @@ def test_full_signing_flow(auth_client, client):
     if info["signing_info"].get("requires_otp"):
         from database import db
         # Read OTP from DB directly for testing purposes
-        rec_doc = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        rec_doc = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         otp = rec_doc.get("otp")
         print(f"OTP found in DB: {otp}")
         if otp:

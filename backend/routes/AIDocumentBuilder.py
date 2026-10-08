@@ -2552,11 +2552,11 @@
 #         # Save to MongoDB
 #         try:
 #             # Insert template
-#             templates_collection.insert_one(template_doc)
+#             await templates_collection.insert_one(template_doc)
             
 #             # Insert fields if any
 #             if field_docs:
-#                 template_fields_collection.insert_many(field_docs)
+#                 await template_fields_collection.insert_many(field_docs)
                 
 #             # Create AI log
 #             log_doc = {
@@ -2573,7 +2573,7 @@
 #                 "model_used": "openai",
 #                 "created_at": datetime.now(timezone.utc)
 #             }
-#             ai_generation_logs_collection.insert_one(log_doc)
+#             await ai_generation_logs_collection.insert_one(log_doc)
             
 #             # Create initial version
 #             version_doc = {
@@ -2588,7 +2588,7 @@
 #                 "created_at": datetime.now(timezone.utc),
 #                 "changes": ["Initial version created with normalized field names"]
 #             }
-#             template_versions_collection.insert_one(version_doc)
+#             await template_versions_collection.insert_one(version_doc)
                 
 #         except Exception as e:
 #             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -2640,7 +2640,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get template
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "$or": [
 #                 {"user_id": user_id},
@@ -2652,7 +2652,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Check if content needs normalization
 #         content = template.get("content", "")
@@ -2661,7 +2661,7 @@
 #             normalized_content, _ = normalize_field_names(content)
             
 #             # Update template with normalized content
-#             templates_collection.update_one(
+#             await templates_collection.update_one(
 #                 {"_id": template_id},
 #                 {"$set": {
 #                     "content": normalized_content,
@@ -2678,7 +2678,7 @@
 #             html_content = create_edit_mode_html(content, fields)
             
 #             # Update template with generated HTML
-#             templates_collection.update_one(
+#             await templates_collection.update_one(
 #                 {"_id": template_id},
 #                 {"$set": {
 #                     "edit_html": html_content,
@@ -2704,7 +2704,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get template
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "$or": [
 #                 {"user_id": user_id},
@@ -2716,7 +2716,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Check if content needs normalization
 #         content = template.get("content", "")
@@ -2736,7 +2736,7 @@
 #             )
             
 #             # Update template with generated HTML
-#             templates_collection.update_one(
+#             await templates_collection.update_one(
 #                 {"_id": template_id},
 #                 {"$set": {
 #                     "preview_html": html_content,
@@ -2859,7 +2859,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get template
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -2868,7 +2868,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Normalize content
 #         content = template.get("content", "")
@@ -2894,7 +2894,7 @@
 #                 "created_at": datetime.now(timezone.utc),
 #                 "updated_at": datetime.now(timezone.utc)
 #             }
-#             template_fields_collection.insert_one(field_doc)
+#             await template_fields_collection.insert_one(field_doc)
 #             fields.append(field_doc)
         
 #         # Regenerate HTML
@@ -2917,7 +2917,7 @@
 #             "field_count": len(fields)
 #         }
         
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$set": update_data}
 #         )
@@ -2935,10 +2935,10 @@
 #             "created_at": datetime.now(timezone.utc),
 #             "changes": ["Normalized field names and regenerated HTML"]
 #         }
-#         template_versions_collection.insert_one(version_doc)
+#         await template_versions_collection.insert_one(version_doc)
         
 #         # Update template version
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$inc": {"version": 1}}
 #         )
@@ -2967,7 +2967,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get template
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "$or": [
 #                 {"user_id": user_id},
@@ -2979,7 +2979,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Ensure content is normalized
 #         content = template.get("content", "")
@@ -3022,7 +3022,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -3031,7 +3031,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Normalize the new content
 #         normalized_content, detected_fields = normalize_field_names(content)
@@ -3052,7 +3052,7 @@
 #             "normalized": True
 #         }
         
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$set": update_data}
 #         )
@@ -3070,7 +3070,7 @@
 #             "created_at": datetime.now(timezone.utc),
 #             "changes": ["Content updated with normalized field names"]
 #         }
-#         template_versions_collection.insert_one(version_doc)
+#         await template_versions_collection.insert_one(version_doc)
         
 #         return {
 #             "success": True,
@@ -3095,7 +3095,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -3128,10 +3128,10 @@
 #         }
         
 #         # Insert field
-#         template_fields_collection.insert_one(field_doc)
+#         await template_fields_collection.insert_one(field_doc)
         
 #         # Update template to refresh HTML
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
 #         content = template.get("content", "")
         
 #         # Add placeholder to content if not already present
@@ -3144,7 +3144,7 @@
 #             normalized_content, _ = normalize_field_names(content)
             
 #             # Update template content
-#             templates_collection.update_one(
+#             await templates_collection.update_one(
 #                 {"_id": template_id},
 #                 {"$set": {"content": normalized_content, "original_content": content}}
 #             )
@@ -3154,7 +3154,7 @@
 #         edit_html = create_edit_mode_html(content, fields)
 #         preview_html = create_preview_mode_html(content, fields, style=template.get("document_style", "modern"))
         
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$set": {
 #                 "edit_html": edit_html,
@@ -3641,7 +3641,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get original template
-#         original = templates_collection.find_one({
+#         original = await templates_collection.find_one({
 #             "_id": template_id,
 #             "$or": [
 #                 {"user_id": user_id},
@@ -3668,10 +3668,10 @@
 #         new_template.pop("_id", None)  # Remove original ID
         
 #         # Insert new template
-#         templates_collection.insert_one(new_template)
+#         await templates_collection.insert_one(new_template)
         
 #         # Clone fields
-#         original_fields = list(template_fields_collection.find({"template_id": template_id}))
+#         original_fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
 #         if original_fields:
 #             new_fields = []
 #             for field in original_fields:
@@ -3685,7 +3685,7 @@
 #                 new_field.pop("_id", None)  # Remove original ID
 #                 new_fields.append(new_field)
             
-#             template_fields_collection.insert_many(new_fields)
+#             await template_fields_collection.insert_many(new_fields)
         
 #         # Create initial version
 #         version_doc = {
@@ -3700,7 +3700,7 @@
 #             "created_at": datetime.now(timezone.utc),
 #             "changes": ["Cloned from template"]
 #         }
-#         template_versions_collection.insert_one(version_doc)
+#         await template_versions_collection.insert_one(version_doc)
         
 #         return {
 #             "success": True,
@@ -3727,10 +3727,10 @@
 #             {"$group": {"_id": "$template_type", "count": {"$sum": 1}}}
 #         ]
         
-#         type_counts = list(templates_collection.aggregate(pipeline))
+#         type_counts = await templates_collection.aggregate(pipeline).to_list(length=1000)
         
 #         # Total templates
-#         total_templates = templates_collection.count_documents({
+#         total_templates = await templates_collection.count_documents({
 #             "user_id": user_id,
 #             "is_active": True
 #         })
@@ -3747,14 +3747,14 @@
 #             {"$group": {"_id": "$field_type", "count": {"$sum": 1}}}
 #         ]
         
-#         field_counts = list(template_fields_collection.aggregate(field_pipeline))
+#         field_counts = await template_fields_collection.aggregate(field_pipeline).to_list(length=1000)
         
 #         return {
 #             "total_templates": total_templates,
 #             "templates_by_type": type_counts,
 #             "recent_templates": recent_templates,
 #             "field_statistics": field_counts,
-#             "ai_generations": ai_generation_logs_collection.count_documents({"user_id": user_id})
+#             "ai_generations": await ai_generation_logs_collection.count_documents({"user_id": user_id})
 #         }
         
 #     except Exception as e:
@@ -3774,7 +3774,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Get template
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "$or": [
 #                 {"user_id": user_id},
@@ -3786,7 +3786,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get fields
-#         fields = list(template_fields_collection.find({"template_id": template_id}))
+#         fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         if format == "html":
 #             # Return preview HTML
@@ -3876,7 +3876,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -3919,7 +3919,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -3936,7 +3936,7 @@
 #             fields_data = []
         
 #         # Get existing fields to preserve data types
-#         existing_fields = list(template_fields_collection.find({"template_id": template_id}))
+#         existing_fields = await template_fields_collection.find({"template_id": template_id}).to_list(length=1000)
         
 #         # Create or update fields in the autosave
 #         for field in fields_data:
@@ -3953,7 +3953,7 @@
 #                     "updated_at": datetime.now(timezone.utc)
 #                 }
                 
-#                 template_fields_collection.update_one(
+#                 await template_fields_collection.update_one(
 #                     {"_id": existing_field["_id"]},
 #                     {"$set": update_data}
 #                 )
@@ -3972,10 +3972,10 @@
 #         }
         
 #         if user_actions_collection:
-#             user_actions_collection.insert_one(autosave_doc)
+#             await user_actions_collection.insert_one(autosave_doc)
         
 #         # Update template metadata
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$set": {
 #                 "content": content,
@@ -4010,7 +4010,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -4056,7 +4056,7 @@
 #         user_id = current_user.get("id") or current_user.get("_id")
         
 #         # Verify template ownership
-#         template = templates_collection.find_one({
+#         template = await templates_collection.find_one({
 #             "_id": template_id,
 #             "user_id": user_id
 #         })
@@ -4065,7 +4065,7 @@
 #             raise HTTPException(status_code=404, detail="Template not found")
         
 #         # Get the version to restore
-#         version = template_versions_collection.find_one({
+#         version = await template_versions_collection.find_one({
 #             "_id": version_id,
 #             "template_id": template_id
 #         })
@@ -4082,13 +4082,13 @@
 #             "version": version.get("version_number") + 1
 #         }
         
-#         templates_collection.update_one(
+#         await templates_collection.update_one(
 #             {"_id": template_id},
 #             {"$set": update_data}
 #         )
         
 #         # Delete existing fields and restore from version
-#         template_fields_collection.delete_many({"template_id": template_id})
+#         await template_fields_collection.delete_many({"template_id": template_id})
         
 #         if version.get("fields"):
 #             # Restore fields
@@ -4105,7 +4105,7 @@
 #                 restored_fields.append(field_data)
             
 #             if restored_fields:
-#                 template_fields_collection.insert_many(restored_fields)
+#                 await template_fields_collection.insert_many(restored_fields)
         
 #         # Create new version record for the restoration
 #         new_version_doc = {
@@ -4120,7 +4120,7 @@
 #             "created_at": datetime.now(timezone.utc),
 #             "changes": [f"Restored from version {version.get('version_number')}"]
 #         }
-#         template_versions_collection.insert_one(new_version_doc)
+#         await template_versions_collection.insert_one(new_version_doc)
         
 #         return {
 #             "success": True,

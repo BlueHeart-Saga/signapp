@@ -40,7 +40,7 @@ const HeroCard = () => {
         </section>
 
         <section className="herocss-hero-visual">
-            <img src="/images/herocard.png" alt="herocard" />
+            <img src="/images/herocard.png" alt="Esigniva document workflow preview" fetchpriority="high" decoding="async" />
         </section>
 
         <ProductDemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

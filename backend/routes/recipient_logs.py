@@ -83,7 +83,7 @@ async def download_document(
 ):
     """Download a document (with access control)"""
     try:
-        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        document = await db.documents.find_one({"_id": ObjectId(document_id)})
         
         if not document:
             raise HTTPException(
@@ -116,7 +116,7 @@ async def download_document(
         download_url = f"/api/documents/{document_id}/file"
         
         # Log the download activity
-        db.document_activity.insert_one({
+        await db.document_activity.insert_one({
             "document_id": document_id,
             "user_id": current_user["id"],
             "action": "download",
@@ -150,7 +150,7 @@ async def get_document_history(
 ):
     """Get signature history for a document"""
     try:
-        document = db.documents.find_one({"_id": ObjectId(document_id)})
+        document = await db.documents.find_one({"_id": ObjectId(document_id)})
         
         if not document:
             raise HTTPException(

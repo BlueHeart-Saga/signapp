@@ -133,7 +133,7 @@ def serialize_recipient(recipient):
     
     return result
 
-def serialize_document(document):
+async def serialize_document(document):
     """Serialize document data for response."""
     return {
         "id": str(document["_id"]),
@@ -147,11 +147,11 @@ def serialize_document(document):
 async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
     """Get recipient with validation for signing operations."""
     try:
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
 
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -174,9 +174,9 @@ async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
     except:
         raise HTTPException(400, "Invalid recipient ID")
 
-def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
+async def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
     """Check if recipient can sign based on signing order."""
-    doc = db.documents.find_one({"_id": document_id})
+    doc = await db.documents.find_one({"_id": document_id})
     signing_order_enabled = doc.get("signing_order_enabled", False) if doc else False
     
     all_recipients = list(db.recipients.find(
@@ -211,9 +211,9 @@ def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
         print(f"⏳ Recipient {recipient_id} (Order: {current_order}) is BLOCKED by: {[r.get('email') for r in blocking_signers]}")
         return False
 
-def update_document_statistics(document_id: ObjectId):
+async def update_document_statistics(document_id: ObjectId):
     """Update document statistics after recipient completion."""
-    recipients = list(db.recipients.find({"document_id": document_id}))
+    recipients = await db.recipients.find({"document_id": document_id}).to_list(length=1000)
     
     role_counts = {
         "signer": 0,
@@ -240,7 +240,7 @@ def update_document_statistics(document_id: ObjectId):
     
     total_completed = sum(completed_by_role.values())
     
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": document_id},
         {"$set": {
             "signed_count": total_completed,
@@ -336,12 +336,12 @@ async def get_signing_info(recipient_id: str):
     """Get signing information for recipient."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -352,7 +352,7 @@ async def get_signing_info(recipient_id: str):
         if doc_status == "voided":
             return {
                 "recipient": serialize_recipient(recipient),
-                "document": serialize_document(document),
+                "document": await serialize_document(document),
                 "signing_info": {
                     "requires_terms": False,
                     "requires_otp": not recipient.get("otp_verified", False),
@@ -373,7 +373,7 @@ async def get_signing_info(recipient_id: str):
         if doc_status in terminal_statuses:
             return {
                 "recipient": serialize_recipient(recipient),
-                "document": serialize_document(document),
+                "document": await serialize_document(document),
                 "signing_info": {
                     "document_status": doc_status,
                     "can_sign_now": False,
@@ -387,11 +387,11 @@ async def get_signing_info(recipient_id: str):
             email = recipient.get("email", "").lower()
             always_accepted = False
             if email:
-                pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
+                pref = await db.terms_preferences.find_one({"email": email, "accepted_always": True})
                 if pref:
                     always_accepted = True
                     # AUTO-ACCEPT FOR THIS RECIPIENT
-                    db.recipients.update_one(
+                    await db.recipients.update_one(
                         {"_id": rid},
                         {"$set": {
                             "terms_accepted": True,
@@ -401,12 +401,12 @@ async def get_signing_info(recipient_id: str):
                         }}
                     )
                     # Refresh recipient object
-                    recipient = db.recipients.find_one({"_id": rid})
+                    recipient = await db.recipients.find_one({"_id": rid})
 
             if not always_accepted:
                 return {
                     "recipient": serialize_recipient(recipient),
-                    "document": serialize_document(document),
+                    "document": await serialize_document(document),
                     "signing_info": {
                         "requires_terms": True,
                         "requires_otp": not recipient.get("otp_verified", False),
@@ -419,7 +419,7 @@ async def get_signing_info(recipient_id: str):
         if recipient.get("terms_declined"):
             return {
                 "recipient": serialize_recipient(recipient),
-                "document": serialize_document(document),
+                "document": await serialize_document(document),
                 "signing_info": {
                     "requires_terms": False,
                     "requires_otp": False,
@@ -431,15 +431,15 @@ async def get_signing_info(recipient_id: str):
             }
         
         # Normal flow for active documents
-        all_recipients = list(db.recipients.find(
+        all_recipients = await db.recipients.find(
             {"document_id": recipient["document_id"]}
-        ).sort("signing_order", 1))
+        ).sort("signing_order", 1).to_list(length=1000)
         
-        can_sign = can_sign_now(recipient_id, recipient["document_id"])
+        can_sign = await can_sign_now(recipient_id, recipient["document_id"])
         
         return {
             "recipient": serialize_recipient(recipient),
-            "document": serialize_document(document),
+            "document": await serialize_document(document),
             "signing_info": {
                 "requires_terms": False,
                 "requires_otp": not recipient.get("otp_verified", False),
@@ -468,17 +468,17 @@ async def get_document_history_for_recipient(recipient_id: str):
     """
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
         doc_id = recipient["document_id"]
-        document = db.documents.find_one({"_id": doc_id})
+        document = await db.documents.find_one({"_id": doc_id})
         if not document:
             raise HTTPException(404, "Document not found")
 
         # 1. Document Details
-        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner = await db.users.find_one({"_id": document["owner_id"]})
         document_details = {
             "id": str(document["_id"]),
             "envelope_id": document.get("envelope_id"),
@@ -495,7 +495,7 @@ async def get_document_history_for_recipient(recipient_id: str):
         }
 
         # 2. Recipients Information
-        all_recipients = list(db.recipients.find({"document_id": doc_id}).sort("signing_order", 1))
+        all_recipients = await db.recipients.find({"document_id": doc_id}).sort("signing_order", 1).to_list(length=1000)
         recipients_list = []
         for idx, rec in enumerate(all_recipients):
             recipients_list.append({
@@ -509,7 +509,7 @@ async def get_document_history_for_recipient(recipient_id: str):
             })
 
         # 3. Activities / Timeline
-        timeline_logs = list(db.document_timeline.find({"document_id": doc_id}).sort("timestamp", -1))
+        timeline_logs = await db.document_timeline.find({"document_id": doc_id}).sort("timestamp", -1).to_list(length=1000)
         activities = []
         for log in timeline_logs:
             actor = log.get("actor", {})
@@ -559,7 +559,7 @@ async def verify_recipient_otp(recipient_id: str, otp_data: OTPVerification,  re
     if stored_otp != otp_data.otp:
         raise HTTPException(400, "Invalid OTP")
     
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": ObjectId(recipient_id)},
         {"$set": {
             "otp_verified": True,
@@ -567,7 +567,7 @@ async def verify_recipient_otp(recipient_id: str, otp_data: OTPVerification,  re
             "status": "viewed"
         }}
     )
-    _log_event(
+    await _log_event(
         str(recipient["document_id"]),
         recipient,
         "otp_verified",
@@ -585,7 +585,7 @@ async def get_terms_status(recipient_id: str):
     """Get terms acceptance status for recipient."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -593,10 +593,10 @@ async def get_terms_status(recipient_id: str):
         # CHECK IF EMAIL HAS ALREADY "ALWAYS ACCEPTED" TERMS
         email = recipient.get("email", "").lower()
         if not recipient.get("terms_accepted") and not recipient.get("terms_declined") and email:
-            pref = db.terms_preferences.find_one({"email": email, "accepted_always": True})
+            pref = await db.terms_preferences.find_one({"email": email, "accepted_always": True})
             if pref:
                 # AUTO-ACCEPT FOR THIS RECIPIENT
-                db.recipients.update_one(
+                await db.recipients.update_one(
                     {"_id": rid},
                     {"$set": {
                         "terms_accepted": True,
@@ -606,7 +606,7 @@ async def get_terms_status(recipient_id: str):
                     }}
                 )
                 # Refresh recipient object
-                recipient = db.recipients.find_one({"_id": rid})
+                recipient = await db.recipients.find_one({"_id": rid})
 
         return {
             "terms_accepted": recipient.get("terms_accepted", False),
@@ -628,7 +628,7 @@ async def accept_terms(
     """Accept terms and conditions."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -651,7 +651,7 @@ async def accept_terms(
         if not recipient.get("otp_verified"):
             update_data["status"] = "viewed"
         
-        db.recipients.update_one(
+        await db.recipients.update_one(
             {"_id": rid},
             {"$set": update_data}
         )
@@ -660,7 +660,7 @@ async def accept_terms(
         if terms_data.accept_always:
             email = recipient.get("email", "").lower()
             if email:
-                db.terms_preferences.update_one(
+                await db.terms_preferences.update_one(
                     {"email": email},
                     {
                         "$set": {
@@ -675,7 +675,7 @@ async def accept_terms(
                 )
         
         # Log the acceptance
-        _log_event(
+        await _log_event(
             str(recipient["document_id"]),
             recipient,
             "accept_terms",
@@ -705,7 +705,7 @@ async def reaccept_terms(
     """Re-accept terms after declining."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -728,7 +728,7 @@ async def reaccept_terms(
             "status": "viewed"  # Reset status to allow signing
         }
         
-        db.recipients.update_one(
+        await db.recipients.update_one(
             {"_id": rid},
             {"$set": update_data}
         )
@@ -737,7 +737,7 @@ async def reaccept_terms(
         if terms_data.accept_always:
             email = recipient.get("email", "").lower()
             if email:
-                db.terms_preferences.update_one(
+                await db.terms_preferences.update_one(
                     {"email": email},
                     {
                         "$set": {
@@ -752,7 +752,7 @@ async def reaccept_terms(
                 )
         
         # Log the re-acceptance
-        _log_event(
+        await _log_event(
             str(recipient["document_id"]),
             recipient,
             "reaccept_terms",
@@ -781,7 +781,7 @@ async def decline_terms(
     """Decline terms and conditions."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -804,17 +804,17 @@ async def decline_terms(
             "decline_reason": f"Declined terms: {decline_data.decline_reason}"
         }
         
-        db.recipients.update_one(
+        await db.recipients.update_one(
             {"_id": rid},
             {"$set": update_data}
         )
         
         # Update document statistics
         doc_id = recipient["document_id"]
-        update_document_statistics(doc_id)
+        await update_document_statistics(doc_id)
         
         # Log the decline
-        _log_event(
+        await _log_event(
             str(doc_id),
             recipient,
             "decline_terms",
@@ -850,13 +850,13 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
     """
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
         # Skip OTP verification for voided documents
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -941,11 +941,11 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
             "completed_at": {"$exists": True}  # Only get completed fields
         }
         
-        completed_raw_fields = list(db.signature_fields.find(completed_fields_query))
+        completed_raw_fields = await db.signature_fields.find(completed_fields_query).to_list(length=1000)
         
         # Pre-fetch all recipients for name mapping
         all_recipients = {}
-        recipients_list = list(db.recipients.find({"document_id": recipient["document_id"]}))
+        recipients_list = await db.recipients.find({"document_id": recipient["document_id"]}).to_list(length=1000)
         for r in recipients_list:
             all_recipients[str(r["_id"])] = r
         
@@ -957,11 +957,11 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         # ============================================
         # This replaces the manual logic below and ensures pixel-perfect alignment 
         # with the final signed download by using the same rendering pipeline.
-        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
         
         # We still want to log the counts, so we'll fetch them once
-        completed_fields_count = db.signature_fields.count_documents(completed_fields_query)
-        signatures_count = db.signature_fields.count_documents({
+        completed_fields_count = await db.signature_fields.count_documents(completed_fields_query)
+        signatures_count = await db.signature_fields.count_documents({
             **completed_fields_query, 
             "type": {"$in": list(IMAGE_FIELDS)}
         })
@@ -998,7 +998,7 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         filename = f"{filename}_{recipient.get('name', 'recipient')}_{timestamp_str}.pdf"
         
         # Log the live document view
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "view_live_document",
@@ -1053,12 +1053,12 @@ async def view_voided_document(
     """
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -1117,7 +1117,7 @@ async def view_voided_document(
         filename = f"VOIDED_{original_filename}"
         
         # Log the view
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "view_voided_document",
@@ -1168,12 +1168,12 @@ async def get_voided_document_status(recipient_id: str):
     """Check if document is voided and get voiding details."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -1182,7 +1182,7 @@ async def get_voided_document_status(recipient_id: str):
         response = {
             "is_voided": is_voided,
             "document_status": document.get("status"),
-            "document": serialize_document(document),
+            "document": await serialize_document(document),
             "recipient": serialize_recipient(recipient)
         }
         
@@ -1210,7 +1210,7 @@ async def download_document_for_recipient(recipient_id: str, request: Request):
     """Download document for recipient."""
     try:
         recipient_obj_id = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": recipient_obj_id})
+        recipient = await db.recipients.find_one({"_id": recipient_obj_id})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -1218,7 +1218,7 @@ async def download_document_for_recipient(recipient_id: str, request: Request):
         if not recipient.get("otp_verified"):
             raise HTTPException(403, "OTP verification required before viewing document")
         
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -1245,7 +1245,7 @@ async def download_document_for_recipient(recipient_id: str, request: Request):
         if document.get("status") == "completed":
             filename = f"signed_{filename}"
             
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "document_downloaded",
@@ -1277,7 +1277,7 @@ async def get_fields_for_recipient(recipient_id: str):
     """Get all fields assigned to recipient with ALL coordinate data."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
@@ -1285,10 +1285,10 @@ async def get_fields_for_recipient(recipient_id: str):
         if recipient["role"] == "viewer":
             return []
         
-        fields = list(db.signature_fields.find({
-            "document_id": recipient["document_id"],
-            "recipient_id": rid
-        }))
+        fields = await db.signature_fields.find({
+            "document_id": {"$in": [recipient["document_id"], str(recipient["document_id"])]},
+            "recipient_id": {"$in": [rid, recipient_id]}
+        }).to_list(length=1000)
         
         enriched_fields = []
         for f in fields:
@@ -1365,14 +1365,14 @@ async def debug_recipient_fields(recipient_id: str):
     """Debug endpoint to check field coordinate data."""
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             return {"error": "Recipient not found"}
         
-        fields = list(db.signature_fields.find({
-            "recipient_id": rid
-        }))
+        fields = await db.signature_fields.find({
+            "recipient_id": {"$in": [rid, recipient_id]}
+        }).to_list(length=1000)
         
         debug_info = {
             "recipient": {
@@ -1429,12 +1429,12 @@ async def get_recipient_signed_preview(
     """
     try:
         # Get recipient and document
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
 
         document_id = recipient["document_id"]
-        doc = db.documents.find_one({"_id": document_id})
+        doc = await db.documents.find_one({"_id": document_id})
         if not doc:
             raise HTTPException(404, "Document not found")
 
@@ -1453,7 +1453,7 @@ async def get_recipient_signed_preview(
             "completed_at": {"$exists": True}
         }
         
-        completed_fields = list(db.signature_fields.find(completed_fields_query))
+        completed_fields = await db.signature_fields.find(completed_fields_query).to_list(length=1000)
         
         if not completed_fields and not fields_data:
             # For viewer role or no fields, return the original document
@@ -1485,17 +1485,17 @@ async def get_recipient_signed_preview(
         if fields_data:
             for field in fields_data:
                 # Try to find matching field in database for coordinates
-                db_field = db.signature_fields.find_one({"_id": ObjectId(field.get("id"))})
+                db_field = await db.signature_fields.find_one({"_id": ObjectId(field.get("id"))})
                 if db_field:
                     # Combine request data with database coordinates
-                    enriched = serialize_field_with_recipient(db_field)
+                    enriched = await serialize_field_with_recipient(db_field)
                     enriched["value"] = field.get("value")
                     enriched["is_completed"] = True
                     enriched_fields.append(enriched)
         else:
             # Use fields from database
             for field in completed_fields:
-                enriched = serialize_field_with_recipient(field)
+                enriched = await serialize_field_with_recipient(field)
                 enriched["is_completed"] = True
                 enriched_fields.append(enriched)
         
@@ -1600,7 +1600,7 @@ async def get_recipient_signed_preview(
             filename = f"{filename_base}.pdf"
         
         # Log the view
-        _log_event(
+        await _log_event(
             str(document_id),
             recipient,
             "recipient_signed_preview",
@@ -1636,21 +1636,21 @@ async def save_field_draft(
     rid = ObjectId(recipient_id)
     fid = ObjectId(field_id)
 
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
 
     if not recipient.get("otp_verified"):
         raise HTTPException(403, "OTP required")
 
-    field = db.signature_fields.find_one({
+    field = await db.signature_fields.find_one({
         "_id": fid,
         "recipient_id": rid
     })
     if not field:
         raise HTTPException(403, "Not your field")
 
-    db.signature_fields.update_one(
+    await db.signature_fields.update_one(
         {"_id": fid},
         {"$set": {
             "draft_value": payload.get("value"),
@@ -1658,7 +1658,7 @@ async def save_field_draft(
         }}
     )
     
-    _log_event(
+    await _log_event(
         str(recipient["document_id"]),
         recipient,
         "field_draft_saved",
@@ -1690,7 +1690,7 @@ async def save_field_draft(
 #     except:
 #         raise HTTPException(400, "Invalid ID")
     
-#     recipient = db.recipients.find_one({"_id": rid})
+#     recipient = await db.recipients.find_one({"_id": rid})
 #     if not recipient:
 #         raise HTTPException(404, "Recipient not found")
     
@@ -1711,7 +1711,7 @@ async def save_field_draft(
 #     # if not can_sign_now(recipient_id, recipient["document_id"]):
 #     #     raise HTTPException(400, "Not your turn to sign yet")
     
-#     field = db.signature_fields.find_one({
+#     field = await db.signature_fields.find_one({
 #         "_id": fid,
 #         "recipient_id": rid
 #     })
@@ -1725,7 +1725,7 @@ async def save_field_draft(
 #     if role == "viewer":
 #         raise HTTPException(403, "Viewer cannot complete fields")
     
-#     document = db.documents.find_one({"_id": recipient["document_id"]})
+#     document = await db.documents.find_one({"_id": recipient["document_id"]})
 
 #     # Allow editing completed fields even after document completion
 #     if document.get("status") == "completed":
@@ -1859,7 +1859,7 @@ async def save_field_draft(
 #             raise HTTPException(400, "Radio field missing group_name")
 
 #         # Uncheck all other radios in the same group
-#         db.signature_fields.update_many(
+#         await db.signature_fields.update_many(
 #             {
 #                 "document_id": field["document_id"],
 #                 "recipient_id": rid,
@@ -1878,13 +1878,13 @@ async def save_field_draft(
 
     
 #     # Update the field
-#     db.signature_fields.update_one(
+#     await db.signature_fields.update_one(
 #         {"_id": fid},
 #         {"$set": update_data}
 #     )
     
 #     # Check if all recipient's fields are completed
-#     remaining_fields = db.signature_fields.count_documents({
+#     remaining_fields = await db.signature_fields.count_documents({
 #         "recipient_id": rid,
 #         "$or": [
 #             {"completed_at": {"$exists": False}},
@@ -1914,14 +1914,14 @@ async def save_field_draft(
 #         if timestamp_field:
 #             update_recipient_data[timestamp_field] = datetime.utcnow()
         
-#         db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
+#         await db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
         
 #         # Update document status and generate intermediate PDF
 #         doc_id = recipient["document_id"]
 #         update_intermediate_pdf(doc_id, rid)
         
 #         # Check if all recipients are completed
-#         all_recipients = list(db.recipients.find({"document_id": doc_id}))
+#         all_recipients = await db.recipients.find({"document_id": doc_id}).to_list(length=1000)
 #         all_completed = all(r.get("status") == "completed" for r in all_recipients)
         
 #         if all_completed:
@@ -1945,7 +1945,7 @@ async def save_field_draft(
 #             request
 #         )
         
-#         all_recipients = list(db.recipients.find({"document_id": doc_id}))
+#         all_recipients = await db.recipients.find({"document_id": doc_id}).to_list(length=1000)
 #         all_completed = all(r.get("status") == "completed" for r in all_recipients)
         
 #          # When all recipients are completed, make sure to pass background_tasks
@@ -2008,7 +2008,7 @@ async def complete_field_as_recipient(
     except:
         raise HTTPException(400, "Invalid ID")
     
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
     
@@ -2019,12 +2019,12 @@ async def complete_field_as_recipient(
     
     
     # FIX: Get document FIRST before using it
-    document = db.documents.find_one({"_id": recipient["document_id"]})
+    document = await db.documents.find_one({"_id": recipient["document_id"]})
     if not document:
         raise HTTPException(404, "Document not found")
     
     # Get the field
-    field = db.signature_fields.find_one({
+    field = await db.signature_fields.find_one({
         "_id": fid,
         "recipient_id": rid
     })
@@ -2176,7 +2176,7 @@ async def complete_field_as_recipient(
             group_name = field.get("group_name")
             if group_name:
                 # Uncheck all other radios in the same group
-                db.signature_fields.update_many(
+                await db.signature_fields.update_many(
                     {
                         "document_id": field["document_id"],
                         "recipient_id": rid,
@@ -2306,13 +2306,13 @@ async def complete_field_as_recipient(
                 print(f"❌ Error uploading attachment: {str(e)}")
                 # Continue without URL if upload fails, keeping only metadata
 
-    db.signature_fields.update_one(
+    await db.signature_fields.update_one(
         {"_id": fid},
         {"$set": update_data}
     )
     
     # Check if all recipient's fields are completed (but DON'T auto-complete)
-    remaining_fields = db.signature_fields.count_documents({
+    remaining_fields = await db.signature_fields.count_documents({
         "recipient_id": rid,
         "$or": [
             {"completed_at": {"$exists": False}},
@@ -2322,7 +2322,7 @@ async def complete_field_as_recipient(
 
     all_fields_completed = (remaining_fields == 0)
     
-    _log_event(
+    await _log_event(
         str(recipient["document_id"]),
         recipient,
         "field_edited" if was_already_completed else "field_completed",
@@ -2337,7 +2337,7 @@ async def complete_field_as_recipient(
     )
 
     # Fetch updated field to return its adjusted coordinates
-    updated_field = db.signature_fields.find_one({"_id": fid})
+    updated_field = await db.signature_fields.find_one({"_id": fid})
     
     # Process updated_field for JSON serialization
     from bson import json_util
@@ -2368,9 +2368,9 @@ async def sign_document(recipient_id: str, signing_data: SigningData, request: R
     # Keeping for backward compatibility
     return {"message": "Use /complete-field endpoint instead"}
 
-def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
+async def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
     """Update intermediate PDF with completed signatures."""
-    document = db.documents.find_one({"_id": document_id})
+    document = await db.documents.find_one({"_id": document_id})
     if not document:
         return
     
@@ -2382,11 +2382,11 @@ def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
     pdf_bytes = storage.download(pdf_path)
     
     # Get all completed fields (signatures and attachments for link preview)
-    fields = list(db.signature_fields.find({
-        "document_id": document_id,
+    fields = await db.signature_fields.find({
+        "document_id": {"$in": [document_id, str(document_id)]},
         "type": {"$in": ["signature", "initials", "witness_signature", "attachment"]},
         "completed_at": {"$exists": True}
-    }))
+    }).to_list(length=1000)
     
     if not fields:
         return
@@ -2402,15 +2402,15 @@ def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId):
         folder=f"documents/{document_id}"
     )
     
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": document_id},
         {"$set": {"intermediate_pdf_path": new_intermediate_path}}
     )
 
-def finalize_document(document_id: ObjectId, request: Request = None, background_tasks: BackgroundTasks = None):
+async def finalize_document(document_id: ObjectId, request: Request = None, background_tasks: BackgroundTasks = None):
     """Finalize document with all signatures and trigger email sending."""
     
-    document = db.documents.find_one({"_id": document_id})
+    document = await db.documents.find_one({"_id": document_id})
     
     if not document:
         return None
@@ -2424,10 +2424,10 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
     pdf_bytes = storage.download(pdf_path)
     
     # Get all completed fields
-    fields = list(db.signature_fields.find({
-        "document_id": document_id,
+    fields = await db.signature_fields.find({
+        "document_id": {"$in": [document_id, str(document_id)]},
         "completed_at": {"$exists": True}
-    }))
+    }).to_list(length=1000)
     
     # Prepare all fields with completion flags and normalized values
     all_form_fields = []
@@ -2470,7 +2470,7 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
         all_form_fields.append(f_enriched)
     
     # Get owner info for header
-    owner = db.users.find_one({"_id": document.get("owner_id")})
+    owner = await db.users.find_one({"_id": document.get("owner_id")})
     sender_name = owner.get("full_name") or owner.get("name", "Sender") if owner else "Sender"
     
     # Finalize document WITH ENVELOPE HEADER (FIXED)
@@ -2498,10 +2498,10 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
     )
     
     # Update document
-    all_recipients = list(db.recipients.find({"document_id": document_id}))
+    all_recipients = await db.recipients.find({"document_id": document_id}).to_list(length=1000)
     completed_count = len([r for r in all_recipients if r.get("status") == "completed"])
     
-    db.documents.update_one(
+    await db.documents.update_one(
         {"_id": document_id},
         {"$set": {
             "status": "completed",
@@ -2513,7 +2513,7 @@ def finalize_document(document_id: ObjectId, request: Request = None, background
     )
     
     # Log the finalization
-    _log_event(
+    await _log_event(
         str(document_id),
         None,
         "document_finalized",
@@ -2557,7 +2557,7 @@ async def preview_with_signatures(
 ):
     """Preview document with signatures and placeholders."""
     try:
-        doc = db.documents.find_one({
+        doc = await db.documents.find_one({
             "_id": ObjectId(document_id),
             "owner_id": ObjectId(current_user["id"])
         })
@@ -2566,9 +2566,9 @@ async def preview_with_signatures(
             raise HTTPException(404, "Document not found")
         
         # Get all fields
-        fields = list(db.signature_fields.find({
-            "document_id": ObjectId(document_id)
-        }))
+        fields = await db.signature_fields.find({
+            "document_id": {"$in": [ObjectId(document_id), document_id]}
+        }).to_list(length=1000)
         
         # Enrich fields with completion status
         enriched_fields = []
@@ -2588,7 +2588,7 @@ async def preview_with_signatures(
             }
             
             # Add recipient info
-            recipient = db.recipients.find_one({"_id": field["recipient_id"]})
+            recipient = await db.recipients.find_one({"_id": field["recipient_id"]})
             if recipient:
                 enriched["recipient_name"] = recipient.get("name")
                 enriched["recipient_email"] = recipient.get("email")
@@ -2658,7 +2658,7 @@ async def get_signing_progress(
     current_user: dict = Depends(get_current_user)
 ):
     """Get signing progress for document."""
-    document = db.documents.find_one({
+    document = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2666,12 +2666,12 @@ async def get_signing_progress(
     if not document:
         raise HTTPException(404, "Document not found")
     
-    recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+    recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
     completed = len([r for r in recipients if r.get("status") == "completed"])
     total = len(recipients)
     
     return {
-        "document": serialize_document(document),
+        "document": await serialize_document(document),
         "progress": {
             "total": total,
             "signed": completed,
@@ -2693,7 +2693,7 @@ async def finalize_signed_document(
     request: Request = None
 ):
     """Manually finalize document and send emails to recipients."""
-    document = db.documents.find_one({
+    document = await db.documents.find_one({
         "_id": ObjectId(document_id),
         "owner_id": ObjectId(current_user["id"])
     })
@@ -2701,14 +2701,14 @@ async def finalize_signed_document(
     if not document:
         raise HTTPException(404, "Document not found")
     
-    recipients = list(db.recipients.find({"document_id": ObjectId(document_id)}))
+    recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
     unsigned = [r for r in recipients if r.get("status") not in ["completed", "declined"]]
     
     if unsigned:
         raise HTTPException(400, "Cannot finalize — remaining signers unfinished")
     
     # Finalize with background tasks for email sending
-    finalize_document(
+    await finalize_document(
         ObjectId(document_id),
         request=request,
         background_tasks=background_tasks
@@ -2739,19 +2739,19 @@ async def decline_document(
     # Get client IP
     client_ip = request.client.host if request.client else "unknown"
     
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
     
     if recipient.get("status") == "completed":
         raise HTTPException(400, "Completed recipient cannot decline")
     
-    document = db.documents.find_one({"_id": recipient["document_id"]})
+    document = await db.documents.find_one({"_id": recipient["document_id"]})
     if document.get("status") not in ["sent", "in_progress"]:
         raise HTTPException(400, "Document is not active")
     
     # Mark recipient as declined
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": rid},
         {"$set": {
             "status": "declined",
@@ -2772,18 +2772,18 @@ async def decline_document(
     
     # Mark document as declined if all recipients decline
     # Or finalize if some completed and others (like this one) declined
-    all_recipients = list(db.recipients.find({"document_id": recipient["document_id"]}))
+    all_recipients = await db.recipients.find({"document_id": recipient["document_id"]}).to_list(length=1000)
     none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
     any_completed = any(r.get("status") == "completed" for r in all_recipients)
     all_declined = all(r.get("status") == "declined" for r in all_recipients)
 
     if all_declined:
-        db.documents.update_one({"_id": recipient["document_id"]}, {"$set": {"status": "declined", "declined_at": datetime.utcnow()}})
-        _log_event(str(recipient["document_id"]), recipient, "document_voided", {"reason": "All recipients declined"}, request)
+        await db.documents.update_one({"_id": recipient["document_id"]}, {"$set": {"status": "declined", "declined_at": datetime.utcnow()}})
+        await _log_event(str(recipient["document_id"]), recipient, "document_voided", {"reason": "All recipients declined"}, request)
     elif any_completed and none_pending:
         # Finalize because everyone has taken action (some signed, some declined)
         from .recipient_signing import finalize_document # Import inside to avoid circular if needed
-        finalize_document(recipient["document_id"], request=request)
+        await finalize_document(recipient["document_id"], request=request)
     
     return {"message": "Document declined successfully"}
 
@@ -2808,7 +2808,7 @@ async def assign_document_to_others(
     except:
         raise HTTPException(400, "Invalid recipient ID")
 
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
 
@@ -2816,7 +2816,7 @@ async def assign_document_to_others(
         raise HTTPException(400, "Completed recipient cannot delegate")
 
     doc_id = recipient["document_id"]
-    document = db.documents.find_one({"_id": doc_id})
+    document = await db.documents.find_one({"_id": doc_id})
     if not document:
         raise HTTPException(404, "Document not found")
 
@@ -2836,7 +2836,7 @@ async def assign_document_to_others(
     otp_expires = datetime.utcnow() + timedelta(hours=24)
 
     # Perform the replacement (maintain same ID but new identity)
-    update_result = db.recipients.update_one(
+    update_result = await db.recipients.update_one(
         {"_id": rid},
         {"$set": {
             "email": assign_request.new_email.lower(),
@@ -2858,10 +2858,10 @@ async def assign_document_to_others(
         raise HTTPException(500, "Failed to update recipient details")
 
     # Get the updated recipient object for email sending
-    updated_recipient = db.recipients.find_one({"_id": rid})
+    updated_recipient = await db.recipients.find_one({"_id": rid})
 
     # Log the delegation event
-    _log_event(
+    await _log_event(
         str(doc_id),
         recipient, # Log using old info as actor if possible or system
         "recipient_delegated",
@@ -2901,7 +2901,7 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
     except:
         raise HTTPException(400, "Invalid recipient ID")
     
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
     
@@ -2911,10 +2911,10 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
     if not recipient.get("otp_verified"):
         raise HTTPException(403, "OTP verification required")
     
-    document = db.documents.find_one({"_id": recipient["document_id"]})
+    document = await db.documents.find_one({"_id": recipient["document_id"]})
 
     # Mark viewer completed
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": rid},
         {"$set": {
             "status": "completed",
@@ -2933,9 +2933,9 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
     
     # Update document statistics
     doc_id = recipient["document_id"]
-    update_document_statistics(doc_id)
+    await update_document_statistics(doc_id)
     
-    _log_event(
+    await _log_event(
         str(recipient["document_id"]),
         recipient,
         "viewer_completed",
@@ -2962,7 +2962,7 @@ async def resend_otp(recipient_id: str, request: Request):
     from .email_service import generate_otp, send_otp_email
     otp = generate_otp()
     
-    db.recipients.update_one(
+    await db.recipients.update_one(
         {"_id": ObjectId(recipient_id)},
         {"$set": {
             "otp": otp,
@@ -2972,9 +2972,9 @@ async def resend_otp(recipient_id: str, request: Request):
         }}
     )
     
-    document = db.documents.find_one({"_id": recipient["document_id"]})
+    document = await db.documents.find_one({"_id": recipient["document_id"]})
     
-    _log_event(
+    await _log_event(
         str(recipient["document_id"]),
         recipient,
         "otp_resent",
@@ -2983,7 +2983,7 @@ async def resend_otp(recipient_id: str, request: Request):
     )
 
     
-    if send_otp_email(recipient, document, otp):
+    if await send_otp_email(recipient, document, otp):
         return {"message": "OTP sent"}
     
     raise HTTPException(500, "Failed to send OTP")
@@ -2995,11 +2995,11 @@ async def email_signed_document(
 ):
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
 
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -3014,7 +3014,7 @@ async def email_signed_document(
             raise HTTPException(404, "Base PDF not found")
 
         # 1. Apply fields
-        pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
 
         # 2. Add envelope header
         envelope_id = document.get("envelope_id")
@@ -3044,7 +3044,7 @@ async def email_signed_document(
         from .email_service import send_document_completion_email
         
         # Get owner info for the professional template
-        owner = db.users.find_one({"_id": document.get("owner_id")})
+        owner = await db.users.find_one({"_id": document.get("owner_id")})
         sender_email = document.get("owner_email", "")
         sender_name = owner.get("full_name") or owner.get("name") or "Sender" if owner else "Sender"
         sender_organization = owner.get("organization_name", "") if owner else ""
@@ -3065,7 +3065,7 @@ async def email_signed_document(
         if not success:
             raise HTTPException(500, "Failed to send email")
 
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "email_signed_document",
@@ -3107,12 +3107,12 @@ async def download_signed_document(
             raise HTTPException(400, "Invalid recipient ID format")
         
         # Get recipient
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -3133,7 +3133,7 @@ async def download_signed_document(
         # This fixes the missing signatures/initials from the signing side.
         try:
             print(f"Applying all completed fields dynamically for recipient download")
-            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+            pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
         except Exception as e:
             print(f"Error in dynamic rendering: {str(e)}")
             # If dynamic failed and we have a storage version, use it
@@ -3190,7 +3190,7 @@ async def download_signed_document(
         # We don't have completed_raw_fields in scope anymore (it's inside apply_completed_fields_to_pdf)
         # So we'll just check the document or do a simple count
         try:
-            completed_count = db.signature_fields.count_documents({
+            completed_count = await db.signature_fields.count_documents({
                 "document_id": document["_id"],
                 "completed_at": {"$exists": True}
             })
@@ -3199,7 +3199,7 @@ async def download_signed_document(
             
         # Log the download event
         try:
-            _log_event(
+            await _log_event(
                 str(document["_id"]),
                 recipient,
                 "download_signed",
@@ -3243,11 +3243,11 @@ async def download_recipient_package(
     """Download full document package (ZIP) for a recipient."""
     try:
         # Get recipient and document
-        recipient = db.recipients.find_one({"_id": ObjectId(recipient_id)})
+        recipient = await db.recipients.find_one({"_id": ObjectId(recipient_id)})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
             
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
             
@@ -3259,12 +3259,12 @@ async def download_recipient_package(
         from .email_service import generate_document_package
         
         # Get overall branding/owner info
-        owner = db.users.find_one({"_id": document["owner_id"]})
+        owner = await db.users.find_one({"_id": document["owner_id"]})
         sender_email = document.get("owner_email", "")
         sender_name = owner.get("full_name", "") or owner.get("name", "") if owner else ""
         sender_organization = owner.get("organization_name", "") if owner else ""
         
-        branding = db.branding.find_one({}) or {}
+        branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
         
@@ -3283,7 +3283,7 @@ async def download_recipient_package(
             raise HTTPException(500, "Could not generate document package")
             
         # Log the event
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "download_package",
@@ -3332,12 +3332,12 @@ async def download_signed_document_with_passkey(
             )
         
         # Get recipient
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -3367,14 +3367,14 @@ async def download_signed_document_with_passkey(
         # APPLY COMPLETED FIELDS (UNIFIED LOGIC)
         # ============================================
         # Get count for logging/metadata
-        completed_fields_count = db.signature_fields.count_documents({
+        completed_fields_count = await db.signature_fields.count_documents({
             "document_id": recipient["document_id"],
             "completed_at": {"$exists": True}
         })
 
         if should_reapply_fields:
             print(f"Re-applying {completed_fields_count} completed fields (unified engine)")
-            pdf_bytes = apply_completed_fields_to_pdf(pdf_bytes, str(recipient["document_id"]), document)
+            pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(recipient["document_id"]), document)
 
         
         # Apply "PASSWORD PROTECTED" watermark
@@ -3428,7 +3428,7 @@ async def download_signed_document_with_passkey(
         
         # Log the download
         try:
-            _log_event(
+            await _log_event(
                 str(document["_id"]),
                 recipient,
                 "download_signed_password",
@@ -3485,12 +3485,12 @@ async def download_original_document(
             raise HTTPException(400, "Invalid recipient ID format")
         
         # Get recipient
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -3551,7 +3551,7 @@ async def download_original_document(
         
         # Log the download
         try:
-            _log_event(
+            await _log_event(
                 str(document["_id"]),
                 recipient,
                 "download_original",
@@ -3617,7 +3617,7 @@ async def download_professional_summary(
             raise HTTPException(400, "Invalid recipient ID format")
         
         # Get recipient with OTP verification check
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
@@ -3626,33 +3626,33 @@ async def download_professional_summary(
             raise HTTPException(403, "OTP verification required to download summary")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
         # Get document owner info
-        owner = db.users.find_one({"_id": document.get("owner_id")}) if document.get("owner_id") else None
+        owner = await db.users.find_one({"_id": document.get("owner_id")}) if document.get("owner_id") else None
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
         
         # ========== GATHER COMPLETE DOCUMENT DATA ==========
         
         # Get all recipients
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": recipient["document_id"]
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
         
         # Get all fields for this document
-        all_fields = list(db.signature_fields.find({
+        all_fields = await db.signature_fields.find({
             "document_id": recipient["document_id"]
-        }))
+        }).to_list(length=1000)
         
         # Get fields assigned to current recipient
         recipient_fields = [f for f in all_fields if str(f.get("recipient_id")) == recipient_id]
         
         # Get document timeline/activity
-        timeline = list(db.document_timeline.find({
+        timeline = await db.document_timeline.find({
             "document_id": recipient["document_id"]
-        }).sort("timestamp", -1).limit(20))
+        }).sort("timestamp", -1).limit(20).to_list(length=1000)
         
         # ========== PREPARE SUMMARY DATA ==========
         
@@ -3847,7 +3847,7 @@ async def download_professional_summary(
         
         # ========== GENERATE PROFESSIONAL SUMMARY PDF ==========
         try:
-            pdf_bytes = EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
+            pdf_bytes = await EsignivaSummaryEngine.create_document_summary_pdf(summary_data)
         except Exception as e:
             print(f"Error creating summary PDF: {str(e)}")
             import traceback
@@ -3867,7 +3867,7 @@ async def download_professional_summary(
         
         # ========== LOG THE DOWNLOAD ==========
         try:
-            _log_event(
+            await _log_event(
                 str(document["_id"]),
                 recipient,
                 "download_professional_summary",
@@ -3932,7 +3932,7 @@ async def download_professional_certificate(
             raise HTTPException(400, "Invalid recipient ID format")
         
         # Get recipient
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
@@ -3941,7 +3941,7 @@ async def download_professional_certificate(
             raise HTTPException(403, "OTP verification required to download certificate")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -3955,24 +3955,24 @@ async def download_professional_certificate(
         # ========== GATHER COMPLETE CERTIFICATE DATA ==========
         
         # Get document owner info
-        owner = db.users.find_one({"_id": document.get("owner_id")}) if document.get("owner_id") else None
+        owner = await db.users.find_one({"_id": document.get("owner_id")}) if document.get("owner_id") else None
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
         
         # Get all recipients
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": recipient["document_id"]
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
         
         # Get all fields
-        all_fields = list(db.signature_fields.find({
+        all_fields = await db.signature_fields.find({
             "document_id": recipient["document_id"]
-        }))
+        }).to_list(length=1000)
         
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
         
         # Get document timeline (Full for certificate)
-        sent_log = db.document_timeline.find_one({
+        sent_log = await db.document_timeline.find_one({
             "document_id": recipient["document_id"],
             "action": "upload_document"
         })
@@ -4068,7 +4068,7 @@ async def download_professional_certificate(
         field_history = []
         if include_timeline:
             for field in completed_fields[:25]:  # Limit to 25 most recent
-                field_recipient = db.recipients.find_one({"_id": field.get("recipient_id")})
+                field_recipient = await db.recipients.find_one({"_id": field.get("recipient_id")})
                 if field_recipient:
                     completion_time = field.get("completed_at")
                     field_history.append({
@@ -4152,7 +4152,7 @@ async def download_professional_certificate(
         
         # ========== GENERATE PROFESSIONAL CERTIFICATE PDF ==========
         try:
-            pdf_bytes = EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
+            pdf_bytes = await EsignivaCertificateEngine.create_certificate_pdf(certificate_data)
         except Exception as e:
             print(f"Error creating certificate PDF: {str(e)}")
             import traceback
@@ -4169,7 +4169,7 @@ async def download_professional_certificate(
         
         # ========== LOG THE DOWNLOAD ==========
         try:
-            _log_event(
+            await _log_event(
                 str(document["_id"]),
                 recipient,
                 "download_certificate",
@@ -4228,7 +4228,7 @@ async def get_recipient_document_thumbnails(
             raise HTTPException(403, "OTP verification required")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -4315,7 +4315,7 @@ async def get_recipient_page_thumbnail(
             raise HTTPException(403, "OTP verification required")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -4457,7 +4457,7 @@ async def get_recipient_file_thumbnail(
             raise HTTPException(403, "OTP verification required")
         
         # Get file
-        file = db.document_files.find_one({
+        file = await db.document_files.find_one({
             "_id": ObjectId(file_id),
             "document_id": recipient["document_id"]
         })
@@ -4538,7 +4538,7 @@ async def get_document_preview_images(
             raise HTTPException(403, "OTP verification required")
         
         # Get document
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -4599,7 +4599,7 @@ async def manually_complete_recipient(
     except:
         raise HTTPException(400, "Invalid recipient ID")
     
-    recipient = db.recipients.find_one({"_id": rid})
+    recipient = await db.recipients.find_one({"_id": rid})
     if not recipient:
         raise HTTPException(404, "Recipient not found")
     
@@ -4614,7 +4614,7 @@ async def manually_complete_recipient(
     # Check if recipient can be completed
     if role in ["signer", "in_person_signer", "form_filler", "witness"]:
         # For these roles, check if all fields are completed
-        incomplete_fields = db.signature_fields.count_documents({
+        incomplete_fields = await db.signature_fields.count_documents({
             "recipient_id": rid,
             "$or": [
                 {"completed_at": {"$exists": False}},
@@ -4660,11 +4660,11 @@ async def manually_complete_recipient(
         except:
             raise HTTPException(400, "Invalid document ID in recipient record")
             
-    document = db.documents.find_one({"_id": doc_id})
+    document = await db.documents.find_one({"_id": doc_id})
     if not document:
         raise HTTPException(404, "Document not found")
         
-    db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
+    await db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
     
     # NEW: Notify owner about recipient completion
     from .email_service import send_recipient_activity_notification_to_owner
@@ -4674,16 +4674,16 @@ async def manually_complete_recipient(
         document=document,
         status="completed"
     )
-    update_document_statistics(doc_id)
+    await update_document_statistics(doc_id)
     
     # Check if all recipients have finished (either completed or declined)
-    all_recipients = list(db.recipients.find({"document_id": doc_id}))
+    all_recipients = await db.recipients.find({"document_id": doc_id}).to_list(length=1000)
     none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
     any_completed = any(r.get("status") == "completed" for r in all_recipients)
     
     if none_pending and any_completed:
         # Finalize the document if at least one person signed and no one is pending
-        finalize_document(
+        await finalize_document(
             doc_id,
             request=request,
             background_tasks=background_tasks
@@ -4702,7 +4702,7 @@ async def manually_complete_recipient(
         current_order = recipient.get("signing_order", 0)
         
         # Find if anyone else in current order is still pending
-        current_level_pending = db.recipients.count_documents({
+        current_level_pending = await db.recipients.count_documents({
             "document_id": doc_id,
             "signing_order": current_order,
             "status": {"$nin": ["completed", "declined"]}
@@ -4735,7 +4735,7 @@ async def manually_complete_recipient(
                 )
     
     # Log the manual completion
-    _log_event(
+    await _log_event(
         str(doc_id),
         recipient,
         "manual_recipient_completion",
@@ -4767,12 +4767,12 @@ async def trigger_completed_emails(
     """
     try:
         rid = ObjectId(recipient_id)
-        recipient = db.recipients.find_one({"_id": rid})
+        recipient = await db.recipients.find_one({"_id": rid})
         
         if not recipient:
             raise HTTPException(404, "Recipient not found")
         
-        document = db.documents.find_one({"_id": recipient["document_id"]})
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
         if not document:
             raise HTTPException(404, "Document not found")
         
@@ -4801,7 +4801,7 @@ async def trigger_completed_emails(
             document_id=str(document["_id"])
         )
         # Log the action
-        _log_event(
+        await _log_event(
             str(document["_id"]),
             recipient,
             "trigger_completed_emails",

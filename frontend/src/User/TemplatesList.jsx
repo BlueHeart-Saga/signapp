@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "../style/TemplatesList.css";
 import { uploadDocument } from "../services/DocumentAPI";
+import showAlert from "../utils/swal";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -177,7 +178,7 @@ const UserTemplatesList = () => {
   const handlePreview = async (templateId) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Missing ID", "Template ID is missing");
         return;
       }
 
@@ -185,7 +186,7 @@ const UserTemplatesList = () => {
       setSelectedTemplate(template);
       setPreviewModalOpen(true);
     } catch (err) {
-      alert("Failed to load template details");
+      showAlert.error("Preview Failed", "Failed to load template details");
     }
   };
 
@@ -193,7 +194,7 @@ const UserTemplatesList = () => {
   const handlePreviewPDF = async (templateId, templateTitle) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Missing ID", "Template ID is missing");
         return;
       }
 
@@ -220,7 +221,7 @@ const UserTemplatesList = () => {
       const newWindow = window.open(url, '_blank');
 
       if (!newWindow) {
-        alert("Please allow pop-ups to view the PDF");
+        showAlert.info("Pop-up Blocked", "Please allow pop-ups to view the PDF preview.");
         return;
       }
 
@@ -230,7 +231,7 @@ const UserTemplatesList = () => {
         setPdfPreviewUrl(null);
       }, 10000);
     } catch (err) {
-      alert("Failed to preview PDF");
+      showAlert.error("PDF Preview Failed", "Failed to preview PDF document");
     }
   };
 
@@ -238,7 +239,7 @@ const UserTemplatesList = () => {
   const handleUseTemplate = async (templateId, templateTitle) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Missing ID", "Template ID is missing");
         return;
       }
 
@@ -285,7 +286,7 @@ const UserTemplatesList = () => {
       }
     } catch (err) {
       console.error("Use template error:", err);
-      alert(err.message || "Failed to use template");
+      showAlert.error("Template Error", err.message || "Failed to use template");
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -296,15 +297,18 @@ const UserTemplatesList = () => {
   const handleDownload = async (templateId, templateTitle, isFree) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Missing ID", "Template ID is missing");
         return;
       }
 
       if (!isFree) {
-        const confirmPurchase = window.confirm(
-          "This is a premium template. Would you like to purchase it?"
+        const confirmResult = await showAlert.confirm(
+          "Premium Template",
+          "This is a premium template. Would you like to purchase it?",
+          "Yes, Purchase",
+          "Cancel"
         );
-        if (!confirmPurchase) return;
+        if (!confirmResult.isConfirmed) return;
       }
 
       const res = await fetch(
@@ -343,10 +347,10 @@ const UserTemplatesList = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      alert(`Template "${templateTitle}" downloaded successfully!`);
+      showAlert.success("Downloaded!", `Template "${templateTitle}" downloaded successfully.`);
       fetchPopularTemplates(); // Refresh download counts
     } catch (err) {
-      alert(err.message || "Failed to download template");
+      showAlert.error("Download Error", err.message || "Failed to download template");
     }
   };
 

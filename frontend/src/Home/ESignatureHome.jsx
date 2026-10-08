@@ -63,14 +63,14 @@ const ESignatureHome = () => {
         </div>
 
         <div className="esig-feature-image">
-          <img src="/images/build-doc.png" alt="build document" />
+          <img src="/images/build-doc.png" alt="build document" loading="lazy" decoding="async" />
         </div>
       </section>
 
       {/* FEATURE 2 */}
       <section className="esig-feature esig-feature-reverse">
         <div className="esig-feature-image">
-          <img src="/images/upload-doc.png" alt="upload document" />
+          <img src="/images/upload-doc.png" alt="upload document" loading="lazy" decoding="async" />
         </div>
 
         <div className="esig-feature-text">
@@ -94,7 +94,7 @@ const ESignatureHome = () => {
         </div>
 
         <div className="esig-feature-image">
-          <img src="/images/secure.png" alt="secure document" />
+          <img src="/images/secure.png" alt="secure document" loading="lazy" decoding="async" />
         </div>
       </section>
     </div>

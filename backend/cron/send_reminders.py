@@ -19,11 +19,11 @@ async def send_reminders():
     """
     now = datetime.utcnow()
 
-    reminder_docs = list(db.documents.find({
+    reminder_docs = await db.documents.find({
         "reminder_period": {"$gt": 0},
         "next_reminder_at": {"$lte": now},
         "status": {"$in": ["sent", "in_progress"]}
-    }))
+    }).to_list(length=1000)
 
     for doc in reminder_docs:
         doc_id = doc["_id"]
@@ -32,10 +32,10 @@ async def send_reminders():
         print(f"[CRON] Found document {doc_id} needing reminders.")
 
         # Find ALL recipients who haven't completed their action
-        pending_recipients = list(db.recipients.find({
+        pending_recipients = await db.recipients.find({
             "document_id": doc_id,
             "status": {"$nin": ["completed", "declined", "expired"]}
-        }))
+        }).to_list(length=1000)
 
         for recipient in pending_recipients:
             try:
@@ -46,7 +46,7 @@ async def send_reminders():
 
         # Update next_reminder_at
         next_reminder = now + timedelta(days=reminder_period)
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_id},
             {"$set": {"next_reminder_at": next_reminder}}
         )

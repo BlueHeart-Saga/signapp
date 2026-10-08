@@ -37,7 +37,7 @@ async def list_envelopes(
                 {"owner_email": {"$regex": search, "$options": "i"}}
             ]
             
-        total = db.documents.count_documents(query)
+        total = await db.documents.count_documents(query)
         cursor = db.documents.find(query).sort("uploaded_at", -1).skip((page-1)*limit).limit(limit)
         documents = list(cursor)
         
@@ -58,7 +58,7 @@ async def find_by_envelope(
 ):
     """Find a specific document by its Envelope ID"""
     try:
-        doc = db.documents.find_one({"envelope_id": envelope_id})
+        doc = await db.documents.find_one({"envelope_id": envelope_id})
         if not doc:
             raise HTTPException(status_code=404, detail="Document with this Envelope ID not found")
         
@@ -79,14 +79,14 @@ async def regenerate_envelope_id_route(
         if not ObjectId.is_valid(doc_id):
             raise HTTPException(status_code=400, detail="Invalid Document ID format")
             
-        doc = db.documents.find_one({"_id": ObjectId(doc_id)})
+        doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
             
         # Using the unified generator from documents.py
-        new_id = generate_envelope_id(user_id=doc.get("owner_id"))
+        new_id = await generate_envelope_id(user_id=doc.get("owner_id"))
         
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {
                 "envelope_id": new_id, 
@@ -118,11 +118,11 @@ async def set_custom_envelope_id(
             raise HTTPException(status_code=400, detail="Invalid Document ID format")
 
         # Check for duplication
-        existing = db.documents.find_one({"envelope_id": data.custom_id, "_id": {"$ne": ObjectId(doc_id)}})
+        existing = await db.documents.find_one({"envelope_id": data.custom_id, "_id": {"$ne": ObjectId(doc_id)}})
         if existing:
             raise HTTPException(status_code=400, detail="This Envelope ID is already in use by another document")
 
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {
                 "envelope_id": data.custom_id, 

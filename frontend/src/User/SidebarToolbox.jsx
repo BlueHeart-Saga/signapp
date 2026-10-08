@@ -1,3 +1,5 @@
+import showAlert from "../utils/swal";
+
 // src/User/DocumentBuilder.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -33,7 +35,7 @@ const DocumentBuilder = () => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.type !== "application/pdf") {
-      alert("Please upload a valid PDF file.");
+      showAlert.warning("Invalid File", "Please upload a valid PDF document.");
       return;
     }
     if (pdfURL) URL.revokeObjectURL(pdfURL);
@@ -87,7 +89,7 @@ const DocumentBuilder = () => {
 
   // --- Save template ---
   const handleSaveTemplate = async () => {
-    if (!pdfFile) return alert("Upload a PDF first!");
+    if (!pdfFile) return showAlert.warning("Missing Document", "Upload a PDF first!");
     try {
       const data = {
         name: pdfFile.name,
@@ -95,10 +97,10 @@ const DocumentBuilder = () => {
         uploadedAt: new Date(),
       };
       await saveTemplate(data);
-      alert(" Template saved successfully!");
+      showAlert.success("Template Saved", "Your document template has been saved successfully!");
     } catch (err) {
       console.error("❌ Save Template Error:", err);
-      alert("Error saving template.");
+      showAlert.error("Save Failed", "Error saving template. Please try again.");
     }
   };
 

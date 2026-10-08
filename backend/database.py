@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
 from dotenv import load_dotenv
 import os
 
@@ -18,16 +18,20 @@ MONGO_URL = (
 DB_NAME = os.getenv("DB_NAME", "SignApp")
 
 try:
-    client = MongoClient(MONGO_URL, serverSelectionTimeoutMS=20000)
-
-    # verify connection
-    client.admin.command("ping")
+    # PyMongo 4.9+ native AsyncMongoClient with connection pooling
+    client = AsyncMongoClient(
+        MONGO_URL,
+        serverSelectionTimeoutMS=20000,
+        maxPoolSize=50,
+        minPoolSize=5,
+    )
 
     db = client[DB_NAME]
-    print(f"Connected to MongoDB database: {DB_NAME}")
+    print(f"Connected to MongoDB database (AsyncMongoClient): {DB_NAME}")
 
 except Exception as e:
-    print("❌ MongoDB connection failed:", e)
+    print("❌ Async MongoDB connection failed:", e)
+    client = None
     db = None
 
 

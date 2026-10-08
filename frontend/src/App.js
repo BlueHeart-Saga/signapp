@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -6,48 +6,68 @@ import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { AuthProvider } from "./context/AuthContext";
+import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 
-// Home Pages
+// Home & Core Pages
 import Home from "./Home/Home";
-
-// Public Pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import Subscription from "./pages/auth/Subscription";
-import Unauthorized from "./pages/auth/Unauthorized";
 
-// Admin Pages
-import AdminDashboard from "./Admin/AdminDashboard";
-import UserManagement from "./Admin/UserManagement";
+// Lazy Loaded Heavy Routes (Code Splitting)
+const Subscription = lazy(() => import("./pages/auth/Subscription"));
+const Unauthorized = lazy(() => import("./pages/auth/Unauthorized"));
 
-// User Pages
-import UserDashboard from "./User/UserDashboard";
-import MyDocuments from "./User/MyDocuments";
-import DocumentBuilder from "./User/DocumentBuilder";
-import AITemplateGenerator from "./User/AITemplateGenerator";
-import ESignature from "./User/ESignature";
-import Templates from "./User/Templates";
-import Settings from "./User/Settings";
+// Admin Pages (Lazy Loaded)
+const AdminDashboard = lazy(() => import("./Admin/AdminDashboard"));
+const UserManagement = lazy(() => import("./Admin/UserManagement"));
+const TemplateManagement = lazy(() => import("./Admin/TemplateManagement"));
+const DynamicLogo = lazy(() => import("./Admin/DynamicLogo"));
+const AdminBanner = lazy(() => import("./Admin/AdminBanner"));
+const AdminComplaints = lazy(() => import("./Admin/AdminComplaints"));
+const AdminFeedback = lazy(() => import("./Admin/AdminFeedback"));
+const AdminEnvelopeManagement = lazy(() => import("./Admin/AdminEnvelopeManagement"));
 
-// Recipient Pages
-import Dashboard from "./Recipient/Dashboard";
-import ViewDocument from "./Recipient/ViewDocument";
-import RecipientSigningPage from './Recipient/RecipientSigningPage';
-import RecipientDashboard from "./Recipient/RecipientDashboard";
-import RecipientDocuments from "./Recipient/RecipientDocuments";
-import RecipientHistory from "./Recipient/RecipientHistory";
-import Access from "./Recipient/Access";
-import DocumentDetails from "./Recipient/DocumentDetails";
-import History from "./Recipient/History";
-import DocumentManagement from './User/DocumentManagement';
-import GoogleCallback from "./components/GoogleCallback";
-import TemplateBuilder from "./User/TemplateBuilder";
-import AIDocumentGenerator from "./User/AIDocumentGenerator";
-import DocumentBuilderPage from "./User/DocumentBuilder";
+// User Heavy Pages (Lazy Loaded)
+const UserDashboard = lazy(() => import("./User/UserDashboard"));
+const MyDocuments = lazy(() => import("./User/MyDocuments"));
+const DocumentBuilderPage = lazy(() => import("./User/DocumentBuilder"));
+const AITemplateGenerator = lazy(() => import("./User/AITemplateGenerator"));
+const ESignature = lazy(() => import("./User/ESignature"));
+const Templates = lazy(() => import("./User/Templates"));
+const Settings = lazy(() => import("./User/Settings"));
+const DocumentManagement = lazy(() => import("./User/DocumentManagement"));
+const TemplateBuilder = lazy(() => import("./User/TemplateBuilder"));
+const AIDocumentGenerator = lazy(() => import("./User/AIDocumentGenerator"));
+const PrepareSendRecipients = lazy(() => import("./User/PrepareSendRecipients"));
+const UserTemplatesList = lazy(() => import("./User/TemplatesList"));
+const InitialDashboard = lazy(() => import("./User/InitialDashboard"));
+const AIDocumentEditor = lazy(() => import("./User/AIDocumentEditor"));
+const DocumentSummary = lazy(() => import("./User/DocumentSummary"));
+const DeletedDocuments = lazy(() => import("./components/DeletedDocuments"));
+const Contacts = lazy(() => import("./User/Contacts"));
+const DocumentMainLayout = lazy(() => import("./User/editor/DocumentMainLayout"));
+const OwnerPreview = lazy(() => import("./components/OwnerPreview"));
+
+// Recipient Pages (Lazy Loaded)
+const Dashboard = lazy(() => import("./Recipient/Dashboard"));
+const ViewDocument = lazy(() => import("./Recipient/ViewDocument"));
+const SigningPage = lazy(() => import("./Recipient/SigningPage"));
+const Completion = lazy(() => import("./Recipient/Completion"));
+const VoidedDocumentView = lazy(() => import("./Recipient/VoidedDocumentView"));
+const DeclinedDocumentView = lazy(() => import("./Recipient/DeclinedDocumentView"));
+const ExpiredDocumentView = lazy(() => import("./Recipient/ExpiredDocumentView"));
+const RecipientDashboard = lazy(() => import("./Recipient/RecipientDashboard"));
+const RecipientDocuments = lazy(() => import("./Recipient/RecipientDocuments"));
+const RecipientHistory = lazy(() => import("./Recipient/RecipientHistory"));
+const Access = lazy(() => import("./Recipient/Access"));
+const DocumentDetails = lazy(() => import("./Recipient/DocumentDetails"));
+const History = lazy(() => import("./Recipient/History"));
+const OTPVerificationPage = lazy(() => import("./Recipient/OTPVerification"));
+
+// Public Informational Pages
 import MainLayout from "./Home/MainLayout";
 import ContactUs from "./Home/ContactUs";
-import OwnerPreview from "./components/OwnerPreview";
-import PrepareSendRecipients from "./User/PrepareSendRecipients";
 import About from "./Home/AboutUs";
 import ESignatureHome from "./Home/ESignatureHome";
 import DocumentManagementHome from "./Home/documentManagementHome";
@@ -64,41 +84,17 @@ import PrivacyPolicy from "./Home/PrivacyPolicy";
 import TermsOfService from "./Home/TermsofService";
 import Cookies from "./Home/Cookies";
 import SecurityHome from "./Home/SecurityHome";
-import ScrollToTop from "./components/ScrollToTop";
 import AdminRegister from "./pages/auth/AdminRegister";
-import TemplateManagement from "./Admin/TemplateManagement";
-import DynamicLogo from "./Admin/DynamicLogo";
-import UserTemplatesList from "./User/TemplatesList";
-import InitialDashboard from "./User/InitialDashboard";
-
-import { setPageTitle } from "./utils/pageTitle";
-import OTPVerificationPage from "./Recipient/OTPVerification";
-import SigningPage from './Recipient/SigningPage';
-import Completion from "./Recipient/Completion"
+import GoogleCallback from "./components/GoogleCallback";
 import NotFound from "./pages/auth/NotFound";
-import AITemplateBuilder from "./User/AI/AITemplateBuilder";
-import AIDocumentEditor from "./User/AIDocumentEditor";
-import DocumentSummary from "./User/DocumentSummary";
-import AdminBanner from "./Admin/AdminBanner";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import AbusePolicy from "./Home/AbusePolicy";
 import ComplaintsStandards from "./Home/ComplaintsStandards";
 import EsignivaFAQ from "./Home/EsignivaFAQ";
 import TrademarkPolicy from "./Home/TrademarkPolicy";
-import DeletedDocuments from "./components/DeletedDocuments";
 import ComplaintPage from "./Home/ComplaintPage";
-import AdminComplaints from "./Admin/AdminComplaints";
-import AdminFeedback from "./Admin/AdminFeedback";
-import AdminEnvelopeManagement from "./Admin/AdminEnvelopeManagement";
-import VoidedDocumentView from "./Recipient/VoidedDocumentView";
-import DeclinedDocumentView from "./Recipient/DeclinedDocumentView";
-import ChangePassword from "./pages/auth/ChangePassword";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import Contacts from "./User/Contacts";
-import DocumentMainLayout from "./User/editor/DocumentMainLayout";
-import ExpiredDocumentView from "./Recipient/ExpiredDocumentView";
 import PlanGuard from "./components/PlanGuard";
-import ErrorBoundary from "./components/ErrorBoundary";
-import ServerOfflineBanner from "./components/ServerOfflineBanner";
+import { setPageTitle } from "./utils/pageTitle";
 
 
 function AnimatedRoutes() {
@@ -406,7 +402,13 @@ function App() {
           }}
         />
         <Router>
-          <AnimatedRoutes />
+          <Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+              <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          }>
+            <AnimatedRoutes />
+          </Suspense>
         </Router>
       </AuthProvider>
     </ErrorBoundary>

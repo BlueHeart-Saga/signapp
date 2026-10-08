@@ -2,135 +2,135 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Main Pages -->
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/</loc>
+    <loc>https://esigniva.com/</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/aboutus</loc>
+    <loc>https://esigniva.com/aboutus</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/contactus</loc>
+    <loc>https://esigniva.com/contactus</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/pricing</loc>
+    <loc>https://esigniva.com/pricing</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.95</priority>
   </url>
 
   <!-- Solutions & Features -->
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/e-signature</loc>
+    <loc>https://esigniva.com/e-signature</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.95</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/document-management</loc>
+    <loc>https://esigniva.com/document-management</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.95</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/workflow-automation</loc>
+    <loc>https://esigniva.com/workflow-automation</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.95</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/templates</loc>
+    <loc>https://esigniva.com/templates</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.90</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/security</loc>
+    <loc>https://esigniva.com/security</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.90</priority>
   </url>
 
   <!-- Account & Authentication -->
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/login</loc>
+    <loc>https://esigniva.com/login</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/register</loc>
+    <loc>https://esigniva.com/register</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/forgot-password</loc>
+    <loc>https://esigniva.com/forgot-password</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
 
   <!-- Content & Resources -->
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/blog</loc>
+    <loc>https://esigniva.com/blog</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.75</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/docs</loc>
+    <loc>https://esigniva.com/docs</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.70</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/faq</loc>
+    <loc>https://esigniva.com/faq</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.65</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/helpcenter</loc>
+    <loc>https://esigniva.com/helpcenter</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.65</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/case-studies</loc>
+    <loc>https://esigniva.com/case-studies</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.70</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/community</loc>
+    <loc>https://esigniva.com/community</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.60</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/support</loc>
+    <loc>https://esigniva.com/support</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.60</priority>
   </url>
 
   <!-- Legal & Policies -->
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/privacy-policy</loc>
+    <loc>https://esigniva.com/privacy-policy</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/terms-of-service</loc>
+    <loc>https://esigniva.com/terms-of-service</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/cookies</loc>
+    <loc>https://esigniva.com/cookies</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/abusepolicy</loc>
+    <loc>https://esigniva.com/abusepolicy</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/complaints</loc>
+    <loc>https://esigniva.com/complaints</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>
   <url>
-    <loc>https://esigniva.devopstrio.co.uk/trademarkpolicy</loc>
+    <loc>https://esigniva.com/trademarkpolicy</loc>
     <lastmod>2026-05-04</lastmod>
     <priority>0.40</priority>
   </url>

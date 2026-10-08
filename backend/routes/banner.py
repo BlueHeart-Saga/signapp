@@ -148,7 +148,7 @@ async def upload_banner(
         "storage_provider": "azure"
     }
 
-    result = db.banners.insert_one(banner)
+    result = await db.banners.insert_one(banner)
     banner["_id"] = result.inserted_id
 
     return {
@@ -176,7 +176,7 @@ async def get_all_banners(
     current_user: dict = Depends(role_required(["admin"]))
 ):
     """Get all banners with pagination (admin only)"""
-    total = db.banners.count_documents({})
+    total = await db.banners.count_documents({})
     banners = list(db.banners.find()
         .sort([("is_active", -1), ("order", 1), ("created_at", -1)])
         .skip(skip)
@@ -190,8 +190,8 @@ async def get_all_banners(
 async def get_overall_banner_stats(
     current_user: dict = Depends(role_required(["admin"]))
 ):
-    total = db.banners.count_documents({})
-    active = db.banners.count_documents({"is_active": True})
+    total = await db.banners.count_documents({})
+    active = await db.banners.count_documents({"is_active": True})
     clicks = sum(b.get("clicks", 0) for b in db.banners.find())
     impressions = sum(b.get("impressions", 0) for b in db.banners.find())
     ctr = round((clicks / impressions * 100) if impressions > 0 else 0, 2)
@@ -209,7 +209,7 @@ async def serve_banner(banner_id: str):
     """Serve banner image file"""
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     try:
@@ -239,7 +239,7 @@ async def serve_banner(banner_id: str):
 async def get_banner(banner_id: str, current_user: dict = Depends(get_current_user)):
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     return serialize_banner(banner)
@@ -267,7 +267,7 @@ async def update_banner(
     """Update banner metadata"""
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
 
@@ -299,8 +299,8 @@ async def update_banner(
         raise HTTPException(status_code=400, detail="No fields to update")
 
     update_data["updated_at"] = datetime.utcnow()
-    db.banners.update_one({"_id": ObjectId(banner_id)}, {"$set": update_data})
-    updated_banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    await db.banners.update_one({"_id": ObjectId(banner_id)}, {"$set": update_data})
+    updated_banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     return {"message": "Banner updated successfully", "banner": serialize_banner(updated_banner)}
 
 @router.put("/{banner_id}/image", summary="Replace banner image")
@@ -312,7 +312,7 @@ async def replace_banner_image(
     """Replace banner image and regenerate thumbnail"""
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]
@@ -327,7 +327,7 @@ async def replace_banner_image(
         print(f"Error deleting old banner image: {e}")
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
     new_file_path = storage.upload(content, unique_filename, folder=f"banners/{current_user['id']}")
-    db.banners.update_one(
+    await db.banners.update_one(
         {"_id": ObjectId(banner_id)},
         {"$set": {"file_path": new_file_path, "filename": file.filename, "content_type": file.content_type, "thumbnail": thumbnail, "updated_at": datetime.utcnow()}}
     )
@@ -341,11 +341,11 @@ async def toggle_banner_status(
     """Toggle banner is_active status — accepts no body, just flips current state"""
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     new_status = not banner.get("is_active", True)
-    db.banners.update_one(
+    await db.banners.update_one(
         {"_id": ObjectId(banner_id)},
         {"$set": {"is_active": new_status, "updated_at": datetime.utcnow()}}
     )
@@ -354,21 +354,21 @@ async def toggle_banner_status(
 @router.post("/{banner_id}/click", summary="Track banner click")
 async def track_banner_click(banner_id: str, current_user: dict = Depends(get_current_user)):
     """Increment click counter for a banner"""
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
-    db.banners.update_one({"_id": ObjectId(banner_id)}, {"$inc": {"clicks": 1}, "$set": {"last_clicked": datetime.utcnow()}})
-    db.banner_clicks.insert_one({"banner_id": ObjectId(banner_id), "user_id": ObjectId(current_user["id"]) if current_user.get("id") else None, "user_email": current_user.get("email"), "clicked_at": datetime.utcnow(), "source": "banner_slider"})
+    await db.banners.update_one({"_id": ObjectId(banner_id)}, {"$inc": {"clicks": 1}, "$set": {"last_clicked": datetime.utcnow()}})
+    await db.banner_clicks.insert_one({"banner_id": ObjectId(banner_id), "user_id": ObjectId(current_user["id"]) if current_user.get("id") else None, "user_email": current_user.get("email"), "clicked_at": datetime.utcnow(), "source": "banner_slider"})
     return {"message": "Click tracked successfully"}
 
 @router.post("/{banner_id}/impression", summary="Track banner impression")
 async def track_banner_impression(banner_id: str, current_user: dict = Depends(get_current_user)):
     """Increment impression counter for a banner"""
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
-    db.banners.update_one({"_id": ObjectId(banner_id)}, {"$inc": {"impressions": 1}, "$set": {"last_viewed": datetime.utcnow()}})
-    db.banner_impressions.insert_one({"banner_id": ObjectId(banner_id), "user_id": ObjectId(current_user["id"]) if current_user.get("id") else None, "user_email": current_user.get("email"), "viewed_at": datetime.utcnow(), "source": "banner_slider"})
+    await db.banners.update_one({"_id": ObjectId(banner_id)}, {"$inc": {"impressions": 1}, "$set": {"last_viewed": datetime.utcnow()}})
+    await db.banner_impressions.insert_one({"banner_id": ObjectId(banner_id), "user_id": ObjectId(current_user["id"]) if current_user.get("id") else None, "user_email": current_user.get("email"), "viewed_at": datetime.utcnow(), "source": "banner_slider"})
     return {"message": "Impression tracked successfully"}
 
 @router.delete("/{banner_id}", summary="Delete banner")
@@ -376,7 +376,7 @@ async def delete_banner(banner_id: str, current_user: dict = Depends(role_requir
     """Delete a banner and its associated image"""
     if not ObjectId.is_valid(banner_id):
         raise HTTPException(status_code=400, detail="Invalid banner ID")
-    banner = db.banners.find_one({"_id": ObjectId(banner_id)})
+    banner = await db.banners.find_one({"_id": ObjectId(banner_id)})
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     try:
@@ -384,7 +384,7 @@ async def delete_banner(banner_id: str, current_user: dict = Depends(role_requir
             storage.delete(banner["file_path"])
     except Exception as e:
         print(f"Error deleting banner image: {e}")
-    db.banners.delete_one({"_id": ObjectId(banner_id)})
-    db.banner_clicks.delete_many({"banner_id": ObjectId(banner_id)})
-    db.banner_impressions.delete_many({"banner_id": ObjectId(banner_id)})
+    await db.banners.delete_one({"_id": ObjectId(banner_id)})
+    await db.banner_clicks.delete_many({"banner_id": ObjectId(banner_id)})
+    await db.banner_impressions.delete_many({"banner_id": ObjectId(banner_id)})
     return {"message": "Banner deleted successfully"}

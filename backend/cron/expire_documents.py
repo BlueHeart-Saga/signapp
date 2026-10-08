@@ -12,16 +12,16 @@ from routes.email_service import send_expiration_email_to_owner, send_expiration
 async def expire_documents():
     now = datetime.utcnow()
 
-    expired_docs = list(db.documents.find({
+    expired_docs = await db.documents.find({
         "expires_at": {"$lte": now},
         "status": {"$in": ["sent", "in_progress"]}
-    }))
+    }).to_list(length=1000)
 
     for doc in expired_docs:
         doc_id = doc["_id"]
 
         # 1️⃣ Expire document
-        db.documents.update_one(
+        await db.documents.update_one(
             {"_id": doc_id},
             {"$set": {
                 "status": "expired",
@@ -30,7 +30,7 @@ async def expire_documents():
         )
 
         # 2️⃣ Expire recipients who didn’t finish
-        db.recipients.update_many(
+        await db.recipients.update_many(
             {
                 "document_id": doc_id,
                 "status": {"$nin": ["completed", "declined"]}
@@ -47,11 +47,10 @@ async def expire_documents():
             await send_expiration_email_to_owner(doc)
             
             # Notify recipients who were pending
-            pending_recipients = db.recipients.find({
+            async for recipient in db.recipients.find({
                 "document_id": doc_id,
                 "status": "expired"
-            })
-            for recipient in pending_recipients:
+            }):
                 await send_expiration_email_to_recipient(recipient, doc)
         except Exception as e:
             print(f"[CRON] Error sending expiration emails for {doc_id}: {e}")
