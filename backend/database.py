@@ -1,4 +1,7 @@
-from pymongo import AsyncMongoClient
+try:
+    from pymongo import AsyncMongoClient
+except ImportError:
+    from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient
 from dotenv import load_dotenv
 import os
 
