@@ -1212,6 +1212,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredentialResponse,
         cancel_on_tap_outside: false,
+        use_fedcm_for_prompt: false,
       });
 
       window.google.accounts.id.renderButton(
@@ -1223,7 +1224,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
           text: "continue_with",
           shape: "rectangular",
           logo_alignment: "left",
-          width: "100%"
+          width: 380
         }
       );
 
