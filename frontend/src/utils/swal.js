@@ -52,13 +52,36 @@ export const showAlert = {
   },
 
   /**
-   * Error Alert Modal
+   * Helper to extract clean, human-readable error message from backend response/exception
+   */
+  extractMessage: (error, defaultMessage = 'An unexpected error occurred. Please try again.') => {
+    if (!error) return defaultMessage;
+    if (typeof error === 'string') return error;
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail;
+      if (typeof detail === 'string') return detail;
+      if (Array.isArray(detail)) {
+        return detail.map((d) => d.msg || d.message || JSON.stringify(d)).join('. ');
+      }
+      if (typeof detail === 'object' && detail.message) return detail.message;
+    }
+    if (error.response?.data?.message) return error.response.data.message;
+    if (error.message && error.message !== '[object Object]') return error.message;
+    return defaultMessage;
+  },
+
+  /**
+   * Error Alert Modal with smart message extraction
    */
   error: (title, text = '', options = {}) => {
+    let cleanText = text;
+    if (text && typeof text === 'object') {
+      cleanText = text.response?.data?.detail || text.message || JSON.stringify(text);
+    }
     return esignivaSwal.fire({
       icon: 'error',
-      title: title || 'Oops... Something went wrong!',
-      text: typeof text === 'object' ? JSON.stringify(text) : text,
+      title: title || 'Something Went Wrong',
+      text: cleanText || 'We encountered an error processing your request. Please try again.',
       confirmButtonText: options.confirmButtonText || 'Got it',
       ...options,
     });

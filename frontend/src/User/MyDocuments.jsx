@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import showAlert from "../utils/swal";
 
 import {
   uploadDocument,
@@ -552,7 +553,7 @@ export default function MyDocuments() {
     const redirectUri = process.env.REACT_APP_GOOGLE_REDIRECT_URI || `${window.location.origin}/documents`;
 
     if (!clientId) {
-      alert('Google Client ID is not configured. Please check your environment variables.');
+      showAlert.error('Configuration Needed', 'Google Client ID is not configured. Please contact your system administrator.');
       return;
     }
 
@@ -590,7 +591,7 @@ export default function MyDocuments() {
 
     } catch (err) {
       console.error("Google auth failed:", err);
-      alert("Failed to complete Google login: " + (err.response?.data?.detail || err.message));
+      showAlert.error("Google Sign-In Unsuccessful", showAlert.extractMessage(err, "We were unable to complete authentication with Google Drive. Please try logging in again."));
     }
   };
 
@@ -601,11 +602,11 @@ export default function MyDocuments() {
           callback: () => showGooglePicker(accessToken),
           onerror: () => {
             console.error('Failed to load Google Picker API');
-            alert('Failed to load Google Picker. Please try again.');
+            showAlert.error('Google Drive Connection Issue', 'We were unable to initialize the Google Drive selector. Please refresh the page and try again.');
           }
         });
       } else {
-        alert('Google API not loaded. Please check your internet connection and try again.');
+        showAlert.error('Connection Error', 'Google API libraries are currently unreachable. Please check your internet connection and try again.');
       }
     } else {
       showGooglePicker(accessToken);
@@ -669,7 +670,7 @@ export default function MyDocuments() {
 
   const handleDropboxChooser = () => {
     if (!window.Dropbox) {
-      alert("Dropbox SDK not loaded. Please check your internet connection.");
+      showAlert.error("SDK Not Ready", "Dropbox SDK is currently loading or unavailable. Please check your internet connection.");
       return;
     }
 
@@ -688,17 +689,17 @@ export default function MyDocuments() {
             };
 
             await uploadFromCloud("dropbox", fileMeta);
-            alert("File uploaded from Dropbox successfully");
+            showAlert.success("Upload Successful", `"${file.name}" has been imported from Dropbox successfully.`);
             loadDocs();
           } catch (error) {
             console.error("Dropbox upload error:", error);
-            alert("Failed to upload file from Dropbox: " + (error.response?.data?.detail || error.message));
+            showAlert.error("Upload Failed", showAlert.extractMessage(error, "Failed to import your file from Dropbox. Please try again."));
           }
         }
       },
       error: (error) => {
         console.error("Dropbox chooser error:", error);
-        alert("Dropbox chooser failed");
+        showAlert.error("Dropbox Chooser Error", "Unable to select file from Dropbox. Please try again.");
       },
       linkType: "preview",
       multiselect: false,
@@ -714,7 +715,7 @@ export default function MyDocuments() {
 
   const handleOneDrivePicker = () => {
     if (!window.OneDrive) {
-      alert("OneDrive SDK not loaded. Please check your internet connection.");
+      showAlert.error("SDK Not Ready", "OneDrive SDK is currently unavailable. Please verify your internet connection.");
       return;
     }
 
@@ -739,18 +740,18 @@ export default function MyDocuments() {
             };
 
             await uploadFromCloud("onedrive", fileMeta);
-            alert("File uploaded from OneDrive successfully");
+            showAlert.success("Upload Successful", `"${file.name}" was imported from OneDrive successfully.`);
             loadDocs();
           } catch (error) {
             console.error("OneDrive upload error:", error);
-            alert("Failed to upload file from OneDrive: " + (error.response?.data?.detail || error.message));
+            showAlert.error("OneDrive Import Error", showAlert.extractMessage(error, "We encountered an issue importing your document from OneDrive."));
           }
         }
       },
       cancel: () => console.log("OneDrive picker cancelled"),
       error: (e) => {
         console.error("OneDrive picker error:", e);
-        alert("OneDrive error: " + e);
+        showAlert.error("OneDrive Selector Issue", "An error occurred while connecting to Microsoft OneDrive. Please try again.");
       },
     };
     window.OneDrive.open(odOptions);
@@ -776,7 +777,7 @@ export default function MyDocuments() {
     const redirectUri = process.env.REACT_APP_BOX_REDIRECT_URI || `${window.location.origin}/documents`;
 
     if (!clientId) {
-      alert('Box Client ID is not configured. Please check your environment variables.');
+      showAlert.error('Configuration Required', 'Box Client ID is not configured. Please check system settings.');
       return;
     }
 
@@ -803,7 +804,7 @@ export default function MyDocuments() {
       localStorage.setItem("box_access_token", token);
       setBoxToken(token);
 
-      alert("Box connected successfully");
+      showAlert.toast('success', 'Box connected successfully!');
       window.history.replaceState({}, document.title, "/documents");
 
       setShowBoxPicker(true);
@@ -811,7 +812,7 @@ export default function MyDocuments() {
 
     } catch (err) {
       console.error("Box auth failed:", err);
-      alert("Failed to complete Box login: " + (err.response?.data?.detail || err.message));
+      showAlert.error("Box Connection Failed", showAlert.extractMessage(err, "Could not complete Box authentication. Please try connecting again."));
     }
   };
 
@@ -837,10 +838,10 @@ export default function MyDocuments() {
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("box_access_token");
         setBoxToken(null);
-        alert("Box session expired. Please reconnect.");
+        showAlert.warning("Session Expired", "Your Box authorization has expired. Please reconnect your account.");
         authenticateWithBox();
       } else {
-        alert("Failed to load files from Box: " + (error.response?.data?.detail || error.message));
+        showAlert.error("Box Error", showAlert.extractMessage(error, "Unable to fetch files from Box. Please check your network connection."));
       }
     } finally {
       setBoxLoading(false);
@@ -883,7 +884,7 @@ export default function MyDocuments() {
         boxToken
       );
 
-      alert("File uploaded from Box successfully");
+      showAlert.success("Import Complete", `"${file.name}" was imported from Box successfully.`);
       setShowBoxPicker(false);
       loadDocs();
 
@@ -893,10 +894,10 @@ export default function MyDocuments() {
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("box_access_token");
         setBoxToken(null);
-        alert("Box session expired. Please reconnect.");
+        showAlert.warning("Session Expired", "Your Box authorization session expired. Please reconnect.");
         authenticateWithBox();
       } else {
-        alert("Failed to upload file from Box: " + (error.response?.data?.detail || error.message));
+        showAlert.error("Import Failed", showAlert.extractMessage(error, "Failed to upload document from Box. Please try again."));
       }
     } finally {
       setBoxLoading(false);
@@ -1008,7 +1009,7 @@ export default function MyDocuments() {
   // Simple template usage - direct API call
   const useTemplateSimple = async (template) => {
     if (!template || !template.id) {
-      alert("Template ID is required");
+      showAlert.warning("Template Required", "Please select a valid template to proceed.");
       return;
     }
 
@@ -1035,33 +1036,20 @@ export default function MyDocuments() {
 
       if (result.document) {
         // Success
-        setSnackbar({
-          open: true,
-          message: `Document created from "${template.name}" template`,
-          severity: "success",
-        });
+        showAlert.success("Document Created", `A new document copy was created from "${template.name}" successfully.`);
 
         // Refresh documents
         loadDocs();
 
         // Close template browser
         setShowTemplateBrowser(false);
-
-        // Optionally navigate to the new document
-        if (result.document.id) {
-          // navigate to document editor or preview
-        }
       } else {
         throw new Error("No document created");
       }
 
     } catch (err) {
       console.error("Template usage error:", err);
-      setSnackbar({
-        open: true,
-        message: `Failed to use template: ${err.message}`,
-        severity: "error",
-      });
+      showAlert.error("Template Copy Failed", showAlert.extractMessage(err, "Could not generate a document copy from this template. Please try again."));
     } finally {
       setTemplateLoading(false);
     }
@@ -1070,13 +1058,7 @@ export default function MyDocuments() {
 
   const handleTemplateUse = (template) => {
     console.log('Template selected for use:', template);
-    // Load the template into your editor
-    // setCurrentTemplate(template);
-    // setActiveTab(1); // Switch to visual builder tab
   };
-
-
-
 
   const handleDownload = async (doc) => {
     try {
@@ -1087,7 +1069,7 @@ export default function MyDocuments() {
         // Final PDF not ready → fallback to original
         await downloadDocument(doc.id, doc.filename, "original");
       } else {
-        alert("Download failed: " + err.response?.data?.detail);
+        showAlert.error("Download Error", showAlert.extractMessage(err, "We were unable to download this document. Please try again."));
       }
     }
   };
@@ -1098,7 +1080,7 @@ export default function MyDocuments() {
       await downloadDocument(doc.id, doc.filename, "package");
     } catch (err) {
       console.error("Package download error:", err);
-      alert("Failed to download package: " + (err.response?.data?.detail || "Unknown error"));
+      showAlert.error("Package Download Error", showAlert.extractMessage(err, "Failed to download the complete audit & document package. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -1866,9 +1848,13 @@ export default function MyDocuments() {
                               <button
                                 className="dropdown-item dropdown-item-success"
                                 onClick={async () => {
-                                  await restoreDocument(doc.id);
-                                  alert("Void cancelled. Document active.");
-                                  loadDocs();
+                                  try {
+                                    await restoreDocument(doc.id);
+                                    showAlert.success("Document Reactivated", "The void action was cancelled. The document is now active again.");
+                                    loadDocs();
+                                  } catch (e) {
+                                    showAlert.error("Action Failed", showAlert.extractMessage(e, "Unable to cancel document void status."));
+                                  }
                                 }}
                               >
                                 <RestoreIcon className="dropdown-icon" />
@@ -1896,9 +1882,13 @@ export default function MyDocuments() {
                               <button
                                 className="dropdown-item dropdown-item-success"
                                 onClick={async () => {
-                                  await restoreDocument(doc.id);
-                                  alert("Document restored");
-                                  loadDocs();
+                                  try {
+                                    await restoreDocument(doc.id);
+                                    showAlert.success("Document Restored", `"${doc.filename}" has been restored to your active documents.`);
+                                    loadDocs();
+                                  } catch (e) {
+                                    showAlert.error("Restore Failed", showAlert.extractMessage(e, "Failed to restore document."));
+                                  }
                                 }}
                               >
                                 <RestoreIcon className="dropdown-icon" />

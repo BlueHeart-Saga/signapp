@@ -380,6 +380,7 @@ import '../style/documents.css';
 import '../style/TemplatesList.css';
 import { useAuth } from '../context/AuthContext';
 import { CircularProgress, Box } from '@mui/material';
+import showAlert from '../utils/swal';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -624,7 +625,7 @@ export default function DocumentsAndTemplates() {
   const handleViewPdf = async (templateId) => {
     if (!templateId) {
       console.error("Template ID is missing");
-      alert("Template ID not available");
+      showAlert.warning("Template Missing", "Unable to load preview because the template ID was not found.");
       return;
     }
 
@@ -647,7 +648,7 @@ export default function DocumentsAndTemplates() {
       setPdfUrl(url);
       setShowPdfViewer(true);
     } catch (err) {
-      alert("Unable to open PDF");
+      showAlert.error("Preview Unavailable", "Could not render the PDF preview for this template. Please try downloading it instead.");
     }
   };
 
@@ -655,7 +656,7 @@ export default function DocumentsAndTemplates() {
     try {
       const docId = document?.id || document?._id;
       if (!docId) {
-        alert("Document ID missing");
+        showAlert.warning("Document Missing", "Document ID is missing. Unable to open preview.");
         return;
       }
 
@@ -678,7 +679,7 @@ export default function DocumentsAndTemplates() {
       setShowPdfViewer(true);
     } catch (err) {
       console.error(err);
-      alert("Unable to open document PDF");
+      showAlert.error("Document Preview Failed", "We were unable to load the PDF preview for this document.");
     }
   };
 
@@ -827,21 +828,21 @@ export default function DocumentsAndTemplates() {
   const handlePreview = async (templateId) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Template Missing", "Template ID is missing.");
         return;
       }
       const template = await getTemplateDetails(templateId);
       setSelectedTemplate(template);
       setPreviewModalOpen(true);
     } catch (err) {
-      alert("Failed to load template details");
+      showAlert.error("Template Details Error", showAlert.extractMessage(err, "Failed to load template information. Please try again."));
     }
   };
 
   const handleUseTemplate = async (templateId, templateTitle) => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Template Missing", "Template ID is missing.");
         return;
       }
 
@@ -880,7 +881,6 @@ export default function DocumentsAndTemplates() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          // Don't set Content-Type - let browser set it with boundary
         },
         body: formData,
       });
@@ -894,27 +894,15 @@ export default function DocumentsAndTemplates() {
       const uploadResult = await uploadRes.json();
       console.log("Upload result:", uploadResult);
 
-      // Extract document from response
       const uploadedDocument = uploadResult.document || uploadResult.data || uploadResult;
 
       if (!uploadedDocument) {
         throw new Error("No document data in upload response");
       }
 
-      // Show success
-      setSnackbar({
-        open: true,
-        message: "Template uploaded successfully!",
-        severity: "success",
-      });
+      showAlert.toast("success", "Template imported! Loading document editor...");
 
-      // Navigate to Document Builder / Editor so user can review, modify & edit template content first
       const docId = uploadedDocument.id || uploadedDocument._id;
-      setSnackbar({
-        open: true,
-        message: "Template loaded! You can now review, edit, and fill content.",
-        severity: "success",
-      });
       navigate(`/user/documentbuilder/${docId}`, {
         state: {
           document: uploadedDocument,
@@ -925,12 +913,7 @@ export default function DocumentsAndTemplates() {
 
     } catch (err) {
       console.error("Use template error:", err);
-
-      setSnackbar({
-        open: true,
-        message: err.message || "Failed to use template",
-        severity: "error",
-      });
+      showAlert.error("Template Processing Error", showAlert.extractMessage(err, "We were unable to create a document copy from this template. Please try again."));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -940,15 +923,18 @@ export default function DocumentsAndTemplates() {
   const handleDownloadTemplate = async (templateId, templateTitle, isFree, format = 'pdf') => {
     try {
       if (!templateId) {
-        alert("Template ID is missing");
+        showAlert.warning("Template Missing", "Template ID is missing.");
         return;
       }
 
       if (!isFree) {
-        const confirmPurchase = window.confirm(
-          "This is a premium template. Would you like to purchase it?"
+        const confirmPurchase = await showAlert.confirm(
+          "Premium Template",
+          "This is a premium template. Would you like to proceed with downloading it?",
+          "Yes, Download",
+          "Cancel"
         );
-        if (!confirmPurchase) return;
+        if (!confirmPurchase.isConfirmed) return;
       }
 
       const formatQuery = format === 'docx' ? 'docx' : 'pdf';
@@ -980,14 +966,10 @@ export default function DocumentsAndTemplates() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      setSnackbar({
-        open: true,
-        message: `Template downloaded successfully as ${format.toUpperCase()}!`,
-        severity: "success"
-      });
+      showAlert.toast("success", `Template downloaded as ${format.toUpperCase()}!`);
       fetchPopularTemplates();
     } catch (err) {
-      alert(err.message || "Failed to download template");
+      showAlert.error("Download Error", showAlert.extractMessage(err, "Could not download the requested template file. Please try again."));
     }
   };
 
@@ -1037,7 +1019,7 @@ export default function DocumentsAndTemplates() {
         handleUseTemplate(templateId, selectedTemplate.title);
         closePreviewModal();
       } else {
-        alert("Invalid template ID");
+        showAlert.warning("Invalid Selection", "Selected template ID is invalid.");
       }
     }
   };
@@ -1054,7 +1036,7 @@ export default function DocumentsAndTemplates() {
         );
         closePreviewModal();
       } else {
-        alert("Invalid template ID");
+        showAlert.warning("Invalid Selection", "Selected template ID is invalid.");
       }
     }
   };
