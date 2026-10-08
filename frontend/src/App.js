@@ -1,3 +1,4 @@
+// Esigniva Production & QA Frontend Application
 import React, { lazy, Suspense } from "react";
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
