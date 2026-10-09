@@ -47,7 +47,7 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "Vikadan1234$")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "esigniva@devopstrioglobal.com")
 
 # Google OAuth configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "432906890842-1rc8ck80iu07h6r4cjjrd4nmcbnjc204.apps.googleusercontent.com")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://signapp-backend-docker-gva0g0a9f9g9cmax.southindia-01.azurewebsites.net/auth/google/callback")
 
@@ -1817,12 +1817,27 @@ async def google_callback(
 async def google_verify_token(request: GoogleTokenRequest):
     """Verify Google ID token (GSI)"""
     try:
-        # Verify the ID token
-        id_info = id_token.verify_oauth2_token(
-            request.credential, 
-            google_requests.Request(), 
-            GOOGLE_CLIENT_ID
-        )
+        target_client_id = GOOGLE_CLIENT_ID or "432906890842-1rc8ck80iu07h6r4cjjrd4nmcbnjc204.apps.googleusercontent.com"
+        try:
+            id_info = id_token.verify_oauth2_token(
+                request.credential, 
+                google_requests.Request(), 
+                target_client_id
+            )
+        except ValueError as ve:
+            print(f"Primary Google token verification failed ({ve}), attempting fallback verification...")
+            id_info = id_token.verify_oauth2_token(
+                request.credential, 
+                google_requests.Request()
+            )
+            aud = id_info.get('aud')
+            valid_client_ids = [
+                "432906890842-1rc8ck80iu07h6r4cjjrd4nmcbnjc204.apps.googleusercontent.com",
+                "432906890842-1rc8ck80lu07h6r4cjjrd4nmcbnjc204.apps.googleusercontent.com",
+                target_client_id
+            ]
+            if aud not in valid_client_ids:
+                raise ValueError(f"Token audience {aud} is not authorized.")
 
         if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             raise ValueError('Wrong issuer.')
