@@ -29,12 +29,18 @@ api.interceptors.response.use(
       return Promise.reject(networkError);
     }
 
-    const { status, data } = error.response;
+    const { status } = error.response;
 
-    // 🔐 Unauthorized → logout (still handle this side effect)
+    // 🔐 Unauthorized → logout (redirect to login only when navigating away from protected pages)
     if (status === 401) {
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      const pathname = window.location.pathname;
+      const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+      const isAuthRequest = error.config?.url?.includes("/auth/");
+      
+      if (!isAuthPage && !isAuthRequest) {
+        window.location.href = "/login";
+      }
     }
 
     // Return the original error object so components can access full error details

@@ -34,12 +34,18 @@ export const AuthProvider = ({ children }) => {
       const tokenToSave = activeToken || localStorage.getItem("token");
 
       // Save lightweight version for "Fast Login" popup
+      const profilePicUrl = typeof userData.profile_picture === "string"
+        ? userData.profile_picture
+        : (userData.profile_picture?.data
+            ? `data:${userData.profile_picture.content_type};base64,${userData.profile_picture.data}`
+            : (userData.profile_image || null));
+
       const recentUser = {
         full_name: userData.full_name || userData.name,
         email: userData.email,
-        profile_image: userData.profile_image,
+        profile_image: profilePicUrl,
         is_google: userData.is_google || !!userData.google_id,
-        remembered_token: tokenToSave // Use the passed token or fallback to localStorage
+        remembered_token: tokenToSave
       };
       localStorage.setItem("recent-user", JSON.stringify(recentUser));
     } else {

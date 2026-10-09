@@ -164,7 +164,7 @@ async def upload_banner(
 # ============================================================
 
 @router.get("/active", summary="Get active banners")
-async def get_active_banners(current_user: dict = Depends(get_current_user)):
+async def get_active_banners():
     """Get all active banners that are currently valid"""
     banners = db.banners.find({"is_active": True}).sort("order", 1)
     return [serialize_banner(b) for b in banners]

@@ -899,29 +899,31 @@ const Register = ({ onRegister }) => {
 
   useEffect(() => {
     /* global google */
-    if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredentialResponse,
-        cancel_on_tap_outside: false,
-        use_fedcm_for_prompt: false,
-      });
+    const targetDiv = document.getElementById("googleRegisterDiv");
+    if (window.google && targetDiv) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+          cancel_on_tap_outside: false,
+          use_fedcm_for_prompt: false,
+        });
 
-      window.google.accounts.id.renderButton(
-        document.getElementById("googleRegisterDiv"),
-        {
-          type: "standard",
-          theme: "outline",
-          size: "large",
-          text: "continue_with",
-          shape: "rectangular",
-          logo_alignment: "left",
-          width: 380
-        }
-      );
-
-      // Prompt One Tap
-      window.google.accounts.id.prompt();
+        window.google.accounts.id.renderButton(
+          targetDiv,
+          {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            text: "continue_with",
+            shape: "rectangular",
+            logo_alignment: "left",
+            width: 380
+          }
+        );
+      } catch (err) {
+        console.debug("Google Auth init:", err);
+      }
     }
   }, []);
 

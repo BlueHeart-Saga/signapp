@@ -155,15 +155,10 @@ function AnimatedRoutes() {
 
 
   return (
-
-
-
-
-
-
-    <AnimatePresence mode="wait">
+    <>
       <ScrollToTop />
-      <Routes location={location} key={location.pathname}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
 
         <Route
           path="/login"
@@ -389,7 +384,7 @@ function AnimatedRoutes() {
 
       </Routes>
     </AnimatePresence>
-
+    </>
   );
 }
 function App() {
@@ -402,7 +397,7 @@ function App() {
             duration: 3000,
           }}
         />
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Suspense fallback={
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
               <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />

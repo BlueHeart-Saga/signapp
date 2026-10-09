@@ -64,8 +64,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "backend": "cd ../backend && uvicorn main:app --reload --port 9000",
-    "dev": "concurrently \"npm start\" \"npm run backend\"",
+    "dev": "react-scripts start",
     "build": "react-scripts build",
     "serve": "npm run build",
     "test": "react-scripts test",

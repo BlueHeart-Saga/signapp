@@ -127,7 +127,11 @@ const Settings = () => {
         expiry_days: data.expiry_days || 30,
       });
       if (data.profile_picture) {
-        setPreviewUrl(`data:${data.profile_picture.content_type};base64,${data.profile_picture.data}`);
+        if (typeof data.profile_picture === "string") {
+          setPreviewUrl(data.profile_picture);
+        } else if (data.profile_picture.data) {
+          setPreviewUrl(`data:${data.profile_picture.content_type};base64,${data.profile_picture.data}`);
+        }
       }
       if (data.stamp_image) {
         setStampPreviewUrl(`data:${data.stamp_image.content_type};base64,${data.stamp_image.data}`);
@@ -183,7 +187,11 @@ const Settings = () => {
 
         // Refresh previews from server data
         if (updatedData.user.profile_picture) {
-          setPreviewUrl(`data:${updatedData.user.profile_picture.content_type};base64,${updatedData.user.profile_picture.data}`);
+          if (typeof updatedData.user.profile_picture === "string") {
+            setPreviewUrl(updatedData.user.profile_picture);
+          } else if (updatedData.user.profile_picture.data) {
+            setPreviewUrl(`data:${updatedData.user.profile_picture.content_type};base64,${updatedData.user.profile_picture.data}`);
+          }
         }
         if (updatedData.user.stamp_image) {
           setStampPreviewUrl(`data:${updatedData.user.stamp_image.content_type};base64,${updatedData.user.stamp_image.data}`);

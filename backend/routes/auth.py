@@ -1856,11 +1856,11 @@ async def google_verify_token(request: GoogleTokenRequest):
                 "organization_name": ""
             }
             
-            # Auto-assign free trial for Google user
-            await auto_assign_free_trial(email.lower(), name, user_doc)
-            
             result = await db_insert_one(db.users, user_doc)
             user = await db_find_one(db.users, {"_id": result.inserted_id})
+
+            # Auto-assign free trial for Google user
+            await auto_assign_free_trial(email.lower(), name, user_doc)
             
             # Welcome email
             try:

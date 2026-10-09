@@ -679,17 +679,25 @@ const Navbar = ({ toggleSidebar }) => {
             title={userRole === "user" ? "My Profile" : ""}
             style={{ cursor: userRole === "user" ? "pointer" : "default" }}
           >
-            {user?.profile_picture ? (
-              <img
-                src={`data:${user.profile_picture.content_type};base64,${user.profile_picture.data}`}
-                className="signapp-navbar-avatar"
-                alt="profile"
-              />
-            ) : (
-              <div className="signapp-navbar-avatar-fallback">
-                <User size={18} />
-              </div>
-            )}
+            {(() => {
+              const pic = user?.profile_picture || user?.profile_image;
+              const avatarSrc = typeof pic === "string"
+                ? pic
+                : (pic?.data ? `data:${pic.content_type};base64,${pic.data}` : null);
+              
+              return avatarSrc ? (
+                <img
+                  src={avatarSrc}
+                  className="signapp-navbar-avatar"
+                  alt="profile"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <div className="signapp-navbar-avatar-fallback">
+                  <User size={18} />
+                </div>
+              );
+            })()}
 
             <span className="signapp-navbar-username desktop-only">
               {user?.full_name || user?.email || "Esigniva User"}
