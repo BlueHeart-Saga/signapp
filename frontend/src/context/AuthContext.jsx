@@ -29,25 +29,51 @@ export const AuthProvider = ({ children }) => {
   const setUser = (userData, activeToken = null) => {
     setUserState(userData);
     if (userData) {
-      localStorage.setItem("user", JSON.stringify(userData));
+      try {
+        localStorage.setItem("user", JSON.stringify(userData));
+      } catch (e) {
+        console.warn("Could not save full user to localStorage (quota exceeded)", e);
+        try {
+          const safeUser = { ...userData };
+          delete safeUser.profile_picture;
+          delete safeUser.stamp_image;
+          localStorage.setItem("user", JSON.stringify(safeUser));
+        } catch (err) {}
+      }
 
       const tokenToSave = activeToken || localStorage.getItem("token");
 
       // Save lightweight version for "Fast Login" popup
-      const profilePicUrl = typeof userData.profile_picture === "string"
-        ? userData.profile_picture
-        : (userData.profile_picture?.data
-            ? `data:${userData.profile_picture.content_type};base64,${userData.profile_picture.data}`
-            : (userData.profile_image || null));
+      let profilePicUrl = null;
+      if (typeof userData.profile_picture === "string") {
+        profilePicUrl = userData.profile_picture;
+      } else if (userData.profile_image) {
+        profilePicUrl = userData.profile_image;
+      } else if (userData.profile_picture?.data && userData.profile_picture.data.length < 50000) {
+        profilePicUrl = `data:${userData.profile_picture.content_type};base64,${userData.profile_picture.data}`;
+      }
+
+      const resolvedName = userData.full_name || 
+        `${userData.first_name || ""} ${userData.last_name || ""}`.trim() || 
+        userData.name || "";
 
       const recentUser = {
-        full_name: userData.full_name || userData.name,
+        full_name: resolvedName,
         email: userData.email,
         profile_image: profilePicUrl,
         is_google: userData.is_google || !!userData.google_id,
         remembered_token: tokenToSave
       };
-      localStorage.setItem("recent-user", JSON.stringify(recentUser));
+
+      try {
+        localStorage.setItem("recent-user", JSON.stringify(recentUser));
+      } catch (e) {
+        console.warn("Could not save recent-user", e);
+        try {
+          delete recentUser.profile_image;
+          localStorage.setItem("recent-user", JSON.stringify(recentUser));
+        } catch (err) {}
+      }
     } else {
       localStorage.removeItem("user");
     }
@@ -168,6 +194,16 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, [token]);
 
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      if (e?.detail) {
+        setUser(e.detail);
+      }
+    };
+    window.addEventListener("user_profile_updated", handleProfileUpdated);
+    return () => window.removeEventListener("user_profile_updated", handleProfileUpdated);
+  }, []);
+
   const logout = () => {
     setToken(null);
     setUserState(null);
@@ -175,6 +211,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     setSubscription(null);
     setCredits(null);
+    try {
+      const storedRecent = localStorage.getItem("recent-user");
+      if (storedRecent) {
+        const parsed = JSON.parse(storedRecent);
+        delete parsed.remembered_token;
+        localStorage.setItem("recent-user", JSON.stringify(parsed));
+      }
+    } catch (e) {}
     /* global google */
     if (window.google) {
       window.google.accounts.id.disableAutoSelect();

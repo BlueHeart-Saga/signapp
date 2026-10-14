@@ -36,20 +36,24 @@ const ZohoFeedbackWidget = () => {
         })
       });
 
-      if (!response.ok) throw new Error("Feedback API error");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Feedback submission failed");
+      }
 
       setSubmitted(true);
       setFeedback("");
-      setEmail(""); // Clear email on success
+      setEmail("");
 
       setTimeout(() => {
         setSubmitted(false);
         setActiveTab("feedback");
-      }, 2000);
+        setIsOpen(false);
+      }, 2500);
 
     } catch (error) {
       console.error("Feedback error:", error);
-      alert("Failed to submit feedback. Please try again.");
+      alert(error.message || "Failed to submit feedback. Please try again.");
     }
 
     setLoading(false);

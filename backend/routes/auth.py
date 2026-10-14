@@ -416,6 +416,111 @@ async def send_otp_email(email: str, otp: str):
     """
     return await send_email(email, subject, body, images=images)
 
+async def send_registration_otp_email(email: str, otp: str):
+    """Send high-fidelity OTP email for registration verification with embedded assets"""
+    subject = f"{otp} is your verification code for Esigniva"
+    
+    # 1. Fetch Branding Info
+    branding = await db_find_one(db.branding, {})
+    platform_name = "Esigniva"
+    if branding:
+        platform_name = branding.get("platform_name", platform_name)
+    
+    images = {}
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    static_dir = os.path.join(base_dir, "static")
+    
+    # Logo
+    logo_bytes = None
+    if branding and branding.get("logo_file_path"):
+        try:
+            logo_bytes = storage.download(branding["logo_file_path"])
+        except Exception as e:
+            print(f"Error fetching logo from storage: {e}")
+            
+    if not logo_bytes:
+        local_logo_path = os.path.join(static_dir, "branding", "platform_logo.png")
+        if os.path.exists(local_logo_path):
+            with open(local_logo_path, "rb") as f:
+                logo_bytes = f.read()
+    
+    if logo_bytes:
+        images["logo"] = logo_bytes
+        
+    banner_path = os.path.join(static_dir, "email", "forgot-password.png")
+    if os.path.exists(banner_path):
+        try:
+            with open(banner_path, "rb") as f:
+                images["banner"] = f.read()
+        except Exception as e:
+            print(f"Error reading banner file: {e}")
+
+    otp_boxes = "".join([
+        f'<div style="display:inline-block; width:40px; height:50px; line-height:50px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; font-size:24px; font-weight:700; color:#1e293b; margin:0 3px; text-align:center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">{digit}</div>'
+        for digit in otp
+    ])
+
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+            <tr>
+                <td align="center">
+                    <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <tr>
+                            <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <table border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td style="vertical-align: middle;">
+                                            <img src="cid:logo" alt="Logo" style="height: 32px; width: auto; display: block;">
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 10px;">
+                                            <span style="font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px;">{platform_name}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0;">
+                                <img src="cid:banner" alt="Verification" style="width: 100%; height: auto; display: block; border: 0;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 40px 20px 30px;">
+                                <h2 style="margin: 0 0 15px; font-size: 20px; color: #1e293b; font-weight: 700;">Welcome to {platform_name}!</h2>
+                                <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #475569;">
+                                    Thank you for registering with <strong>{platform_name}</strong>. Please use the one-time verification passcode below to verify your email address and continue setting up your workspace.
+                                </p>
+                                <div style="background-color: #f8fafc; border-radius: 12px; padding: 35px 5px; text-align: center; border: 1px solid #f1f5f9;">
+                                    <p style="margin: 0 0 20px; font-size: 12px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;">Your Verification Code</p>
+                                    <div style="margin-bottom: 25px; white-space: nowrap;">
+                                        {otp_boxes}
+                                    </div>
+                                    <p style="margin: 0; font-size: 13px; color: #64748b;">
+                                        Expires in <span style="color: #00A3A3; font-weight: 700;">10 Minutes</span> &bull; Single Use Only
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    try:
+        return await send_email(email, subject, body, images=images)
+    except Exception as e:
+        print(f"Error sending registration OTP email to {email}: {e}")
+        return False
+
 async def send_welcome_email(email: str, full_name: str = ""):
     """Send high-fidelity Welcome email for new users with embedded assets"""
     subject = "Welcome to Esigniva"
@@ -671,6 +776,13 @@ class UserRegister(BaseModel):
         if v.lower() not in ['admin', 'user', 'recipient']:
             raise ValueError('Role must be admin, user, or recipient')
         return v.lower()
+
+class RegisterSendOTPRequest(BaseModel):
+    email: EmailStr
+
+class RegisterVerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
 
 class RecipientSignup(BaseModel):
     email: EmailStr
@@ -963,6 +1075,18 @@ async def register_user(user_data: UserRegister):
             "email_verified": False,
             "auth_provider": "email"
         }
+
+        # Check if email was OTP verified
+        try:
+            otp_record = await db_find_one(db.registration_otps, {
+                "email": user_data.email.lower(),
+                "verified": True
+            })
+            if otp_record:
+                user_doc["email_verified"] = True
+                await db_delete_many(db.registration_otps, {"email": user_data.email.lower()})
+        except Exception as otp_clean_err:
+            print(f"Warning checking registration OTP: {otp_clean_err}")
         
         # Auto-assign free trial for "user" role
         if user_data.role == "user":
@@ -1088,6 +1212,98 @@ async def register_user(user_data: UserRegister):
                 "code": "UNEXPECTED_ERROR",
                 "details": str(e) if os.getenv("DEBUG", "false").lower() == "true" else None
             }
+        )
+
+@router.post("/register/send-otp")
+async def register_send_otp(
+    request: RegisterSendOTPRequest,
+    background_tasks: BackgroundTasks
+):
+    """Send OTP for new user registration verification"""
+    try:
+        email = request.email.lower().strip()
+        
+        # Check if user already exists
+        existing_user = await db_find_one(db.users, {"email": email})
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This email address is already registered. Please sign in instead."
+            )
+        
+        # Generate OTP
+        otp = generate_otp()
+        otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+        
+        await db_update_one(
+            db.registration_otps,
+            {"email": email},
+            {
+                "$set": {
+                    "otp": otp,
+                    "expires_at": otp_expiry,
+                    "verified": False,
+                    "created_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        
+        print("==================================================")
+        print(f"REGISTRATION OTP for {email}: {otp}")
+        print("==================================================")
+        
+        background_tasks.add_task(send_registration_otp_email, email, otp)
+        
+        return {
+            "message": f"Verification code sent to {email}",
+            "success": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error sending registration OTP: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send verification code. Please try again."
+        )
+
+@router.post("/register/verify-otp")
+async def register_verify_otp(request: RegisterVerifyOTPRequest):
+    """Verify OTP for user registration"""
+    try:
+        email = request.email.lower().strip()
+        otp = request.otp.strip()
+        
+        otp_record = await db_find_one(db.registration_otps, {
+            "email": email,
+            "otp": otp,
+            "expires_at": {"$gt": datetime.utcnow()}
+        })
+        
+        if not otp_record:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification code."
+            )
+        
+        await db_update_one(
+            db.registration_otps,
+            {"_id": otp_record["_id"]},
+            {"$set": {"verified": True}}
+        )
+        
+        return {
+            "message": "Email verified successfully",
+            "verified": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error verifying registration OTP: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to verify code. Please try again."
         )
 
 @router.post("/login", response_model=TokenResponse)
@@ -1565,39 +1781,84 @@ async def change_password(
 ):
     """Change password for authenticated user"""
     try:
-        # Get current user from database
-        user = await db_find_one(db.users, {"email": current_user["email"]})
+        # Get current user from database by ID or email
+        user_id = current_user.get("id") or current_user.get("_id")
+        user = None
+        if user_id:
+            try:
+                user = await db_find_one(db.users, {"_id": ObjectId(user_id)})
+            except Exception:
+                user = None
+        if not user and current_user.get("email"):
+            user = await db_find_one(db.users, {"email": current_user["email"].lower()})
+        if not user and current_user.get("email"):
+            user = await db_find_one(db.users, {"email": current_user["email"]})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
         
-        # Verify current password
-        if not pwd_ctx.verify(request.current_password, user["password"]):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password is incorrect"
-            )
+        # Verify current password if user already has a password set
+        user_pw = user.get("password")
+        curr_pw = (request.current_password or "").strip()
+        if len(curr_pw.encode("utf-8")) > 72:
+            curr_pw = curr_pw[:72]
+
+        if user_pw:
+            if not pwd_ctx.verify(curr_pw, user_pw):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is incorrect"
+                )
         
         # Validate new password
-        if len(request.new_password) < 6:
+        new_pw = (request.new_password or "").strip()
+        if len(new_pw) < 6:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="New password must be at least 6 characters"
             )
+        if len(new_pw.encode("utf-8")) > 72:
+            new_pw = new_pw[:72]
         
         # Update password
-        hashed_password = pwd_ctx.hash(request.new_password)
-        await db_update_one(
+        hashed_password = pwd_ctx.hash(new_pw)
+        update_query = {"_id": user["_id"]}
+        result = await db_update_one(
             db.users,
-            {"email": current_user["email"]},
-            {"$set": {"password": hashed_password, "updated_at": datetime.utcnow()}}
+            update_query,
+            {"$set": {
+                "password": hashed_password,
+                "auth_provider": "email",
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        if result.matched_count == 0 and user.get("email"):
+            await db_update_one(
+                db.users,
+                {"email": user["email"].lower()},
+                {"$set": {
+                    "password": hashed_password,
+                    "auth_provider": "email",
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+
+        # Generate fresh access token with new credentials
+        access_token, expires_at = create_access_token(
+            data={
+                "sub": user["email"],
+                "id": str(user["_id"]),
+                "email": user["email"],
+                "role": user.get("role", "user")
+            }
         )
         
         return {
             "message": "Password changed successfully",
-            "success": True
+            "success": True,
+            "access_token": access_token
         }
         
     except HTTPException:
@@ -2002,24 +2263,38 @@ async def update_profile(
             except Exception as e:
                 print(f"Error processing stamp image: {e}")
 
-        # Use email from current_user to perform update
+        # Target user by ID or email
+        user_id = current_user.get("id") or current_user.get("_id")
         user_email = current_user.get("email")
-        if not user_email:
-            raise HTTPException(status_code=400, detail="User email not found in token")
+        if not user_id and not user_email:
+            raise HTTPException(status_code=400, detail="User identification not found in token")
 
         # Update user in database
-        result = await db_update_one(
-            db.users,
-            {"email": user_email},
-            {"$set": update_data}
-        )
+        result = None
+        filter_query = None
+        if user_id:
+            try:
+                filter_query = {"_id": ObjectId(user_id)}
+                result = await db_update_one(db.users, filter_query, {"$set": update_data})
+            except Exception:
+                result = None
 
-        if result.matched_count == 0:
-            print(f"No user found with email: {user_email}")
+        if not result or result.matched_count == 0:
+            if user_email:
+                filter_query = {"email": user_email.lower()}
+                result = await db_update_one(db.users, filter_query, {"$set": update_data})
+                if result.matched_count == 0:
+                    filter_query = {"email": user_email}
+                    result = await db_update_one(db.users, filter_query, {"$set": update_data})
+
+        if not result or result.matched_count == 0:
+            print(f"No user found with id: {user_id} or email: {user_email}")
             raise HTTPException(status_code=404, detail="User not found")
 
         # Get updated user data
-        updated_user = await db_find_one(db.users, {"email": user_email})
+        updated_user = await db_find_one(db.users, filter_query)
+        if not updated_user and user_email:
+            updated_user = await db_find_one(db.users, {"email": user_email.lower()})
 
         return {
             "status": "success",

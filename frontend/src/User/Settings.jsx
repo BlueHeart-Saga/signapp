@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { setAuthToken } from "../services/api";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -150,7 +151,7 @@ const Settings = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      const derivedFullName = `${profileForm.first_name} ${profileForm.last_name}`.trim() || profileForm.full_name;
+      const derivedFullName = profileForm.full_name?.trim() || `${profileForm.first_name} ${profileForm.last_name}`.trim();
       formData.append("full_name", derivedFullName);
       formData.append("first_name", profileForm.first_name);
       formData.append("last_name", profileForm.last_name);
@@ -181,20 +182,36 @@ const Settings = () => {
       if (response.ok) {
         toast.success("Profile updated successfully");
         const updatedData = await response.json();
-        localStorage.setItem("user", JSON.stringify(updatedData.user));
-        setUser(updatedData.user);
-        if (setAuthUser) setAuthUser(updatedData.user);
+        const updatedUser = updatedData.user;
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        if (setAuthUser) setAuthUser(updatedUser);
+
+        // Also update recent-user in localStorage for the fast login popup
+        try {
+          const storedRecent = localStorage.getItem("recent-user");
+          const parsed = storedRecent ? JSON.parse(storedRecent) : {};
+          const safeName = updatedUser.full_name || `${updatedUser.first_name || ""} ${updatedUser.last_name || ""}`.trim() || parsed.full_name;
+          parsed.full_name = safeName;
+          if (updatedUser.email) parsed.email = updatedUser.email;
+          localStorage.setItem("recent-user", JSON.stringify(parsed));
+        } catch (e) {
+          console.warn("Failed to update recent-user cache", e);
+        }
+
+        // Broadcast profile change across the portal so all navbar/dashboards update instantly
+        window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: updatedUser }));
 
         // Refresh previews from server data
-        if (updatedData.user.profile_picture) {
-          if (typeof updatedData.user.profile_picture === "string") {
-            setPreviewUrl(updatedData.user.profile_picture);
-          } else if (updatedData.user.profile_picture.data) {
-            setPreviewUrl(`data:${updatedData.user.profile_picture.content_type};base64,${updatedData.user.profile_picture.data}`);
+        if (updatedUser.profile_picture) {
+          if (typeof updatedUser.profile_picture === "string") {
+            setPreviewUrl(updatedUser.profile_picture);
+          } else if (updatedUser.profile_picture.data) {
+            setPreviewUrl(`data:${updatedUser.profile_picture.content_type};base64,${updatedUser.profile_picture.data}`);
           }
         }
-        if (updatedData.user.stamp_image) {
-          setStampPreviewUrl(`data:${updatedData.user.stamp_image.content_type};base64,${updatedData.user.stamp_image.data}`);
+        if (updatedUser.stamp_image) {
+          setStampPreviewUrl(`data:${updatedUser.stamp_image.content_type};base64,${updatedUser.stamp_image.data}`);
         }
         setStampFile(null); // Clear local file state
         setProfilePic(null);
@@ -211,19 +228,23 @@ const Settings = () => {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    if (!passwordForm.currentPassword) {
+    const currPw = (passwordForm.currentPassword || "").trim();
+    const newPw = (passwordForm.newPassword || "").trim();
+    const confirmPw = (passwordForm.confirmPassword || "").trim();
+
+    if (!currPw) {
       toast.error("Please enter your current password");
       return;
     }
-    if (!passwordForm.newPassword) {
+    if (!newPw) {
       toast.error("Please enter a new password");
       return;
     }
-    if (passwordForm.newPassword.length < 6) {
+    if (newPw.length < 6) {
       toast.error("New password must be at least 6 characters long");
       return;
     }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    if (newPw !== confirmPw) {
       toast.error("New password and confirm password do not match");
       return;
     }
@@ -237,8 +258,8 @@ const Settings = () => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
-          current_password: passwordForm.currentPassword,
-          new_password: passwordForm.newPassword,
+          current_password: currPw,
+          new_password: newPw,
         }),
       });
 
@@ -247,6 +268,19 @@ const Settings = () => {
       if (response.ok) {
         toast.success("Password changed successfully");
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+
+        if (resData.access_token) {
+          localStorage.setItem("token", resData.access_token);
+          setAuthToken(resData.access_token);
+          try {
+            const storedRecent = localStorage.getItem("recent-user");
+            if (storedRecent) {
+              const parsed = JSON.parse(storedRecent);
+              parsed.remembered_token = resData.access_token;
+              localStorage.setItem("recent-user", JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
       } else {
         toast.error(resData.detail || "Failed to change password");
       }
@@ -402,7 +436,7 @@ const Settings = () => {
                 </label>
               </div>
               <div className="profile-identity-text">
-                <h2>{user?.first_name || user?.full_name || "User"}</h2>
+                <h2>{user?.full_name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "User"}</h2>
                 <p>{user?.email || "user@example.com"}</p>
               </div>
             </div>
@@ -473,6 +507,35 @@ const Settings = () => {
                 </div>
               </div>
 
+              {/* Full Name Row */}
+              <div className="form-row">
+                <label className="row-label">Full name</label>
+                <div className="row-input">
+                  <input
+                    type="text"
+                    value={profileForm.full_name}
+                    placeholder="Enter your full name"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const parts = val.trim().split(" ");
+                      const fn = parts[0] || "";
+                      const ln = parts.slice(1).join(" ") || "";
+                      const sigText = val.trim() || "User Signature";
+                      const initText = `${fn.charAt(0)}${ln.charAt(0) || fn.charAt(1) || ""}`.toUpperCase() || "US";
+                      setProfileForm({
+                        ...profileForm,
+                        full_name: val,
+                        first_name: fn,
+                        last_name: ln,
+                        signature_text: profileForm.signature_text ? profileForm.signature_text : sigText,
+                        initials_text: profileForm.initials_text ? profileForm.initials_text : initText
+                      });
+                    }}
+                    className="styled-input"
+                  />
+                </div>
+              </div>
+
               {/* Basic Info Rows */}
               <div className="form-row">
                 <label className="row-label">First name</label>
@@ -482,11 +545,13 @@ const Settings = () => {
                     value={profileForm.first_name}
                     onChange={(e) => {
                       const fn = e.target.value;
-                      const sigText = `${fn} ${profileForm.last_name}`.trim();
+                      const derived = `${fn} ${profileForm.last_name}`.trim();
+                      const sigText = derived;
                       const initText = `${fn.charAt(0)}${profileForm.last_name.charAt(0)}`.toUpperCase();
                       setProfileForm({
                         ...profileForm,
                         first_name: fn,
+                        full_name: derived,
                         signature_text: profileForm.signature_text ? profileForm.signature_text : sigText,
                         initials_text: profileForm.initials_text ? profileForm.initials_text : initText
                       });
@@ -504,11 +569,13 @@ const Settings = () => {
                     value={profileForm.last_name}
                     onChange={(e) => {
                       const ln = e.target.value;
-                      const sigText = `${profileForm.first_name} ${ln}`.trim();
+                      const derived = `${profileForm.first_name} ${ln}`.trim();
+                      const sigText = derived;
                       const initText = `${profileForm.first_name.charAt(0)}${ln.charAt(0)}`.toUpperCase();
                       setProfileForm({
                         ...profileForm,
                         last_name: ln,
+                        full_name: derived,
                         signature_text: profileForm.signature_text ? profileForm.signature_text : sigText,
                         initials_text: profileForm.initials_text ? profileForm.initials_text : initText
                       });

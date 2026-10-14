@@ -1438,13 +1438,21 @@ def serialize_timeline_event(log, document):
     if not user_name:
         user_name = log.get("email") or metadata.get("email") or metadata.get("actor_name") or "System"
 
+    raw_ts = log.get("timestamp") or log.get("created_at")
+    if isinstance(raw_ts, datetime):
+        ts_iso = raw_ts.isoformat() + ("Z" if not raw_ts.tzinfo else "")
+    elif isinstance(raw_ts, str):
+        ts_iso = raw_ts
+    else:
+        ts_iso = datetime.utcnow().isoformat() + "Z"
+
     return {
         "id": str(log["_id"]) if "_id" in log else str(uuid.uuid4()),
         "action": action,
         "title": title,
         "description": description,
         "user": user_name,
-        "timestamp": log.get("timestamp"),
+        "timestamp": ts_iso,
         "metadata": metadata,
         "document_status": document.get("status"),
         "envelope_id": document.get("envelope_id") or metadata.get("envelope_id"),
@@ -2660,12 +2668,13 @@ async def get_file_history(
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    logs = list(
-        db.document_timeline.find({
-            "document_id": ObjectId(document_id),
-            "metadata.file_id": file_id
-        }).sort("timestamp", 1)
-    )
+    logs = await db.document_timeline.find({
+        "$or": [
+            {"document_id": ObjectId(document_id)},
+            {"document_id": str(document_id)}
+        ],
+        "metadata.file_id": file_id
+    }).sort("timestamp", 1).to_list(length=1000)
 
     return [
         {
@@ -3488,11 +3497,11 @@ async def get_recent_activities(
             doc_query["is_deleted"] = {"$ne": True}
             doc_query["status"] = status
 
-    docs = list(db.documents.find(doc_query).sort([
+    docs = await db.documents.find(doc_query).sort([
         ("updated_at", -1),
         ("uploaded_at", -1),
         ("created_at", -1)
-    ]).limit(limit))
+    ]).limit(limit).to_list(length=limit)
 
     doc_map = {d["_id"]: d for d in docs}
     doc_ids = list(doc_map.keys())
@@ -3500,11 +3509,12 @@ async def get_recent_activities(
     if not doc_ids:
         return []
 
-    timeline_events = list(
-        db.document_timeline
-        .find({"document_id": {"$in": doc_ids}})
-        .sort("timestamp", -1)
-    )
+    timeline_events = await db.document_timeline.find({
+        "$or": [
+            {"document_id": {"$in": doc_ids}},
+            {"document_id": {"$in": [str(d) for d in doc_ids]}}
+        ]
+    }).sort("timestamp", -1).to_list(length=1000)
 
     latest_event_by_doc = {}
     for evt in timeline_events:
@@ -4063,72 +4073,104 @@ async def soft_delete_document(document_id: str, current_user: dict = Depends(ge
 # -----------------------------
 @router.get("/{document_id}/timeline")
 async def get_document_timeline(document_id: str, current_user: dict = Depends(get_current_user)):
-    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    # 1. Validate document ID format
+    try:
+        doc_oid = ObjectId(document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+
+    # 2. Retrieve document
+    doc = await db.documents.find_one({"_id": doc_oid})
     if not doc:
-        # Check if the user is a recipient of this document
-        doc = await db.documents.find_one({
-            "_id": ObjectId(document_id),
-            "recipients.email": current_user.get("email")
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # 3. Enforce permission boundary: Owner, Admin, or Recipient
+    user_id_str = str(current_user.get("id") or current_user.get("_id"))
+    is_owner = str(doc.get("owner_id")) == user_id_str
+    is_admin = current_user.get("role") == "admin"
+    user_email = (current_user.get("email") or "").lower()
+    is_recipient = any(
+        (r.get("email") or "").lower() == user_email
+        for r in doc.get("recipients", [])
+    )
+    if not (is_owner or is_admin or is_recipient):
+        recip = await db.recipients.find_one({
+            "document_id": doc_oid,
+            "email": user_email
         })
-        if not doc:
-            raise HTTPException(404, "Document not found or access denied")
+        if recip:
+            is_recipient = True
 
-    # 1. Fetch from document_timeline (Legacy/UI-specific)
-    legacy_logs = list(
-        db.document_timeline
-        .find({"document_id": ObjectId(document_id)})
-        .sort("timestamp", 1)
-    )
+    if not (is_owner or is_admin or is_recipient):
+        raise HTTPException(status_code=403, detail="Access denied: You do not have permission to view this document's timeline")
 
-    # 2. Fetch from audit_logs (Standardized)
-    audit_logs = list(
-        db.audit_logs
-        .find({"document_id": ObjectId(document_id)})
-        .sort("timestamp", 1)
-    )
+    # 4. Asynchronously fetch legacy timeline events (PyMongo 4.9+ / Motor AsyncCursor)
+    legacy_cursor = db.document_timeline.find({
+        "$or": [
+            {"document_id": doc_oid},
+            {"document_id": str(doc_oid)}
+        ]
+    }).sort("timestamp", 1)
+    legacy_logs = await legacy_cursor.to_list(length=1000)
 
-    # 3. Normalize audit logs to timeline format
+    # 5. Asynchronously fetch standardized audit logs
+    audit_cursor = db.audit_logs.find({
+        "$or": [
+            {"document_id": doc_oid},
+            {"document_id": str(doc_oid)}
+        ]
+    }).sort("timestamp", 1)
+    audit_logs = await audit_cursor.to_list(length=1000)
+
+    # 6. Normalize audit logs to timeline format
     normalized_audit = []
     for log in audit_logs:
-        # Avoid duplication if the same event was logged to both (possible during transition)
-        # We'll use a simple heuristic: same action/type and very close timestamp (+/- 1s)
         normalized_audit.append({
             "type": log.get("action"),
-            "timestamp": log.get("timestamp"),
+            "timestamp": log.get("timestamp") or log.get("created_at"),
             "metadata": {
-                **log.get("details", {}),
+                **(log.get("details") or {}),
                 "ip": log.get("ip_address"),
                 "user_agent": log.get("user_agent")
+            },
+            "actor": {
+                "id": str(log.get("performed_by")) if log.get("performed_by") else None,
+                "name": (log.get("details") or {}).get("actor_name") or log.get("actor_name"),
+                "email": (log.get("details") or {}).get("actor_email") or log.get("actor_email"),
+                "role": (log.get("details") or {}).get("actor_role") or "signer"
             },
             "actor_id": str(log.get("performed_by")) if log.get("performed_by") else None,
             "is_audit": True
         })
 
-    # 4. Merge and Deduplicate
-    all_events = legacy_logs + normalized_audit
-    
-    # Sort by timestamp
-    all_events.sort(key=lambda x: x.get("timestamp") or datetime.min)
+    # 7. Merge, sort chronologically, and deduplicate
+    def _parse_event_ts(event):
+        ts = event.get("timestamp") or event.get("created_at")
+        if isinstance(ts, datetime):
+            return ts
+        if isinstance(ts, str):
+            try:
+                return datetime.fromisoformat(ts.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                pass
+        return datetime.min
 
-    # Simple de-duplication
+    all_events = legacy_logs + normalized_audit
+    all_events.sort(key=_parse_event_ts)
+
     final_logs = []
-    seen_keys = set() # (type, rounded_timestamp)
-    
+    seen_keys = set()  # (action_key, rounded_timestamp)
+
     for event in all_events:
-        ts = event.get("timestamp")
-        if not ts: continue
-        
-        # Round timestamp to nearest second for deduplication
-        rounded_ts = ts.replace(microsecond=0)
-        key = (event.get("type") or event.get("action"), rounded_ts)
-        
+        dt = _parse_event_ts(event)
+        rounded_ts = dt.replace(microsecond=0)
+        action_key = event.get("type") or event.get("action")
+        key = (action_key, rounded_ts)
+
         if key not in seen_keys:
             final_logs.append(event)
             seen_keys.add(key)
         elif event.get("is_audit") and not final_logs[-1].get("is_audit"):
-            # If we see a duplicate and the new one is from audit logs, 
-            # it might have better metadata, but legacy logs have titles/descriptions
-            # Let's keep the legacy one for now as serialize_timeline_event handles it better
             pass
 
     return [

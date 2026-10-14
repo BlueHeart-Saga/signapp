@@ -465,15 +465,7 @@ const InitialDashboard = () => {
               </h2>
 
               <div className="ss-init-signature-label">
-                {user?.email
-                  ? user.email
-                    .split("@")[0]          // john.doe123
-                    .replace(/[0-9]/g, "")  // john.doe
-                    .replace(/[._]/g, " ")  // john doe
-                    .replace(/\b\w/g, c => c.toUpperCase()) // John Doe
-                  : "User"}
-                {/* {(user?.role || "user").toUpperCase()} */}
-                _ACCOUNT
+                {(user?.full_name || user?.email?.split("@")[0] || "User").toUpperCase()} ACCOUNT
               </div>
 
               <div className="ss-init-signature-box">

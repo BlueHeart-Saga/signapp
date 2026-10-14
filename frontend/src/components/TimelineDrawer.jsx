@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Drawer,
   Box,
@@ -555,32 +555,33 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
   const navigate = useNavigate();
   const theme = useTheme();
 
+  const loadTimeline = useCallback(async () => {
+    if (!documentId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('Loading timeline for document:', documentId);
+      const data = await getTimeline(documentId);
+      console.log('Raw timeline data:', data);
+
+      // Sort by timestamp descending (newest first)
+      const sortedData = (data || []).sort(
+        (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+      );
+      setTimeline(sortedData);
+    } catch (err) {
+      console.error('Error loading timeline:', err);
+      setError(err.response?.data?.detail || err.message || "Failed to load timeline. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId]);
+
   useEffect(() => {
-    if (!open || !documentId) return;
-
-    const loadTimeline = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        console.log('Loading timeline for document:', documentId);
-        const data = await getTimeline(documentId);
-        console.log('Raw timeline data:', data);
-
-        // Sort by timestamp descending (newest first)
-        const sortedData = (data || []).sort(
-          (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
-        );
-        setTimeline(sortedData);
-      } catch (err) {
-        console.error('Error loading timeline:', err);
-        setError(err.message || "Failed to load timeline. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTimeline();
-  }, [open, documentId]);
+    if (open && documentId) {
+      loadTimeline();
+    }
+  }, [open, documentId, loadTimeline]);
 
   // Enrich events with user-friendly data
   const enrichedTimeline = timeline.map(enrichEvent);
@@ -702,7 +703,7 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
               </>
             )}
             <Tooltip title="Refresh">
-              <IconButton onClick={() => window.location.reload()} size="small" disabled={loading}>
+              <IconButton onClick={loadTimeline} size="small" disabled={loading}>
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>

@@ -1242,47 +1242,146 @@
 
 /* ── Accessibility: reduce motion ─────────────────────── */
 
-/* ── Fast Login Card ────────────────────────────────────/* High-Fidelity Form Design matching User Request */
+/* ── Modernized Login Card & Form Styles ── */
 .login-card,
 .register-card {
   background: #ffffff;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: none !important;
-  /* Minimalist look as per image */
+  padding: 40px 32px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
   text-align: center;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 .brand-logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.brand-logo:hover {
+  transform: scale(1.02);
 }
 
 .brand-logo .hero-logo {
-  height: 40px;
+  height: 36px;
   width: auto;
+  object-fit: contain;
 }
 
 .hero-brand-name {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: #0f766e;
+  letter-spacing: -0.02em;
 }
 
 .welcome-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #0f766e;
-  margin-bottom: 30px;
+  letter-spacing: -0.02em;
+  margin-bottom: 22px;
+}
+
+/* Container matching: forces Google button and inputs to have identical width */
+.auth-form-inner {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.auth-form-inner .form-input,
+.auth-form-inner .submit-btn,
+.auth-form-inner .google-auth-btn {
+  height: 44px !important;
+  box-sizing: border-box !important;
+}
+
+/* Google Auth Button: exact matching styles to our text box */
+.google-auth-btn {
+  width: 100%;
+  max-width: 380px;
+  height: 44px;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin: 0 auto 16px auto;
+  font-family: inherit;
+  box-sizing: border-box !important;
+  outline: none;
+}
+
+.google-auth-btn:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.google-auth-btn:active:not(:disabled) {
+  transform: translateY(0);
+  background: #f1f5f9 !important;
+}
+
+.google-auth-btn:focus-visible {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.google-auth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.google-auth-btn .google-icon-svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 #googleSignInDiv,
 #googleRegisterDiv {
-  width: 100%;
-  margin-bottom: 24px;
+  width: 100% !important;
+  max-width: 380px !important;
+  margin: 0 auto 16px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 44px !important;
+}
+
+#googleSignInDiv > div,
+#googleRegisterDiv > div {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#googleSignInDiv iframe,
+#googleRegisterDiv iframe {
+  width: 100% !important;
+  max-width: 380px !important;
+  margin: 0 auto !important;
+  border-radius: 10px !important;
 }
 
 /* Custom Google Button Wrapper to ensure centering */
@@ -1295,7 +1394,9 @@
 .divider {
   position: relative;
   text-align: center;
-  margin: 18px 0;
+  margin: 18px auto;
+  width: 100%;
+  max-width: 380px;
 }
 
 .divider::before {
@@ -1305,117 +1406,169 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(to right, transparent, #e1e5eb, transparent);
+  background: #e2e8f0;
 }
 
 .divider span {
   position: relative;
   background: #fff;
-  padding: 0 20px;
-  font-size: 14px;
-  color: #999;
-  font-weight: 500;
+  padding: 0 14px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .form-group {
   text-align: left;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  width: 100%;
 }
 
 .form-group label {
-  display: block;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 10px;
+  color: #334155;
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
 }
 
 .form-input {
   width: 100%;
-  background: #ebf4ff !important;
-  /* Blue-ish background */
+  height: 44px;
+  background: #f8fafc !important;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 16px;
-  font-size: 16px;
-  color: #1a202c;
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 14.5px;
+  color: #0f172a;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.form-input:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1;
 }
 
 .form-input:focus {
   outline: none;
-  background: #e1efff !important;
-  border-color: #3182ce;
+  background: #ffffff !important;
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .password-wrapper {
   position: relative;
+  width: 100%;
 }
 
 .password-wrapper .form-input {
-  padding-right: 45px;
+  padding-right: 44px;
 }
 
 .toggle-password {
   position: absolute;
-  right: 12px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
   border: none;
-  color: #a0aec0;
+  border-radius: 6px;
+  color: #94a3b8;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-password:hover {
+  color: #334155;
+  background: #f1f5f9;
 }
 
 .submit-btn {
   width: 100%;
-  background: #0f766e;
+  max-width: 380px;
+  height: 44px;
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
   color: white;
   border: none;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 700;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: all 0.25s ease;
-  margin-top: 10px;
-  margin-bottom: 20px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 8px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
 }
 
-.submit-btn:hover {
-  background: #0d6159;
+.submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .register-link,
 .login-link {
-  font-size: 16px;
-  color: #718096;
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
 }
 
 .register-link .link,
 .login-link .link {
   color: #0f766e;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  margin-left: 8px;
+  margin-left: 6px;
+  transition: color 0.15s ease;
 }
 
 .register-link .link:hover,
 .login-link .link:hover {
+  color: #115e59;
   text-decoration: underline;
 }
 
 .forgot-password {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: #0f766e;
   cursor: pointer;
   float: right;
+  transition: color 0.15s ease;
 }
 
 .forgot-password:hover {
+  color: #115e59;
   text-decoration: underline;
 }
 

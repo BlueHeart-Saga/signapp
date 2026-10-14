@@ -1,22 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import API_BASE_URL from "../../config/api";
 import { motion } from "framer-motion";
-import { setPageTitle } from "../../utils/pageTitle";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
+import { setPageTitle } from "../../utils/pageTitle";
 
-// Material UI Icons
+// Icons
+import Home from "@mui/icons-material/Home";
+import Explore from "@mui/icons-material/Explore";
+import People from "@mui/icons-material/People";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import CheckCircle from "@mui/icons-material/CheckCircle";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
-import Send from "@mui/icons-material/Send";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import { Shield } from "lucide-react";
-import API_BASE_URL from "../../config/api";
-
-// CSS
-import "../../style/ForgotPassword.css";
+import LockOutlined from "@mui/icons-material/LockOutlined";
+import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
+import { FaCrown } from "react-icons/fa";
+import { Shield, Check, RefreshCw } from "lucide-react";
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password
@@ -27,14 +28,16 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
-  
+  const [countdown, setCountdown] = useState(0);
+
   const navigate = useNavigate();
   const { setUser, setToken } = useAuth();
-  const otpRefs = React.useRef([]);
+  const otpRefs = useRef([]);
 
   useEffect(() => {
     setPageTitle(
@@ -47,8 +50,8 @@ const ForgotPassword = () => {
     const fetchBranding = async () => {
       try {
         const res = await api.get("/branding/config");
-        if (res.data.platform_name) setBrandName(res.data.platform_name);
-        if (res.data.logo_url !== null) {
+        if (res.data?.platform_name) setBrandName(res.data.platform_name);
+        if (res.data?.logo_url !== null) {
           setLogoUrl(`${API_BASE_URL}/branding/logo/file`);
         }
       } catch (err) {
@@ -58,25 +61,43 @@ const ForgotPassword = () => {
     fetchBranding();
   }, []);
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return; // Handled by paste
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
-    const newOtpArr = otp.split('');
-    newOtpArr[index] = value;
-    const newOtp = newOtpArr.join('');
-    setOtp(newOtp);
+  const validateEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((val || "").trim());
+
+  const passwordRules = {
+    minLength: newPassword.length >= 8,
+    hasUpper: /[A-Z]/.test(newPassword),
+    hasLower: /[a-z]/.test(newPassword),
+    hasNumber: /\d/.test(newPassword),
+  };
+
+  const allRulesMet = Object.values(passwordRules).every(Boolean);
+
+  const handleOtpChange = (index, value) => {
+    if (value.length > 1) return;
+    const cleanDigit = value.replace(/\D/g, "");
+    const newOtpArr = otp.split("");
+    newOtpArr[index] = cleanDigit;
+    const newOtpStr = newOtpArr.join("");
+    setOtp(newOtpStr);
     setErrorMsg("");
 
-    // Move to next input
-    if (value && index < 5) {
+    if (cleanDigit && index < 5 && otpRefs.current[index + 1]) {
       otpRefs.current[index + 1].focus();
     }
   };
 
   const handleOtpKeyDown = (index, e) => {
     if (e.key === "Backspace") {
-      if (!otp[index] && index > 0) {
-        // If current is empty, go to previous and clear it
+      if (!otp[index] && index > 0 && otpRefs.current[index - 1]) {
         otpRefs.current[index - 1].focus();
       }
     }
@@ -84,42 +105,77 @@ const ForgotPassword = () => {
 
   const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pasteData = e.clipboardData.getData('text').slice(0, 6).replace(/\D/g, '');
+    const pasteData = e.clipboardData.getData("text").slice(0, 6).replace(/\D/g, "");
     if (pasteData) {
       setOtp(pasteData);
-      // Focus the last filled input or the next empty one
       const nextIndex = Math.min(pasteData.length, 5);
-      otpRefs.current[nextIndex].focus();
+      if (otpRefs.current[nextIndex]) {
+        otpRefs.current[nextIndex].focus();
+      }
     }
   };
 
+  // Step 1: Request OTP
   const handleRequestOTP = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
+    setFieldErrors({});
 
-    if (!validateEmail(email)) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setFieldErrors({ email: "Email address is required" });
+      setErrorMsg("Email address is required");
+      setLoading(false);
+      return;
+    }
+
+    if (!validateEmail(cleanEmail)) {
+      setFieldErrors({ email: "Please enter a valid email address" });
       setErrorMsg("Please enter a valid email address");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await api.post("/auth/forgot-password", { 
-        email: email.toLowerCase().trim() 
-      });
-      setSuccessMsg(response.data?.message || "Password reset code sent to your registered email.");
+      const response = await api.post("/auth/forgot-password", { email: cleanEmail });
+      setSuccessMsg(response.data?.message || `Password reset code sent to ${cleanEmail}`);
+      toast.success("Verification code sent to your email!");
       setStep(2);
+      setCountdown(60);
     } catch (err) {
-      const msg = err?.response?.data?.detail || "No account found with this email address. Please check your email or create an account.";
-      setErrorMsg(msg);
-      // Stay on step 1 so user can correct email or navigate to Login / Register
+      const msg =
+        err?.response?.data?.detail ||
+        "No account found with this email address. Please check your email or create an account.";
+      setErrorMsg(typeof msg === "string" ? msg : "Error processing password reset request");
+      toast.error(typeof msg === "string" ? msg : "Error processing request");
     } finally {
       setLoading(false);
     }
   };
 
+  // Resend OTP
+  const handleResendOTP = async () => {
+    if (countdown > 0 || loading) return;
+    setLoading(true);
+    setErrorMsg("");
+    try {
+      await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
+      toast.success("A new verification code has been sent!");
+      setCountdown(60);
+      setOtp("");
+      if (otpRefs.current[0]) otpRefs.current[0].focus();
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Failed to resend code. Please try again.";
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -127,56 +183,73 @@ const ForgotPassword = () => {
     setSuccessMsg("");
 
     if (otp.length !== 6) {
-      setErrorMsg("Please enter the 6-digit OTP");
+      setErrorMsg("Please enter the complete 6-digit verification code");
+      toast.error("Please enter the complete 6-digit code");
       setLoading(false);
       return;
     }
 
     try {
-      await api.post("/auth/verify-otp", { 
-        email: email.toLowerCase(), 
-        otp 
+      await api.post("/auth/verify-otp", {
+        email: email.trim().toLowerCase(),
+        otp: otp.trim(),
       });
-      setSuccessMsg("OTP verified successfully");
+      setSuccessMsg("OTP verified successfully!");
+      toast.success("Code verified successfully!");
       setStep(3);
     } catch (err) {
-      setErrorMsg(err?.response?.data?.detail || "Invalid or expired OTP");
+      const msg = err?.response?.data?.detail || "Invalid or expired verification code.";
+      setErrorMsg(typeof msg === "string" ? msg : "Invalid or expired code");
+      toast.error(typeof msg === "string" ? msg : "Invalid code");
     } finally {
       setLoading(false);
     }
   };
 
+  // Step 3: Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
+    setFieldErrors({});
 
-    if (newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters");
+    if (newPassword.length < 8) {
+      setFieldErrors({ password: "Password must be at least 8 characters long" });
+      setErrorMsg("Password must be at least 8 characters long");
+      setLoading(false);
+      return;
+    }
+
+    if (!allRulesMet) {
+      setFieldErrors({ password: "Password does not meet all security requirements" });
+      setErrorMsg("Password does not meet all security requirements");
       setLoading(false);
       return;
     }
 
     if (newPassword !== confirmPassword) {
+      setFieldErrors({ confirmPassword: "Passwords do not match" });
       setErrorMsg("Passwords do not match");
       setLoading(false);
       return;
     }
 
     try {
-      await api.post("/auth/reset-password", { 
-        email: email.toLowerCase(), 
-        otp,
-        new_password: newPassword
+      await api.post("/auth/reset-password", {
+        email: email.trim().toLowerCase(),
+        otp: otp.trim(),
+        new_password: newPassword,
       });
-      
-      setSuccessMsg("Password reset successful! Redirecting...");
-      
+
+      setSuccessMsg("Password reset successfully! Logging you in...");
+      toast.success("Password reset successfully!");
+
+      // Auto-login
       setTimeout(async () => {
         try {
           const form = new URLSearchParams();
-          form.append("username", email.toLowerCase());
+          form.append("username", email.trim().toLowerCase());
           form.append("password", newPassword);
 
           const loginRes = await api.post("/auth/login", form.toString(), {
@@ -188,11 +261,16 @@ const ForgotPassword = () => {
 
           if (token && user) {
             setToken(token);
-            setUser(user);
+            setUser(user, token);
             switch (user.role) {
-              case "admin": navigate("/admin/dashboard"); break;
-              case "recipient": navigate("/recipient/dashboard"); break;
-              default: navigate("/user");
+              case "admin":
+                navigate("/admin/dashboard");
+                break;
+              case "recipient":
+                navigate("/recipient/home");
+                break;
+              default:
+                navigate("/user");
             }
           } else {
             navigate("/login");
@@ -200,18 +278,19 @@ const ForgotPassword = () => {
         } catch (loginErr) {
           navigate("/login");
         }
-      }, 2000);
+      }, 900);
     } catch (err) {
-      setErrorMsg(err?.response?.data?.detail || "Failed to reset password.");
+      const msg = err?.response?.data?.detail || "Failed to reset password. Please try again.";
+      setErrorMsg(typeof msg === "string" ? msg : "Failed to reset password");
+      toast.error(typeof msg === "string" ? msg : "Reset failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
   const goToLogin = () => navigate("/login");
   const goToRegister = () => navigate("/register");
+  const goToHome = () => navigate("/");
 
   const goBack = () => {
     if (step > 1) {
@@ -224,244 +303,426 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="ss-fp-container">
-      {/* Left Side - Illustration */}
-      <div className="ss-fp-hero">
-        <div className="ss-fp-hero-accent-1"></div>
-        <div className="ss-fp-hero-accent-2"></div>
-        
-        <div className="ss-fp-hero-image-wrapper">
-          <img 
-            src="/images/forgot-bg.png" 
-            alt="Secure Connections" 
-            className="ss-fp-hero-image" 
-          />
-        </div>
+    <div className="min-h-screen flex flex-col md:flex-row font-sans overflow-x-hidden bg-white">
+      {/* Left Side - Hero Visual */}
+      <div className="hidden md:flex flex-1 md:w-1/2 lg:w-[48%] relative min-h-screen overflow-hidden bg-[#BDF0E9] items-center justify-center">
+        <div className="relative z-10 w-full h-full flex items-center justify-center p-6 text-white">
+          <div className="relative z-20 flex flex-col items-center w-full max-w-[520px]">
+            <div className="relative w-[min(360px,85vw)] h-[min(360px,85vw)] mx-auto mb-6 shrink-0 flex items-center justify-center">
+              <div className="relative w-full h-full rounded-full flex justify-center items-center">
+                <img
+                  src="/images/forgot-bg.png"
+                  alt="Secure Password Recovery"
+                  className="relative w-[min(420px,95%)] h-auto z-[2] rounded-xl object-contain drop-shadow-sm"
+                  onError={(e) => {
+                    e.target.src = "/images/login1.png";
+                  }}
+                />
+              </div>
+            </div>
 
-        <div className="ss-fp-hero-content">
-          <h2 className="ss-fp-hero-title">Secure Password Recovery</h2>
-          <p className="ss-fp-hero-subtitle">
-            Regain access to your account with our secure multi-step verification process.
-          </p>
+            <div className="text-center mt-4 px-3">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-teal-800 leading-tight mb-2 tracking-tight">
+                Secure Account Recovery
+              </h1>
+              <p className="text-sm md:text-base lg:text-lg text-teal-700 font-medium max-w-[520px]">
+                Regain access to your documents and signing workflows through verified encryption.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right Side - Form */}
-      <div className="ss-fp-side">
-        <div className="ss-fp-card">
-          {/* Logo Area */}
-          <div className="ss-fp-logo-section" onClick={() => navigate("/")}>
-            <div className="ss-fp-logo-container">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Esigniva" className="ss-fp-logo" />
-              ) : (
-                <Shield color="#0f766e" size={48} />
-              )}
-            </div>
-            <span className="ss-fp-brand-name">{brandName}</span>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+      {/* Right Side - Form Card */}
+      <div className="flex-1 md:w-1/2 lg:w-[52%] flex flex-col items-center justify-center bg-slate-50 md:bg-white relative min-h-screen py-16 px-4 sm:px-6">
+        {/* Top Navigation Bar */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1 bg-white p-1.5 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] z-40 whitespace-nowrap border border-slate-100">
+          <button
+            type="button"
+            onClick={goToHome}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-semibold bg-teal-50 text-teal-700 transition-all"
           >
-            <h1 className="ss-fp-title">
-              <button className="ss-fp-simple-back" onClick={goBack} title="Go back">
-                <ArrowBack />
-              </button>
-              <span>
-                {step === 1 && "Forgot Password"}
-                {step === 2 && "Verify OTP"}
-                {step === 3 && "New Password"}
-              </span>
-            </h1>
+            <Home fontSize="small" className="text-teal-700" />
+            <span className="hidden sm:inline">Home</span>
+          </button>
 
-            {/* Connected Step Progress Bar */}
-            <div className="ss-fp-steps-bar">
-              <div className={`ss-fp-step-item ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>
-                <div className="ss-fp-step-circle">{step > 1 ? "✓" : "1"}</div>
-                <span className="ss-fp-step-label">Email</span>
+          <button
+            type="button"
+            onClick={() => navigate("/aboutus")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-medium text-slate-600 hover:bg-slate-100 transition-all"
+          >
+            <Explore fontSize="small" />
+            <span className="hidden sm:inline">Explore</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/contactus")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-medium text-slate-600 hover:bg-slate-100 transition-all"
+          >
+            <People fontSize="small" />
+            <span className="hidden sm:inline">Let’s Talk</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/pricing")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-600 transition-all"
+          >
+            <FaCrown fontSize="small" />
+            <span className="hidden sm:inline">Upgrade</span>
+          </button>
+        </div>
+
+        {/* Card Wrapper */}
+        <div className="w-full max-w-[480px] pt-14 md:pt-16 pb-8 px-2 sm:px-4 flex justify-center">
+          <motion.div
+            className="w-full max-w-[440px] bg-white p-6 sm:p-9 rounded-[20px] shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)] border border-slate-200/80 text-center"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            {/* Header with Optically Centered Branding */}
+            <div className="text-center mb-6">
+              <div className="w-full flex items-center justify-center mb-2">
+                <div
+                  onClick={goToHome}
+                  className="inline-flex items-center justify-center gap-2 cursor-pointer transition-transform hover:scale-[1.01] relative -left-1.5 sm:-left-2"
+                >
+                  {logoUrl ? (
+                    <>
+                      <img src={logoUrl} alt="logo" className="h-8 sm:h-9 w-auto object-contain shrink-0" />
+                      <span className="text-2xl sm:text-[26px] font-semibold text-teal-700 tracking-tight leading-none">
+                        {brandName}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-teal-700 shrink-0" />
+                      <span className="text-2xl sm:text-[26px] font-semibold text-teal-700 tracking-tight leading-none">
+                        {brandName}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className={`ss-fp-step-line ${step > 1 ? 'active' : ''}`}></div>
-              <div className={`ss-fp-step-item ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>
-                <div className="ss-fp-step-circle">{step > 2 ? "✓" : "2"}</div>
-                <span className="ss-fp-step-label">Verify OTP</span>
+
+              <div className="relative flex items-center justify-center mt-1">
+                {step > 1 && (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="absolute left-0 p-1 text-slate-500 hover:text-teal-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                    title="Go Back"
+                  >
+                    <ArrowBack fontSize="small" />
+                  </button>
+                )}
+                <h2 className="text-2xl sm:text-[28px] font-semibold text-teal-800 tracking-tight">
+                  {step === 1 && "Forgot Password"}
+                  {step === 2 && "Verify Security Code"}
+                  {step === 3 && "Set New Password"}
+                </h2>
               </div>
-              <div className={`ss-fp-step-line ${step > 2 ? 'active' : ''}`}></div>
-              <div className={`ss-fp-step-item ${step >= 3 ? 'active' : ''}`}>
-                <div className="ss-fp-step-circle">3</div>
-                <span className="ss-fp-step-label">New Password</span>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                {step === 1 && "Enter your email address to receive a verification code"}
+                {step === 2 && `Enter the 6-digit code sent to ${email}`}
+                {step === 3 && "Create a secure new password for your account"}
+              </p>
+            </div>
+
+            {/* Step Progress Indicator */}
+            <div className="flex items-center justify-center gap-2 mb-6 px-2">
+              <div className="flex items-center gap-1.5">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    step >= 1 ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-400 border border-slate-200"
+                  }`}
+                >
+                  {step > 1 ? <Check className="w-3.5 h-3.5" /> : "1"}
+                </div>
+                <span className={`text-xs font-medium ${step >= 1 ? "text-teal-800 font-semibold" : "text-slate-400"}`}>
+                  Email
+                </span>
+              </div>
+
+              <div className={`w-8 h-0.5 ${step > 1 ? "bg-teal-700" : "bg-slate-200"}`} />
+
+              <div className="flex items-center gap-1.5">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    step >= 2 ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-400 border border-slate-200"
+                  }`}
+                >
+                  {step > 2 ? <Check className="w-3.5 h-3.5" /> : "2"}
+                </div>
+                <span className={`text-xs font-medium ${step >= 2 ? "text-teal-800 font-semibold" : "text-slate-400"}`}>
+                  Verify
+                </span>
+              </div>
+
+              <div className={`w-8 h-0.5 ${step > 2 ? "bg-teal-700" : "bg-slate-200"}`} />
+
+              <div className="flex items-center gap-1.5">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    step >= 3 ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-400 border border-slate-200"
+                  }`}
+                >
+                  3
+                </div>
+                <span className={`text-xs font-medium ${step >= 3 ? "text-teal-800 font-semibold" : "text-slate-400"}`}>
+                  Password
+                </span>
               </div>
             </div>
 
+            {/* Error Message */}
             {errorMsg && (
-              <div className="ss-fp-error">
-                <ErrorOutline fontSize="small" />
+              <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-4 font-medium bg-red-50 border border-red-200 text-red-600 text-left">
+                <ErrorOutline fontSize="small" className="shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
+            {/* Success Message */}
             {successMsg && (
-              <div className="ss-fp-success">
-                <CheckCircle fontSize="small" />
+              <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-4 font-medium bg-emerald-50 border border-emerald-200 text-emerald-700 text-left">
+                <CheckCircle fontSize="small" className="shrink-0" />
                 <span>{successMsg}</span>
               </div>
             )}
 
-            {/* Step 1: Email */}
-            {step === 1 && (
-              <form onSubmit={handleRequestOTP}>
-                <div className="ss-fp-form-group">
-                  <label className="ss-fp-label">Email Address <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-input-wrapper">
+            <div className="w-full max-w-[380px] mx-auto text-left">
+              {/* STEP 1: Request OTP */}
+              {step === 1 && (
+                <form onSubmit={handleRequestOTP} noValidate>
+                  <div className="mb-4">
+                    <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5 tracking-wide">
+                      Email Address <span className="text-red-500 ml-1">*</span>
+                    </label>
                     <input
                       type="email"
-                      className="ss-fp-input"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="esigniva@email.com"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setErrorMsg("");
+                        if (fieldErrors.email) setFieldErrors({});
+                      }}
+                      placeholder="you@company.com"
                       required
-                      disabled={loading}
                       autoFocus
+                      disabled={loading}
+                      className={`w-full h-11 bg-white border ${
+                        fieldErrors.email ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-teal-700"
+                      } rounded-md px-3.5 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed`}
                     />
+                    {fieldErrors.email && (
+                      <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.email}</p>
+                    )}
                   </div>
-                </div>
 
-                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
-                  {loading ? "Sending..." : "Send Reset Code"}
-                  <Send size={18} />
-                </button>
-              </form>
-            )}
-
-            {/* Step 2: OTP */}
-            {step === 2 && (
-              <form onSubmit={handleVerifyOTP}>
-                <div className="ss-fp-form-group">
-                  <label className="ss-fp-label">6-Digit Verification Code <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-otp-container" onPaste={handleOtpPaste}>
-                    {[0, 1, 2, 3, 4, 5].map((index) => (
-                      <input
-                        key={index}
-                        ref={(el) => (otpRefs.current[index] = el)}
-                        type="text"
-                        className="ss-fp-otp-input"
-                        value={otp[index] || ""}
-                        onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                        maxLength={1}
-                        pattern="\d*"
-                        inputMode="numeric"
-                        autoFocus={index === 0}
-                        disabled={loading}
-                      />
-                    ))}
-                  </div>
-                  <p style={{ marginTop: '12px', fontSize: '13px', color: '#64748b' }}>
-                    Code sent to <strong>{email}</strong>
-                  </p>
-                </div>
-
-                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
-                  {loading ? "Verifying..." : "Verify Code"}
-                </button>
-
-                <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                  <button 
-                    type="button" 
-                    className="ss-fp-footer-link" 
-                    onClick={handleRequestOTP} 
-                    style={{ background: 'none', border: 'none', padding: 0 }}
+                  <button
+                    type="submit"
                     disabled={loading}
+                    className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-[14.5px] font-medium tracking-wide cursor-pointer transition-colors duration-150 mt-2 mb-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Resend Code
+                    {loading ? "Sending Code..." : "Send Reset Code"}
                   </button>
-                </div>
-              </form>
-            )}
+                </form>
+              )}
 
-            {/* Step 3: New Password */}
-            {step === 3 && (
-              <form onSubmit={handleResetPassword}>
-                <div className="ss-fp-form-group">
-                  <label className="ss-fp-label">New Password <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-input-wrapper" style={{ position: "relative" }}>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      className="ss-fp-input"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="At least 6 characters"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center"
-                      }}
-                    >
-                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                    </button>
+              {/* STEP 2: Verify OTP */}
+              {step === 2 && (
+                <form onSubmit={handleVerifyOTP} noValidate>
+                  <div className="mb-4">
+                    <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2 tracking-wide">
+                      <span>6-Digit Verification Code <span className="text-red-500">*</span></span>
+                      <button
+                        type="button"
+                        onClick={() => setStep(1)}
+                        className="text-xs font-semibold text-teal-700 hover:underline cursor-pointer"
+                      >
+                        Change email
+                      </button>
+                    </label>
+
+                    <div className="flex items-center justify-between gap-1.5 sm:gap-2 mb-2" onPaste={handleOtpPaste}>
+                      {[0, 1, 2, 3, 4, 5].map((index) => (
+                        <input
+                          key={index}
+                          ref={(el) => (otpRefs.current[index] = el)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          pattern="\d*"
+                          value={otp[index] || ""}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          disabled={loading}
+                          autoFocus={index === 0}
+                          className="w-11 sm:w-12 h-12 text-center text-lg sm:text-xl font-bold bg-white border border-slate-200 rounded-md focus:border-teal-700 focus:outline-none text-slate-900 transition-colors disabled:bg-slate-50"
+                        />
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500 mt-2.5">
+                      <span>Didn't receive the code?</span>
+                      {countdown > 0 ? (
+                        <span className="text-slate-400 font-medium">Resend in {countdown}s</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleResendOTP}
+                          disabled={loading}
+                          className="font-semibold text-teal-700 hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Resend Code
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="ss-fp-form-group">
-                  <label className="ss-fp-label">Confirm New Password <span className="ss-fp-required">*</span></label>
-                  <div className="ss-fp-input-wrapper" style={{ position: "relative" }}>
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      className="ss-fp-input"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat new password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center"
-                      }}
-                    >
-                      {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                    </button>
+                  <button
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-[14.5px] font-medium tracking-wide cursor-pointer transition-colors duration-150 mt-3 mb-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Verifying..." : "Verify Code"}
+                  </button>
+                </form>
+              )}
+
+              {/* STEP 3: Set New Password */}
+              {step === 3 && (
+                <form onSubmit={handleResetPassword} noValidate>
+                  <div className="mb-4">
+                    <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5 tracking-wide">
+                      New Password <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <div className="relative w-full">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setErrorMsg("");
+                          if (fieldErrors.password) setFieldErrors({});
+                        }}
+                        placeholder="At least 8 characters"
+                        required
+                        disabled={loading}
+                        className={`w-full h-11 bg-white border ${
+                          fieldErrors.password ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-teal-700"
+                        } rounded-md pl-3.5 pr-10 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={loading}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded transition-colors"
+                      >
+                        {showPassword ? <LockOpenOutlined fontSize="small" /> : <LockOutlined fontSize="small" />}
+                      </button>
+                    </div>
+                    {fieldErrors.password && (
+                      <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.password}</p>
+                    )}
+
+                    {/* Password Requirements Checklist */}
+                    <div className="mt-2.5 p-2.5 bg-slate-50 rounded-md border border-slate-200/70 text-[11px] space-y-1">
+                      <div className={`flex items-center gap-1.5 ${passwordRules.minLength ? "text-emerald-700" : "text-slate-500"}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${passwordRules.minLength ? "bg-emerald-100" : "bg-slate-200"}`}>
+                          {passwordRules.minLength ? "✓" : "•"}
+                        </div>
+                        <span>At least 8 characters</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasUpper && passwordRules.hasLower ? "text-emerald-700" : "text-slate-500"}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${passwordRules.hasUpper && passwordRules.hasLower ? "bg-emerald-100" : "bg-slate-200"}`}>
+                          {passwordRules.hasUpper && passwordRules.hasLower ? "✓" : "•"}
+                        </div>
+                        <span>Uppercase and lowercase letters</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasNumber ? "text-emerald-700" : "text-slate-500"}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${passwordRules.hasNumber ? "bg-emerald-100" : "bg-slate-200"}`}>
+                          {passwordRules.hasNumber ? "✓" : "•"}
+                        </div>
+                        <span>At least one number (0-9)</span>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="mb-4">
+                    <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5 tracking-wide">
+                      Confirm New Password <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <div className="relative w-full">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setErrorMsg("");
+                          if (fieldErrors.confirmPassword) setFieldErrors({});
+                        }}
+                        placeholder="Re-enter new password"
+                        required
+                        disabled={loading}
+                        className={`w-full h-11 bg-white border ${
+                          fieldErrors.confirmPassword
+                            ? "border-red-500 focus:border-red-500"
+                            : confirmPassword && newPassword === confirmPassword
+                            ? "border-emerald-500 focus:border-emerald-500"
+                            : "border-slate-200 focus:border-teal-700"
+                        } rounded-md pl-3.5 pr-10 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={loading}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded transition-colors"
+                      >
+                        {showConfirmPassword ? <LockOpenOutlined fontSize="small" /> : <LockOutlined fontSize="small" />}
+                      </button>
+                    </div>
+                    {confirmPassword && (
+                      <p className={`text-xs mt-1 font-medium ${newPassword === confirmPassword ? "text-emerald-600" : "text-red-500"}`}>
+                        {newPassword === confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || !allRulesMet || newPassword !== confirmPassword}
+                    className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-[14.5px] font-medium tracking-wide cursor-pointer transition-colors duration-150 mt-2 mb-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Updating Password..." : "Reset Password"}
+                  </button>
+                </form>
+              )}
+
+              {/* Footer Links */}
+              <div className="text-center text-sm text-slate-500 mt-2 space-y-1">
+                <div>
+                  Remember your password?{" "}
+                  <span
+                    onClick={goToLogin}
+                    className="text-teal-700 font-semibold cursor-pointer ml-1 hover:text-teal-800 hover:underline transition-colors"
+                  >
+                    Sign in
+                  </span>
                 </div>
-
-                <button className="ss-fp-submit-btn" type="submit" disabled={loading}>
-                  {loading ? "Resetting..." : "Reset Password"}
-                </button>
-              </form>
-            )}
-
-            <div className="ss-fp-footer">
-              <div className="ss-fp-footer-row">
-                <span className="ss-fp-footer-text">Remember password?</span>
-                <span className="ss-fp-footer-link" onClick={goToLogin}>Sign in</span>
-              </div>
-              <div className="ss-fp-footer-row">
-                <span className="ss-fp-footer-text">New to {brandName}?</span>
-                <span className="ss-fp-footer-link" onClick={goToRegister}>Create account</span>
+                <div>
+                  Don't have an account?{" "}
+                  <span
+                    onClick={goToRegister}
+                    className="text-teal-700 font-semibold cursor-pointer ml-1 hover:text-teal-800 hover:underline transition-colors"
+                  >
+                    Create account
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

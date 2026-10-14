@@ -21,6 +21,7 @@ import {
   Circle
 } from "lucide-react";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -76,6 +77,7 @@ const menuItems = {
 };
 
 export default function Sidebar({ collapsed, onToggle }) {
+  const { logout } = useAuth();
   const location = useLocation();
   const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
@@ -247,7 +249,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           className="esigniva-sidebar__logout"
           onClick={(e) => {
             e.stopPropagation();
-            localStorage.removeItem("token");
+            logout();
             window.location.href = "/login";
           }}
         >

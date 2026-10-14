@@ -47,14 +47,15 @@ import AITemplateBrowser from './AITemplateBrowser';
 import { setPageTitle } from "../utils/pageTitle";
 import DashboardAnalyticsInline from "../components/DashboardAnalyticsInline";
 // import DashboardAnalytics from "../components/DashboardAnalytics";
-// Import API functions
 import templatesAPI from "../services/api";
 import { addFileToDocument, uploadDocument } from "../services/DocumentAPI";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 const token = localStorage.getItem("token");
 
 const UserDashboard = () => {
+  const { user } = useAuth();
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -727,7 +728,9 @@ const UserDashboard = () => {
         <div className="signapp-welcome-section">
           <div className="signapp-welcome-header">
             <div>
-              <h2 className="signapp-welcome-title">Welcome back!</h2>
+              <h2 className="signapp-welcome-title">
+                Welcome back{user?.full_name ? `, ${user.full_name}` : ""}!
+              </h2>
               <p className="signapp-welcome-subtitle">Here's what's happening with your documents today.</p>
             </div>
             <div className="signapp-welcome-header">

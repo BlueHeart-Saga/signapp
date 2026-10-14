@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./style/tailwind.output.css";
 import App from "./App";
 import { brandAPI } from "./services/brandAPI";
 import { setPageTitle } from "./utils/pageTitle";

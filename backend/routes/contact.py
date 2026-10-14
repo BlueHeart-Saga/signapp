@@ -1,8 +1,10 @@
 import os
 import smtplib
+import re
+import ipaddress
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Literal
 from bson import ObjectId
 from fastapi import APIRouter, Request, HTTPException, Query, Depends
@@ -14,11 +16,55 @@ from .auth import role_required
 
 router = APIRouter(tags=["Contact / Feedback Management"])
 
+TRUSTED_PROXY_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+]
+
+def get_client_ip(request: Request) -> str:
+    """
+    Safely extract client IP address.
+    Proxy headers (X-Client-IP, X-Forwarded-For) are ONLY trusted if the immediate peer
+    connecting to the server is a verified trusted proxy (loopback, private network, or Azure gateway).
+    Direct connections from untrusted/public IPs cannot spoof headers to bypass rate limits.
+    """
+    peer_ip = request.client.host if request.client else "127.0.0.1"
+
+    is_trusted = False
+    try:
+        ip_obj = ipaddress.ip_address(peer_ip)
+        is_trusted = any(ip_obj in net for net in TRUSTED_PROXY_NETWORKS)
+    except ValueError:
+        is_trusted = False
+
+    if is_trusted:
+        x_client_ip = request.headers.get("x-client-ip")
+        if x_client_ip and x_client_ip.strip():
+            return x_client_ip.strip()
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+            if ips:
+                return ips[0]
+
+    return peer_ip
+
 class ContactCreate(BaseModel):
     name: str
     email: EmailStr
     subject: Optional[str] = None
     message: str
+
+class FeedbackCreate(BaseModel):
+    message: str
+    email: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = "general"
+    page_url: Optional[str] = None
 
 class StatusUpdate(BaseModel):
     status: Literal["new", "in_progress", "replied", "archived"]
@@ -164,6 +210,101 @@ async def submit_contact_form(data: ContactCreate, request: Request):
     }
 
 # ──────────────────────────────────────────────
+# PUBLIC: SUBMIT FEEDBACK (FeedbackWidget: Feedback, Ask, Suggest)
+# ──────────────────────────────────────────────
+@router.post("/api/feedback")
+@router.post("/feedback")
+async def submit_feedback(data: FeedbackCreate, request: Request):
+    """
+    Public feedback submission endpoint for the global FeedbackWidget (BUG-002, BUG-003, BUG-004).
+    Supports 'feedback', 'ask', and 'suggest' categories.
+    Validates inputs, applies IP-based abuse rate limits, and persists to `contact_submissions`
+    for unified admin visibility.
+    """
+    message = (data.message or "").strip()
+    if len(message) < 3 or len(message) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Feedback message must be between 3 and 5000 characters."
+        )
+
+    # Validate email format if supplied
+    email = (data.email or "").strip().lower()
+    if email:
+        email_regex = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+        if not re.match(email_regex, email):
+            raise HTTPException(
+                status_code=400,
+                detail="Please provide a valid email address."
+            )
+    else:
+        email = "anonymous@feedback.esigniva"
+
+    # Submitter name sanitization
+    name = (data.name or "").strip()
+    if not name:
+        name = email.split("@")[0].replace(".", " ").title() if email != "anonymous@feedback.esigniva" else "Website Visitor"
+
+    # Category normalization
+    raw_type = (data.type or "general").strip().lower()
+    type_map = {
+        "help": "help",
+        "ask": "help",
+        "feature": "feature",
+        "suggest": "feature",
+        "feedback": "general",
+        "general": "general"
+    }
+    feedback_type = type_map.get(raw_type, raw_type[:50])
+
+    # Abuse protection: Rate limiting (max 10 submissions/minute per IP)
+    client_ip = get_client_ip(request)
+
+    if client_ip and client_ip not in ["localhost"]:
+        one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+        recent_count = await db.contact_submissions.count_documents({
+            "ip_address": client_ip,
+            "created_at": {"$gte": one_minute_ago}
+        })
+        if recent_count >= 10:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many feedback submissions. Please wait a minute before submitting again."
+            )
+
+    subject_labels = {
+        "help": "Question / Help Inquiry",
+        "feature": "Feature Suggestion",
+        "general": "User Feedback"
+    }
+    subject_label = subject_labels.get(feedback_type, f"{feedback_type.capitalize()} Submission")
+
+    submission = {
+        "name": name,
+        "email": email,
+        "subject": f"[{subject_label}] from {data.page_url or 'Website'}",
+        "message": message,
+        "type": feedback_type,
+        "page_url": (data.page_url or "").strip()[:200] if data.page_url else None,
+        "status": "new",
+        "created_at": datetime.utcnow(),
+        "ip_address": client_ip,
+        "user_agent": request.headers.get("user-agent"),
+        "admin_reply": None,
+        "replied_at": None,
+        "source": "feedback_widget"
+    }
+
+    res = await db.contact_submissions.insert_one(submission)
+    submission_id = str(res.inserted_id)
+
+    return {
+        "success": True,
+        "message": "Thank you for your feedback! Your submission has been received.",
+        "id": submission_id
+    }
+
+# ──────────────────────────────────────────────
 # ADMIN: LIST CONTACT SUBMISSIONS & FEEDBACK
 # ──────────────────────────────────────────────
 @router.get("/e-sign/contact/admin")
@@ -182,7 +323,8 @@ async def list_contact_submissions(
 
     skip = (page - 1) * page_size
     cursor = db.contact_submissions.find(query).sort("created_at", -1).skip(skip).limit(page_size)
-    items = [serialize_submission(c) for c in cursor]
+    cursor_items = await cursor.to_list(length=page_size)
+    items = [serialize_submission(c) for c in cursor_items]
     total = await db.contact_submissions.count_documents(query)
 
     counts = {

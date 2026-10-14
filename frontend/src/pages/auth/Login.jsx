@@ -1,888 +1,24 @@
-// import React, { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { jwtDecode } from "jwt-decode";
-// import api, { setAuthToken } from "../../services/api";
-
-// export default function Login({ onLogin, onError, compact = false }) {
-//   const [formData, setFormData] = useState({ email: "", password: "" });
-//   const [loading, setLoading] = useState(false);
-//   const [errorMsg, setErrorMsg] = useState("");
-//   const [showForgotPassword, setShowForgotPassword] = useState(false);
-
-//   const navigate = useNavigate();
-
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData((prev) => ({ ...prev, [name]: value }));
-//     // Clear error when user starts typing
-//     if (errorMsg) setErrorMsg("");
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setErrorMsg("");
-
-//     try {
-//       const form = new URLSearchParams();
-//       form.append("username", formData.email.trim().toLowerCase());
-//       form.append("password", formData.password.trim());
-
-//       const res = await api.post("/auth/login", form.toString(), {
-//         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-//       });
-
-//       const token = res.data?.access_token;
-//       if (!token) throw new Error("Invalid token received.");
-
-//       // Store and decode token
-//       localStorage.setItem("token", token);
-//       localStorage.setItem("user", JSON.stringify(res.data.user));
-//       setAuthToken(token);
-
-//       const decoded = jwtDecode(token);
-//       const role = decoded?.role?.toLowerCase() || "user";
-
-//       // Call success callback if in modal mode
-//       if (onLogin) {
-//         onLogin(res.data.user);
-//       } else {
-//         // Regular navigation if standalone
-//         switch (role) {
-//           case "admin":
-//             navigate("/admin/dashboard");
-//             break;
-//           case "recipient":
-//             navigate("/recipient/dashboard");
-//             break;
-//           case "user":
-//             navigate("/user/dashboard");
-//             break;
-//           default:
-//             navigate("/dashboard");
-//         }
-//       }
-
-//     } catch (err) {
-//       const errorMessage = err?.response?.data?.detail || 
-//         "Invalid email or password. Please try again.";
-//       setErrorMsg(errorMessage);
-//       onError?.(errorMessage);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // 🔐 Google Sign In
-//   const handleGoogleSignIn = () => {
-//   window.location.href = "http://localhost:9000/auth/google/login";
-// };
-
-//   // 🧭 Navigate to Register
-//   const goToRegister = () => {
-//     if (compact && onError) {
-//       onError(""); // Clear errors when switching
-//     } else {
-//       navigate("/register");
-//     }
-//   };
-
-//   // 🔑 Forgot Password
-//   const handleForgotPassword = () => {
-//     setShowForgotPassword(true);
-//   };
-
-//   // Compact version for modal
-//   if (compact) {
-//     return (
-//       <div style={compactStyles.container}>
-//         <form onSubmit={handleSubmit} style={compactStyles.form}>
-//           <div>
-//             <input
-//               type="email"
-//               name="email"
-//               placeholder="Email address"
-//               value={formData.email}
-//               onChange={handleChange}
-//               required
-//               style={{
-//                 ...compactStyles.input,
-//                 ...(errorMsg ? compactStyles.inputError : {})
-//               }}
-//               disabled={loading}
-//             />
-//           </div>
-
-//           <div>
-//             <input
-//               type="password"
-//               name="password"
-//               placeholder="Password"
-//               value={formData.password}
-//               onChange={handleChange}
-//               required
-//               style={{
-//                 ...compactStyles.input,
-//                 ...(errorMsg ? compactStyles.inputError : {})
-//               }}
-//               disabled={loading}
-//             />
-//           </div>
-
-//           {errorMsg && (
-//             <div style={compactStyles.error}>
-//               {errorMsg}
-//             </div>
-//           )}
-
-//           <button
-//             type="submit"
-//             disabled={loading}
-//             style={{
-//               ...compactStyles.submitBtn,
-//               ...(loading ? compactStyles.submitBtnDisabled : {})
-//             }}
-//           >
-//             {loading ? "Signing in..." : "Sign In"}
-//           </button>
-
-//           <div style={compactStyles.footer}>
-//             <span 
-//               onClick={handleForgotPassword} 
-//               style={compactStyles.footerLink}
-//             >
-//               Forgot password?
-//             </span>
-//           </div>
-//         </form>
-//       </div>
-//     );
-//   }
-
-//   // Full version with enhanced styling
-//   return (
-//     <div style={styles.container}>
-//       <div style={styles.header}>
-//         <h2 style={styles.title}>Welcome Back</h2>
-//         <p style={styles.subtitle}>Sign in to your account</p>
-//       </div>
-
-//       {/* Google Sign In Button */}
-//       <button
-//         type="button"
-//         onClick={handleGoogleSignIn}
-//         style={styles.googleButton}
-//       >
-//         <span style={styles.googleIcon}>G</span>
-//         Continue with Google
-//       </button>
-
-//       <div style={styles.divider}>
-//         <span style={styles.dividerText}>or</span>
-//       </div>
-
-//       <form onSubmit={handleSubmit} style={styles.form}>
-//         <div style={styles.inputGroup}>
-//           <label style={styles.label}>Email Address</label>
-//           <input
-//             type="email"
-//             name="email"
-//             placeholder="Enter your email address"
-//             value={formData.email}
-//             onChange={handleChange}
-//             required
-//             disabled={loading}
-//             style={{
-//               ...styles.input,
-//               ...(errorMsg ? styles.inputError : {})
-//             }}
-//           />
-//         </div>
-
-//         <div style={styles.inputGroup}>
-//           <div style={styles.passwordHeader}>
-//             <label style={styles.label}>Password</label>
-//             <span 
-//               onClick={handleForgotPassword} 
-//               style={styles.forgotPassword}
-//             >
-//               Forgot password?
-//             </span>
-//           </div>
-//           <input
-//             type="password"
-//             name="password"
-//             placeholder="Enter your password"
-//             value={formData.password}
-//             onChange={handleChange}
-//             required
-//             disabled={loading}
-//             style={{
-//               ...styles.input,
-//               ...(errorMsg ? styles.inputError : {})
-//             }}
-//           />
-//         </div>
-
-//         {errorMsg && (
-//           <div style={styles.error}>
-//             <span style={styles.errorIcon}></span>
-//             {errorMsg}
-//           </div>
-//         )}
-
-//         <button
-//           type="submit"
-//           disabled={loading}
-//           style={{
-//             ...styles.submitBtn,
-//             ...(loading ? styles.submitBtnDisabled : {})
-//           }}
-//         >
-//           {loading ? (
-//             <>
-//               <span style={styles.spinner}></span>
-//               Signing in...
-//             </>
-//           ) : (
-//             "Sign In"
-//           )}
-//         </button>
-
-//         <div style={styles.divider}>
-//           <span style={styles.dividerText}>New to our platform?</span>
-//         </div>
-
-//         <button
-//           type="button"
-//           onClick={goToRegister}
-//           style={styles.registerBtn}
-//           disabled={loading}
-//         >
-//           Create an account
-//         </button>
-
-//         <div style={styles.roleInfo}>
-//           <p style={styles.roleInfoText}>
-//             <strong>Account Types:</strong>
-//           </p>
-//           <ul style={styles.roleList}>
-//             <li>👤 <strong>Organization Users:</strong> Create and manage documents</li>
-//             <li>📝 <strong>Recipients:</strong> Sign documents and access history</li>
-//             <li>⚙️ <strong>Admins:</strong> Platform administration</li>
-//           </ul>
-//         </div>
-//       </form>
-
-//       {/* Forgot Password Modal */}
-//       {showForgotPassword && (
-//         <ForgotPasswordModal 
-//           onClose={() => setShowForgotPassword(false)}
-//         />
-//       )}
-//     </div>
-//   );
-// }
-
-// // Forgot Password Modal Component
-// function ForgotPasswordModal({ onClose }) {
-//   const [step, setStep] = useState(1); // 1: Request OTP, 2: Verify OTP, 3: Reset Password
-//   const [email, setEmail] = useState("");
-//   const [otp, setOtp] = useState("");
-//   const [newPassword, setNewPassword] = useState("");
-//   const [confirmPassword, setConfirmPassword] = useState("");
-//   const [loading, setLoading] = useState(false);
-//   const [errorMsg, setErrorMsg] = useState("");
-//   const [successMsg, setSuccessMsg] = useState("");
-
-//   const handleRequestOTP = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setErrorMsg("");
-//     setSuccessMsg("");
-
-//     try {
-//       await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
-//       setSuccessMsg("OTP sent to your email address");
-//       setStep(2);
-//     } catch (err) {
-//       setErrorMsg(err?.response?.data?.detail || "Failed to send OTP. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const handleVerifyOTP = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setErrorMsg("");
-//     setSuccessMsg("");
-
-//     try {
-//       await api.post("/auth/verify-otp", { 
-//         email: email.trim().toLowerCase(), 
-//         otp 
-//       });
-//       setSuccessMsg("OTP verified successfully");
-//       setStep(3);
-//     } catch (err) {
-//       setErrorMsg(err?.response?.data?.detail || "Invalid OTP. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const handleResetPassword = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setErrorMsg("");
-//     setSuccessMsg("");
-
-//     if (newPassword !== confirmPassword) {
-//       setErrorMsg("Passwords do not match");
-//       setLoading(false);
-//       return;
-//     }
-
-//     if (newPassword.length < 6) {
-//       setErrorMsg("Password must be at least 6 characters");
-//       setLoading(false);
-//       return;
-//     }
-
-//     try {
-//       await api.post("/auth/reset-password", { 
-//         email: email.trim().toLowerCase(), 
-//         otp,
-//         new_password: newPassword
-//       });
-//       setSuccessMsg("Password reset successfully! You can now login with your new password.");
-//       setTimeout(() => {
-//         onClose();
-//       }, 2000);
-//     } catch (err) {
-//       setErrorMsg(err?.response?.data?.detail || "Failed to reset password. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div style={modalStyles.overlay}>
-//       <div style={modalStyles.modal}>
-//         <div style={modalStyles.header}>
-//           <h3 style={modalStyles.title}>
-//             {step === 1 && "Reset Your Password"}
-//             {step === 2 && "Verify OTP"}
-//             {step === 3 && "Create New Password"}
-//           </h3>
-//           <button onClick={onClose} style={modalStyles.closeButton}>×</button>
-//         </div>
-
-//         <div style={modalStyles.content}>
-//           {step === 1 && (
-//             <form onSubmit={handleRequestOTP}>
-//               <p style={modalStyles.description}>
-//                 Enter your email address and we'll send you a One-Time Password to reset your password.
-//               </p>
-//               <div style={modalStyles.inputGroup}>
-//                 <label style={modalStyles.label}>Email Address</label>
-//                 <input
-//                   type="email"
-//                   value={email}
-//                   onChange={(e) => setEmail(e.target.value)}
-//                   placeholder="Enter your email"
-//                   required
-//                   style={modalStyles.input}
-//                 />
-//               </div>
-//               {errorMsg && <p style={modalStyles.error}>{errorMsg}</p>}
-//               {successMsg && <p style={modalStyles.success}>{successMsg}</p>}
-//               <button
-//                 type="submit"
-//                 disabled={loading}
-//                 style={modalStyles.submitButton}
-//               >
-//                 {loading ? "Sending OTP..." : "Send OTP"}
-//               </button>
-//             </form>
-//           )}
-
-//           {step === 2 && (
-//             <form onSubmit={handleVerifyOTP}>
-//               <p style={modalStyles.description}>
-//                 Enter the 6-digit OTP sent to your email address.
-//               </p>
-//               <div style={modalStyles.inputGroup}>
-//                 <label style={modalStyles.label}>OTP Code</label>
-//                 <input
-//                   type="text"
-//                   value={otp}
-//                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-//                   placeholder="Enter 6-digit OTP"
-//                   required
-//                   maxLength={6}
-//                   style={modalStyles.input}
-//                 />
-//               </div>
-//               {errorMsg && <p style={modalStyles.error}>{errorMsg}</p>}
-//               {successMsg && <p style={modalStyles.success}>{successMsg}</p>}
-//               <button
-//                 type="submit"
-//                 disabled={loading}
-//                 style={modalStyles.submitButton}
-//               >
-//                 {loading ? "Verifying..." : "Verify OTP"}
-//               </button>
-//             </form>
-//           )}
-
-//           {step === 3 && (
-//             <form onSubmit={handleResetPassword}>
-//               <p style={modalStyles.description}>
-//                 Create your new password. Must be at least 6 characters long.
-//               </p>
-//               <div style={modalStyles.inputGroup}>
-//                 <label style={modalStyles.label}>New Password</label>
-//                 <input
-//                   type="password"
-//                   value={newPassword}
-//                   onChange={(e) => setNewPassword(e.target.value)}
-//                   placeholder="Enter new password"
-//                   required
-//                   minLength={6}
-//                   style={modalStyles.input}
-//                 />
-//               </div>
-//               <div style={modalStyles.inputGroup}>
-//                 <label style={modalStyles.label}>Confirm Password</label>
-//                 <input
-//                   type="password"
-//                   value={confirmPassword}
-//                   onChange={(e) => setConfirmPassword(e.target.value)}
-//                   placeholder="Confirm new password"
-//                   required
-//                   minLength={6}
-//                   style={modalStyles.input}
-//                 />
-//               </div>
-//               {errorMsg && <p style={modalStyles.error}>{errorMsg}</p>}
-//               {successMsg && <p style={modalStyles.success}>{successMsg}</p>}
-//               <button
-//                 type="submit"
-//                 disabled={loading}
-//                 style={modalStyles.submitButton}
-//               >
-//                 {loading ? "Resetting..." : "Reset Password"}
-//               </button>
-//             </form>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// // Modal Styles
-// const modalStyles = {
-//   overlay: {
-//     position: "fixed",
-//     top: 0,
-//     left: 0,
-//     right: 0,
-//     bottom: 0,
-//     backgroundColor: "rgba(0, 0, 0, 0.5)",
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     zIndex: 1000,
-//   },
-//   modal: {
-//     backgroundColor: "white",
-//     borderRadius: "12px",
-//     padding: "0",
-//     maxWidth: "400px",
-//     width: "90%",
-//     maxHeight: "90vh",
-//     overflow: "auto",
-//   },
-//   header: {
-//     display: "flex",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     padding: "20px 20px 0 20px",
-//     borderBottom: "1px solid #eee",
-//     paddingBottom: "20px",
-//   },
-//   title: {
-//     margin: 0,
-//     fontSize: "20px",
-//     fontWeight: "600",
-//     color: "#333",
-//   },
-//   closeButton: {
-//     background: "none",
-//     border: "none",
-//     fontSize: "24px",
-//     cursor: "pointer",
-//     color: "#666",
-//   },
-//   content: {
-//     padding: "20px",
-//   },
-//   description: {
-//     margin: "0 0 20px 0",
-//     color: "#666",
-//     fontSize: "14px",
-//     lineHeight: "1.5",
-//   },
-//   inputGroup: {
-//     marginBottom: "15px",
-//   },
-//   label: {
-//     display: "block",
-//     marginBottom: "5px",
-//     fontWeight: "600",
-//     fontSize: "14px",
-//     color: "#555",
-//   },
-//   input: {
-//     width: "100%",
-//     padding: "10px",
-//     border: "1px solid #ddd",
-//     borderRadius: "6px",
-//     fontSize: "14px",
-//     boxSizing: "border-box",
-//   },
-//   submitButton: {
-//     width: "100%",
-//     padding: "12px",
-//     backgroundColor: "#007bff",
-//     color: "white",
-//     border: "none",
-//     borderRadius: "6px",
-//     cursor: "pointer",
-//     fontWeight: "600",
-//     fontSize: "14px",
-//   },
-//   error: {
-//     color: "#dc3545",
-//     fontSize: "14px",
-//     textAlign: "center",
-//     margin: "10px 0",
-//     padding: "8px",
-//     backgroundColor: "#f8d7da",
-//     borderRadius: "4px",
-//   },
-//   success: {
-//     color: "#28a745",
-//     fontSize: "14px",
-//     textAlign: "center",
-//     margin: "10px 0",
-//     padding: "8px",
-//     backgroundColor: "#d4edda",
-//     borderRadius: "4px",
-//   },
-// };
-
-// // Enhanced compact styles for modal
-// const compactStyles = {
-//   container: {
-//     padding: "15px 0",
-//   },
-//   form: {
-//     display: "flex",
-//     flexDirection: "column",
-//     gap: "15px",
-//   },
-//   input: {
-//     padding: "12px",
-//     width: "100%",
-//     borderRadius: "6px",
-//     border: "1px solid #ddd",
-//     fontSize: "14px",
-//     boxSizing: "border-box",
-//     transition: "border-color 0.2s, box-shadow 0.2s",
-//   },
-//   inputError: {
-//     borderColor: "#dc3545",
-//     boxShadow: "0 0 0 2px rgba(220, 53, 69, 0.1)",
-//   },
-//   submitBtn: {
-//     padding: "12px",
-//     backgroundColor: "#007bff",
-//     color: "white",
-//     border: "none",
-//     borderRadius: "6px",
-//     cursor: "pointer",
-//     fontWeight: "600",
-//     fontSize: "14px",
-//     transition: "background-color 0.2s",
-//   },
-//   submitBtnDisabled: {
-//     backgroundColor: "#6c757d",
-//     cursor: "not-allowed",
-//   },
-//   error: {
-//     color: "#dc3545",
-//     fontSize: "13px",
-//     textAlign: "center",
-//     padding: "8px",
-//     backgroundColor: "#f8d7da",
-//     borderRadius: "4px",
-//     border: "1px solid #f5c6cb",
-//   },
-//   footer: {
-//     textAlign: "center",
-//     marginTop: "5px",
-//   },
-//   footerLink: {
-//     color: "#007bff",
-//     fontSize: "12px",
-//     cursor: "pointer",
-//     textDecoration: "underline",
-//   },
-// };
-
-// // Enhanced full version styles
-// const styles = {
-//   container: {
-//     padding: "40px",
-//     maxWidth: "480px",
-//     margin: "40px auto",
-//     backgroundColor: "#ffffff",
-//     borderRadius: "12px",
-//     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-//   },
-//   header: {
-//     textAlign: "center",
-//     marginBottom: "20px",
-//   },
-//   title: {
-//     fontSize: "28px",
-//     fontWeight: "700",
-//     color: "#333",
-//     marginBottom: "8px",
-//   },
-//   subtitle: {
-//     fontSize: "16px",
-//     color: "#666",
-//     margin: 0,
-//   },
-//   googleButton: {
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     gap: "10px",
-//     width: "100%",
-//     padding: "12px",
-//     backgroundColor: "#ffffff",
-//     color: "#333",
-//     border: "1px solid #ddd",
-//     borderRadius: "6px",
-//     cursor: "pointer",
-//     fontWeight: "600",
-//     fontSize: "14px",
-//     marginBottom: "20px",
-//     transition: "all 0.2s",
-//   },
-//   googleIcon: {
-//     width: "18px",
-//     height: "18px",
-//     backgroundColor: "#4285f4",
-//     color: "white",
-//     borderRadius: "50%",
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     fontSize: "12px",
-//     fontWeight: "bold",
-//   },
-//   divider: {
-//     position: "relative",
-//     textAlign: "center",
-//     margin: "20px 0",
-//     "&::before": {
-//       content: '""',
-//       position: "absolute",
-//       top: "50%",
-//       left: 0,
-//       right: 0,
-//       height: "1px",
-//       backgroundColor: "#ddd",
-//     }
-//   },
-//   dividerText: {
-//     backgroundColor: "white",
-//     padding: "0 15px",
-//     color: "#666",
-//     fontSize: "14px",
-//     position: "relative",
-//   },
-//   form: {
-//     display: "flex",
-//     flexDirection: "column",
-//     gap: "20px",
-//   },
-//   inputGroup: {
-//     display: "flex",
-//     flexDirection: "column",
-//     gap: "6px",
-//   },
-//   passwordHeader: {
-//     display: "flex",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//   },
-//   label: {
-//     fontWeight: "600",
-//     fontSize: "14px",
-//     color: "#555",
-//   },
-//   input: {
-//     padding: "14px",
-//     borderRadius: "8px",
-//     border: "1px solid #ddd",
-//     fontSize: "15px",
-//     boxSizing: "border-box",
-//     transition: "all 0.2s",
-//   },
-//   inputError: {
-//     borderColor: "#dc3545",
-//     boxShadow: "0 0 0 2px rgba(220, 53, 69, 0.1)",
-//   },
-//   forgotPassword: {
-//     color: "#007bff",
-//     fontSize: "13px",
-//     cursor: "pointer",
-//     textDecoration: "underline",
-//   },
-//   error: {
-//     display: "flex",
-//     alignItems: "center",
-//     gap: "8px",
-//     color: "#dc3545",
-//     fontSize: "14px",
-//     padding: "12px",
-//     backgroundColor: "#f8d7da",
-//     borderRadius: "6px",
-//     border: "1px solid #f5c6cb",
-//   },
-//   errorIcon: {
-//     fontSize: "16px",
-//   },
-//   submitBtn: {
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     gap: "8px",
-//     padding: "14px",
-//     backgroundColor: "#007bff",
-//     color: "white",
-//     border: "none",
-//     borderRadius: "8px",
-//     cursor: "pointer",
-//     fontWeight: "600",
-//     fontSize: "16px",
-//     transition: "all 0.2s",
-//   },
-//   submitBtnDisabled: {
-//     backgroundColor: "#6c757d",
-//     cursor: "not-allowed",
-//   },
-//   spinner: {
-//     width: "16px",
-//     height: "16px",
-//     border: "2px solid transparent",
-//     borderTop: "2px solid white",
-//     borderRadius: "50%",
-//     animation: "spin 1s linear infinite",
-//   },
-//   registerBtn: {
-//     padding: "14px",
-//     backgroundColor: "transparent",
-//     color: "#007bff",
-//     border: "2px solid #007bff",
-//     borderRadius: "8px",
-//     cursor: "pointer",
-//     fontWeight: "600",
-//     fontSize: "16px",
-//     transition: "all 0.2s",
-//   },
-//   roleInfo: {
-//     backgroundColor: "#f8f9fa",
-//     padding: "15px",
-//     borderRadius: "8px",
-//     border: "1px solid #e9ecef",
-//     marginTop: "10px",
-//   },
-//   roleInfoText: {
-//     margin: "0 0 8px 0",
-//     fontSize: "14px",
-//     color: "#333",
-//     fontWeight: "600",
-//   },
-//   roleList: {
-//     margin: 0,
-//     paddingLeft: "20px",
-//     fontSize: "13px",
-//     color: "#666",
-//     lineHeight: "1.5",
-//   },
-// };
-
-// // Add CSS animation for spinner
-// const styleSheet = document.styleSheets[0];
-// const keyframes = `
-// @keyframes spin {
-//   0% { transform: rotate(0deg); }
-//   100% { transform: rotate(360deg); }
-// }
-// `;
-// styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
-
-
-
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "../../style/Login.css";
 import api from "../../services/api";
-
 import API_BASE_URL, { GOOGLE_CLIENT_ID } from "../../config/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
+import { setPageTitle } from "../../utils/pageTitle";
 
-// Material UI Icons
-
+// Icons
 import Home from "@mui/icons-material/Home";
 import Google from "@mui/icons-material/Google";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
 import CheckCircle from "@mui/icons-material/CheckCircle";
-import Security from "@mui/icons-material/Security";
-import Lock from "@mui/icons-material/Lock";
-import AccessTime from "@mui/icons-material/AccessTime";
-import CloudDone from "@mui/icons-material/CloudDone";
 import Explore from "@mui/icons-material/Explore";
 import People from "@mui/icons-material/People";
 import Close from "@mui/icons-material/Close";
-import {
-  FaCrown,
-} from 'react-icons/fa';
-
-import toast from "react-hot-toast";
-
-
-import { setPageTitle } from "../../utils/pageTitle";
-
-
-import {
-  Shield,
-} from "lucide-react";
-
 import LockOutlined from "@mui/icons-material/LockOutlined";
 import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
-
-
+import { FaCrown } from "react-icons/fa";
+import { Shield } from "lucide-react";
 
 const Login = ({ onLogin, onError, compact = false }) => {
   const [brandName, setBrandName] = useState("Esigniva");
@@ -890,16 +26,19 @@ const Login = ({ onLogin, onError, compact = false }) => {
   const { setUser, setToken } = useAuth();
 
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+  const [touched, setTouched] = useState({ email: false, password: false });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [savedUser, setSavedUser] = useState(null);
-  const [showFullForm, setShowFullForm] = useState(true);
+  const [, setShowFullForm] = useState(true);
   const [showFastLogin, setShowFastLogin] = useState(true);
   const passwordRef = useRef(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check for saved user or recent user in localStorage
@@ -907,18 +46,31 @@ const Login = ({ onLogin, onError, compact = false }) => {
     const storedRecent = localStorage.getItem("recent-user");
     const storedToken = localStorage.getItem("token");
 
-    if (storedUser && storedToken) {
+    let parsedUser = null;
+    let parsedRecent = null;
+    if (storedUser) {
       try {
-        setSavedUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Error parsing saved user", e);
-      }
-    } else if (storedRecent) {
+        parsedUser = JSON.parse(storedUser);
+      } catch (e) {}
+    }
+    if (storedRecent) {
       try {
-        setSavedUser(JSON.parse(storedRecent));
-      } catch (e) {
-        console.error("Error parsing recent user", e);
-      }
+        parsedRecent = JSON.parse(storedRecent);
+      } catch (e) {}
+    }
+
+    if (parsedUser || parsedRecent) {
+      const merged = {
+        ...parsedRecent,
+        ...parsedUser,
+        full_name: parsedUser?.full_name || parsedRecent?.full_name || "",
+        email: parsedUser?.email || parsedRecent?.email || "",
+        profile_image: typeof parsedUser?.profile_picture === "string"
+          ? parsedUser.profile_picture
+          : (parsedRecent?.profile_image || null),
+        remembered_token: storedToken || parsedRecent?.remembered_token || null
+      };
+      setSavedUser(merged);
     }
   }, []);
 
@@ -929,29 +81,34 @@ const Login = ({ onLogin, onError, compact = false }) => {
     if (savedUser.remembered_token) {
       try {
         setLoading(true);
-        // Verify token with backend
         const response = await api.get("/auth/me", {
-          headers: { Authorization: `Bearer ${savedUser.remembered_token}` }
+          headers: { Authorization: `Bearer ${savedUser.remembered_token}` },
         });
 
         if (response.data) {
-          // Token is valid! Restore session.
+          const freshUser = response.data;
+          const freshName = freshUser.full_name || `${freshUser.first_name || ""} ${freshUser.last_name || ""}`.trim() || savedUser.full_name || freshUser.email;
           localStorage.setItem("token", savedUser.remembered_token);
-          setToken(savedUser.remembered_token); // This will trigger the AuthContext sync
-          toast.success(`Welcome back, ${savedUser.full_name || savedUser.email}!`, { id: "login-success" });
+          setToken(savedUser.remembered_token);
+          setUser(freshUser, savedUser.remembered_token);
+          toast.success(`Welcome back, ${freshName}!`, { id: "login-success" });
           setTimeout(() => {
-            const role = response.data.role;
+            const role = freshUser.role;
             switch (role) {
-              case "admin": navigate("/admin/dashboard"); break;
-              case "recipient": navigate("/recipient/home"); break;
-              default: navigate("/user");
+              case "admin":
+                navigate("/admin/dashboard");
+                break;
+              case "recipient":
+                navigate("/recipient/home");
+                break;
+              default:
+                navigate("/user");
             }
           }, 800);
           return;
         }
       } catch (err) {
         console.warn("Remembered session expired, falling back to manual login.");
-        // If it fails, we fall through to manual login flow
       } finally {
         setLoading(false);
       }
@@ -959,37 +116,30 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
     // CASE 2: No valid session - help user log back in manually
     if (savedUser.is_google) {
-      // For Google users: re-prompt One Tap
       if (window.google) {
         window.google.accounts.id.prompt();
       } else {
         toast("Initializing Google login...");
       }
     } else {
-      // For Email users: pre-fill and focus password
-      setFormData(prev => ({ ...prev, email: savedUser.email }));
-      setSuccessMsg(`Welcome back! Please enter your password to continue.`);
+      const displayName = savedUser.full_name ? `, ${savedUser.full_name}` : "";
+      setFormData((prev) => ({ ...prev, email: savedUser.email }));
+      setSuccessMsg(`Welcome back${displayName}! Please enter your password to continue.`);
       setShowFastLogin(false);
 
-      // Auto-focus password field
       setTimeout(() => {
-        const passField = document.querySelector('input[type="password"]');
-        if (passField) passField.focus();
+        if (passwordRef.current) passwordRef.current.focus();
       }, 300);
     }
   };
-
 
   const handleSwitchAccount = () => {
     setShowFullForm(true);
   };
 
-  const location = useLocation();
-
   useEffect(() => {
-    // Handle pre-fill from Register page "Continue as..." or other sources
     if (location.state?.prefillEmail) {
-      setFormData(prev => ({ ...prev, email: location.state.prefillEmail }));
+      setFormData((prev) => ({ ...prev, email: location.state.prefillEmail }));
       if (location.state.welcomeBack) {
         setSuccessMsg(`Welcome back, ${location.state.name}! Please enter your password.`);
         setShowFastLogin(false);
@@ -998,36 +148,18 @@ const Login = ({ onLogin, onError, compact = false }) => {
   }, [location.state]);
 
   useEffect(() => {
-    // Auto-focus password if pre-field is set
     if (successMsg && successMsg.includes("enter your password") && passwordRef.current) {
       passwordRef.current.focus();
     }
   }, [successMsg]);
 
-
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isAutoPlaying] = useState(true);
 
-  // Background images for carousel
   const backgroundImages = [
     "/images/login1.png",
-    // "/images/login2.jpg",
-    // "/images/login3.jpg",
-    // "/images/login4.jpg",
-    // "/images/login5.jpg"
   ];
-
-  // Fallback images if the above don't exist
-  const defaultImages = [
-    "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
-  ];
-
-  // Use local images if they exist, otherwise use fallback
   const images = backgroundImages;
 
   useEffect(() => {
@@ -1048,12 +180,12 @@ const Login = ({ onLogin, onError, compact = false }) => {
   // Auto-play carousel
   useEffect(() => {
     let interval;
-    if (isAutoPlaying) {
+    if (isAutoPlaying && images.length > 1) {
       interval = setInterval(() => {
         setCurrentImageIndex((prevIndex) =>
           prevIndex === images.length - 1 ? 0 : prevIndex + 1
         );
-      }, 5000); // Change image every 5 seconds
+      }, 5000);
     }
 
     return () => {
@@ -1068,39 +200,57 @@ const Login = ({ onLogin, onError, compact = false }) => {
     );
   }, []);
 
+  const validateField = (name, value) => {
+    let error = "";
+    if (name === "email") {
+      const emailTrimmed = (value || "").trim();
+      if (!emailTrimmed) {
+        error = "Email address is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+        error = "Please enter a valid email address";
+      }
+    } else if (name === "password") {
+      if (!value) {
+        error = "Password is required";
+      } else if (value.length < 6) {
+        error = "Password must be at least 6 characters";
+      }
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const error = validateField(name, value);
+    setFieldErrors((prev) => ({ ...prev, [name]: error }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrorMsg("");
-    // setSuccessMsg("");
-  };
-
-  const validateEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  // Function to check if profile is complete
-  const isProfileComplete = (user) => {
-    return user && user.full_name && user.full_name.trim().length > 0;
+    if (touched[name]) {
+      const error = validateField(name, value);
+      setFieldErrors((prev) => ({ ...prev, [name]: error }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-    // setSuccessMsg("");
 
-    if (!validateEmail(formData.email)) {
-      setErrorMsg("Please enter a valid email address");
+    const emailErr = validateField("email", formData.email);
+    const passwordErr = validateField("password", formData.password);
+    setTouched({ email: true, password: true });
+    setFieldErrors({ email: emailErr, password: passwordErr });
+
+    if (emailErr || passwordErr) {
+      setErrorMsg(emailErr || passwordErr);
       setLoading(false);
       return;
     }
-
-    // if (formData.password.length < 6) {
-    //   setErrorMsg("Password must be at least 6 characters");
-    //   setLoading(false);
-    //   return;
-    // }
 
     try {
       const form = new URLSearchParams();
@@ -1111,11 +261,6 @@ const Login = ({ onLogin, onError, compact = false }) => {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
-      // const token = res.data?.access_token;
-      // if (!token) throw new Error("Invalid token received.");
-
-
-
       const token = res.data?.access_token;
       const user = res.data?.user;
 
@@ -1123,17 +268,9 @@ const Login = ({ onLogin, onError, compact = false }) => {
         throw new Error("Invalid login response");
       }
 
-
-
-
-
-      setToken(token);   // updates axios + localStorage
-      setUser(user, token);     // updates context immediately
-
-
-
-      setSuccessMsg(" Login successful! Redirecting...");
-
+      setToken(token);
+      setUser(user, token);
+      setSuccessMsg("Login successful! Redirecting...");
 
       setTimeout(() => {
         switch (user.role) {
@@ -1147,53 +284,22 @@ const Login = ({ onLogin, onError, compact = false }) => {
             navigate("/user");
         }
       }, 700);
-
-
-      // setSuccessMsg("Login successful! Redirecting...");
-
-
-      // const decoded = jwtDecode(token);
-      // const role = decoded?.role?.toLowerCase() || "user";
-
-      // setTimeout(() => {
-      //   if (onLogin) {
-      //     onLogin(res.data.user);
-      //   } else {
-      //     switch (role) {
-      //       case "admin":
-      //         navigate("/admin/dashboard");
-      //         break;
-      //       case "recipient":
-      //         navigate("/recipient/dashboard");
-      //         break;
-      //       case "user":
-      //         navigate("/user/");
-      //         break;
-      //       default:
-      //         navigate("/");
-      //     }
-      //   }
-      // }, 1500);
-
     } catch (err) {
       console.error("Login Error:", err);
-
       let message = "Login failed. Please try again.";
 
       if (err.response) {
         const data = err.response.data;
-
         if (typeof data.detail === "string") {
           message = data.detail;
         } else if (Array.isArray(data.detail)) {
-          message = data.detail.map(e => e.msg).join(", ");
+          message = data.detail.map((item) => item.msg).join(", ");
         } else if (data.detail && typeof data.detail === "object") {
           message = data.detail.message || data.detail.error || message;
         } else if (data.message) {
           message = data.message;
         }
-      }
-      else if (err.request) {
+      } else if (err.request) {
         message = "Unable to connect to server.";
       }
 
@@ -1206,32 +312,28 @@ const Login = ({ onLogin, onError, compact = false }) => {
   };
 
   useEffect(() => {
-    /* global google */
-    const targetDiv = document.getElementById("googleSignInDiv");
-    if (window.google && targetDiv) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredentialResponse,
-          cancel_on_tap_outside: false,
-          use_fedcm_for_prompt: false,
-        });
-
-        window.google.accounts.id.renderButton(
-          targetDiv,
-          {
-            type: "standard",
-            theme: "outline",
-            size: "large",
-            text: "continue_with",
-            shape: "rectangular",
-            logo_alignment: "left",
-            width: 380
-          }
-        );
-      } catch (err) {
-        console.debug("Google Auth init:", err);
+    const initGoogleAuth = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            cancel_on_tap_outside: false,
+            use_fedcm_for_prompt: false,
+          });
+          return true;
+        } catch (err) {
+          console.debug("Google Auth init:", err);
+        }
       }
+      return false;
+    };
+
+    if (!initGoogleAuth()) {
+      const interval = setInterval(() => {
+        if (initGoogleAuth()) clearInterval(interval);
+      }, 500);
+      return () => clearInterval(interval);
     }
   }, []);
 
@@ -1239,7 +341,7 @@ const Login = ({ onLogin, onError, compact = false }) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/google/verify-token", {
-        credential: response.credential
+        credential: response.credential,
       });
 
       const token = res.data?.access_token;
@@ -1259,9 +361,14 @@ const Login = ({ onLogin, onError, compact = false }) => {
         onLogin(user);
       } else {
         switch (user.role) {
-          case "admin": navigate("/admin/dashboard"); break;
-          case "recipient": navigate("/recipient/home"); break;
-          default: navigate("/user");
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          case "recipient":
+            navigate("/recipient/home");
+            break;
+          default:
+            navigate("/user");
         }
       }
     } catch (err) {
@@ -1273,6 +380,22 @@ const Login = ({ onLogin, onError, compact = false }) => {
   };
 
   const handleGoogleSignIn = () => {
+    if (window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (
+            notification.isNotDisplayed() ||
+            notification.isSkippedMoment() ||
+            notification.isDismissedMoment()
+          ) {
+            window.location.href = `${API_BASE_URL}/auth/google/login`;
+          }
+        });
+        return;
+      } catch (err) {
+        console.warn("Google One Tap prompt error, falling back to OAuth redirect:", err);
+      }
+    }
     window.location.href = `${API_BASE_URL}/auth/google/login`;
   };
 
@@ -1287,105 +410,149 @@ const Login = ({ onLogin, onError, compact = false }) => {
   const goToHome = () => navigate("/");
   const handleForgotPassword = () => navigate("/forgot-password");
 
-
-  // Security Features Component
-
   // Compact version for modal
   if (compact) {
     return (
-      <div className="login-page compact">
-        <button className="home-btn" onClick={goToHome}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-5 relative font-sans">
+        <button
+          type="button"
+          onClick={goToHome}
+          className="absolute top-6 left-6 flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 font-semibold text-sm cursor-pointer shadow-sm hover:bg-slate-50 transition-colors"
+        >
           {logoUrl ? (
-            <img src={logoUrl} alt="logo" className="logo-img" />
+            <img src={logoUrl} alt="logo" className="h-6 w-auto object-contain" />
           ) : (
-            <Home />
+            <Home fontSize="small" className="text-teal-700" />
           )}
-          <span className="brand-name">{brandName}</span>
+          <span>{brandName}</span>
         </button>
 
         <motion.div
-          className="login-container"
+          className="w-full max-w-[420px] p-8 bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.08)] border border-slate-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="header">
-            <h1>Welcome Back</h1>
-            <p className="header-subtitle">Sign in to your account</p>
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome Back</h1>
+            <p className="text-xs text-slate-500 mt-1">Sign in to your account</p>
           </div>
 
-          <div id="googleSignInDiv" style={{ width: "100%", marginBottom: "15px" }}></div>
-
-          <div className="divider">
-            <span>or</span>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Email <span className="required">*</span></label>
-              <input
-                type="email"
-                className="form-input"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="you@example.com"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-group">
-              <div className="password-header">
-                <label>Password <span className="required">*</span></label>
-                <span className="forgot-password" onClick={handleForgotPassword}>
-                  Forgot password?
-                </span>
-              </div>
-              <div className="password-wrapper">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className="form-input"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Enter your password"
-                  required
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  className="toggle-password"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                >
-                  {showPassword ? <LockOpenOutlined /> : <LockOutlined />}
-                </button>
-              </div>
-            </div>
-
-            {errorMsg && (
-              <div className="error-message">
-                <ErrorOutline />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {successMsg && (
-              <div className="success-message">
-                <CheckCircle />
-                <span>{successMsg}</span>
-              </div>
-            )}
-
-            <button className="submit-btn" type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+          <div className="w-full max-w-[380px] mx-auto">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              id="googleSignInBtnCompact"
+              className="w-full h-11 bg-white border border-slate-200 rounded-md px-4 flex items-center justify-center gap-2.5 text-[14px] font-medium text-slate-700 cursor-pointer transition-colors duration-150 hover:bg-slate-50 focus-visible:outline-none focus-visible:border-slate-300 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
             </button>
 
-            <div className="register-link">
-              Don't have an account? <span onClick={goToRegister}>Sign up</span>
+            <div className="relative text-center my-4.5 w-full before:content-[''] before:absolute before:top-1/2 before:left-0 before:right-0 before:h-px before:bg-slate-200">
+              <span className="relative bg-white px-3.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                or use email
+              </span>
             </div>
-          </form>
+
+            <form onSubmit={handleSubmit} className="w-full text-left" noValidate>
+              <div className="mb-4">
+                <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5 tracking-wide">
+                  Email <span className="text-red-500 ml-1">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="you@example.com"
+                  required
+                  disabled={loading}
+                  className={`w-full h-11 bg-white border ${fieldErrors.email ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-teal-700'} rounded-md px-3.5 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                />
+                {fieldErrors.email && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.email}</p>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
+                  <label className="flex items-center text-xs font-semibold text-slate-700 tracking-wide">
+                    Password <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <span
+                    onClick={handleForgotPassword}
+                    className="text-xs font-semibold text-teal-700 hover:text-teal-800 transition-colors cursor-pointer"
+                  >
+                    Forgot password?
+                  </span>
+                </div>
+                <div className="relative w-full">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="Enter your password"
+                    required
+                    disabled={loading}
+                    className={`w-full h-11 bg-white border ${fieldErrors.password ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-teal-700'} rounded-md pl-3.5 pr-10 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded transition-colors disabled:cursor-not-allowed"
+                  >
+                    {showPassword ? <LockOpenOutlined fontSize="small" /> : <LockOutlined fontSize="small" />}
+                  </button>
+                </div>
+                {fieldErrors.password && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.password}</p>
+                )}
+              </div>
+
+              {errorMsg && (
+                <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-3.5 font-medium bg-red-50 border border-red-200 text-red-600">
+                  <ErrorOutline fontSize="small" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-3.5 font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
+                  <CheckCircle fontSize="small" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-[14.5px] font-medium tracking-wide cursor-pointer transition-colors duration-150 mt-2 mb-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+
+              <div className="text-center text-sm text-slate-500 mt-2">
+                Don't have an account?{" "}
+                <span
+                  onClick={goToRegister}
+                  className="text-teal-700 font-semibold cursor-pointer ml-1 hover:text-teal-800 hover:underline transition-colors"
+                >
+                  Sign up
+                </span>
+              </div>
+            </form>
+          </div>
         </motion.div>
       </div>
     );
@@ -1393,261 +560,232 @@ const Login = ({ onLogin, onError, compact = false }) => {
 
   // Full version with split layout
   return (
-    <div className="split-login-page">
-      {/* Animated Background Icons */}
-
-      {/* Left Side - Hero with Image Carousel */}
-
-      <div className="login-hero">
-
-
-        {/* Image Carousel */}
-
-        <div className="hero-overlay">
-
-          <div className="avatar avatar-left">
-            {/* <img src="/images/avatar1.jpg" alt="User" /> */}
-          </div>
-
-          <div className="avatar avatar-right">
-            {/* <img src="/images/avatar2.jpg" alt="User" /> */}
-          </div>
-
-
-          <div className="hero-content">
-            {/* <div className="brand-logo" onClick={goToHome}>
-  {logoUrl ? (
-    <div className="logo-with-name">
-      <img src={logoUrl} alt="logo" className="hero-logo" />
-      <span className="hero-brand-name">{brandName}</span>
-    </div>
-  ) : (
-    <div className="logo-placeholder">
-      <Shield className="logo-icon" />
-      <span className="hero-brand-name">{brandName}</span>
-    </div>
-  )}
-</div> */}
-
-            {/* Image */}
-            {/* <motion.img
-  key={currentImageIndex}
-  src={images[currentImageIndex]}
-  alt="Login visual"
-  className="hero-image"
-  initial={{ opacity: 0, scale: 0.98 }}
-  animate={{ opacity: 1, scale: 1 }}
-  transition={{ duration: 1.2, ease: "easeInOut" }}
-  style={{
-    transform: "none",
-    height: "100%",
-    width: "100%",
-    maxHeight: "450px",
-    maxWidth: "450px",
-    margin: "auto",
-    display: "block",
-  }}
-/>
-
-
-
-
-            
-            <div className="hero-text">
-              <h1>Secure Digital Signatures</h1>
-              <p className="hero-subtitle">
-                Streamline your document workflow with enterprise-grade security and compliance
-              </p>
-            </div> */}
-
-            <div className="connections-visual">
-
-
-              <div className="main-circle">
-                <div className="bg-circle"></div>
-
+    <div className="min-h-screen flex flex-col md:flex-row font-sans overflow-x-hidden bg-white">
+      {/* Left Side - Hero Visual */}
+      <div className="hidden md:flex flex-1 md:w-1/2 lg:w-[48%] relative min-h-screen overflow-hidden bg-[#BDF0E9] items-center justify-center">
+        <div className="relative z-10 w-full h-full flex items-center justify-center p-6">
+          <div className="relative z-20 flex flex-col items-center w-full max-w-[520px]">
+            <div className="relative w-[min(380px,85vw)] h-[min(380px,85vw)] my-5 shrink-0 flex items-center justify-center">
+              <div className="relative w-full h-full rounded-full flex justify-center items-center">
+                <div className="absolute w-[80%] h-[80%] bg-white/0 rounded-full z-[1]"></div>
                 <img
                   src={images[currentImageIndex]}
                   alt="Smart Signing"
-                  className="person-image"
+                  className="relative w-[min(420px,90%)] h-auto z-[2] rounded-xl object-contain drop-shadow-sm"
                 />
               </div>
-
             </div>
 
-            <div className="hero-text2 center">
-              <h1>Building Stronger Connections</h1>
-              <p className="hero-subtitle2">
+            <div className="text-center mt-3 px-3">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-teal-800 leading-tight">
+                Building Stronger Connections
+              </h1>
+              <p className="text-sm md:text-base lg:text-lg text-teal-700 mt-1.5 font-medium">
                 Through Secure Signing
               </p>
             </div>
-
-
-
-
-            {/* <SecurityFeatures /> */}
           </div>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="login-side">
-        {/* <button className="home-btn floating" onClick={goToHome}>
-          <Home />
-        </button> */}
-
-        <div className="top-nav">
-          <button className="nav-item active" onClick={goToHome}>
-            <Home fontSize="small" />
-            <span>Home</span>
+      <div className="flex-1 md:w-1/2 lg:w-[52%] flex flex-col items-center justify-center bg-slate-50 md:bg-white relative min-h-screen py-16 px-4 sm:px-6">
+        {/* Top Navigation Bar */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1 bg-white p-1.5 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] z-40 whitespace-nowrap border border-slate-100">
+          <button
+            type="button"
+            onClick={goToHome}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-semibold bg-teal-50 text-teal-700 transition-all"
+          >
+            <Home fontSize="small" className="text-teal-700" />
+            <span className="hidden sm:inline">Home</span>
           </button>
 
-          <button className="nav-item" onClick={() => navigate("/aboutus")}>
+          <button
+            type="button"
+            onClick={() => navigate("/aboutus")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-medium text-slate-600 hover:bg-slate-100 transition-all"
+          >
             <Explore fontSize="small" />
-            <span>Explore</span>
+            <span className="hidden sm:inline">Explore</span>
           </button>
 
-          <button className="nav-item" onClick={() => navigate("/contactus")}>
+          <button
+            type="button"
+            onClick={() => navigate("/contactus")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-medium text-slate-600 hover:bg-slate-100 transition-all"
+          >
             <People fontSize="small" />
-            <span>Let’s Talk</span>
+            <span className="hidden sm:inline">Let’s Talk</span>
           </button>
 
-          <button className="nav-item upgrade" onClick={() => navigate("/pricing")}>
+          <button
+            type="button"
+            onClick={() => navigate("/pricing")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-0 cursor-pointer text-[13px] font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-600 transition-all"
+          >
             <FaCrown fontSize="small" />
-            <span>Upgrade</span>
+            <span className="hidden sm:inline">Upgrade</span>
           </button>
         </div>
 
-
-        <div className="login-wrapper">
+        {/* Login Form Wrapper */}
+        <div className="w-full max-w-[480px] pt-14 md:pt-16 pb-8 px-2 sm:px-4 flex justify-center">
           <motion.div
-            className="login-card"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
+            className="w-full max-w-[440px] bg-white p-6 sm:p-9 rounded-[20px] shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)] border border-slate-200/80 text-center"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
           >
-            <div style={{ textAlign: "center", marginBottom: "20px" }}>
-              <div className="brand-logo" onClick={goToHome}>
-                {logoUrl ? (
-                  <>
-                    <img src={logoUrl} alt="logo" className="hero-logo" />
-                    <span className="hero-brand-name">{brandName}</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield className="logo-icon" style={{ fontSize: '32px', color: '#0f766e' }} />
-                    <span className="hero-brand-name">{brandName}</span>
-                  </>
-                )}
+            <div className="text-center mb-6">
+              <div className="w-full flex items-center justify-center mb-2">
+                <div
+                  onClick={goToHome}
+                  className="inline-flex items-center justify-center gap-2 cursor-pointer transition-transform hover:scale-[1.01] relative -left-1.5 sm:-left-2"
+                >
+                  {logoUrl ? (
+                    <>
+                      <img src={logoUrl} alt="logo" className="h-8 sm:h-9 w-auto object-contain shrink-0" />
+                      <span className="text-2xl sm:text-[26px] font-semibold text-teal-700 tracking-tight leading-none">{brandName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-teal-700 shrink-0" />
+                      <span className="text-2xl sm:text-[26px] font-semibold text-teal-700 tracking-tight leading-none">{brandName}</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <h2 className="welcome-title">Welcome Back</h2>
-
-              {/* <p
-    style={{
-      fontSize: "13px",
-      color: "#6b7280",
-      margin: 0
-    }}
-  >
-    Sign in to continue to your workspace
-  </p> */}
+              <h2 className="text-2xl sm:text-[28px] font-semibold text-teal-800 tracking-tight mb-2">
+                Welcome Back
+              </h2>
             </div>
 
-
-
-
-
-
-            <div id="googleSignInDiv" style={{ width: "100%", marginBottom: "15px" }}></div>
-            <div className="divider">
-              <span>or use email</span>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Email Address <span className="required">*</span></label>
-                <input
-                  type="email"
-                  className="form-input"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="you@company.com"
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="password-header">
-                  <label>Password <span className="required">*</span></label>
-                  <span className="forgot-password" onClick={handleForgotPassword}>
-                    Forgot password?
-                  </span>
-                </div>
-                <div className="password-wrapper">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className="form-input"
-                    name="password"
-                    ref={passwordRef}
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    {showPassword ? <LockOpenOutlined /> : <LockOutlined />}
-                  </button>
-                </div>
-              </div>
-
-              {errorMsg && (
-                <div className="error-message">
-                  <ErrorOutline />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="success-message">
-                  <CheckCircle />
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              <button className="submit-btn" type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    {/* <span className="spinner"></span> */}
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign In"
-                )}
+            <div className="w-full max-w-[380px] mx-auto">
+              {/* Google Button */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                id="googleSignInBtn"
+                className="w-full h-11 bg-white border border-slate-200 rounded-md px-4 flex items-center justify-center gap-2.5 text-[14px] font-medium text-slate-700 cursor-pointer transition-colors duration-150 hover:bg-slate-50 focus-visible:outline-none focus-visible:border-slate-300 disabled:opacity-60 disabled:cursor-not-allowed mb-4"
+              >
+                <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continue with Google</span>
               </button>
 
-              <div className="register-link">
-                <span className="text">Don't have an account?</span>
-                <span className="link" onClick={goToRegister}>
-                  Create account
+              {/* Divider */}
+              <div className="relative text-center my-4.5 w-full before:content-[''] before:absolute before:top-1/2 before:left-0 before:right-0 before:h-px before:bg-slate-200">
+                <span className="relative bg-white px-3.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  or use email
                 </span>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="w-full text-left" noValidate>
+                <div className="mb-4">
+                  <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5 tracking-wide">
+                    Email Address <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="you@company.com"
+                    required
+                    disabled={loading}
+                    className={`w-full h-11 bg-white border ${fieldErrors.email ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-teal-700'} rounded-md px-3.5 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                  />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.email}</p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
+                    <label className="flex items-center text-xs font-semibold text-slate-700 tracking-wide">
+                      Password <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <span
+                      onClick={handleForgotPassword}
+                      className="text-xs font-semibold text-teal-700 hover:text-teal-800 transition-colors cursor-pointer"
+                    >
+                      Forgot password?
+                    </span>
+                  </div>
+                  <div className="relative w-full">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      ref={passwordRef}
+                      value={formData.password}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      placeholder="••••••••"
+                      required
+                      disabled={loading}
+                      className={`w-full h-11 bg-white border ${fieldErrors.password ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-teal-700'} rounded-md pl-3.5 pr-10 text-[14px] text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:outline-none disabled:bg-slate-50 disabled:cursor-not-allowed`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={loading}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded transition-colors disabled:cursor-not-allowed"
+                    >
+                      {showPassword ? <LockOpenOutlined fontSize="small" /> : <LockOutlined fontSize="small" />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-xs mt-1 font-medium">{fieldErrors.password}</p>
+                  )}
+                </div>
+
+                {errorMsg && (
+                  <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-3.5 font-medium bg-red-50 border border-red-200 text-red-600">
+                    <ErrorOutline fontSize="small" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                {successMsg && (
+                  <div className="p-3 rounded-md text-xs sm:text-sm flex items-center gap-2 mb-3.5 font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
+                    <CheckCircle fontSize="small" />
+                    <span>{successMsg}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-11 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-[14.5px] font-medium tracking-wide cursor-pointer transition-colors duration-150 mt-2 mb-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+
+                <div className="text-center text-sm text-slate-500 mt-2">
+                  <span className="text-slate-500">Don't have an account?</span>
+                  <span
+                    onClick={goToRegister}
+                    className="text-teal-700 font-semibold cursor-pointer ml-1.5 hover:text-teal-800 hover:underline transition-colors"
+                  >
+                    Create account
+                  </span>
+                </div>
+              </form>
+            </div>
           </motion.div>
         </div>
 
         {/* Floating Fast Login Popup (Google One Tap Style) */}
         <AnimatePresence>
-          {savedUser && showFastLogin && (savedUser.is_google || savedUser.remembered_token) && (
+          {savedUser && showFastLogin && savedUser.email && (
             <motion.div
-              className="fast-login-popup"
               key="fast-login-popup"
               initial={{ x: 380, opacity: 0, scale: 0.96 }}
               animate={{ x: 0, opacity: 1, scale: 1 }}
@@ -1658,46 +796,68 @@ const Login = ({ onLogin, onError, compact = false }) => {
                 damping: 28,
                 mass: 0.8,
               }}
+              className="fixed top-6 right-6 w-[360px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)] border border-slate-200/80 z-[1000] overflow-hidden font-sans"
             >
-              <div className="fast-login-header">
-                <div className="header-left">
-                  <img src="/logo.png" alt="Logo" className="header-logo" onError={(e) => e.target.src = "https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png"} />
-                  <span className="header-title">Sign in back to {brandName}</span>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src="/logo.png"
+                    alt="Logo"
+                    className="w-5 h-5 object-contain"
+                    onError={(e) => (e.target.src = "https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png")}
+                  />
+                  <span className="text-sm text-slate-700 font-medium">Sign in back to {brandName}</span>
                 </div>
-                <button className="close-btn" onClick={() => setShowFastLogin(false)}>
-                  <Close style={{ fontSize: '18px' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowFastLogin(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                >
+                  <Close fontSize="small" />
                 </button>
               </div>
 
-              <div className="fast-login-body">
-                <div className="account-preview">
-                  <div className="account-avatar">
+              <div className="p-5 flex flex-col items-center">
+                <div className="flex items-center gap-3 w-full mb-5">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
                     {savedUser.profile_image ? (
-                      <img src={savedUser.profile_image} alt="Profile" />
+                      <img src={savedUser.profile_image} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="avatar-initials">
-                        {savedUser.full_name ? savedUser.full_name[0].toUpperCase() : (savedUser.email ? savedUser.email[0].toUpperCase() : 'U')}
+                      <div className="w-full h-full bg-teal-700 text-white flex items-center justify-center text-xl font-medium">
+                        {savedUser.full_name ? savedUser.full_name[0].toUpperCase() : savedUser.email ? savedUser.email[0].toUpperCase() : "U"}
                       </div>
                     )}
                     {savedUser.is_google && (
-                      <div className="google-badge-small">
-                        <Google style={{ fontSize: '10px', color: '#4285F4' }} />
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
+                        <Google style={{ fontSize: "10px", color: "#4285F4" }} />
                       </div>
                     )}
                   </div>
-                  <div className="account-details">
-                    <span className="account-name">{savedUser.full_name || "User Account"}</span>
-                    <span className="account-email">{savedUser.email}</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-[15px] font-medium text-slate-800 leading-snug">
+                      {savedUser.full_name || "User Account"}
+                    </span>
+                    <span className="text-xs text-slate-500">{savedUser.email}</span>
                   </div>
                 </div>
 
-                <button className="continue-as-btn" onClick={handleContinueAs}>
-                  Continue as {savedUser.full_name ? savedUser.full_name.split(' ')[0] : 'User'}
+                <button
+                  type="button"
+                  onClick={handleContinueAs}
+                  className="w-full bg-teal-700 text-white border-0 py-2.5 px-6 rounded-md text-sm font-medium cursor-pointer shadow-sm hover:bg-teal-800 active:bg-teal-900 transition-colors"
+                >
+                  Continue as {savedUser.full_name ? savedUser.full_name.split(" ")[0] : "User"}
                 </button>
               </div>
 
-              <div className="fast-login-footer">
-                <span className="switch-account-link" onClick={() => { handleSwitchAccount(); setShowFastLogin(false); }}>
+              <div className="py-3 px-4 text-center border-t border-slate-100">
+                <span
+                  onClick={() => {
+                    handleSwitchAccount();
+                    setShowFastLogin(false);
+                  }}
+                  className="text-xs text-teal-700 font-medium hover:underline cursor-pointer"
+                >
                   Use another account
                 </span>
               </div>
@@ -1705,7 +865,6 @@ const Login = ({ onLogin, onError, compact = false }) => {
           )}
         </AnimatePresence>
       </div>
-
     </div>
   );
 };
