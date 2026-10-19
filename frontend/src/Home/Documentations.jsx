@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import {
   Search,
   Book,
@@ -386,10 +387,131 @@ except Exception as e:
     }
   }, []);
 
-  const filteredGuides = popularGuides.filter(guide =>
-    guide.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    guide.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleViewOnGitHub = () => {
+    window.open('https://github.com/Devopstrio/SafeSign_Platform', '_blank');
+  };
+
+  const handleDownloadPDF = () => {
+    const docTitle = categories.find(c => c.id === activeCategory)?.title || 'Esigniva Documentation';
+    const activeSecs = sections[activeCategory] || [];
+    let content = `ESIGNIVA DOCUMENTATION - ${docTitle.toUpperCase()}\n`;
+    content += `Generated on: ${new Date().toLocaleDateString()}\n`;
+    content += `Platform: https://esigniva.devopstrio.co.uk\n`;
+    content += `=================================================\n\n`;
+    
+    activeSecs.forEach(sec => {
+      content += `## ${sec.title}\n`;
+      if (sec.content) content += `${sec.content}\n\n`;
+      if (sec.items) {
+        sec.items.forEach(it => content += `- ${it}\n`);
+        content += `\n`;
+      }
+    });
+
+    content += `\n=================================================\n`;
+    content += `For full API and guides, visit: https://esigniva.devopstrio.co.uk/docs\n`;
+
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Esigniva_${activeCategory}_Docs.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Documentation Downloaded',
+      text: `${docTitle} reference guide has been downloaded.`,
+      confirmButtonColor: '#0f766e'
+    });
+  };
+
+  const handleDownloadSDK = () => {
+    Swal.fire({
+      title: 'Esigniva Developer SDKs',
+      html: `
+        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; color: #374151;">
+          <p>Install the official Esigniva client SDK for your environment:</p>
+          <div style="background: #1e293b; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 8px; font-family: monospace; margin: 0.5rem 0;">
+            npm install @esigniva/sdk
+          </div>
+          <div style="background: #1e293b; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 8px; font-family: monospace; margin: 0.5rem 0;">
+            pip install esigniva-python
+          </div>
+          <p style="margin-top: 0.75rem; font-size: 0.85rem; color: #6b7280;">
+            Requires API key authentication. View repository on GitHub for full source code and examples.
+          </p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'View on GitHub',
+      cancelButtonText: 'Close',
+      confirmButtonColor: '#0f766e'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.open('https://github.com/Devopstrio/SafeSign_Platform', '_blank');
+      }
+    });
+  };
+
+  const allSearchResults = searchQuery.trim() === '' ? [] : [
+    // 1. Guides
+    ...popularGuides.filter(g =>
+      g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.category.toLowerCase().includes(searchQuery.toLowerCase())
+    ).map(g => ({
+      type: 'Guide',
+      title: g.title,
+      category: g.category,
+      badge: `${g.difficulty} • ${g.readTime}`,
+      onClick: () => {
+        handlePopularGuideClick(g);
+        setSearchQuery('');
+      }
+    })),
+    // 2. Sections across all categories
+    ...Object.entries(sections).flatMap(([catId, secList]) => 
+      secList.filter(s => 
+        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.content && s.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.items && s.items.some(it => it.toLowerCase().includes(searchQuery.toLowerCase())))
+      ).map(s => ({
+        type: 'Doc Section',
+        title: s.title,
+        category: catId,
+        badge: categories.find(c => c.id === catId)?.title || catId,
+        onClick: () => {
+          setActiveCategory(catId);
+          setExpandedSections(prev => ({ ...prev, [`${catId}-${s.id}`]: true }));
+          setTimeout(() => {
+            scrollToSection(`${catId}-${s.id}`);
+          }, 150);
+          setSearchQuery('');
+        }
+      }))
+    ),
+    // 3. API Endpoints
+    ...apiEndpoints.filter(e =>
+      e.endpoint.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.method.toLowerCase().includes(searchQuery.toLowerCase())
+    ).map(e => ({
+      type: 'API Endpoint',
+      title: `${e.method} ${e.endpoint}`,
+      category: 'api-reference',
+      badge: e.description,
+      onClick: () => {
+        setActiveCategory('api-reference');
+        setTimeout(() => {
+          window.scrollTo({ top: 400, behavior: 'smooth' });
+        }, 150);
+        setSearchQuery('');
+      }
+    }))
+  ];
 
   return (
     <div className="safe-docs">
@@ -412,15 +534,31 @@ except Exception as e:
               </div>
               
               <div className="safe-header-actions">
-                <a href="/api-reference" className="safe-header-link">
+                <a 
+                  href="#api-reference" 
+                  className="safe-header-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveCategory('api-reference');
+                    window.scrollTo({ top: 380, behavior: 'smooth' });
+                  }}
+                >
                   <Terminal size={18} />
                   API Reference
                 </a>
-                <a href="/guides" className="safe-header-link">
+                <a 
+                  href="#guides" 
+                  className="safe-header-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveCategory('guides');
+                    window.scrollTo({ top: 380, behavior: 'smooth' });
+                  }}
+                >
                   <Book size={18} />
                   Guides
                 </a>
-                <button className="safe-header-btn">
+                <button className="safe-header-btn" onClick={handleDownloadSDK}>
                   <Download size={18} />
                   Download SDK
                 </button>
@@ -451,25 +589,21 @@ except Exception as e:
                 <div className="safe-search-results">
                   <div className="safe-results-header">
                     <span>Search results for "{searchQuery}"</span>
-                    <span className="safe-results-count">{filteredGuides.length} results</span>
+                    <span className="safe-results-count">{allSearchResults.length} results</span>
                   </div>
-                  {filteredGuides.length > 0 ? (
+                  {allSearchResults.length > 0 ? (
                     <div className="safe-results-list">
-                      {filteredGuides.map(guide => (
+                      {allSearchResults.map((result, idx) => (
                         <div 
-                          key={guide.id} 
+                          key={idx} 
                           className="safe-result-item"
-                          onClick={() => {
-                            handlePopularGuideClick(guide);
-                            setSearchQuery('');
-                          }}
+                          onClick={result.onClick}
                         >
                           <div className="safe-result-content">
-                            <h4>{guide.title}</h4>
+                            <h4>{result.title}</h4>
                             <div className="safe-result-meta">
-                              <span className="safe-result-category">{guide.category}</span>
-                              <span className="safe-result-time">{guide.readTime} read</span>
-                              <span className="safe-result-difficulty">{guide.difficulty}</span>
+                              <span className="safe-result-category">{result.type}: {result.category}</span>
+                              <span className="safe-result-difficulty">{result.badge}</span>
                             </div>
                           </div>
                           <ChevronRight size={20} />
@@ -604,11 +738,11 @@ except Exception as e:
                   </div>
                 </div>
                 <div className="safe-category-actions">
-                  <button className="safe-action-btn">
+                  <button className="safe-action-btn" onClick={handleViewOnGitHub}>
                     <Eye size={18} />
                     View on GitHub
                   </button>
-                  <button className="safe-action-btn">
+                  <button className="safe-action-btn" onClick={handleDownloadPDF}>
                     <Download size={18} />
                     Download PDF
                   </button>
@@ -794,7 +928,7 @@ except Exception as e:
         .safe-docs {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -808,6 +942,7 @@ except Exception as e:
         .safe-docs-header {
           background: linear-gradient(135deg, #0f766e 0%, #0f766e 100%);
           position: relative;
+          padding-top: 80px;
         }
 
         .safe-header-content {

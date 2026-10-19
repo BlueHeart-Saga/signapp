@@ -148,7 +148,7 @@ const HeaderBox = styled(Box)(({ theme }) => ({
 const ActionButton = styled(Button)(({ theme, primary }) => ({
     padding: '8px 24px',
     borderRadius: '10px',
-    fontWeight: 900,
+    fontWeight: 600,
     fontSize: '0.85rem',
     textTransform: 'uppercase',
     letterSpacing: '1px',
@@ -184,7 +184,7 @@ const SubscriptionExpiredBlock = () => {
             <HeaderBox>
                 <Typography variant="h4" sx={{ 
                     color: 'white', 
-                    fontWeight: 900, 
+                    fontWeight: 600, 
                     letterSpacing: { xs: 1, sm: 2 },
                     fontSize: { xs: '1.2rem', sm: '1.8rem', md: '2.5rem' }
                 }}>
@@ -192,7 +192,7 @@ const SubscriptionExpiredBlock = () => {
                 </Typography>
                 <Typography variant="body2" sx={{ 
                     color: 'white', 
-                    fontWeight: 700, 
+                    fontWeight: 500, 
                     textAlign: 'center', 
                     letterSpacing: { xs: 2, sm: 5 }, 
                     mt: 1,
@@ -222,8 +222,8 @@ const SubscriptionExpiredBlock = () => {
                 <PopWindow sx={{ top: { xs: 0, sm: -20 }, left: { xs: 0, sm: 30 }, width: { xs: 90, sm: 120 } }}>
                     <PopHeader><div /><div /><div /></PopHeader>
                     <PopContent bgcolor="#f43f5e">
-                        <Typography sx={{ fontWeight: 900, fontSize: { xs: '1rem', sm: '1.5rem' } }}>OFF</Typography>
-                        <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.6rem' }, fontWeight: 700 }}>PLAN EXPIRED!</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: { xs: '1rem', sm: '1.5rem' } }}>OFF</Typography>
+                        <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.6rem' }, fontWeight: 600 }}>PLAN EXPIRED!</Typography>
                         <Button
                             variant="contained"
                             size="small"
@@ -238,10 +238,10 @@ const SubscriptionExpiredBlock = () => {
                 <PopWindow sx={{ top: { xs: -30, sm: -32 }, left: { xs: 120, sm: 222 }, width: { xs: 100, sm: 140 } }}>
                     <PopHeader><div style={{ backgroundColor: '#f43f5e' }} /><div /><div /></PopHeader>
                     <PopContent bgcolor="#fb923c">
-                        <Typography sx={{ fontWeight: 900, fontSize: { xs: '0.8rem', sm: '1rem' } }}>ALERT!</Typography>
-                        <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.5rem' }, fontWeight: 700 }}>REACHED LIMIT</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '1rem' } }}>ALERT!</Typography>
+                        <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.5rem' }, fontWeight: 600 }}>REACHED LIMIT</Typography>
                         <Box sx={{ bgcolor: '#2dd4bf', px: 1, borderRadius: 1, mt: 0.5 }}>
-                            <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.5rem' }, fontWeight: 900 }}>RENEW NOW</Typography>
+                            <Typography sx={{ fontSize: { xs: '0.4rem', sm: '0.5rem' }, fontWeight: 600 }}>RENEW NOW</Typography>
                         </Box>
                     </PopContent>
                 </PopWindow>
@@ -250,9 +250,9 @@ const SubscriptionExpiredBlock = () => {
                     <PopHeader><div /><div /><div /></PopHeader>
                     <PopContent bgcolor="#f43f5e">
                         <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#2dd4bf', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
-                            <Typography sx={{ fontWeight: 900, color: '#f43f5e', fontSize: '0.8rem' }}>X</Typography>
+                            <Typography sx={{ fontWeight: 600, color: '#f43f5e', fontSize: '0.8rem' }}>X</Typography>
                         </Box>
-                        <Typography sx={{ fontSize: '0.5rem', fontWeight: 700 }}>ACCESS DENIED</Typography>
+                        <Typography sx={{ fontSize: '0.5rem', fontWeight: 600 }}>ACCESS DENIED</Typography>
                     </PopContent>
                 </PopWindow>
 
@@ -260,7 +260,7 @@ const SubscriptionExpiredBlock = () => {
                     <PopHeader><div /><div /><div /></PopHeader>
                     <PopContent bgcolor="#fb923c">
                         <LockIcon sx={{ fontSize: { xs: 24, sm: 40 }, mb: 0.5 }} />
-                        <Typography sx={{ fontWeight: 900, fontSize: { xs: '0.6rem', sm: '0.8rem' } }}>LOCKED!</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: { xs: '0.6rem', sm: '0.8rem' } }}>LOCKED!</Typography>
                     </PopContent>
                 </PopWindow>
             </Box>
@@ -299,7 +299,7 @@ const SubscriptionExpiredBlock = () => {
                 <ActionButton
                     fullWidth
                     component="a"
-                    href="mailto:support@devopstrioglobal.com"
+                    href="mailto:info@esigniva.com"
                 >
                     CONTACT SUPPORT
                 </ActionButton>

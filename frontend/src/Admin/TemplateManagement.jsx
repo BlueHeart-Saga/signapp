@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 
@@ -443,9 +444,12 @@ const TemplateManagement = () => {
                 <TableBody>
                   {templates.map(t => (
                     <TableRow key={t.id} hover sx={{ '&:last-child td': { border: 0 }, borderBottom: '1px solid #f3f4f6' }}>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: 13.5 }}>{t.title}</Typography>
-                        <Typography sx={{ fontSize: 11.5, color: '#9ca3af', mt: 0.3 }}>{t.filename} · {formatDate(t.created_at)}</Typography>
+                      <TableCell sx={{ py: 1.5, maxWidth: 260, minWidth: 160 }}>
+                        <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: 13.5 }} noWrap title={t.title}>{t.title}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3, minWidth: 0 }}>
+                          <FilenameDisplay filename={t.filename} sx={{ fontSize: 11.5, color: '#9ca3af', minWidth: 0, maxWidth: 160 }} />
+                          <Typography sx={{ fontSize: 11.5, color: '#9ca3af', flexShrink: 0 }}>· {formatDate(t.created_at)}</Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Chip label={t.category_name || '—'} size="small"
@@ -661,14 +665,14 @@ const TemplateManagement = () => {
         PaperProps={{ sx: { borderRadius: 2, m: 2 } }}>
         <DialogTitle sx={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', pb: 2, px: 3, pt: 2.5,
+          fontWeight: 600, fontSize: '1.1rem', color: '#1e293b', pb: 2, px: 3, pt: 2.5,
           borderBottom: '1px solid #f1f5f9'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar sx={{ bgcolor: TEAL_LIGHT, color: TEAL, width: 40, height: 40 }}>
               {isEditing ? <EditIcon size="small" /> : <UploadIcon size="small" />}
             </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#0f172a', fontSize: '1.1rem' }}>
               {isEditing ? 'Edit Existing Template' : 'Upload New Template'}
             </Typography>
           </Box>
@@ -848,15 +852,15 @@ const TemplateManagement = () => {
       {/* Preview Dialog */}
       <Dialog open={previewDialog} onClose={() => setPreviewDialog(false)} fullWidth maxWidth="lg"
         PaperProps={{ sx: { borderRadius: 2, height: '90vh', overflow: 'hidden', m: 2 } }}>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2.5, borderBottom: '1px solid #f3f4f6' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: TEAL_LIGHT, color: TEAL, width: 36, height: 36 }}><FileIcon fontSize="small" /></Avatar>
-            <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.2 }}>{selectedTemplate?.title}</Typography>
-              <Typography variant="caption" sx={{ color: '#9ca3af' }}>{selectedTemplate?.category_name}</Typography>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.5, px: 2.5, borderBottom: '1px solid #f3f4f6', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: 1 }}>
+            <Avatar sx={{ bgcolor: TEAL_LIGHT, color: TEAL, width: 36, height: 36, flexShrink: 0 }}><FileIcon fontSize="small" /></Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.2 }} noWrap title={selectedTemplate?.title}>{selectedTemplate?.title}</Typography>
+              <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }} noWrap>{selectedTemplate?.category_name}</Typography>
             </Box>
           </Box>
-          <IconButton size="small" onClick={() => setPreviewDialog(false)} sx={{ bgcolor: '#f3f4f6', borderRadius: 1 }}><CloseIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => setPreviewDialog(false)} sx={{ bgcolor: '#f3f4f6', borderRadius: 1, flexShrink: 0 }}><CloseIcon fontSize="small" /></IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, bgcolor: '#1f2937', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {previewLoading ? (

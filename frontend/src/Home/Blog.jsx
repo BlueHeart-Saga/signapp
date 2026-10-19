@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Calendar, Clock, User, ChevronRight, Mail, TrendingUp, FileText, X, ArrowRight, BookOpen } from 'lucide-react';
+import { Search, Calendar, Clock, User, ChevronRight, ChevronLeft, Mail, TrendingUp, FileText, X, ArrowRight, BookOpen, Check, BellRing, BellOff } from 'lucide-react';
 import { setPageTitle } from "../utils/pageTitle";
+import showAlert from "../utils/swal";
 
 const BlogPage = () => {
   const navigate = useNavigate();
@@ -11,10 +12,86 @@ const BlogPage = () => {
       "Stay updated with the latest in electronic signatures, document security, and legal compliance. Expert guides and industry insights from the Esigniva team."
     );
   }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Articles');
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [newsletterStatus, setNewsletterStatus] = useState(null);
+  const [newsletterConsent, setNewsletterConsent] = useState(true);
+  const [newsletterMode, setNewsletterMode] = useState('subscribe'); // 'subscribe' | 'unsubscribe'
+  const [currentPage, setCurrentPage] = useState(1);
+  const articlesPerPage = 4;
+
+  const handleNewsletterSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (isSubscribing) return;
+
+    const emailTrimmed = (email || '').trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setNewsletterStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (newsletterMode === 'subscribe' && !newsletterConsent) {
+      setNewsletterStatus({ type: 'error', message: 'Please agree to receive our newsletter updates.' });
+      return;
+    }
+
+    setIsSubscribing(true);
+    setNewsletterStatus(null);
+
+    try {
+      const API_URL = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'http://localhost:9000';
+      const endpoint = newsletterMode === 'subscribe' ? '/api/newsletter/subscribe' : '/api/newsletter/unsubscribe';
+      
+      const payload = newsletterMode === 'subscribe'
+        ? { email: emailTrimmed, consent: true, source: 'blog' }
+        : { email: emailTrimmed, reason: 'user_requested_blog' };
+
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.detail || `${newsletterMode === 'subscribe' ? 'Subscription' : 'Unsubscription'} failed. Please try again.`);
+      }
+
+      const successMsg = data.message || (newsletterMode === 'subscribe' ? 'Thank you for subscribing to our newsletter!' : 'You have been successfully unsubscribed.');
+      setNewsletterStatus({
+        type: 'success',
+        message: successMsg
+      });
+
+      showAlert.success(
+        newsletterMode === 'subscribe' ? "Subscribed Successfully!" : "Unsubscribed",
+        successMsg,
+        { timer: 4000 }
+      );
+
+      setEmail('');
+    } catch (err) {
+      setNewsletterStatus({
+        type: 'error',
+        message: err.message || 'Operation failed. Please try again later.'
+      });
+      showAlert.error(
+        "Action Failed",
+        err.message || "Failed to process newsletter request. Please try again."
+      );
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  const handleNewsletterSubscribe = handleNewsletterSubmit;
 
   const categories = [
     { name: 'All Articles', count: 24 },
@@ -231,6 +308,43 @@ const BlogPage = () => {
     }
   ];
 
+  // Combined and deduplicated articles
+  const allArticles = useMemo(() => {
+    const map = new Map();
+    [...featuredArticles, ...latestArticles].forEach((item) => {
+      if (!map.has(item.id)) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  }, []);
+
+  // Filtered articles based on search query and active category
+  const filteredArticles = useMemo(() => {
+    return allArticles.filter((article) => {
+      const matchesCategory =
+        activeCategory === 'All Articles' || article.category === activeCategory;
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        article.title.toLowerCase().includes(query) ||
+        article.excerpt.toLowerCase().includes(query) ||
+        article.author.toLowerCase().includes(query) ||
+        article.category.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
+  }, [allArticles, activeCategory, searchQuery]);
+
+  // Calculate pagination
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / articlesPerPage));
+  const currentArticles = useMemo(() => {
+    const start = (currentPage - 1) * articlesPerPage;
+    return filteredArticles.slice(start, start + articlesPerPage);
+  }, [filteredArticles, currentPage, articlesPerPage]);
+
+  // Reset page when category or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery]);
+
   return (
     <div className="safe-blog">
       {/* Hero Section */}
@@ -256,68 +370,135 @@ const BlogPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="safe-search-input"
               />
-              <button className="safe-search-btn">Search</button>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    marginRight: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <button 
+                type="button"
+                className="safe-search-btn"
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    const el = document.getElementById('blog-articles-anchor');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+              >
+                Search
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="safe-blog-main">
+      <section className="safe-blog-main" id="blog-articles-anchor">
         <div className="safe-blog-container">
           <div className="safe-blog-grid">
             {/* Left Column - Articles */}
             <div className="safe-blog-content">
-              {/* Featured Articles Section */}
-              <div className="safe-featured-section">
-                <h2 className="safe-section-title">Featured Articles</h2>
-                <p className="safe-section-subtitle">Essential reading for e-signature professionals</p>
+              {/* Search Feedback Banner */}
+              {searchQuery.trim() && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  background: '#f0fdfa',
+                  border: '1px solid #ccfbf1',
+                  borderRadius: '12px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Search size={18} color="#0f766e" />
+                    <span style={{ fontSize: '14px', color: '#0f766e', fontWeight: 600 }}>
+                      Found {filteredArticles.length} {filteredArticles.length === 1 ? 'article' : 'articles'} matching "{searchQuery}"
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      background: 'white',
+                      border: '1px solid #99f6e4',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      color: '#0f766e',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              )}
 
-                <div className="safe-featured-grid">
-                  {featuredArticles.map((article) => (
-                    <article key={article.id} className="safe-featured-card">
-                      <div className="safe-featured-image">
-                        <img src={article.image} alt={article.title} />
-                        <span
-                          className="safe-article-category"
-                          style={{ backgroundColor: article.categoryColor }}
-                        >
-                          {article.category}
-                        </span>
-                      </div>
+              {/* Featured Articles Section (Shown when not searching) */}
+              {!searchQuery.trim() && activeCategory === 'All Articles' && (
+                <div className="safe-featured-section">
+                  <h2 className="safe-section-title">Featured Articles</h2>
+                  <p className="safe-section-subtitle">Essential reading for e-signature professionals</p>
 
-                      <div className="safe-featured-content">
-                        <h3 className="safe-article-title">{article.title}</h3>
-                        <p className="safe-article-excerpt">{article.excerpt}</p>
-
-                        <div className="safe-article-meta">
-                          <div className="safe-author-info">
-                            <div className="safe-author-name">{article.author}</div>
-                            <div className="safe-author-role">{article.authorRole}</div>
-                          </div>
-                          <div className="safe-article-details">
-                            <div className="safe-date-info">
-                              <Calendar size={14} />
-                              <span>{article.date}</span>
-                            </div>
-                            <div className="safe-read-time">
-                              <Clock size={14} />
-                              <span>{article.readTime}</span>
-                            </div>
-                          </div>
+                  <div className="safe-featured-grid">
+                    {featuredArticles.map((article) => (
+                      <article key={article.id} className="safe-featured-card">
+                        <div className="safe-featured-image">
+                          <img src={article.image} alt={article.title} />
+                          <span
+                            className="safe-article-category"
+                            style={{ backgroundColor: article.categoryColor }}
+                          >
+                            {article.category}
+                          </span>
                         </div>
 
-                        <button 
-                          className="safe-read-more-btn"
-                          onClick={() => setSelectedArticle(article)}
-                        >
-                          Read Article <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                        <div className="safe-featured-content">
+                          <h3 className="safe-article-title">{article.title}</h3>
+                          <p className="safe-article-excerpt">{article.excerpt}</p>
+
+                          <div className="safe-article-meta">
+                            <div className="safe-author-info">
+                              <div className="safe-author-name">{article.author}</div>
+                              <div className="safe-author-role">{article.authorRole}</div>
+                            </div>
+                            <div className="safe-article-details">
+                              <div className="safe-date-info">
+                                <Calendar size={14} />
+                                <span>{article.date}</span>
+                              </div>
+                              <div className="safe-read-time">
+                                <Clock size={14} />
+                                <span>{article.readTime}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button 
+                            className="safe-read-more-btn"
+                            onClick={() => setSelectedArticle(article)}
+                          >
+                            Read Article <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Category Tabs */}
               <div className="safe-category-tabs">
@@ -328,70 +509,178 @@ const BlogPage = () => {
                     className={`safe-category-tab ${activeCategory === cat.name ? 'safe-tab-active' : ''}`}
                   >
                     <span>{cat.name}</span>
-                    <span className="safe-tab-count">{cat.count}</span>
+                    <span className="safe-tab-count">
+                      {cat.name === 'All Articles'
+                        ? allArticles.length
+                        : allArticles.filter((a) => a.category === cat.name).length}
+                    </span>
                   </button>
                 ))}
               </div>
 
-              {/* Latest Articles Section */}
+              {/* Articles Section */}
               <div className="safe-latest-section">
-                <h2 className="safe-section-title">Latest Articles</h2>
-                <div className="safe-articles-grid">
-                  {latestArticles.map((article) => (
-                    <article key={article.id} className="safe-article-card">
-                      <div className="safe-article-image">
-                        <img src={article.image} alt={article.title} />
-                        <span
-                          className="safe-article-category"
-                          style={{ backgroundColor: article.categoryColor }}
-                        >
-                          {article.category}
-                        </span>
-                      </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h2 className="safe-section-title" style={{ margin: 0 }}>
+                    {searchQuery.trim()
+                      ? 'Matching Articles'
+                      : activeCategory === 'All Articles'
+                      ? 'All Articles'
+                      : activeCategory}
+                  </h2>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>
+                    Page {currentPage} of {totalPages} ({filteredArticles.length} total)
+                  </span>
+                </div>
 
-                      <div className="safe-article-content">
-                        <h3 className="safe-article-title">{article.title}</h3>
-                        <p className="safe-article-excerpt">{article.excerpt}</p>
-
-                        <div className="safe-article-meta">
-                          <div className="safe-author-info">
-                            <div className="safe-author-name">{article.author}</div>
-                            <div className="safe-author-role">{article.authorRole}</div>
-                          </div>
-                          <div className="safe-article-details">
-                            <div className="safe-date-info">
-                              <Calendar size={12} />
-                              <span>{article.date}</span>
-                            </div>
-                            <div className="safe-read-time">
-                              <Clock size={12} />
-                              <span>{article.readTime}</span>
-                            </div>
-                          </div>
+                {currentArticles.length > 0 ? (
+                  <div className="safe-articles-grid">
+                    {currentArticles.map((article) => (
+                      <article key={article.id} className="safe-article-card">
+                        <div className="safe-article-image">
+                          <img src={article.image} alt={article.title} />
+                          <span
+                            className="safe-article-category"
+                            style={{ backgroundColor: article.categoryColor }}
+                          >
+                            {article.category}
+                          </span>
                         </div>
 
-                        <button 
-                          className="safe-read-more-btn"
-                          onClick={() => setSelectedArticle(article)}
-                        >
-                          Read Article <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                        <div className="safe-article-content">
+                          <h3 className="safe-article-title">{article.title}</h3>
+                          <p className="safe-article-excerpt">{article.excerpt}</p>
+
+                          <div className="safe-article-meta">
+                            <div className="safe-author-info">
+                              <div className="safe-author-name">{article.author}</div>
+                              <div className="safe-author-role">{article.authorRole}</div>
+                            </div>
+                            <div className="safe-article-details">
+                              <div className="safe-date-info">
+                                <Calendar size={12} />
+                                <span>{article.date}</span>
+                              </div>
+                              <div className="safe-read-time">
+                                <Clock size={12} />
+                                <span>{article.readTime}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button 
+                            className="safe-read-more-btn"
+                            onClick={() => setSelectedArticle(article)}
+                          >
+                            Read Article <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '48px 24px',
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    borderRadius: '16px',
+                    border: '1px dashed #cbd5e1'
+                  }}>
+                    <FileText size={48} color="#94a3b8" style={{ margin: '0 auto 16px' }} />
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#334155', margin: '0 0 8px 0' }}>
+                      No articles found
+                    </h3>
+                    <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 16px 0' }}>
+                      We couldn't find any articles matching your search query. Try searching for "signatures", "legal", "security", or "API".
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setActiveCategory('All Articles');
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#0f766e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      View All Articles
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Pagination */}
-              <div className="safe-pagination">
-                <button className="safe-page-btn safe-page-active">1</button>
-                <button className="safe-page-btn">2</button>
-                <button className="safe-page-btn">3</button>
-                <button className="safe-page-btn safe-page-next">
-                  Next
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+              {/* Dynamic Pagination */}
+              {totalPages > 1 && (
+                <div className="safe-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
+                  <button
+                    className="safe-page-btn"
+                    disabled={currentPage === 1}
+                    onClick={() => {
+                      setCurrentPage((prev) => Math.max(1, prev - 1));
+                      const el = document.getElementById('blog-articles-anchor');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{
+                      opacity: currentPage === 1 ? 0.4 : 1,
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '8px 12px'
+                    }}
+                  >
+                    <ChevronLeft size={16} />
+                    Prev
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      className={`safe-page-btn ${currentPage === pageNum ? 'safe-page-active' : ''}`}
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        const el = document.getElementById('blog-articles-anchor');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        minWidth: '38px',
+                        height: '38px',
+                        fontWeight: currentPage === pageNum ? 700 : 500
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    className="safe-page-btn safe-page-next"
+                    disabled={currentPage === totalPages}
+                    onClick={() => {
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+                      const el = document.getElementById('blog-articles-anchor');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{
+                      opacity: currentPage === totalPages ? 0.4 : 1,
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '8px 12px'
+                    }}
+                  >
+                    Next
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Sidebar */}
@@ -456,14 +745,55 @@ const BlogPage = () => {
                 <p className="safe-newsletter-text">
                   Get weekly insights on e-signatures, security best practices, and industry trends
                 </p>
-                <input
-                  type="email"
-                  placeholder="Your email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="safe-newsletter-input"
-                />
-                <button className="safe-newsletter-btn">Subscribe</button>
+                <form onSubmit={handleNewsletterSubmit} style={{ width: '100%' }}>
+                  <input
+                    type="email"
+                    placeholder="Your email address"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (newsletterStatus) setNewsletterStatus(null);
+                    }}
+                    className="safe-newsletter-input"
+                    disabled={isSubscribing}
+                  />
+
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#64748b', margin: '8px 0 12px', cursor: 'pointer', textAlign: 'left' }}>
+                    <input
+                      type="checkbox"
+                      checked={newsletterConsent}
+                      onChange={(e) => setNewsletterConsent(e.target.checked)}
+                      style={{ marginTop: '2px', accentColor: '#0f766e' }}
+                    />
+                    <span>I agree to receive Esigniva updates & agree to the Privacy Policy</span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="safe-newsletter-btn"
+                    disabled={isSubscribing}
+                    style={{ opacity: isSubscribing ? 0.7 : 1, cursor: isSubscribing ? 'not-allowed' : 'pointer' }}
+                  >
+                    {isSubscribing ? 'Subscribing...' : 'Subscribe'}
+                  </button>
+                </form>
+
+                {newsletterStatus && (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      lineHeight: '1.4',
+                      backgroundColor: newsletterStatus.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                      color: newsletterStatus.type === 'success' ? '#15803d' : '#b91c1c',
+                      border: `1px solid ${newsletterStatus.type === 'success' ? '#bbf7d0' : '#fecaca'}`
+                    }}
+                  >
+                    {newsletterStatus.message}
+                  </div>
+                )}
               </div>
 
               {/* Authors */}
@@ -537,7 +867,7 @@ const BlogPage = () => {
         </div>
       )}
 
-      <style jsx>{`
+      <style jsx="true">{`
         /* Blog Reader Modal & Buttons */
         .safe-read-more-btn {
           margin-top: 14px;
@@ -697,12 +1027,12 @@ const BlogPage = () => {
         }
       `}</style>
 
-      <style jsx>{`
+      <style jsx="true">{`
         /* Base Styles */
         .safe-blog {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

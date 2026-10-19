@@ -421,7 +421,7 @@ async def get_templates(
         # Get templates
         sort_tuple = (sort_by if sort_by in ["created_at", "title", "download_count"] else "created_at", sort_order)
         templates_cursor = db.document_templates.find(query).sort([sort_tuple]).skip(skip).limit(limit)
-        templates = list(templates_cursor)
+        templates = await templates_cursor.to_list(length=limit)
         
         return {
             "templates": serialize_doc(templates),
@@ -747,9 +747,9 @@ async def get_template_stats(
             })
         
         # Most downloaded templates
-        popular_templates = list(db.document_templates.find(
+        popular_templates = await db.document_templates.find(
             {"is_active": True}
-        ).sort("download_count", -1).limit(5))
+        ).sort("download_count", -1).limit(5).to_list(length=5)
         
         return {
             "summary": {
@@ -892,7 +892,7 @@ async def get_user_templates(
             }
         ).sort("created_at", -1).skip(skip).limit(limit)
         
-        templates = list(templates_cursor)
+        templates = await templates_cursor.to_list(length=limit)
         
         return {
             "templates": serialize_doc(templates),
@@ -1122,9 +1122,9 @@ async def get_popular_templates(
     """Get most downloaded templates for user display"""
     try:
         # Get popular active templates
-        popular_templates = list(db.document_templates.find(
+        popular_templates = await db.document_templates.find(
             {"is_active": True}
-        ).sort("download_count", -1).limit(limit))
+        ).sort("download_count", -1).limit(limit).to_list(length=limit)
         
         # Remove sensitive fields
         for template in popular_templates:
@@ -1154,10 +1154,10 @@ async def get_search_suggestions(
         suggestions = []
         
         # Search in titles
-        title_matches = db.document_templates.find({
+        title_matches = await db.document_templates.find({
             "title": {"$regex": query, "$options": "i"},
             "is_active": True
-        }).limit(limit // 2)
+        }).limit(limit // 2).to_list(length=limit // 2)
         
         for template in title_matches:
             suggestions.append({
@@ -1184,7 +1184,7 @@ async def get_search_suggestions(
                 }},
                 {"$sort": {"count": -1}},
                 {"$limit": limit - len(suggestions)}
-            ])
+            ]).to_list(length=limit)
             
             for tag_match in tag_matches:
                 suggestions.append({

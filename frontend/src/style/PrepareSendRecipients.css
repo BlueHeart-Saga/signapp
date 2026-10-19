@@ -3,7 +3,7 @@
   min-height: 100vh;
   margin: 0 auto;
   background-color: white;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
 }
 
 /* Header Styles */
@@ -33,6 +33,7 @@
 
 .docusign-document-info {
   flex: 1;
+  min-width: 0;
 }
 
 .docusign-document-header {
@@ -40,6 +41,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
+  min-width: 0;
+  gap: 1rem;
 }
 
 .docusign-document-header h1 {
@@ -47,6 +50,10 @@
   font-weight: 600;
   color: #111827;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .docusign-view-doc-btn {
@@ -72,6 +79,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .docusign-doc-title {
@@ -80,10 +90,14 @@
   gap: 0.5rem;
   color: #6B7280;
   font-size: 0.875rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .docusign-doc-title svg {
   color: #EF4444;
+  flex-shrink: 0;
 }
 
 .docusign-doc-meta {
@@ -91,6 +105,7 @@
   align-items: center;
   gap: 1rem;
   font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
 .docusign-doc-status {
@@ -1804,12 +1819,19 @@
 .zoho-doc-preview-meta {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .zoho-doc-name {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .zoho-doc-hint {
@@ -2108,11 +2130,14 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Label */
 .ds-form-inline label {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #374151;
   white-space: nowrap;
@@ -2122,6 +2147,7 @@
 /* Input */
 .ds-form-inline input {
   width: 320px;
+  max-width: 100%;
   padding: 8px 10px;
   border-radius: 6px;
   font-weight: 700;
@@ -2129,12 +2155,30 @@
   font-size: 14px;
   background: #ffffff;
   color: #111827;
+  box-sizing: border-box;
 }
 
 /* Disabled / readonly look (Zoho-like) */
 .ds-form-inline input[readonly] {
   background: #f9fafb;
-  cursor: default;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .ds-form-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .ds-form-inline input {
+    width: 100%;
+  }
+
+  .ds-form-inline label {
+    font-size: 15px;
+    min-width: 0;
+  }
 }
 
 /* Rename button */
@@ -2450,6 +2494,27 @@
   border-top: 1px solid #e5e7eb;
   background: #fafafa;
   text-align: left;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.zoho-doc-footer span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zoho-doc-footer input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid #0f766e;
+  border-radius: 4px;
+  outline: none;
 }
 
 /* ===== Add document card ===== */
@@ -2588,7 +2653,11 @@
 
 .merge-name {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .merge-pages {
@@ -3561,7 +3630,7 @@
   display: flex;
   flex-direction: column;
   animation: zaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
 }
 
 @keyframes zaFadeIn {

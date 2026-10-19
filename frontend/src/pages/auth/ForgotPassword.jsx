@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../services/api";
 import API_BASE_URL from "../../config/api";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import { setPageTitle } from "../../utils/pageTitle";
 
 // Icons
@@ -36,8 +37,15 @@ const ForgotPassword = () => {
   const [countdown, setCountdown] = useState(0);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUser, setToken } = useAuth();
   const otpRefs = useRef([]);
+
+  useEffect(() => {
+    if (location.state?.prefillEmail) {
+      setEmail(location.state.prefillEmail);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     setPageTitle(
@@ -245,6 +253,11 @@ const ForgotPassword = () => {
       setSuccessMsg("Password reset successfully! Logging you in...");
       toast.success("Password reset successfully!");
 
+      // Clear any temporary lockout for this email so they can log in freely
+      try {
+        sessionStorage.removeItem(`esigniva_lockout_${email.trim().toLowerCase()}`);
+      } catch (e) {}
+
       // Auto-login
       setTimeout(async () => {
         try {
@@ -280,9 +293,25 @@ const ForgotPassword = () => {
         }
       }, 900);
     } catch (err) {
-      const msg = err?.response?.data?.detail || "Failed to reset password. Please try again.";
-      setErrorMsg(typeof msg === "string" ? msg : "Failed to reset password");
-      toast.error(typeof msg === "string" ? msg : "Reset failed");
+      let msg = "Failed to reset password. Please try again.";
+      if (err?.response?.data?.detail) {
+        msg = typeof err.response.data.detail === "string" 
+          ? err.response.data.detail 
+          : err.response.data.detail?.message || msg;
+      }
+      setErrorMsg(msg);
+
+      if (msg.toLowerCase().includes("different from") || msg.toLowerCase().includes("current password")) {
+        setFieldErrors({ password: msg });
+        Swal.fire({
+          icon: 'warning',
+          title: 'Different Password Required',
+          text: msg,
+          confirmButtonColor: '#0f766e'
+        });
+      } else {
+        toast.error(typeof msg === "string" ? msg : "Reset failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -649,6 +678,10 @@ const ForgotPassword = () => {
                           {passwordRules.hasNumber ? "✓" : "•"}
                         </div>
                         <span>At least one number (0-9)</span>
+                      </div>
+                      <div className="pt-1.5 border-t border-slate-200/70 text-slate-600 text-[11px] flex items-center gap-1.5 font-medium">
+                        <span className="text-teal-700 font-bold">•</span>
+                        <span>Must be different from your current password</span>
                       </div>
                     </div>
                   </div>

@@ -236,7 +236,7 @@ const AbuseHeroCard = () => {
         /* Title */
         .abuse-hero-title {
           font-size: 3.25rem;
-          font-weight: 800;
+          font-weight: 600;
           color: white;
           margin: 0 0 1.5rem;
           line-height: 1.2;
@@ -245,7 +245,7 @@ const AbuseHeroCard = () => {
         .abuse-hero-highlight {
           display: block;
           color: rgba(255, 255, 255, 0.95);
-          font-weight: 700;
+          font-weight: 600;
         }
 
         /* Subtitle */
@@ -274,7 +274,7 @@ const AbuseHeroCard = () => {
 
         .abuse-metric-value {
           font-size: 2rem;
-          font-weight: 800;
+          font-weight: 600;
           color: white;
           margin-bottom: 0.25rem;
           line-height: 1;
@@ -531,7 +531,7 @@ const AbuseHeroCard = () => {
 
         .abuse-image-stat-value {
           font-size: 2.5rem;
-          font-weight: 800;
+          font-weight: 600;
           color: white;
           margin-bottom: 0.25rem;
           line-height: 1;

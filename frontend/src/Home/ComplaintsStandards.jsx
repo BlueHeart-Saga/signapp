@@ -415,14 +415,18 @@ const ComplaintsStandards = () => {
                     <Mail size={20} />
                     <div>
                       <div className="safe-submit-label">Email Complaint</div>
-                      <div className="safe-submit-value">support@devopstrioglobal.com</div>
+                      <div className="safe-submit-value">info@esigniva.com</div>
                     </div>
                   </div>
                   <div className="safe-submit-method">
                     <Headphones size={20} />
                     <div>
                       <div className="safe-submit-label">Phone Support</div>
-                      <div className="safe-submit-value">+44 (0)20 1234 5678</div>
+                      <div className="safe-submit-value">
+                        <a href="tel:+442079460192" style={{ textDecoration: 'none', color: 'inherit' }}>
+                          +44 (0)20 7946 0192
+                        </a>
+                      </div>
                     </div>
                   </div>
                   <div className="safe-submit-method">
@@ -553,7 +557,7 @@ const ComplaintsStandards = () => {
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -595,7 +599,7 @@ const ComplaintsStandards = () => {
 
         .safe-hero-title {
           font-size: 3.5rem;
-          font-weight: 800;
+          font-weight: 600;
           margin: 0 0 1rem;
           line-height: 1.1;
         }
@@ -1230,7 +1234,7 @@ const ComplaintsStandards = () => {
 
         .safe-metric-value {
           font-size: 2.5rem;
-          font-weight: 800;
+          font-weight: 600;
           color: white;
           line-height: 1;
           margin-bottom: 0.5rem;

@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import "../style/TemplatesList.css";
 import { uploadDocument } from "../services/DocumentAPI";
 import showAlert from "../utils/swal";
+import PageLoadingAnimation from "../components/PageLoadingAnimation";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 const UserTemplatesList = () => {
+  const navigate = useNavigate();
   // Template states
   const [templates, setTemplates] = useState([]);
   const [page, setPage] = useState(1);
@@ -277,7 +280,13 @@ const UserTemplatesList = () => {
       if (response && response.document) {
         const documentId = response.document.id || response.document._id;
         if (documentId) {
-          window.location.href = `/document-builder/${documentId}`;
+          navigate(`/user/prepare-send/${documentId}`, {
+            state: {
+              document: response.document,
+              fromTemplate: true,
+              templateName: templateTitle,
+            },
+          });
         } else {
           throw new Error("No document ID in response");
         }
@@ -607,10 +616,7 @@ const UserTemplatesList = () => {
 
           {/* Loading */}
           {loading && (
-            <div className="loading-container">
-              <div className="spinner"></div>
-              <p>Loading templates...</p>
-            </div>
+            <PageLoadingAnimation message="Loading templates..." size={110} minHeight="300px" />
           )}
 
           {/* Error */}

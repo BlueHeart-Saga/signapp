@@ -38,6 +38,7 @@ import {
   Draggable
 } from "@hello-pangea/dnd";
 import { CircularProgress } from '@mui/material';
+import FilenameDisplay from '../components/FilenameDisplay';
 import { FaPen, FaExchangeAlt } from "react-icons/fa";
 import { FaGripVertical } from 'react-icons/fa';
 import { recipientAPI, RecipientRoles, RoleDescriptions } from '../services/api';
@@ -280,7 +281,7 @@ function ZohoFileCard({
       >
 
         <img
-          src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}`}
+          src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}&v=${file.updated_at ? new Date(file.updated_at).getTime() : (file.id || Date.now())}`}
           alt={file.filename}
         />
       </div>
@@ -297,9 +298,12 @@ function ZohoFileCard({
             onKeyDown={(e) => e.key === "Enter" && saveRename()}
           />
         ) : (
-          <span onDoubleClick={() => setRenaming(true)}>
-            {file.filename.replace(/\.pdf$/i, "")}
-          </span>
+          <div onDoubleClick={() => setRenaming(true)} style={{ width: "100%", minWidth: 0 }}>
+            <FilenameDisplay
+              filename={file.filename}
+              sx={{ fontWeight: 500, fontSize: "13px", color: "#1e293b" }}
+            />
+          </div>
         )}
       </div>
 
@@ -1749,7 +1753,7 @@ export default function PrepareSendRecipients() {
           <div className="docusign-document-details">
             <div className="docusign-doc-title">
               <FaFilePdf />
-              <span>{document.filename}</span>
+              <FilenameDisplay filename={document.filename} maxLength={45} />
             </div>
            
 
@@ -1777,7 +1781,9 @@ export default function PrepareSendRecipients() {
     />
 
     <div className="zoho-doc-preview-meta">
-      <span className="zoho-doc-name">{document.filename}</span>
+      <span className="zoho-doc-name">
+        <FilenameDisplay filename={document.filename} maxLength={32} />
+      </span>
       <span className="zoho-doc-hint">Click to preview document</span>
 
       {document.status === "draft" && (
@@ -2027,15 +2033,19 @@ export default function PrepareSendRecipients() {
       <div className="ds-form-row ds-form-inline">
         <label>Document Name :</label>
 
-        <input
-          type="text"
-          value={document.filename.replace(/\.pdf$/i, "")}
-          readOnly
-          onClick={() => {
-            setNewFilename(document.filename.replace(/\.pdf$/i, ""));
-            setRenameOpen(true);
-          }}
-        />
+        <div style={{ position: "relative", display: "flex", alignItems: "center", maxWidth: "100%", minWidth: 0 }}>
+          <input
+            type="text"
+            value={document.filename.replace(/\.pdf$/i, "")}
+            readOnly
+            title={document.filename}
+            onClick={() => {
+              setNewFilename(document.filename.replace(/\.pdf$/i, ""));
+              setRenameOpen(true);
+            }}
+            style={{ cursor: "pointer", textOverflow: "ellipsis" }}
+          />
+        </div>
 
         {/* <button
           className="zoho-rename-btn"
@@ -2059,6 +2069,7 @@ export default function PrepareSendRecipients() {
               onChange={async (e) => {
                 const enabled = e.target.checked;
                 setSigningOrderEnabled(enabled);
+                setDocument(prev => prev ? { ...prev, signing_order_enabled: enabled } : prev);
                 try {
                   const response = await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
                     method: "PUT",
@@ -2073,6 +2084,7 @@ export default function PrepareSendRecipients() {
                   if (!response.ok) throw new Error("Update failed");
                 } catch (err) {
                   setSigningOrderEnabled(!enabled);
+                  setDocument(prev => prev ? { ...prev, signing_order_enabled: !enabled } : prev);
                   setSnackbar({
                     open: true,
                     message: "Failed to update signing order",
@@ -3104,8 +3116,11 @@ export default function PrepareSendRecipients() {
                       <div className="za-file-icon-box">
                         <FaFileAlt />
                       </div>
-                      <div className="za-file-details">
-                        <span className="za-filename">{mergeFile.name}</span>
+                      <div className="za-file-details" style={{ minWidth: 0, flex: 1 }}>
+                        <FilenameDisplay
+                          filename={mergeFile.name}
+                          sx={{ fontWeight: 600, color: "#1e293b", fontSize: "15px" }}
+                        />
                         <span className="za-filesize">{(mergeFile.size / 1024 / 1024).toFixed(2)} MB</span>
                       </div>
                       <button className="za-remove-selection" onClick={() => setMergeFile(null)}>
@@ -3154,29 +3169,11 @@ export default function PrepareSendRecipients() {
                       setProcessingMsg("Initializing...");
 
                       const docId = documentId;
-                      const startPoll = () => {
-                        const interval = setInterval(async () => {
-                          try {
-                            const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
-                              headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-                            }).then(r => r.json());
-
-                            if (statusRes.progress > 70) {
-                              setMergeProgress(statusRes.progress);
-                              if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
-                            }
-                            if (statusRes.progress >= 100) clearInterval(interval);
-                          } catch (e) { console.warn("Poll err", e); }
-                        }, 1000);
-                        return interval;
-                      };
-
-                      const pollId = startPoll();
 
                       if (mergeDoc) {
                         const form = new FormData();
                         form.append("file", mergeFile);
-                        await fetch(
+                        const replaceRes = await fetch(
                           `${API_BASE_URL}/documents/${documentId}/files/${mergeDoc.id}/replace`,
                           {
                             method: "PUT",
@@ -3186,14 +3183,39 @@ export default function PrepareSendRecipients() {
                             body: form,
                           }
                         );
+                        if (!replaceRes.ok) {
+                          const errData = await replaceRes.json().catch(() => ({}));
+                          throw new Error(errData.detail || "Replace failed");
+                        }
                       } else {
                         await addFileToDocument(documentId, mergeFile, (p) => {
-                          setMergeProgress(Math.round(p));
-                          if (p >= 60) setProcessingMsg("Server Processing...");
+                          setMergeProgress(Math.round(p * 0.6));
+                          if (p >= 50) setProcessingMsg("Processing on server...");
                         });
                       }
 
-                      clearInterval(pollId);
+                      // Wait for backend processing task to finish
+                      let attempts = 0;
+                      while (attempts < 30) {
+                        try {
+                          const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
+                            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+                          }).then(r => r.json());
+
+                          if (statusRes.progress) {
+                            setMergeProgress(Math.max(60, statusRes.progress));
+                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
+                          }
+                          if (statusRes.progress >= 100 || statusRes.status === "draft") {
+                            break;
+                          }
+                        } catch (e) {
+                          console.warn("Poll err", e);
+                        }
+                        await new Promise(r => setTimeout(r, 800));
+                        attempts++;
+                      }
+
                       setMergeProgress(100);
                       setProcessingMsg("Complete!");
 
@@ -3212,7 +3234,7 @@ export default function PrepareSendRecipients() {
                     } catch (err) {
                       setSnackbar({
                         open: true,
-                        message: "Process failed. Please try again.",
+                        message: err.message || "Process failed. Please try again.",
                         severity: "error",
                       });
                     } finally {
@@ -3481,13 +3503,16 @@ export default function PrepareSendRecipients() {
 
                               <img
                                 className="merge-thumb"
-                                src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}`}
+                                src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}&v=${file.updated_at ? new Date(file.updated_at).getTime() : (file.id || Date.now())}`}
                                 alt=""
                               />
 
-                              <span className="merge-name">
-                                {file.filename}
-                              </span>
+                              <div className="merge-name" style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                                <FilenameDisplay
+                                  filename={file.filename}
+                                  sx={{ fontSize: "13px", fontWeight: 500 }}
+                                />
+                              </div>
 
                               <span className="merge-pages">
                                 {file.page_count} pages
@@ -3533,7 +3558,7 @@ export default function PrepareSendRecipients() {
                       setMergeLoading(true);
                       setMergeProgress(10);
 
-                      await fetch(
+                      const res = await fetch(
                         `${API_BASE_URL}/documents/${document.id}/files/merge`,
                         {
                           method: "POST",
@@ -3548,15 +3573,26 @@ export default function PrepareSendRecipients() {
                         }
                       );
 
+                      if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.detail || "Merge failed");
+                      }
+
                       setMergeProgress(100);
                       await reloadFiles();
+                      await refreshDocument();
 
                       setSelectedFiles([]);
                       setMergeConfirmOpen(false);
-                    } catch {
                       setSnackbar({
                         open: true,
-                        message: "Merge failed",
+                        message: "Files merged successfully",
+                        severity: "success",
+                      });
+                    } catch (err) {
+                      setSnackbar({
+                        open: true,
+                        message: err.message || "Merge failed",
                         severity: "error",
                       });
                     } finally {

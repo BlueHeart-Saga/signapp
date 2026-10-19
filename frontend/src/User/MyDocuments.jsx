@@ -14,7 +14,6 @@ import {
   getBoxFolderInfo
 } from "../services/DocumentAPI";
 import {
-  FaCloudUploadAlt,
   FaFileAlt,
   FaFolder,
   FaFolderOpen,
@@ -22,16 +21,14 @@ import {
   FaDropbox,
   FaMicrosoft,
   FaBox,
-  FaSearch,
   FaTimes,
   FaArrowLeft,
   FaSync,
-  FaPlus,
   FaChevronDown,
   FaFilePdf,
   FaFileImage,
-  FaFileWord, FaFilter
-
+  FaFileWord,
+  FaPlus
 } from "react-icons/fa";
 import { AiOutlineFileText } from "react-icons/ai";
 
@@ -42,16 +39,41 @@ import { FiUploadCloud } from "react-icons/fi";
 import { FiUpload } from "react-icons/fi";
 
 import {
-  Dialog, Typography,
+  Dialog,
+  Typography,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Snackbar,
+  Alert,
+  Button,
+  Box,
+  IconButton,
+  CircularProgress,
+  LinearProgress,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Popover,
+  Paper,
+  Chip,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Skeleton,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from "@mui/material";
-
-import { Snackbar, Alert } from "@mui/material";
 // Add these imports with your other icon imports
 import {
-
   MoreVert as MoreVertIcon,
   Visibility as VisibilityIcon,
   Download as DownloadIcon,
@@ -62,15 +84,24 @@ import {
   Restore as RestoreIcon,
   DeleteForever as DeleteForeverIcon,
   Edit as EditIcon,
-  Archive as ArchiveIcon
+  Archive as ArchiveIcon,
+  WarningAmber as WarningAmberIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Refresh as RefreshIcon,
+  Close as CloseIcon,
+  CloudUpload as CloudUploadIcon,
+  Send as SendIcon,
+  Computer as ComputerIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  NavigateBefore as NavigateBeforeIcon,
+  NavigateNext as NavigateNextIcon,
+  Clear as ClearIcon,
+  InsertDriveFileOutlined as InsertDriveFileOutlinedIcon
 } from "@mui/icons-material";
-import { Button } from "@mui/material";
 import { FaEdit } from "react-icons/fa";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 import { Summarize as SummarizeIcon } from "@mui/icons-material";
-
-
-import "../style/MyDocuments.css";
 import RecipientManager from "./RecipientSelector"; // Fixed import
 import TemplateBrowser from "./TemplateBrowser";
 import AITemplateBrowser from './AITemplateBrowser';
@@ -82,11 +113,22 @@ import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, sig
 import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
+import FilenameDisplay from "../components/FilenameDisplay";
 import { useAuth } from "../context/AuthContext";
 // import PremiumBannerSlider from "../components/PremiumBannerSlider";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 const token = localStorage.getItem("token");
+
+const getSourceBadgeClasses = (source) => {
+  const s = String(source || "").toLowerCase();
+  if (s.includes("google")) return "bg-purple-50 text-purple-700";
+  if (s.includes("dropbox")) return "bg-sky-50 text-sky-700";
+  if (s.includes("onedrive")) return "bg-emerald-50 text-emerald-700";
+  if (s.includes("box")) return "bg-amber-50 text-amber-700";
+  if (s.includes("local")) return "bg-[#e0f2fe] text-[#0284c7]";
+  return "bg-slate-100 text-slate-700";
+};
 
 export default function MyDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -122,7 +164,7 @@ export default function MyDocuments() {
   const [renaming, setRenaming] = useState(false);
 
   const [totalDocs, setTotalDocs] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [mergeDoc, setMergeDoc] = useState(null);
   const [mergeOpen, setMergeOpen] = useState(false);
 
@@ -167,52 +209,19 @@ export default function MyDocuments() {
   const { user, subscription, logout } = useAuth();
   const [planRestrictionOpen, setPlanRestrictionOpen] = useState(false);
 
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState(null); // Track which action menu is open via click
-
-
+  // MUI Menu & Popover Anchors
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuDoc, setActionMenuDoc] = useState(null);
+  const [uploadAnchorEl, setUploadAnchorEl] = useState(null);
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
 
   const fileInputRef = useRef(null);
-  const dropdownRef = useRef(null);
-  const filterRef = useRef(null);
 
   useEffect(() => {
     setPageTitle(
       "Document Management",
       "View, manage, and track all your documents in one secure place."
     );
-  }, []);
-
-  // Debug environment variables
-  useEffect(() => {
-    console.log('Environment Variables Check:');
-    console.log('Google Client ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID ? 'Loaded' : 'Missing');
-    console.log('Google Redirect URI:', process.env.REACT_APP_GOOGLE_REDIRECT_URI ? 'Loaded' : 'Missing');
-    console.log('Box Client ID:', process.env.REACT_APP_BOX_CLIENT_ID ? 'Loaded' : 'Missing');
-    console.log('Box Redirect URI:', process.env.REACT_APP_BOX_REDIRECT_URI ? 'Loaded' : 'Missing');
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Close Upload Dropdown
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowUploadDropdown(false);
-      }
-
-      // Close Filter Dropdown
-      if (filterRef.current && !filterRef.current.contains(event.target)) {
-        setShowAdvancedFilters(false);
-      }
-
-      // Close Action Menus if clicking outside any dropdown
-      if (!event.target.closest('.dropdown')) {
-        setOpenMenuId(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Handle OAuth callbacks
@@ -230,16 +239,18 @@ export default function MyDocuments() {
     }
   }, []);
 
-  // Synchronize URL status filter with state
+  // Synchronize URL status and search filters with state
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const statusParam = urlParams.get("status");
+    const searchParam = urlParams.get("search");
 
-    if (statusParam) {
-      setFilters(prev => ({
-        ...prev,
-        status: statusParam === "all" ? "" : statusParam
-      }));
+    setFilters(prev => ({
+      ...prev,
+      status: statusParam ? (statusParam === "all" ? "" : statusParam) : prev.status,
+      search: searchParam !== null ? searchParam : prev.search
+    }));
+    if (statusParam || searchParam) {
       setCurrentPage(1); // Reset to first page when filter changes
     }
   }, [location.search]);
@@ -253,9 +264,9 @@ export default function MyDocuments() {
     setListLoading(true);
     try {
       const res = await getDocumentsPaged(currentPage, pageSize, filters.status);
-      setDocuments(res.documents);
-      setTotalDocs(res.total);
-      setTotalPages(res.total_pages);
+      setDocuments(res.documents || []);
+      setTotalDocs(res.total || 0);
+      setTotalPages(res.total_pages || 0);
     } catch (error) {
       console.error("Failed to load documents:", error);
     } finally {
@@ -1119,18 +1130,179 @@ export default function MyDocuments() {
   // };
 
   const getFileIcon = (filename) => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return <FaFilePdf className="file-icon pdf" />;
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return <FaFileImage className="file-icon image" />;
-    if (['doc', 'docx'].includes(ext)) return <FaFileWord className="file-icon word" />;
-    if (['xls', 'xlsx'].includes(ext)) return <FaFileAlt className="file-icon excel" />;
-    if (['ppt', 'pptx'].includes(ext)) return <FaFileAlt className="file-icon ppt" />;
-
-    return <FaFileAlt className="file-icon default" />;
+    const ext = filename ? filename.split('.').pop()?.toLowerCase() : "";
+    if (ext === 'pdf') {
+      return (
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: "10px",
+            bgcolor: "#FEF2F2",
+            color: "#EF4444",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: "1px solid #FEE2E2",
+          }}
+        >
+          <FaFilePdf size={18} />
+        </Box>
+      );
+    }
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+      return (
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: "10px",
+            bgcolor: "#ECFDF5",
+            color: "#10B981",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: "1px solid #D1FAE5",
+          }}
+        >
+          <FaFileImage size={18} />
+        </Box>
+      );
+    }
+    if (['doc', 'docx'].includes(ext)) {
+      return (
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: "10px",
+            bgcolor: "#EFF6FF",
+            color: "#2563EB",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: "1px solid #DBEAFE",
+          }}
+        >
+          <FaFileWord size={18} />
+        </Box>
+      );
+    }
+    if (['xls', 'xlsx', 'csv'].includes(ext)) {
+      return (
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: "10px",
+            bgcolor: "#F0FDF4",
+            color: "#16A34A",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: "1px solid #DCFCE7",
+          }}
+        >
+          <FaFileAlt size={18} />
+        </Box>
+      );
+    }
+    return (
+      <Box
+        sx={{
+          width: 38,
+          height: 38,
+          borderRadius: "10px",
+          bgcolor: "#F8FAFC",
+          color: "#64748B",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          border: "1px solid #E2E8F0",
+        }}
+      >
+        <FaFileAlt size={18} />
+      </Box>
+    );
   };
 
+  const renderSourceBadge = (source) => {
+    const s = String(source || "").toLowerCase();
+    let icon = <ComputerIcon sx={{ fontSize: 13, color: "#0284C7" }} />;
+    let label = "Local";
+    let bg = "#F0F9FF";
+    let color = "#0284C7";
+    let border = "#BAE6FD";
 
+    if (s.includes("google")) {
+      icon = <FaGoogleDrive size={12} style={{ color: "#4285F4" }} />;
+      label = "Google Drive";
+      bg = "#EFF6FF";
+      color = "#1D4ED8";
+      border = "#DBEAFE";
+    } else if (s.includes("dropbox")) {
+      icon = <FaDropbox size={12} style={{ color: "#0061FF" }} />;
+      label = "Dropbox";
+      bg = "#F0F9FF";
+      color = "#0369A1";
+      border = "#E0F2FE";
+    } else if (s.includes("onedrive") || s.includes("microsoft")) {
+      icon = <FaMicrosoft size={12} style={{ color: "#0078D4" }} />;
+      label = "OneDrive";
+      bg = "#EFF6FF";
+      color = "#2563EB";
+      border = "#DBEAFE";
+    } else if (s.includes("box")) {
+      icon = <FaBox size={12} style={{ color: "#0061D5" }} />;
+      label = "Box";
+      bg = "#FEF3C7";
+      color = "#B45309";
+      border = "#FDE68A";
+    } else if (s.includes("template")) {
+      icon = <AutoAwesome sx={{ fontSize: 13, color: "#7C3AED" }} />;
+      label = "Template";
+      bg = "#F5F3FF";
+      color = "#6D28D9";
+      border = "#DDD6FE";
+    }
 
+    return (
+      <Chip
+        size="small"
+        icon={icon}
+        label={label}
+        sx={{
+          bgcolor: bg,
+          color: color,
+          border: `1px solid ${border}`,
+          fontWeight: 600,
+          fontSize: "11.5px",
+          height: 24,
+          "& .MuiChip-label": { px: 0.8 },
+          "& .MuiChip-icon": { ml: "6px", mr: "-2px" },
+        }}
+      />
+    );
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return { date: "—", time: "" };
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return { date: dateString, time: "" };
+      return {
+        date: d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+        time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      };
+    } catch {
+      return { date: dateString, time: "" };
+    }
+  };
 
   const templates = [
     { id: 1, name: "Employment Contract", icon: <FaFileAlt />, description: "Standard employment agreement template" },
@@ -1139,204 +1311,571 @@ export default function MyDocuments() {
     { id: 4, name: "Meeting Minutes", icon: <FaFileAlt />, description: "Formal meeting minutes template" },
   ];
 
-
-
-
-
-
-
-
   return (
-    <div className="doc-container">
+    <Box sx={{ maxWidth: 1140, mx: "auto", px: { xs: 2.5, sm: 4, md: 6, lg: 8 }, py: { xs: 2.5, sm: 4 } }}>
+      {/* Keyframe animations and dropdown behaviors */}
+      <style>{`
+        @keyframes ss-tri-spinner {
+          100% { transform: rotate(1turn); }
+        }
+        @keyframes ss-cycle-words {
+          0%, 12% { transform: translateY(0); }
+          16%, 28% { transform: translateY(-44px); }
+          32%, 44% { transform: translateY(-88px); }
+          48%, 60% { transform: translateY(-132px); }
+          64%, 76% { transform: translateY(-176px); }
+          80%, 92% { transform: translateY(-220px); }
+          100% { transform: translateY(0); }
+        }
+        .ss-loading-spinner {
+          width: 56px;
+          height: 56px;
+          display: grid;
+          border: 4px solid transparent;
+          border-radius: 50%;
+          border-right-color: #0f766e;
+          animation: ss-tri-spinner 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .ss-loading-spinner::before,
+        .ss-loading-spinner::after {
+          content: "";
+          grid-area: 1/1;
+          margin: 2px;
+          border: inherit;
+          border-radius: 50%;
+          animation: ss-tri-spinner 2s infinite;
+        }
+        .ss-loading-spinner::after {
+          margin: 8px;
+          animation-duration: 3s;
+        }
+      `}</style>
+
       {/* Page Header */}
-      <div className="page-header">
-        <h1 className="page-title">My Documents</h1>
-        <p className="page-subtitle">Manage all your documents in one place</p>
-      </div>
-
-      {/* Modern Upload Section */}
-      <div className="upload-section">
-
-
-        <div
-          className={`upload-area ${dragOver ? 'drag-over' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+            width: "100%",
+            gap: 2,
+          }}
         >
-          <div className="upload-icon">
-            <FaCloudUploadAlt />
-          </div>
-          <h2 className="upload-title">Upload Your Documents</h2>
-          <p className="upload-subtitle">
-            Drag & drop files here or choose from the options below
-          </p>
-
-          <div className="upload-button-container" ref={dropdownRef}>
-            <button
-              className="upload-main-btn"
-              onClick={() => setShowUploadDropdown(!showUploadDropdown)}
-              disabled={loading}
-            >
-              <FiUpload className="btn-icon" />
-              {loading ? "Uploading..." : "Upload Document"}
-              <FaChevronDown className="dropdown-arrow" />
-            </button>
-
-            <div className={`upload-dropdown ${showUploadDropdown ? 'show' : ''}`}>
-              <button className="dropdown-item" onClick={handleLocalUpload}>
-                <FiUploadCloud className="dropdown-icon" />
-                <span>Local File</span>
-              </button>
-              <button
-                className="dropdown-item"
-                onClick={() => {
-                  setShowUploadDropdown(false);
-                  setShowCloudProviders(true);
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
+                  fontWeight: 600,
+                  color: "#0F172A",
+                  letterSpacing: "-0.02em",
+                  fontSize: { xs: "1.5rem", sm: "1.75rem" },
                 }}
               >
-                <FaCloudUploadAlt className="dropdown-icon" />
-                <span>Cloud Storage</span>
-              </button>
-              <button
-                className="dropdown-item"
-                onClick={() => {
-                  setShowUploadDropdown(false);
-                  if (user?.role !== "admin" && !user?.has_active_subscription) {
-                    setPlanRestrictionOpen(true);
-                  } else {
-                    setShowTemplateBrowser(true);
-                  }
-                }}
-              >
-                <AiOutlineFileText className="dropdown-icon" />
-                <span>Use Template</span>
-              </button>
+                My Documents
+              </Typography>
+            </Box>
+            <Typography sx={{ color: "#64748B", fontSize: { xs: "0.875rem", sm: "0.95rem" } }}>
+              Upload, manage, sign, and track all your contracts and documents in one place
+            </Typography>
+          </Box>
 
-
-              {/* {doc.status === "draft" && (
-  <button
-    className="dropdown-item"
-    onClick={() => {
-      setMergeDoc(doc);
-      setMergeOpen(true);
-    }}
-  >
-    <FaPlus className="dropdown-icon" />
-    <span>Add / Merge File</span>
-  </button>
-)} */}
-
-
-
-
+          {/* Refresh Button at Right Corner */}
+          <Box sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}>
+            <Tooltip title="Reload documents list">
               <Button
-                variant="contained"
-                startIcon={<AutoAwesome />}
-                onClick={() => setTemplateBrowserOpen(true)}
-                className="ai-button"
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon sx={{ fontSize: 17, animation: listLoading ? "spin 1s linear infinite" : "none" }} />}
+                onClick={loadDocs}
+                disabled={listLoading}
+                sx={{
+                  borderRadius: "10px",
+                  borderColor: "#E2E8F0",
+                  color: "#475569",
+                  bgcolor: "#FFFFFF",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  px: 2,
+                  py: 0.85,
+                  "&:hover": { borderColor: "#0F766E", bgcolor: "#F0FDFA", color: "#0F766E" },
+                }}
               >
-                Get AI Templates
+                Refresh
               </Button>
-            </div>
-            {loading && (
-              <div className="uploading-overlay-root">
-                <div className="uploading-card-box">
+            </Tooltip>
+          </Box>
+        </Box>
+      </Box>
 
-                  {/* Upload GIF */}
-                  <img
-                    src="/images/uploading.gif"
-                    alt="Uploading"
-                    className="uploading-gif-icon"
-                  />
+      {/* Modern Compact Upload Hero Section */}
+      <Paper
+        elevation={0}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        sx={{
+          mb: 3,
+          py: { xs: 2.5, sm: 3 },
+          px: { xs: 2.5, sm: 4 },
+          borderRadius: "16px",
+          border: "1.5px dashed",
+          borderColor: dragOver ? "#0F766E" : "#CBD5E1",
+          background: dragOver
+            ? "radial-gradient(circle at 50% 50%, #ECFDF5 0%, #F0FDFA 100%)"
+            : "radial-gradient(circle at 50% 0%, #F8FAFC 0%, #FFFFFF 100%)",
+          boxShadow: dragOver
+            ? "0 10px 25px -10px rgba(15, 118, 110, 0.25)"
+            : "0 1px 2px rgba(0, 0, 0, 0.02)",
+          textAlign: "center",
+          position: "relative",
+          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            borderColor: "#0F766E",
+          },
+        }}
+      >
+        {/* Compact Icon Badge */}
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: "14px",
+            bgcolor: dragOver ? "#0F766E" : "#F0FDFA",
+            color: dragOver ? "#FFFFFF" : "#0F766E",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            mx: "auto",
+            mb: 1.5,
+            border: "1px solid",
+            borderColor: dragOver ? "#0F766E" : "#CCFBF1",
+            boxShadow: dragOver
+              ? "0 8px 18px rgba(15, 118, 110, 0.3)"
+              : "0 2px 8px rgba(15, 118, 110, 0.08)",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <CloudUploadIcon sx={{ fontSize: 24 }} />
+        </Box>
 
-                  <h3 className="uploading-title">
-                    {processingMsg || "Uploading document…"}
-                  </h3>
+        <Typography
+          variant="h6"
+          component="h2"
+          sx={{
+            fontWeight: 700,
+            color: "#0F172A",
+            letterSpacing: "-0.01em",
+            fontSize: { xs: "1.1rem", sm: "1.2rem" },
+            mb: 0.5,
+          }}
+        >
+          Upload Your Documents
+        </Typography>
 
+        <Typography
+          variant="body2"
+          sx={{
+            color: "#64748B",
+            fontSize: "0.85rem",
+            maxWidth: 480,
+            mx: "auto",
+            mb: 2,
+          }}
+        >
+          Drag & drop files here or choose from the options below
+        </Typography>
 
-                  <p className="uploading-filename">
-                    {file?.name}
-                  </p>
+        {/* Single Centered Dropdown Button */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mb: 1.5,
+          }}
+        >
+          <Button
+            variant="contained"
+            startIcon={<FiUpload size={16} />}
+            endIcon={
+              <KeyboardArrowDownIcon
+                sx={{
+                  fontSize: "18px",
+                  transition: "transform 0.2s",
+                  transform: uploadAnchorEl ? "rotate(180deg)" : "none",
+                }}
+              />
+            }
+            onClick={(e) => setUploadAnchorEl(e.currentTarget)}
+            disabled={loading}
+            sx={{
+              bgcolor: "#0F766E",
+              color: "#FFFFFF",
+              "&:hover": { bgcolor: "#115E59" },
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "13.5px",
+              px: 3,
+              py: 1,
+              boxShadow: "0 2px 8px rgba(15, 118, 110, 0.25)",
+            }}
+          >
+            {loading ? "Uploading..." : "Upload Document"}
+          </Button>
+        </Box>
 
-                  <div className="uploading-percent">
-                    {uploadProgress}%
-                  </div>
+        {/* Supported Formats */}
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#94A3B8",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.75,
+            fontSize: "11.5px",
+            fontWeight: 500,
+          }}
+        >
+          <span>Supports PDF, DOC, DOCX, PNG, JPG</span>
+          <span>•</span>
+          <span>Max 25 MB</span>
+        </Typography>
 
-                  <div className="uploading-progress-bar">
-                    <div
-                      className="uploading-progress-fill"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
+        {/* Upload Options Menu */}
+        <Menu
+          anchorEl={uploadAnchorEl}
+          open={Boolean(uploadAnchorEl)}
+          onClose={() => setUploadAnchorEl(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          transformOrigin={{ vertical: "top", horizontal: "center" }}
+          PaperProps={{
+            elevation: 4,
+            sx: {
+              borderRadius: "14px",
+              minWidth: 220,
+              mt: 1,
+              border: "1px solid #E2E8F0",
+              p: 0.75,
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+            },
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              setUploadAnchorEl(null);
+              handleLocalUpload();
+            }}
+            sx={{
+              py: 1.25,
+              gap: 1.5,
+              borderRadius: "8px",
+              fontSize: "13.5px",
+              fontWeight: 600,
+              color: "#334155",
+              "&:hover": { bgcolor: "#F0FDFA", color: "#0F766E" },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+              <FiUploadCloud size={17} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Upload from Computer"
+              primaryTypographyProps={{ fontSize: "13px", fontWeight: 600 }}
+            />
+          </MenuItem>
 
-                  <button
-                    className="uploading-cancel-btn"
-                    onClick={cancelUpload}
-                  >
-                    Cancel
-                  </button>
+          <MenuItem
+            onClick={() => {
+              setUploadAnchorEl(null);
+              setShowCloudProviders(true);
+            }}
+            sx={{
+              py: 1.25,
+              gap: 1.5,
+              borderRadius: "8px",
+              fontSize: "13.5px",
+              fontWeight: 600,
+              color: "#334155",
+              "&:hover": { bgcolor: "#F0FDFA", color: "#0F766E" },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+              <CloudUploadIcon sx={{ fontSize: 18 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Cloud Storage"
+              primaryTypographyProps={{ fontSize: "13px", fontWeight: 600 }}
+            />
+          </MenuItem>
 
-                </div>
-              </div>
-            )}
+          <MenuItem
+            onClick={() => {
+              setUploadAnchorEl(null);
+              if (user?.role !== "admin" && !user?.has_active_subscription) {
+                setPlanRestrictionOpen(true);
+              } else {
+                setShowTemplateBrowser(true);
+              }
+            }}
+            sx={{
+              py: 1.25,
+              gap: 1.5,
+              borderRadius: "8px",
+              fontSize: "13.5px",
+              fontWeight: 600,
+              color: "#334155",
+              "&:hover": { bgcolor: "#F0FDFA", color: "#0F766E" },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+              <AiOutlineFileText size={17} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Start from Template"
+              primaryTypographyProps={{ fontSize: "13px", fontWeight: 600 }}
+            />
+          </MenuItem>
 
+          <Divider sx={{ my: 0.75 }} />
 
+          <Box sx={{ p: 0.5 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<AutoAwesome sx={{ fontSize: 16 }} />}
+              onClick={() => {
+                setUploadAnchorEl(null);
+                setTemplateBrowserOpen(true);
+              }}
+              sx={{
+                py: 0.9,
+                px: 1.5,
+                fontSize: "13px",
+                fontWeight: 700,
+                textTransform: "none",
+                borderRadius: "9px",
+                background: "linear-gradient(90deg, #0F766E, #0284C7)",
+                color: "#FFFFFF",
+                boxShadow: "0 2px 8px rgba(15, 118, 110, 0.25)",
+                "&:hover": {
+                  background: "linear-gradient(90deg, #115E59, #0369A1)",
+                },
+              }}
+            >
+              Generate AI Template
+            </Button>
+          </Box>
+        </Menu>
 
-          </div>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        {/* Uploading progress dialog */}
+        <Dialog
+          open={loading}
+          PaperProps={{
+            sx: {
+              borderRadius: "20px",
+              p: 3.5,
+              width: "100%",
+              maxWidth: "380px",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.15)",
+            },
+          }}
+        >
+          <img
+            src="/images/uploading.gif"
+            alt="Uploading"
+            className="w-16 h-16 object-contain mb-3"
           />
-        </div>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              color: "#0F172A",
+              fontSize: "1.1rem",
+              mb: 0.5,
+            }}
+          >
+            {processingMsg || "Uploading document…"}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#64748B",
+              display: "block",
+              mb: 2,
+              maxWidth: 280,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={file?.name}
+          >
+            {file?.name}
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 600, color: "#0F766E", mb: 1.5 }}
+          >
+            {uploadProgress}%
+          </Typography>
+          <Box sx={{ width: "100%", mb: 3 }}>
+            <LinearProgress
+              variant="determinate"
+              value={uploadProgress}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                bgcolor: "#F1F5F9",
+                "& .MuiLinearProgress-bar": {
+                  background: "linear-gradient(90deg, #34D399, #0F766E)",
+                  borderRadius: 4,
+                },
+              }}
+            />
+          </Box>
+          <Button
+            variant="outlined"
+            onClick={cancelUpload}
+            fullWidth
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "#64748B",
+              borderColor: "#CBD5E1",
+              borderRadius: "10px",
+              py: 1,
+              "&:hover": { bgcolor: "#F8FAFC", borderColor: "#94A3B8" },
+            }}
+          >
+            Cancel Upload
+          </Button>
+        </Dialog>
 
-        {/* Cloud Providers Grid */}
-        {showCloudProviders && (
-          <div className="cloud-providers-section">
-            <div className="section-header">
-              <h3 className="section-title">Choose Cloud Provider</h3>
-              <button
-                className="close-section-btn"
-                onClick={() => setShowCloudProviders(false)}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          style={{ display: "none" }}
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        />
+      </Paper>
+
+      {/* Cloud Providers Selection Card */}
+      {showCloudProviders && (
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 4,
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: "18px",
+            border: "1px solid #E2E8F0",
+            bgcolor: "#FFFFFF",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)",
+          }}
+        >
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5, pb: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "#1E293B", fontSize: "1.05rem" }}>
+                Import from Cloud Storage
+              </Typography>
+             
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => setShowCloudProviders(false)}
+              sx={{ color: "#94A3B8", "&:hover": { color: "#1E293B", bgcolor: "#F1F5F9" } }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
+            {[
+              { id: "google", name: "Google Drive", desc: "Docs, PDFs & Sheets", icon: <FaGoogleDrive size={24} /> },
+              { id: "dropbox", name: "Dropbox", desc: "Files from Dropbox folder", icon: <FaDropbox size={24} /> },
+              { id: "onedrive", name: "OneDrive", desc: "Microsoft 365 & Word", icon: <FaMicrosoft size={24} /> },
+              { id: "box", name: "Box", desc: "Enterprise cloud storage", icon: <FaBox size={24} /> },
+            ].map((prov) => (
+              <Box
+                key={prov.id}
+                component="button"
+                type="button"
+                onClick={() => handleCloudProviderSelect(prov.id)}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  p: 2.75,
+                  bgcolor: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  "&:hover": {
+                    borderColor: "#0F766E",
+                    transform: "translateY(-3px)",
+                    boxShadow: "0 8px 20px -4px rgba(15, 118, 110, 0.15)",
+                    bgcolor: "#F0FDFA",
+                    "& .cloud-icon-badge": {
+                      bgcolor: "#0F766E",
+                      color: "#FFFFFF",
+                      borderColor: "#0F766E",
+                    },
+                    "& .cloud-title": {
+                      color: "#0F766E",
+                    },
+                  },
+                }}
               >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="cloud-providers-grid">
-              <button className="cloud-provider-btn" onClick={() => handleCloudProviderSelect('google')}>
-                <FaGoogleDrive className="cloud-icon" />
-                <span>Google Drive</span>
-              </button>
-              <button className="cloud-provider-btn" onClick={() => handleCloudProviderSelect('dropbox')}>
-                <FaDropbox className="cloud-icon" />
-                <span>Dropbox</span>
-              </button>
-              <button className="cloud-provider-btn" onClick={() => handleCloudProviderSelect('onedrive')}>
-                <FaMicrosoft className="cloud-icon" />
-                <span>OneDrive</span>
-              </button>
-              <button className="cloud-provider-btn" onClick={() => handleCloudProviderSelect('box')}>
-                <FaBox className="cloud-icon" />
-                <span>Box</span>
-              </button>
-            </div>
-          </div>
-        )}
+                <Box
+                  className="cloud-icon-badge"
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "12px",
+                    bgcolor: "#F0FDFA",
+                    color: "#0F766E",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mb: 1.5,
+                    border: "1px solid #CCFBF1",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {prov.icon}
+                </Box>
+                <Typography className="cloud-title" sx={{ fontWeight: 700, fontSize: "14px", color: "#1E293B", mb: 0.5, transition: "color 0.2s ease" }}>
+                  {prov.name}
+                </Typography>
+                <Typography sx={{ fontSize: "12px", color: "#64748B" }}>
+                  {prov.desc}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
 
-        {/* Templates Grid */}
-        {/* Template Browser Modal */}
-        {showTemplateBrowser && (
-          <TemplateBrowser
-            isOpen={showTemplateBrowser}
-            onClose={() => setShowTemplateBrowser(false)}
-            onTemplateSelect={handleTemplateSelect}
-          />
-        )}
-      </div>
+      {/* Template Browser Modal */}
+      {showTemplateBrowser && (
+        <TemplateBrowser
+          isOpen={showTemplateBrowser}
+          onClose={() => setShowTemplateBrowser(false)}
+          onTemplateSelect={handleTemplateSelect}
+        />
+      )}
+
+      {/* AI Template Browser Modal */}
       <AITemplateBrowser
         open={templateBrowserOpen}
         onClose={() => setTemplateBrowserOpen(false)}
@@ -1345,631 +1884,1276 @@ export default function MyDocuments() {
 
       {/* Box Picker Modal */}
       {showBoxPicker && (
-        <div className="modal-backdrop">
-          <div className="modal box-picker-modal">
-            <div className="modal-header">
-              <h3>Select File from Box</h3>
-              <button
-                className="close-btn"
-                onClick={() => setShowBoxPicker(false)}
+        <Dialog
+          open={showBoxPicker}
+          onClose={() => setShowBoxPicker(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: "16px", overflow: "hidden" } }}
+        >
+          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2.5, borderBottom: "1px solid #E2E8F0" }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#1E293B", fontSize: "1.125rem" }}>
+              Select File from Box
+            </Typography>
+            <IconButton size="small" onClick={() => setShowBoxPicker(false)} sx={{ color: "#64748B" }}>
+              <FaTimes size={16} />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent sx={{ p: 2.5, minHeight: 300, maxHeight: 420 }}>
+            <Box sx={{ display: "flex", gap: 1.5, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleBoxBack}
+                disabled={boxCurrentFolder === "0"}
+                startIcon={<FaArrowLeft size={12} />}
+                sx={{ borderRadius: "6px", textTransform: "none", color: "#475569", borderColor: "#CBD5E0" }}
               >
-                <FaTimes />
-              </button>
-            </div>
+                Back
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => loadBoxFiles()}
+                startIcon={<FaSync size={12} />}
+                sx={{ borderRadius: "6px", textTransform: "none", color: "#475569", borderColor: "#CBD5E0" }}
+              >
+                Refresh
+              </Button>
+            </Box>
 
-            <div className="modal-content">
-              <div className="box-picker-toolbar">
-                <button
-                  onClick={handleBoxBack}
-                  disabled={boxCurrentFolder === "0"}
-                  className="btn btn-outline back-btn"
-                >
-                  <FaArrowLeft className="btn-icon" />
-                  Back
-                </button>
-                <button
-                  onClick={() => loadBoxFiles()}
-                  className="btn btn-outline refresh-btn"
-                >
-                  <FaSync className="btn-icon" />
-                  Refresh
-                </button>
-              </div>
-
-              {boxLoading ? (
-                <div className="loading-state">
-                  <FaSync className="loading-spinner" />
-                  <span>Loading files...</span>
-                </div>
-              ) : (
-                <div className="box-files-list">
-                  {boxFiles.length === 0 ? (
-                    <div className="empty-state">
-                      <FaFolderOpen className="empty-icon" />
-                      <span>No files found in this folder</span>
-                    </div>
-                  ) : (
-                    boxFiles.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`box-file-item ${item.type}`}
-                        onClick={() => handleBoxFileSelect(item)}
-                      >
-                        <div className="box-file-icon">
-                          {item.type === "folder" ?
-                            <FaFolder className="folder-icon" /> :
-                            <FaFileAlt className="file-icon" />
-                          }
-                        </div>
-                        <div className="box-file-info">
-                          <div className="box-file-name">{item.name}</div>
-                          {item.type === "file" && item.size && (
-                            <div className="box-file-size">
-                              Size: {(item.size / 1024 / 1024).toFixed(2)} MB
-                            </div>
-                          )}
-                        </div>
-                        {item.type === "folder" && (
-                          <div className="box-folder-arrow">
-                            <FaChevronDown />
-                          </div>
+            {boxLoading ? (
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5, py: 6, color: "#64748B" }}>
+                <CircularProgress size={20} color="inherit" />
+                <Typography variant="body2">Loading files...</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {boxFiles.length === 0 ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 6, color: "#94A3B8", gap: 1.5 }}>
+                    <FaFolderOpen size={32} />
+                    <Typography variant="body2">No files found in this folder</Typography>
+                  </Box>
+                ) : (
+                  boxFiles.map((item) => (
+                    <Box
+                      key={item.id}
+                      onClick={() => handleBoxFileSelect(item)}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        p: 1.5,
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        "&:hover": { borderColor: "#38BDF8", bgcolor: "#F8FAFC" },
+                      }}
+                    >
+                      <Box sx={{ color: item.type === "folder" ? "#F59E0B" : "#38BDF8", fontSize: 20 }}>
+                        {item.type === "folder" ? <FaFolder /> : <FaFileAlt />}
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: "#1E293B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.name}
+                        </Typography>
+                        {item.type === "file" && item.size && (
+                          <Typography variant="caption" sx={{ color: "#64748B" }}>
+                            Size: {(item.size / 1024 / 1024).toFixed(2)} MB
+                          </Typography>
                         )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+                      </Box>
+                      {item.type === "folder" && (
+                        <FaChevronDown size={12} color="#94A3B8" />
+                      )}
+                    </Box>
+                  ))
+                )}
+              </Box>
+            )}
+          </DialogContent>
 
-            <div className="modal-footer">
-              <button
-                onClick={() => setShowBoxPicker(false)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+          <DialogActions sx={{ p: 2, borderTop: "1px solid #E2E8F0" }}>
+            <Button variant="outlined" onClick={() => setShowBoxPicker(false)} sx={{ textTransform: "none", color: "#475569", borderColor: "#CBD5E0", borderRadius: "8px" }}>
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
 
-      {/* Documents Table */}
-      <div className="documents-section">
-        <div className="section-header">
-          <h3 className="section-title">Your Documents</h3>
-
-          <div className="dt-filter-bar-pro">
-
-            {/* Left: Search */}
-            <div className="dt-filter-search">
-              <FaSearch className="dt-filter-icon" />
-              <input
-                type="text"
-                placeholder="Search by file name or date…"
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters({ ...filters, search: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Right: Filter Button */}
-            <div className="dt-filter-actions" ref={filterRef}>
-              <button
-                className={`dt-filter-btn ${showAdvancedFilters ? 'active' : ''} ${filters.status || filters.source ? 'has-active-filters' : ''}`}
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              >
-                <FaFilter className="dt-filter-btn-icon" />
-                <span>Filters</span>
-                {(filters.status || filters.source) && (
-                  <span className="dt-filter-badge"></span>
-                )}
-              </button>
-
-
-              {showAdvancedFilters && (
-                <div className="dt-filter-dropdown shadow-lg animate-in fade-in zoom-in duration-200">
-                  <div className="dt-filter-dropdown-header">
-                    <h4>Advanced Filters</h4>
-                    <button
-                      onClick={() => setShowAdvancedFilters(false)}
-                      className="dt-filter-close-btn"
-                    >
-                      <FaTimes />
-                    </button>
-                  </div>
-
-                  <div className="dt-filter-group">
-                    <label>Status</label>
-                    <select
-                      value={filters.status}
-                      onChange={(e) =>
-                        setFilters({ ...filters, status: e.target.value })
-                      }
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="draft">Draft</option>
-                      <option value="sent">Sent</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="declined">Declined</option>
-                      <option value="voided">Voided</option>
-                      <option value="expired">Expired</option>
-                    </select>
-                  </div>
-
-                  <div className="dt-filter-group">
-                    <label>Source</label>
-                    <select
-                      value={filters.source}
-                      onChange={(e) =>
-                        setFilters({ ...filters, source: e.target.value })
-                      }
-                    >
-                      <option value="">All Sources</option>
-                      <option value="local">Local Upload</option>
-                      <option value="google">Google Drive</option>
-                      <option value="dropbox">Dropbox</option>
-                      <option value="onedrive">OneDrive</option>
-                      <option value="box">Box</option>
-                    </select>
-                  </div>
-
-                  <div className="dt-filter-footer">
-                    <button
-                      className="dt-filter-reset"
-                      onClick={() =>
-                        setFilters({ search: "", status: "", source: "" })
-                      }
-                    >
-                      Clear All
-                    </button>
-
-                    <button
-                      className="dt-filter-apply"
-                      onClick={() => setShowAdvancedFilters(false)}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-
-          <span className="doc-count">{filteredDocuments.length} of {totalDocs} documents documents</span>
-        </div>
-
-
-        <div className="esigniva-pagination">
-          <div className="esigniva-pagination-info">
-            Showing{" "}
-            {totalDocs === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-            {" – "}
-            {Math.min(currentPage * pageSize, totalDocs)} of {totalDocs}
-          </div>
-
-
-          <div className="esigniva-pagination-center">
-            Rows
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-
-          <div className="esigniva-pagination-controls">
-            <button
-              className="esigniva-page-btn"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-            >
-              ← Previous
-            </button>
-
-            <span className="esigniva-page-current">
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <button
-              className="esigniva-page-btn"
-              disabled={currentPage >= totalPages || totalDocs === 0}
-              onClick={() => setCurrentPage(currentPage + 1)}
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-
-
-
-        {listLoading && !showSuccessDialog ? (
-          <div className="ss-content-wrapper-list">
-            <div className="ss-loading-overlay">
-              <div className="ss-spinner-container">
-                <div className="ss-loading-spinner"></div>
-                <div className="ss-loader-text">
-                  <p>Loading</p>
-                  <div className="ss-rotating-words">
-                    <span className="ss-word">Status</span>
-                    <span className="ss-word">Reports</span>
-                    <span className="ss-word">Features</span>
-                    <span className="ss-word">Documents</span>
-                    <span className="ss-word">Signatures</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : documents.length === 0 ? (
-          <div className="empty-documents">
-            <FaFileAlt className="empty-icon" />
-            <h4>No documents uploaded yet</h4>
-            <p>Start by uploading your first document using the options above</p>
-          </div>
-        ) : (
-          <div className="documents-table-container">
-            <table className="documents-table">
-              <thead>
-                <tr>
-                  <th>Filename</th>
-                  <th>Uploaded On</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocuments.map((doc) => (
-
-
-                  <tr key={doc.id}>
-                    <td className="file-cell" data-label="Filename">
-                      {getFileIcon(doc.filename)}
-                      <span
-                        className="file-name clickable"
-                        onClick={() => {
-                          setActiveDocId(doc.id);
-                          setActiveDocument(doc);
-                          setViewerOpen(true);
-                        }}
-                      >
-                        {doc.filename}
-                      </span>
-                    </td>
-                    <td data-label="Uploaded On">{new Date(doc.uploaded_at).toLocaleString()}</td>
-                    <td data-label="Source">
-                      <span className={`source-badge source-${doc.source?.toLowerCase()}`}>
-                        {doc.source}
-                      </span>
-                    </td>
-                    <td data-label="Status">
-                      <StatusChip status={doc.status} />
-                    </td>
-
-                    <td className="action-buttons" data-label="Actions">
-
-                      {/* Prepare & Send Button - Main Action */}
-                      {/* {doc.status === "draft" && ( */}
-                      <button
-                        className="btn btn-primary2"
-                        onClick={() => navigate(`/user/prepare-send/${doc.id}`, { state: { document: doc } })}
-                        disabled={doc.status !== "draft"}
-                      >
-                        Prepare & Send
-                      </button>
-                      {/* )} */}
-
-                      {/* Recipient Manager */}
-                      {/* <RecipientManager document={doc} onUpdate={loadDocs} /> */}
-
-                      {/* // In the action-buttons section, add: */}
-                      {/* <button
-  className="btn btn-primary btn-sm"
-  disabled={doc.status !== "draft"}
-  onClick={() => handleBuildTemplate(doc)}
->
-  <FaEdit className="btn-icon" />
-  Build Template
-</button> */}
-
-
-                      {/* Three-dot dropdown menu */}
-                      <div
-                        className={`dropdown ${openMenuId === doc.id ? 'show' : ''}`}
-                        ref={el => {
-                          if (el) {
-                            // Check space below on hover
-                            const checkPosition = () => {
-                              const rect = el.getBoundingClientRect();
-                              const spaceBelow = window.innerHeight - rect.bottom;
-                              const spaceAbove = rect.top;
-
-                              // If less than 300px below and more space above, open upward
-                              if (spaceBelow < 300 && spaceAbove > spaceBelow) {
-                                el.classList.add('dropup');
-                              } else {
-                                el.classList.remove('dropup');
-                              }
-                            };
-
-                            // Check position on hover
-                            el.addEventListener('mouseenter', checkPosition);
-
-                            // Cleanup
-                            return () => el.removeEventListener('mouseenter', checkPosition);
-                          }
-                        }}
-                      >
-                        <button
-                          className="btn btn-sm"
-                          title="More actions"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === doc.id ? null : doc.id);
-                          }}
-                        >
-                          <MoreVertIcon />
-                        </button>
-
-                        <div className="dropdown-menu">
-                          {/* Move Manage Recipients inside dropdown */}
-
-                          <button
-                            className="dropdown-item"
-                            onClick={() => {
-                              setActiveDocId(doc.id);                 // track which doc is being renamed
-                              setNewFilename(
-                                (doc.filename || "").replace(/\.pdf$/i, "")
-                              );
-                              setRenameOpen(true);
-                            }}
-
-                          >
-                            <FaEdit size={14} className="dropdown-icon" />
-                            <span>Rename</span>
-                          </button>
-
-                          {/* <button 
-  className="dropdown-item"
-  onClick={() => {
-    setSelectedDocument(doc);
-    setShowRecipientManager(true);
-  }}
->
-  <PeopleIcon className="dropdown-icon" />
-  <span>Manage Recipients</span>
-</button> */}
-
-
-                          {/* Move Build Template inside dropdown */}
-
-                          {doc.status === "draft" && (
-                            <button
-                              className="dropdown-item"
-                              onClick={() => handleBuildTemplate(doc)}
-                              disabled={doc.status !== "draft"}
-                            >
-                              <EditIcon className="dropdown-icon" />
-                              <span>Build Template</span>
-                            </button>
-                          )
-                          }
-
-
-                          {/* Always visible options */}
-                          <button className="dropdown-item" onClick={() => {
-                            setActiveDocId(doc.id);
-                            setActiveDocument(doc);
-                            setViewerOpen(true);
-                          }}>
-                            <VisibilityIcon className="dropdown-icon" />
-                            <span>View Document</span>
-                          </button>
-
-                          <button className="dropdown-item" onClick={() => handleDownload(doc)}>
-                            <DownloadIcon className="dropdown-icon" />
-                            <span>Download</span>
-                          </button>
-
-                          <button className="dropdown-item" onClick={() => {
-                            setActiveDocId(doc.id);
-                            setActiveDocument(doc);
-                            setSignedOpen(true);
-                          }}>
-                            <PreviewIcon className="dropdown-icon" />
-                            <span>Signed Preview</span>
-                          </button>
-
-                          {doc.status === "completed" && (
-                            <button className="dropdown-item" onClick={() => handleDownloadPackage(doc)}>
-                              <ArchiveIcon className="dropdown-icon" style={{ fontSize: '14px' }} />
-                              <span>Download Package (ZIP)</span>
-                            </button>
-                          )}
-
-                          <div className="dropdown-divider"></div>
-
-                          <button
-                            className="dropdown-item"
-                            onClick={() => {
-                              setActiveDocId(doc.id);
-                              setTimelineOpen(true);
-                            }}
-                          >
-                            <HistoryIcon className="dropdown-icon" />
-                            <span>Timeline</span>
-                          </button>
-
-                          {/* Conditional options based on status */}
-                          {["draft", "sent", "in_progress", "declined", "expired"].includes(doc.status) && (
-                            <>
-                              <div className="dropdown-divider"></div>
-
-                              <button
-                                className="dropdown-item dropdown-item-warning"
-                                onClick={() => {
-                                  setDocToVoid(doc);
-                                  setVoidDialogOpen(true);
-                                }}
-                              >
-                                <CancelIcon className="dropdown-icon" />
-                                <span>Void Document</span>
-                              </button>
-
-
-                              <button
-                                className="dropdown-item dropdown-item-danger"
-                                onClick={() => {
-                                  setDocToDelete(doc);
-                                  setDeleteDialogOpen(true);
-                                }}
-                              >
-                                <DeleteIcon className="dropdown-icon" />
-                                <span>Delete</span>
-                              </button>
-
-                            </>
-                          )}
-
-                          {doc.status === "voided" && (
-                            <>
-                              <div className="dropdown-divider"></div>
-
-                              <button
-                                className="dropdown-item dropdown-item-success"
-                                onClick={async () => {
-                                  try {
-                                    await restoreDocument(doc.id);
-                                    showAlert.success("Document Reactivated", "The void action was cancelled. The document is now active again.");
-                                    loadDocs();
-                                  } catch (e) {
-                                    showAlert.error("Action Failed", showAlert.extractMessage(e, "Unable to cancel document void status."));
-                                  }
-                                }}
-                              >
-                                <RestoreIcon className="dropdown-icon" />
-                                <span>Cancel Void</span>
-                              </button>
-
-                              <button
-                                className="dropdown-item dropdown-item-danger"
-                                onClick={() => {
-                                  setDocToDelete(doc);
-                                  setDeleteDialogOpen(true);
-                                }}
-                              >
-                                <DeleteIcon className="dropdown-icon" />
-                                <span>Delete</span>
-                              </button>
-
-                            </>
-                          )}
-
-                          {doc.status === "deleted" && (
-                            <>
-                              <div className="dropdown-divider"></div>
-
-                              <button
-                                className="dropdown-item dropdown-item-success"
-                                onClick={async () => {
-                                  try {
-                                    await restoreDocument(doc.id);
-                                    showAlert.success("Document Restored", `"${doc.filename}" has been restored to your active documents.`);
-                                    loadDocs();
-                                  } catch (e) {
-                                    showAlert.error("Restore Failed", showAlert.extractMessage(e, "Failed to restore document."));
-                                  }
-                                }}
-                              >
-                                <RestoreIcon className="dropdown-icon" />
-                                <span>Restore</span>
-                              </button>
-
-                              <button
-                                className="dropdown-item dropdown-item-danger"
-                                onClick={() => {
-                                  setDocToPermanentDelete(doc);
-                                  setPermanentDeleteOpen(true);
-                                }}
-                              >
-                                <DeleteForeverIcon className="dropdown-icon" />
-                                <span>Permanent Delete</span>
-                              </button>
-
-                            </>
-                          )}
-
-                          <div className="dropdown-divider"></div>
-
-                          {/* Recipient Manager */}
-                          {/* <button 
-        className="dropdown-item"
-        onClick={() => {
-          // You'll need to implement a modal or other way to show RecipientManager
-          // For now, let's assume RecipientManager opens in a modal
-          setSelectedDocument(doc);
+      {/* Modern Documents Vault Card */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "18px",
+          border: "1px solid #E2E8F0",
+          overflow: "hidden",
+          bgcolor: "#FFFFFF",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.02), 0 8px 24px -4px rgba(0, 0, 0, 0.04)",
         }}
       >
-        <PeopleIcon className="dropdown-icon" />
-        <span>Manage Recipients</span>
-      </button> */}
+        {/* Top Toolbar */}
+        <Box
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "stretch", md: "center" },
+            justifyContent: "space-between",
+            gap: 2,
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          {/* Card Title & Stats */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: "#0F172A",
+                fontSize: { xs: "1.1rem", sm: "1.2rem" },
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Your Documents
+            </Typography>
+            <Chip
+              label={`${totalDocs} ${totalDocs === 1 ? "document" : "documents"}`}
+              size="small"
+              sx={{
+                bgcolor: "#F0FDFA",
+                color: "#0F766E",
+                fontWeight: 700,
+                borderRadius: "8px",
+                border: "1px solid #CCFBF1",
+                fontSize: "12px",
+                height: 24,
+              }}
+            />
+          </Box>
 
-                          {/* Build Template */}
-                          {/* <button 
-        className="dropdown-item dropdown-item-primary"
-        onClick={() => handleBuildTemplate(doc)}
-      >
-        <EditIcon className="dropdown-icon" />
-        <span>Build Template</span>
-      </button> */}
+          {/* Controls: Search & Filter */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
+            {/* Search Input */}
+            <TextField
+              size="small"
+              placeholder="Search by file name or date..."
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#94A3B8", fontSize: 19 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: filters.search ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setFilters({ ...filters, search: "" })}>
+                      <ClearIcon sx={{ fontSize: 16, color: "#94A3B8" }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+              sx={{
+                width: { xs: "100%", sm: 270 },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  bgcolor: "#FFFFFF",
+                  fontSize: "13.5px",
+                  "& fieldset": { borderColor: "#E2E8F0" },
+                  "&:hover fieldset": { borderColor: "#CBD5E1" },
+                  "&.Mui-focused fieldset": { borderColor: "#0F766E", borderWidth: "1.5px" },
+                },
+              }}
+            />
 
+            {/* Filter Popover Trigger */}
+            <Button
+              variant={Boolean(filterAnchorEl) || filters.status || filters.source ? "contained" : "outlined"}
+              size="small"
+              startIcon={<FilterListIcon sx={{ fontSize: 18 }} />}
+              onClick={(e) => setFilterAnchorEl(filterAnchorEl ? null : e.currentTarget)}
+              sx={{
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "13px",
+                px: 2,
+                py: 0.85,
+                whiteSpace: "nowrap",
+                ...(Boolean(filterAnchorEl) || filters.status || filters.source
+                  ? {
+                      bgcolor: "#0F766E",
+                      color: "#FFFFFF",
+                      "&:hover": { bgcolor: "#115E59" },
+                    }
+                  : {
+                      borderColor: "#E2E8F0",
+                      color: "#475569",
+                      bgcolor: "#FFFFFF",
+                      "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
+                    }),
+              }}
+            >
+              Filters
+              {(filters.status || filters.source) && (
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: "#FFFFFF",
+                    ml: 1,
+                  }}
+                />
+              )}
+            </Button>
 
-                          {doc.status === "draft" && (
-                            <button
-                              className="dropdown-item"
+            {/* Filter Popover Content */}
+            <Popover
+              open={Boolean(filterAnchorEl)}
+              anchorEl={filterAnchorEl}
+              onClose={() => setFilterAnchorEl(null)}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{
+                elevation: 4,
+                sx: {
+                  borderRadius: "16px",
+                  width: 300,
+                  p: 2.5,
+                  mt: 1,
+                  border: "1px solid #E2E8F0",
+                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, pb: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+                <Typography sx={{ fontWeight: 700, fontSize: "14px", color: "#1E293B" }}>
+                  Filter Documents
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => setFilterAnchorEl(null)}
+                  sx={{ color: "#94A3B8", "&:hover": { color: "#1E293B" } }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Box>
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    Status
+                  </Typography>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      backgroundColor: "#F8FAFC",
+                      fontSize: "13px",
+                      color: "#334155",
+                      outline: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="declined">Declined</option>
+                    <option value="voided">Voided</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    Source
+                  </Typography>
+                  <select
+                    value={filters.source}
+                    onChange={(e) => setFilters({ ...filters, source: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      backgroundColor: "#F8FAFC",
+                      fontSize: "13px",
+                      color: "#334155",
+                      outline: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <option value="">All Sources</option>
+                    <option value="local">Local Upload</option>
+                    <option value="google">Google Drive</option>
+                    <option value="dropbox">Dropbox</option>
+                    <option value="onedrive">OneDrive</option>
+                    <option value="box">Box</option>
+                  </select>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
+                <Button
+                  size="small"
+                  onClick={() => setFilters({ search: "", status: "", source: "" })}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    color: "#64748B",
+                    "&:hover": { color: "#0F172A", bgcolor: "transparent" },
+                  }}
+                >
+                  Clear All
+                </Button>
+
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setFilterAnchorEl(null)}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    borderRadius: "8px",
+                    bgcolor: "#0F766E",
+                    "&:hover": { bgcolor: "#115E59" },
+                    px: 2,
+                    py: 0.6,
+                  }}
+                >
+                  Apply Filters
+                </Button>
+              </Box>
+            </Popover>
+          </Box>
+        </Box>
+
+        {/* Status Filter Tabs */}
+        <Box sx={{ px: { xs: 2, sm: 2.5 }, borderBottom: "1px solid #F1F5F9" }}>
+          <Tabs
+            value={filters.status || "all"}
+            onChange={(e, val) => {
+              setFilters((prev) => ({ ...prev, status: val === "all" ? "" : val }));
+              setCurrentPage(1);
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              minHeight: 46,
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#0F766E",
+                height: 3,
+                borderRadius: "3px 3px 0 0",
+              },
+              "& .MuiTab-root": {
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "13px",
+                minHeight: 46,
+                py: 1,
+                px: 2,
+                color: "#64748B",
+                "&.Mui-selected": {
+                  color: "#0F766E",
+                  fontWeight: 700,
+                },
+              },
+            }}
+          >
+            <Tab value="all" label="All Documents" />
+            <Tab value="draft" label="Drafts" />
+            <Tab value="in_progress" label="In Progress" />
+            <Tab value="completed" label="Completed" />
+            <Tab value="sent" label="Sent" />
+            <Tab value="voided" label="Voided" />
+          </Tabs>
+        </Box>
+
+        {/* Table Content / Loading / Empty States */}
+        {listLoading && !showSuccessDialog ? (
+          <Box sx={{ py: 4, px: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 2.5, py: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+                <Skeleton variant="text" width={24} height={20} />
+                <Skeleton variant="rounded" width={38} height={38} sx={{ borderRadius: "10px" }} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton variant="text" width="45%" height={24} />
+                  <Skeleton variant="text" width="20%" height={16} />
+                </Box>
+                <Skeleton variant="text" width={110} height={20} />
+                <Skeleton variant="rounded" width={90} height={24} sx={{ borderRadius: "12px" }} />
+                <Skeleton variant="rounded" width={80} height={24} sx={{ borderRadius: "12px" }} />
+                <Skeleton variant="rounded" width={120} height={32} sx={{ borderRadius: "8px" }} />
+              </Box>
+            ))}
+          </Box>
+        ) : filteredDocuments.length === 0 ? (
+          <Box sx={{ py: 8, px: 3, textAlign: "center" }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                borderRadius: "16px",
+                bgcolor: "#F8FAFC",
+                color: "#94A3B8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mx: "auto",
+                mb: 2,
+                border: "1px solid #E2E8F0",
+              }}
+            >
+              <InsertDriveFileOutlinedIcon sx={{ fontSize: 32 }} />
+            </Box>
+            <Typography sx={{ fontWeight: 700, color: "#1E293B", fontSize: "16px", mb: 0.5 }}>
+              {filters.search || filters.status || filters.source
+                ? "No matching documents found"
+                : "No documents uploaded yet"}
+            </Typography>
+            <Typography sx={{ color: "#64748B", fontSize: "13.5px", maxWidth: 420, mx: "auto", mb: 2.5 }}>
+              {filters.search || filters.status || filters.source
+                ? "Try clearing or adjusting your search terms and filters."
+                : "Start by uploading your first document or creating one from a template above."}
+            </Typography>
+            {filters.search || filters.status || filters.source ? (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setFilters({ search: "", status: "", source: "" })}
+                sx={{
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderColor: "#0F766E",
+                  color: "#0F766E",
+                  "&:hover": { bgcolor: "#F0FDFA", borderColor: "#0F766E" },
+                }}
+              >
+                Reset Filters
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<FiUpload />}
+                onClick={handleLocalUpload}
+                sx={{
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  bgcolor: "#0F766E",
+                  color: "#FFFFFF",
+                  "&:hover": { bgcolor: "#115E59" },
+                }}
+              >
+                Upload Document
+              </Button>
+            )}
+          </Box>
+        ) : (
+          <TableContainer sx={{ overflowX: "auto" }}>
+            <Table sx={{ minWidth: 720 }}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#F8FAFC" }}>
+                  <TableCell sx={{ py: 1.75, px: 2.5, width: 60, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    S.No
+                  </TableCell>
+                  <TableCell sx={{ py: 1.75, px: 3, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    Document Name
+                  </TableCell>
+                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    Uploaded On
+                  </TableCell>
+                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    Source
+                  </TableCell>
+                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    Status
+                  </TableCell>
+                  <TableCell align="right" sx={{ py: 1.75, px: 3, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredDocuments.map((doc, index) => {
+                  const formatted = formatDate(doc.uploaded_at);
+                  const isDraft = doc.status === "draft";
+                  const serialNumber = (currentPage - 1) * pageSize + index + 1;
+
+                  return (
+                    <TableRow
+                      key={doc.id}
+                      hover
+                      sx={{
+                        "&:hover": { bgcolor: "#F8FAFC" },
+                        "& td": { borderBottom: "1px solid #F1F5F9" },
+                        transition: "background-color 0.15s ease",
+                      }}
+                    >
+                      {/* S.No */}
+                      <TableCell sx={{ py: 2, px: 2.5, width: 60, whiteSpace: "nowrap" }}>
+                        <Typography sx={{ fontSize: "12.5px", fontWeight: 600, color: "#64748B" }}>
+                          {serialNumber}
+                        </Typography>
+                      </TableCell>
+                      {/* Document Name */}
+                      <TableCell sx={{ py: 2, px: 3, maxWidth: { xs: 150, sm: 220, md: 320, lg: 420 }, minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.75,
+                            minWidth: 0,
+                            width: "100%",
+                          }}
+                        >
+                          {getFileIcon(doc.filename)}
+
+                          <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                            <FilenameDisplay
+                              filename={doc.filename}
+                              middleTruncate={true}
+                              tooltipPlacement="top-start"
                               onClick={() => {
-                                setMergeDoc(doc);
-                                setMergeOpen(true);
+                                setActiveDocId(doc.id);
+                                setActiveDocument(doc);
+                                setViewerOpen(true);
+                              }}
+                              sx={{
+                                fontFamily: '"Inter", sans-serif',
+                                fontWeight: 600,
+                                color: "#0F172A",
+                                fontSize: "14px",
+                                lineHeight: 1.5,
+                                cursor: "pointer",
+                                transition: "color 0.15s ease",
+                                "&:hover": {
+                                  color: "#0F766E",
+                                  textDecoration: "underline",
+                                },
+                              }}
+                            />
+
+                            <Typography
+                              sx={{
+                                fontSize: "12px",
+                                color: "#94A3B8",
+                                textTransform: "uppercase",
+                                fontWeight: 500,
+                                mt: 0.3,
                               }}
                             >
-                              <FaPlus className="dropdown-icon" />
-                              <span>Add / Merge File</span>
-                            </button>
+                              {doc.filename
+                                ? doc.filename.split(".").pop()
+                                : "DOCUMENT"}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+
+                      {/* Uploaded On */}
+                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                        <Box sx={{ display: "flex", flexDirection: "column" }}>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#1E293B" }}>
+                            {formatted.date}
+                          </Typography>
+                          <Typography sx={{ fontSize: "11.5px", color: "#94A3B8" }}>
+                            {formatted.time}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+
+                      {/* Source */}
+                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                        {renderSourceBadge(doc.source)}
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                        <StatusChip status={doc.status} />
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell align="right" sx={{ py: 2, px: 3, whiteSpace: "nowrap" }}>
+                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                          {isDraft ? (
+                            <Button
+                              variant="contained"
+                              size="small"
+                              endIcon={<SendIcon sx={{ fontSize: 13 }} />}
+                              onClick={() => navigate(`/user/prepare-send/${doc.id}`, { state: { document: doc } })}
+                              sx={{
+                                bgcolor: "#0F766E",
+                                color: "#FFFFFF",
+                                "&:hover": { bgcolor: "#115E59" },
+                                borderRadius: "8px",
+                                textTransform: "none",
+                                fontWeight: 700,
+                                fontSize: "12px",
+                                px: 1.75,
+                                py: 0.65,
+                                boxShadow: "0 2px 6px rgba(15, 118, 110, 0.2)",
+                              }}
+                            >
+                              Prepare & Send
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              endIcon={<VisibilityIcon sx={{ fontSize: 13 }} />}
+                              onClick={() => {
+                                setActiveDocId(doc.id);
+                                setActiveDocument(doc);
+                                setViewerOpen(true);
+                              }}
+                              sx={{
+                                borderColor: "#E2E8F0",
+                                color: "#475569",
+                                bgcolor: "#FFFFFF",
+                                "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC", color: "#0F766E" },
+                                borderRadius: "8px",
+                                textTransform: "none",
+                                fontWeight: 600,
+                                fontSize: "12px",
+                                px: 1.5,
+                                py: 0.65,
+                              }}
+                            >
+                              View
+                            </Button>
                           )}
 
-                          <button
-                            className="dropdown-item"
-                            onClick={() => navigate(`/user/document-summary/${doc.id}`)}
-                          >
-                            <SummarizeIcon className="dropdown-icon" />
-                            <span>View Summary</span>
-                          </button>
-
-
-
-                        </div>
-                      </div>
-
-                    </td>
-
-
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {/* Action Menu Trigger */}
+                          <Tooltip title="More actions">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActionMenuAnchorEl(e.currentTarget);
+                                setActionMenuDoc(doc);
+                              }}
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "8px",
+                                border: "1px solid #E2E8F0",
+                                color: "#64748B",
+                                bgcolor: "#FFFFFF",
+                                "&:hover": { bgcolor: "#F1F5F9", color: "#0F172A", borderColor: "#CBD5E1" },
+                              }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </div>
+
+        {/* Integrated Pagination Footer */}
+        <Box
+          sx={{
+            px: { xs: 2, sm: 3 },
+            py: 1.75,
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            justifyContent: "space-between",
+            gap: 2,
+            borderTop: "1px solid #F1F5F9",
+            bgcolor: "#FAFAFA",
+          }}
+        >
+          {/* Item Count Display */}
+          <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontWeight: 500, textAlign: { xs: "center", sm: "left" } }}>
+            {totalDocs === 0
+              ? "Showing 0 documents"
+              : `Showing ${(currentPage - 1) * pageSize + 1} – ${Math.min(currentPage * pageSize, totalDocs)} of ${totalDocs} documents`}
+          </Typography>
+
+          {/* Rows & Page Controls */}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: { xs: "space-between", sm: "flex-end" }, gap: 2.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: "12.5px", color: "#64748B", fontWeight: 500 }}>
+                Rows:
+              </Typography>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                  border: "1px solid #CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  color: "#334155",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<NavigateBeforeIcon sx={{ fontSize: 16 }} />}
+                disabled={currentPage <= 1 || totalDocs === 0}
+                onClick={() => setCurrentPage(currentPage - 1)}
+                sx={{
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  borderColor: "#E2E8F0",
+                  color: "#475569",
+                  bgcolor: "#FFFFFF",
+                  py: 0.5,
+                  px: 1.5,
+                  "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
+                  "&.Mui-disabled": { opacity: 0.4 },
+                }}
+              >
+                Previous
+              </Button>
+
+              <Chip
+                label={`Page ${totalDocs === 0 || totalPages === 0 ? 0 : currentPage} of ${totalPages || 0}`}
+                size="small"
+                sx={{
+                  bgcolor: "#F0FDFA",
+                  color: "#0F766E",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  height: 28,
+                  border: "1px solid #CCFBF1",
+                }}
+              />
+
+              <Button
+                variant="outlined"
+                size="small"
+                endIcon={<NavigateNextIcon sx={{ fontSize: 16 }} />}
+                disabled={currentPage >= totalPages || totalDocs === 0}
+                onClick={() => setCurrentPage(currentPage + 1)}
+                sx={{
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  borderColor: "#E2E8F0",
+                  color: "#475569",
+                  bgcolor: "#FFFFFF",
+                  py: 0.5,
+                  px: 1.5,
+                  "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
+                  "&.Mui-disabled": { opacity: 0.4 },
+                }}
+              >
+                Next
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Shared MUI Action Menu */}
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={() => {
+          setActionMenuAnchorEl(null);
+          setActionMenuDoc(null);
+        }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+        PaperProps={{
+          elevation: 4,
+          sx: {
+            borderRadius: "14px",
+            minWidth: 220,
+            py: 0.5,
+            border: "1px solid #e2e8f0",
+            boxShadow:
+              "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          },
+        }}
+      >
+        {actionMenuDoc && (
+          <>
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                setActiveDocId(doc.id);
+                setNewFilename((doc.filename || "").replace(/\.pdf$/i, ""));
+                setRenameOpen(true);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <FaEdit size={14} className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Rename"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+
+            {actionMenuDoc.status === "draft" && (
+              <MenuItem
+                onClick={() => {
+                  const doc = actionMenuDoc;
+                  setActionMenuAnchorEl(null);
+                  handleBuildTemplate(doc);
+                }}
+                sx={{
+                  fontSize: "13px",
+                  py: 1,
+                  gap: 1.5,
+                  color: "#334155",
+                  "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                  <EditIcon fontSize="small" className="text-slate-400" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Build Template"
+                  primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+                />
+              </MenuItem>
+            )}
+
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                setActiveDocId(doc.id);
+                setActiveDocument(doc);
+                setViewerOpen(true);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <VisibilityIcon fontSize="small" className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="View Document"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                handleDownload(doc);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <DownloadIcon fontSize="small" className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Download"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                setActiveDocId(doc.id);
+                setActiveDocument(doc);
+                setSignedOpen(true);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <PreviewIcon fontSize="small" className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Signed Preview"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+
+            {actionMenuDoc.status === "completed" && (
+              <MenuItem
+                onClick={() => {
+                  const doc = actionMenuDoc;
+                  setActionMenuAnchorEl(null);
+                  handleDownloadPackage(doc);
+                }}
+                sx={{
+                  fontSize: "13px",
+                  py: 1,
+                  gap: 1.5,
+                  color: "#334155",
+                  "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                  <ArchiveIcon fontSize="small" className="text-slate-400" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Download Package (ZIP)"
+                  primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+                />
+              </MenuItem>
+            )}
+
+            <Divider sx={{ my: 0.5 }} />
+
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                setActiveDocId(doc.id);
+                setTimelineOpen(true);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <HistoryIcon fontSize="small" className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Timeline"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+
+            {["draft", "sent", "in_progress", "declined", "expired"].includes(
+              actionMenuDoc.status
+            ) && (
+              <>
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  onClick={() => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    setDocToVoid(doc);
+                    setVoidDialogOpen(true);
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#d97706",
+                    "&:hover": { bgcolor: "#fffbeb" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#d97706" }}>
+                    <CancelIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Void Document"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    setDocToDelete(doc);
+                    setDeleteDialogOpen(true);
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#dc2626",
+                    "&:hover": { bgcolor: "#fef2f2" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#dc2626" }}>
+                    <DeleteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Delete"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+              </>
+            )}
+
+            {actionMenuDoc.status === "voided" && (
+              <>
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  onClick={async () => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    try {
+                      await restoreDocument(doc.id);
+                      showAlert.success(
+                        "Document Reactivated",
+                        "The void action was cancelled. The document is now active again."
+                      );
+                      loadDocs();
+                    } catch (e) {
+                      showAlert.error(
+                        "Action Failed",
+                        showAlert.extractMessage(
+                          e,
+                          "Unable to cancel document void status."
+                        )
+                      );
+                    }
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#059669",
+                    "&:hover": { bgcolor: "#ecfdf5" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#059669" }}>
+                    <RestoreIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Cancel Void"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    setDocToDelete(doc);
+                    setDeleteDialogOpen(true);
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#dc2626",
+                    "&:hover": { bgcolor: "#fef2f2" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#dc2626" }}>
+                    <DeleteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Delete"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+              </>
+            )}
+
+            {actionMenuDoc.status === "deleted" && (
+              <>
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  onClick={async () => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    try {
+                      await restoreDocument(doc.id);
+                      showAlert.success(
+                        "Document Restored",
+                        `"${doc.filename}" has been restored to your active documents.`
+                      );
+                      loadDocs();
+                    } catch (e) {
+                      showAlert.error(
+                        "Restore Failed",
+                        showAlert.extractMessage(
+                          e,
+                          "Failed to restore document."
+                        )
+                      );
+                    }
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#059669",
+                    "&:hover": { bgcolor: "#ecfdf5" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#059669" }}>
+                    <RestoreIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Restore"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    const doc = actionMenuDoc;
+                    setActionMenuAnchorEl(null);
+                    setDocToPermanentDelete(doc);
+                    setPermanentDeleteOpen(true);
+                  }}
+                  sx={{
+                    fontSize: "13px",
+                    py: 1,
+                    gap: 1.5,
+                    color: "#dc2626",
+                    "&:hover": { bgcolor: "#fef2f2" },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: "auto", color: "#dc2626" }}>
+                    <DeleteForeverIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Permanent Delete"
+                    primaryTypographyProps={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "inherit",
+                    }}
+                  />
+                </MenuItem>
+              </>
+            )}
+
+            <Divider sx={{ my: 0.5 }} />
+
+            {actionMenuDoc.status === "draft" && (
+              <MenuItem
+                onClick={() => {
+                  const doc = actionMenuDoc;
+                  setActionMenuAnchorEl(null);
+                  setMergeDoc(doc);
+                  setMergeOpen(true);
+                }}
+                sx={{
+                  fontSize: "13px",
+                  py: 1,
+                  gap: 1.5,
+                  color: "#334155",
+                  "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                  <FaPlus size={14} className="text-slate-400" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Add / Merge File"
+                  primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+                />
+              </MenuItem>
+            )}
+
+            <MenuItem
+              onClick={() => {
+                const doc = actionMenuDoc;
+                setActionMenuAnchorEl(null);
+                navigate(`/user/document-summary/${doc.id}`);
+              }}
+              sx={{
+                fontSize: "13px",
+                py: 1,
+                gap: 1.5,
+                color: "#334155",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                <SummarizeIcon fontSize="small" className="text-slate-400" />
+              </ListItemIcon>
+              <ListItemText
+                primary="View Summary"
+                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+              />
+            </MenuItem>
+          </>
+        )}
+      </Menu>
 
 
       {/* Place modals/drawer once per parent component (not inside map) */}
@@ -2050,359 +3234,458 @@ export default function MyDocuments() {
 
 
 
-      {mergeOpen && (
-        <div className="zoho-merge-backdrop">
-          <div className="zoho-merge-dialog">
-
-            {/* Header */}
-            <div className="zoho-merge-header">
-              <h3>Add or merge file</h3>
-              <button
-                className="zoho-merge-close"
-                onClick={() => {
-                  setMergeOpen(false);
-                  setFile(null);
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Info */}
-            <p className="zoho-merge-info">
-              The selected file will be appended to
-              <strong> {mergeDoc?.filename}</strong>
-            </p>
-
-            {/* Upload */}
-            <label className="zoho-merge-upload">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg"
-                onChange={(e) => setFile(e.target.files[0])}
-              />
-
-              <div className="zoho-upload-box">
-                <span className="zoho-upload-title">
-                  {file ? file.name : "Choose a file"}
-                </span>
-                <span className="zoho-upload-hint">
-                  PDF, Word, JPG, PNG
-                </span>
-              </div>
-            </label>
-
-            {/* Progress */}
-            {mergeLoading && (
-              <div className="zoho-merge-progress-wrapper" style={{ marginTop: '1rem' }}>
-                <span className="zoho-merge-msg" style={{ fontSize: '13px', color: '#666', marginBottom: '8px', display: 'block' }}>
-                  {processingMsg || "Processing file..."}
-                </span>
-                <div className="zoho-merge-progress">
-                  <div
-                    className="zoho-merge-progress-bar"
-                    style={{ width: `${mergeProgress}%`, transition: 'width 0.4s ease-out' }}
-                  />
-                </div>
-              </div>
-            )}
-
-
-            {/* Actions */}
-            <div className="zoho-merge-actions">
-              <button
-                className="zoho-btn-secondary"
-                onClick={() => setMergeOpen(false)}
-                disabled={mergeLoading}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="zoho-btn-primary"
-                disabled={!file || mergeLoading}
-                onClick={async () => {
-                  if (!file) return;
-                  try {
-                    setMergeLoading(true);
-                    setMergeProgress(0);
-                    setProcessingMsg("Uploading file to server...");
-
-                    // 1. Initial Upload (scaled to 0-50%)
-                    const res = await addFileToDocument(
-                      mergeDoc.id,
-                      file,
-                      (p) => {
-                        setMergeProgress(p);
-                        if (p >= 50) setProcessingMsg("Transfer complete! Processing merge...");
-                      }
-                    );
-
-                    // 2. Poll for Status (50-100%)
-                    let isDone = false;
-                    let pollCount = 0;
-                    while (!isDone && pollCount < 60) {
-                      pollCount++;
-                      await new Promise(r => setTimeout(r, 1000));
-                      try {
-                        const statusRes = await getDocumentStatus(mergeDoc.id);
-                        const backendProgress = statusRes.progress || 0;
-                        const backendMsg = statusRes.processing_status || "Merging...";
-
-                        // Map backend 25-100 to 50-100
-                        let mappedProgress = 50;
-                        if (backendProgress > 25) {
-                          mappedProgress = 50 + Math.round((backendProgress - 25) * (50 / 75));
-                        }
-
-                        setMergeProgress(Math.min(mappedProgress, 99));
-                        setProcessingMsg(backendMsg);
-
-                        if (statusRes.status !== "processing" || backendProgress >= 100) {
-                          isDone = true;
-                        }
-                      } catch (e) {
-                        console.warn("Merge status poll failed", e);
-                      }
-                    }
-
-                    setMergeProgress(100);
-                    setProcessingMsg("Complete");
-
-                    setSnackbar({
-                      open: true,
-                      message: "File merged successfully",
-                      severity: "success",
-                    });
-
-                    setMergeOpen(false);
-                    setFile(null);
-                    loadDocs();
-                  } catch (err) {
-                    setSnackbar({
-                      open: true,
-                      message: err.response?.data?.detail || "Merge failed",
-                      severity: "error",
-                    });
-                  } finally {
-                    setMergeLoading(false);
-                    setMergeProgress(0);
-                    setProcessingMsg("");
-                  }
-                }}
-              >
-                {mergeLoading ? "Merging…" : "Merge file"}
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* Success Dialog after Upload - JSX */}
-      {showSuccessDialog && (
-        <div className="ss-usd-backdrop">
-          <div className="ss-usd-modal">
-
-            <div className="ss-usd-head">
-              <img
-                src="/images/tick.gif"
-                alt="Success"
-                className="ss-usd-tick"
-              />
-              <div className="ss-usd-title">Upload Successful</div>
-              <div className="ss-usd-subtitle">Your document is now ready for the next steps.</div>
-            </div>
-
-            <div className="ss-usd-body">
-              <div className="ss-usd-info-card">
-                <div className="ss-usd-row">
-                  <span className="ss-usd-label">Document Name</span>
-                  <span className="ss-usd-separator">:</span>
-                  <span className="ss-usd-value" title={uploadedDocument?.filename}>
-                    {uploadedDocument?.filename || 'Untitled'}
-                  </span>
-                </div>
-
-                <div className="ss-usd-row">
-                  <span className="ss-usd-label">File Type</span>
-                  <span className="ss-usd-separator">:</span>
-                  <span className="ss-usd-value">
-                    {uploadedDocument?.mime_type
-                      ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() ||
-                        uploadedDocument.filename?.split('.').pop()?.toUpperCase() ||
-                        "FILE")
-                      : uploadedDocument?.filename?.split('.').pop()?.toUpperCase() || "FILE"}
-                  </span>
-                </div>
-
-                <div className="ss-usd-row">
-                  <span className="ss-usd-label">File Size</span>
-                  <span className="ss-usd-separator">:</span>
-                  <span className="ss-usd-value">
-                    {uploadedDocument?.size
-                      ? uploadedDocument.size > 1024 * 1024
-                        ? `${(uploadedDocument.size / 1024 / 1024).toFixed(2)} MB`
-                        : `${Math.round(uploadedDocument.size / 1024)} KB`
-                      : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="ss-usd-footer">
-              <button
-                className="ss-usd-btn ss-usd-btn-secondary"
-                onClick={() => {
-                  setShowSuccessDialog(false);
-                  setUploadedDocument(null);
-                }}
-              >
-                Close
-              </button>
-
-              <button
-                className="ss-usd-btn ss-usd-btn-primary"
-                onClick={() => {
-                  navigate(`/user/prepare-send/${uploadedDocument.id}`, {
-                    state: {
-                      document: uploadedDocument,
-                      fromUpload: true,
-                    },
-                  });
-                  setShowSuccessDialog(false);
-                  setUploadedDocument(null);
-                }}
-              >
-                Continue
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {renameOpen && (
-        <div className="rename-dialog-backdrop">
-          <div className="rename-dialog">
-            <h3>Rename Document</h3>
-
-            <div className="rename-input-wrapper">
-              <input
-                type="text"
-                value={newFilename}
-                onChange={(e) =>
-                  setNewFilename(
-                    (e.target.value || "").replace(/\.pdf$/i, "")
-                  )
-                }
-                placeholder="Enter document name"
-                autoFocus
-              />
-              <span className="rename-suffix">.pdf</span>
-            </div>
-
-            <div className="rename-dialog-actions">
-              <button
-                className="rename-btn-cancel"
-                onClick={() => setRenameOpen(false)}
-                disabled={renaming}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="rename-btn-primary"
-                disabled={!newFilename.trim() || renaming}
-                onClick={async () => {
-                  try {
-                    setRenaming(true);
-
-                    const finalFilename = `${newFilename.trim()}.pdf`;
-
-                    await fetch(
-                      `${API_BASE_URL}/documents/${activeDocId}/rename`,
-                      {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                          filename: finalFilename,
-                        }),
-                      }
-                    );
-
-                    // Update UI immediately
-                    setDocuments(prev =>
-                      prev.map(d =>
-                        d.id === activeDocId
-                          ? { ...d, filename: finalFilename }
-                          : d
-                      )
-                    );
-
-                    setRenameOpen(false);
-                  } catch (err) {
-                    alert("Rename failed");
-                  } finally {
-                    setRenaming(false);
-                  }
-                }}
-              >
-                {renaming ? "Renaming…" : "Rename"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* <PremiumBannerSlider /> */}
-
-
-
+      {/* Add or merge file dialog */}
       <Dialog
-        open={voidDialogOpen}
-        onClose={() => !voiding && setVoidDialogOpen(false)}
+        open={Boolean(mergeOpen)}
+        onClose={() => {
+          if (!mergeLoading) {
+            setMergeOpen(false);
+            setFile(null);
+          }
+        }}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: { borderRadius: "16px", p: 1 }
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 600 }}>
-          Void Document?
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#1e293b", pb: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Add or merge file</span>
+          <IconButton
+            size="small"
+            disabled={mergeLoading}
+            onClick={() => {
+              setMergeOpen(false);
+              setFile(null);
+            }}
+            sx={{ color: "#64748b" }}
+          >
+            <FaTimes size={16} />
+          </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary">
-            This will immediately stop all signing activity for:
+        <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
+          <Typography variant="body2" sx={{ color: "#64748b", mb: 2, display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 0.5, minWidth: 0 }}>
+            <span>The selected file will be appended to</span>
+            <FilenameDisplay filename={mergeDoc?.filename} sx={{ fontWeight: 600, color: "#1e293b" }} />
           </Typography>
 
-          <Typography sx={{ mt: 1, fontWeight: 500 }}>
-            {docToVoid?.filename}
-          </Typography>
+          <label className="block border-2 border-dashed border-slate-200 hover:border-[#0f766e] hover:bg-[#f0fdfa] rounded-xl p-6 text-center cursor-pointer transition-all">
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.png,.jpg"
+              onChange={(e) => setFile(e.target.files[0])}
+            />
+            <div className="flex flex-col items-center w-full min-w-0 px-2">
+              <span className="text-sm font-semibold text-slate-700 max-w-full min-w-0">
+                {file ? (
+                  <FilenameDisplay
+                    filename={file.name}
+                    sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155" }}
+                  />
+                ) : (
+                  "Choose a file"
+                )}
+              </span>
+              <span className="text-xs text-slate-400 mt-1">
+                PDF, Word, JPG, PNG
+              </span>
+            </div>
+          </label>
 
-          <Typography
-            variant="body2"
-            sx={{ mt: 2, color: "error.main" }}
-          >
-            This action cannot be undone.
-          </Typography>
+          {mergeLoading && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" sx={{ color: "#64748b", display: "block", mb: 0.5 }}>
+                {processingMsg || "Processing file..."}
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={mergeProgress}
+                sx={{
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: "#e2e8f0",
+                  "& .MuiLinearProgress-bar": { backgroundColor: "#0f766e" }
+                }}
+              />
+            </Box>
+          )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
             variant="outlined"
-            onClick={() => setVoidDialogOpen(false)}
-            disabled={voiding}
+            onClick={() => {
+              setMergeOpen(false);
+              setFile(null);
+            }}
+            disabled={mergeLoading}
+            sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
           >
             Cancel
           </Button>
 
           <Button
             variant="contained"
-            color="error"
+            disabled={!file || mergeLoading}
+            onClick={async () => {
+              if (!file) return;
+              try {
+                setMergeLoading(true);
+                setMergeProgress(0);
+                setProcessingMsg("Uploading file to server...");
+
+                // 1. Initial Upload (scaled to 0-50%)
+                const res = await addFileToDocument(
+                  mergeDoc.id,
+                  file,
+                  (p) => {
+                    setMergeProgress(p);
+                    if (p >= 50) setProcessingMsg("Transfer complete! Processing merge...");
+                  }
+                );
+
+                // 2. Poll for Status (50-100%)
+                let isDone = false;
+                let pollCount = 0;
+                while (!isDone && pollCount < 60) {
+                  pollCount++;
+                  await new Promise(r => setTimeout(r, 1000));
+                  try {
+                    const statusRes = await getDocumentStatus(mergeDoc.id);
+                    const backendProgress = statusRes.progress || 0;
+                    const backendMsg = statusRes.processing_status || "Merging...";
+
+                    // Map backend 25-100 to 50-100
+                    let mappedProgress = 50;
+                    if (backendProgress > 25) {
+                      mappedProgress = 50 + Math.round((backendProgress - 25) * (50 / 75));
+                    }
+
+                    setMergeProgress(Math.min(mappedProgress, 99));
+                    setProcessingMsg(backendMsg);
+
+                    if (statusRes.status !== "processing" || backendProgress >= 100) {
+                      isDone = true;
+                    }
+                  } catch (e) {
+                    console.warn("Merge status poll failed", e);
+                  }
+                }
+
+                setMergeProgress(100);
+                setProcessingMsg("Complete");
+
+                setSnackbar({
+                  open: true,
+                  message: "File merged successfully",
+                  severity: "success",
+                });
+
+                setMergeOpen(false);
+                setFile(null);
+                loadDocs();
+              } catch (err) {
+                setSnackbar({
+                  open: true,
+                  message: err.response?.data?.detail || "Merge failed",
+                  severity: "error",
+                });
+              } finally {
+                setMergeLoading(false);
+                setMergeProgress(0);
+                setProcessingMsg("");
+              }
+            }}
+            sx={{
+              textTransform: "none",
+              borderRadius: "8px",
+              backgroundColor: "#0f766e",
+              "&:hover": { backgroundColor: "#115e59" }
+            }}
+          >
+            {mergeLoading ? "Merging…" : "Merge file"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+      {/* Success Dialog after Upload */}
+      <Dialog
+        open={Boolean(showSuccessDialog)}
+        onClose={() => {
+          setShowSuccessDialog(false);
+          setUploadedDocument(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            maxWidth: { xs: "92vw", sm: 480 },
+            width: "100%",
+            borderRadius: "20px",
+            overflow: "hidden",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 0 }}>
+          <div className="p-8 pb-4 text-center">
+            <img
+              src="/images/tick.gif"
+              alt="Success"
+              className="w-24 h-24 mx-auto mb-3 block object-contain"
+            />
+            <div className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">
+              Upload Successful
+            </div>
+            <div className="text-slate-500 text-sm leading-relaxed">
+              Your document is ready for adding fields and recipients.
+            </div>
+          </div>
+
+          <div className="px-7 pb-6">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
+              <div className="flex items-center py-2 text-sm border-b border-slate-200/70">
+                <span className="text-slate-500 font-medium min-w-[120px] shrink-0">Document Name</span>
+                <span className="text-slate-400 mr-2 font-medium">:</span>
+                <div className="flex-1 min-w-0">
+                  <FilenameDisplay
+                    filename={uploadedDocument?.filename || 'Untitled'}
+                    sx={{ fontWeight: 600, color: '#0f172a' }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center py-2 text-sm border-b border-slate-200/70">
+                <span className="text-slate-500 font-medium min-w-[120px] shrink-0">File Type</span>
+                <span className="text-slate-400 mr-2 font-medium">:</span>
+                <span className="text-slate-900 font-semibold flex-1">
+                  {uploadedDocument?.mime_type
+                    ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() ||
+                      uploadedDocument.filename?.split('.').pop()?.toUpperCase() ||
+                      "FILE")
+                    : uploadedDocument?.filename?.split('.').pop()?.toUpperCase() || "FILE"}
+                </span>
+              </div>
+
+              <div className="flex items-center py-2 text-sm">
+                <span className="text-slate-500 font-medium min-w-[120px] shrink-0">File Size</span>
+                <span className="text-slate-400 mr-2 font-medium">:</span>
+                <span className="text-slate-900 font-semibold flex-1">
+                  {uploadedDocument?.size
+                    ? uploadedDocument.size > 1024 * 1024
+                      ? `${(uploadedDocument.size / 1024 / 1024).toFixed(2)} MB`
+                      : `${Math.round(uploadedDocument.size / 1024)} KB`
+                    : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+
+        <DialogActions sx={{ p: "16px 28px", bgcolor: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setShowSuccessDialog(false);
+              setUploadedDocument(null);
+            }}
+            sx={{
+              height: 42,
+              px: 2.5,
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 600,
+              color: "#475569",
+              borderColor: "#cbd5e1",
+              bgcolor: "white",
+              "&:hover": { bgcolor: "#f1f5f9", borderColor: "#94a3b8" }
+            }}
+          >
+            Close
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => {
+              navigate(`/user/prepare-send/${uploadedDocument.id}`, {
+                state: {
+                  document: uploadedDocument,
+                  fromUpload: true,
+                },
+              });
+              setShowSuccessDialog(false);
+              setUploadedDocument(null);
+            }}
+            sx={{
+              height: 42,
+              px: 2.5,
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 600,
+              bgcolor: "#0f766e",
+              color: "white",
+              boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
+              "&:hover": {
+                bgcolor: "#115e59",
+                boxShadow: "0 6px 16px rgba(13, 148, 136, 0.3)"
+              }
+            }}
+          >
+            Continue
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+      {/* Rename Document Dialog */}
+      <Dialog
+        open={Boolean(renameOpen)}
+        onClose={() => !renaming && setRenameOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: "16px", p: 1 }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#1e293b", pb: 1 }}>
+          Rename Document
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
+          <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:border-[#0f766e] focus-within:ring-1 focus-within:ring-[#0f766e] transition-all my-2 w-full min-w-0">
+            <input
+              type="text"
+              value={newFilename}
+              onChange={(e) =>
+                setNewFilename(
+                  (e.target.value || "").replace(/\.pdf$/i, "")
+                )
+              }
+              placeholder="Enter document name"
+              autoFocus
+              className="flex-1 min-w-0 px-3 py-2 text-sm text-slate-800 outline-none border-none bg-transparent"
+            />
+            <span className="bg-slate-100 text-slate-500 font-medium px-3 py-2 text-sm border-l border-slate-200 select-none shrink-0">
+              .pdf
+            </span>
+          </div>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setRenameOpen(false)}
+            disabled={renaming}
+            sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            disabled={!newFilename.trim() || renaming}
+            onClick={async () => {
+              try {
+                setRenaming(true);
+
+                const finalFilename = `${newFilename.trim()}.pdf`;
+
+                await fetch(
+                  `${API_BASE_URL}/documents/${activeDocId}/rename`,
+                  {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                      filename: finalFilename,
+                    }),
+                  }
+                );
+
+                // Update UI immediately
+                setDocuments(prev =>
+                  prev.map(d =>
+                    d.id === activeDocId
+                      ? { ...d, filename: finalFilename }
+                      : d
+                  )
+                );
+
+                setRenameOpen(false);
+              } catch (err) {
+                alert("Rename failed");
+              } finally {
+                setRenaming(false);
+              }
+            }}
+            sx={{
+              textTransform: "none",
+              borderRadius: "8px",
+              backgroundColor: "#0f766e",
+              "&:hover": { backgroundColor: "#115e59" }
+            }}
+          >
+            {renaming ? "Renaming…" : "Rename"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+      {/* <PremiumBannerSlider /> */}
+
+
+
+      {/* Void Document Dialog with MUI */}
+      <Dialog
+        open={voidDialogOpen}
+        onClose={() => !voiding && setVoidDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: "18px", p: 1 }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#1e293b", pb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "50%", bgcolor: "#fffbeb", color: "#d97706", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <WarningAmberIcon fontSize="small" />
+          </Box>
+          <span>Void Document?</span>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
+          <Typography variant="body2" sx={{ color: "#64748b", mb: 1.5 }}>
+            This will immediately stop all signing activity and void the document:
+          </Typography>
+
+          <Box sx={{ p: 1.5, bgcolor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", mb: 2, minWidth: 0, overflow: "hidden" }}>
+            <FilenameDisplay
+              filename={docToVoid?.filename}
+              sx={{ fontWeight: 600, color: "#1e293b", fontSize: "0.9rem" }}
+            />
+          </Box>
+
+          <Typography variant="caption" sx={{ color: "#dc2626", fontWeight: 500, display: "block" }}>
+            Warning: This action marks the document voided and recipients will no longer be able to sign.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setVoidDialogOpen(false)}
+            disabled={voiding}
+            sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
             disabled={voiding}
             onClick={async () => {
               try {
@@ -2428,42 +3711,58 @@ export default function MyDocuments() {
                 setVoiding(false);
               }
             }}
+            sx={{
+              textTransform: "none",
+              borderRadius: "8px",
+              bgcolor: "#d97706",
+              "&:hover": { bgcolor: "#b45309" }
+            }}
           >
             {voiding ? "Voiding…" : "Void Document"}
           </Button>
         </DialogActions>
       </Dialog>
 
-
+      {/* Delete / Move to Trash Dialog with MUI */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => !deleting && setDeleteDialogOpen(false)}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: { borderRadius: "18px", p: 1 }
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 600 }}>
-          Move to Trash?
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#1e293b", pb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "50%", bgcolor: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <DeleteIcon fontSize="small" />
+          </Box>
+          <span>Move to Trash?</span>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary">
+        <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
+          <Typography variant="body2" sx={{ color: "#64748b", mb: 1.5 }}>
             This document will be moved to Trash:
           </Typography>
 
-          <Typography sx={{ mt: 1, fontWeight: 500 }}>
-            {docToDelete?.filename}
-          </Typography>
+          <Box sx={{ p: 1.5, bgcolor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", mb: 2, minWidth: 0, overflow: "hidden" }}>
+            <FilenameDisplay
+              filename={docToDelete?.filename}
+              sx={{ fontWeight: 600, color: "#1e293b", fontSize: "0.9rem" }}
+            />
+          </Box>
 
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            You can restore it later from Trash.
+          <Typography variant="caption" sx={{ color: "#64748b", display: "block" }}>
+            You can restore it later from Trash or permanently remove it.
           </Typography>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
             variant="outlined"
             onClick={() => setDeleteDialogOpen(false)}
             disabled={deleting}
+            sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
           >
             Cancel
           </Button>
@@ -2496,50 +3795,53 @@ export default function MyDocuments() {
                 setDeleting(false);
               }
             }}
+            sx={{ textTransform: "none", borderRadius: "8px" }}
           >
             {deleting ? "Deleting…" : "Move to Trash"}
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Permanent Delete Dialog with MUI */}
       <Dialog
         open={permanentDeleteOpen}
         onClose={() => !permanentDeleting && setPermanentDeleteOpen(false)}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: { borderRadius: "18px", p: 1 }
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: "error.main" }}>
-          Permanently delete document?
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#dc2626", pb: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "50%", bgcolor: "#fee2e2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <DeleteForeverIcon fontSize="small" />
+          </Box>
+          <span>Delete Permanently?</span>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary">
-            You are about to permanently delete:
+        <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
+          <Typography variant="body2" sx={{ color: "#64748b", mb: 1.5 }}>
+            You are about to permanently delete this document:
           </Typography>
 
-          <Typography sx={{ mt: 1, fontWeight: 600 }}>
-            {docToPermanentDelete?.filename}
-          </Typography>
+          <Box sx={{ p: 1.5, bgcolor: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", mb: 2, minWidth: 0, overflow: "hidden" }}>
+            <FilenameDisplay
+              filename={docToPermanentDelete?.filename}
+              sx={{ fontWeight: 600, color: "#991b1b", fontSize: "0.9rem" }}
+            />
+          </Box>
 
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 2,
-              color: "error.main",
-              fontWeight: 500,
-            }}
-          >
-            This action is irreversible.
-            <br />
-            The document, audit logs, and signing history will be permanently removed.
+          <Typography variant="caption" sx={{ color: "#dc2626", fontWeight: 500, display: "block" }}>
+            This action cannot be undone. The document, audit logs, and signatures will be erased forever.
           </Typography>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
             variant="outlined"
             onClick={() => setPermanentDeleteOpen(false)}
             disabled={permanentDeleting}
+            sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
           >
             Cancel
           </Button>
@@ -2574,43 +3876,47 @@ export default function MyDocuments() {
                 setPermanentDeleting(false);
               }
             }}
+            sx={{ textTransform: "none", borderRadius: "8px" }}
           >
             {permanentDeleting ? "Deleting…" : "Delete Permanently"}
           </Button>
         </DialogActions>
       </Dialog>
-      {/* Plan Restriction Dialog */}
+
+      {/* Plan Restriction Dialog with MUI */}
       <Dialog
         open={planRestrictionOpen}
         onClose={() => setPlanRestrictionOpen(false)}
+        maxWidth="xs"
+        fullWidth
         PaperProps={{
-          style: {
-            borderRadius: "16px",
-            padding: "8px",
+          sx: {
+            borderRadius: "18px",
+            p: 1,
             maxWidth: "450px"
           }
         }}
       >
-        <DialogTitle style={{ textAlign: "center", fontWeight: 700, fontSize: "1.25rem", color: "#1e293b" }}>
+        <DialogTitle sx={{ textAlign: "center", fontWeight: 700, fontSize: "1.25rem", color: "#1e293b", pb: 1 }}>
           Subscription Required
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" style={{ textAlign: "center", color: "#475569", marginBottom: "16px" }}>
+        <DialogContent sx={{ textAlign: "center", py: 2 }}>
+          <Typography variant="body2" sx={{ color: "#475569", mb: 2, lineHeight: 1.6 }}>
             You need an active subscription plan to upload and process documents. Please upgrade your plan to continue.
           </Typography>
-          <Typography variant="body2" style={{ textAlign: "center", color: "#64748b", fontSize: "0.875rem", fontStyle: "italic" }}>
+          <Typography variant="caption" sx={{ color: "#94a3b8", fontStyle: "italic" }}>
             If you believe this is an error, please try logging out and logging back in to refresh your session.
           </Typography>
         </DialogContent>
-        <DialogActions style={{ justifyContent: "center", gap: "12px", padding: "20px" }}>
+        <DialogActions sx={{ justifyContent: "center", gap: 1.5, p: 2 }}>
           <Button
             variant="outlined"
             onClick={() => {
               logout();
               localStorage.removeItem("token");
-              window.location.href = "/login";
+              navigate("/login");
             }}
-            style={{ borderRadius: "8px", textTransform: "none", borderColor: "#cbd5e1", color: "#475569" }}
+            sx={{ borderRadius: "8px", textTransform: "none", borderColor: "#cbd5e1", color: "#475569" }}
           >
             Logout & Login
           </Button>
@@ -2620,11 +3926,12 @@ export default function MyDocuments() {
               setPlanRestrictionOpen(false);
               navigate("/user/subscription");
             }}
-            style={{
+            sx={{
               borderRadius: "8px",
               textTransform: "none",
-              backgroundColor: "#00A3A3",
-              boxShadow: "0 4px 6px -1px rgba(0, 163, 163, 0.2)"
+              bgcolor: "#0f766e",
+              "&:hover": { bgcolor: "#115e59" },
+              boxShadow: "0 4px 6px -1px rgba(15, 118, 110, 0.2)"
             }}
           >
             Upgrade Plan
@@ -2634,7 +3941,7 @@ export default function MyDocuments() {
 
 
 
-    </div>
+    </Box>
 
 
 

@@ -414,7 +414,7 @@ const SecurityHome = () => {
       <style jsx>{`
         /* Base Styles */
         .security-home {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -480,7 +480,7 @@ const SecurityHome = () => {
 
         .security-hero-title {
           font-size: 3.5rem;
-          font-weight: 800;
+          font-weight: 600;
           color: white;
           margin: 0 0 1.5rem;
           line-height: 1.2;

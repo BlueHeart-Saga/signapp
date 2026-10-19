@@ -45,6 +45,7 @@ import { viewDocumentUrl } from "../services/DocumentAPI";
 import { useNavigate } from "react-router-dom";
 import { Typography } from "@mui/material";
 import api from "../services/api";
+import FilenameDisplay from "../components/FilenameDisplay";
 import "../style/DocumentSummary.css";
 import DocumentPreviewSection from "../components/DocumentPreviewSection";
 import {
@@ -672,9 +673,14 @@ const DocumentSummary = () => {
                 <button className="doc-summary-section-close" onClick={() => toggleSectionVisibility('overview')}>✕</button>
               </div>
               <div className="doc-summary-overview-grid">
-                <div className="doc-summary-overview-item">
+                <div className="doc-summary-overview-item" style={{ minWidth: 0 }}>
                   <label>Document Name</label>
-                  <p>{docData.filename}</p>
+                  <p style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <FilenameDisplay
+                      filename={docData.filename}
+                      sx={{ fontWeight: 600, color: '#1e293b' }}
+                    />
+                  </p>
                 </div>
                 <div className="doc-summary-overview-item">
                   <label>Envelope ID</label>

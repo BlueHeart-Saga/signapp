@@ -3,10 +3,12 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import api, { setAuthToken } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function AuthSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setUser, setToken } = useAuth();
 
   useEffect(() => {
     const handleAuthSuccess = async () => {
@@ -24,6 +26,7 @@ export default function AuthSuccess() {
         // Store the token
         localStorage.setItem('token', token);
         setAuthToken(token);
+        setToken(token);
 
         // Decode token to get basic user info
         const decoded = jwtDecode(token);
@@ -35,8 +38,8 @@ export default function AuthSuccess() {
           const userData = userResponse.data;
           console.log('User data:', userData);
 
-          // Store user data in localStorage
-          localStorage.setItem('user', JSON.stringify(userData));
+          // Store user data in localStorage and AuthContext
+          setUser(userData, token);
 
           // Redirect based on user role
           const role = userData.role || 'user';
@@ -47,19 +50,23 @@ export default function AuthSuccess() {
               navigate('/admin/dashboard');
               break;
             case 'recipient':
-              navigate('/recipient/dashboard');
+              navigate('/recipient/home');
               break;
             case 'user':
-              navigate('/user/dashboard');
-              break;
             default:
-              navigate('/dashboard');
+              navigate('/user');
           }
         } catch (userError) {
           console.error('Error fetching user data:', userError);
           // If we can't fetch user data, still try to redirect with basic token info
           const role = decoded.role || 'user';
-          navigate(`/${role}/dashboard`);
+          if (role === 'admin') {
+            navigate('/admin/dashboard');
+          } else if (role === 'recipient') {
+            navigate('/recipient/home');
+          } else {
+            navigate('/user');
+          }
         }
 
       } catch (error) {

@@ -485,7 +485,7 @@ function PricingSection() {
           width: 100%;
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -507,7 +507,7 @@ function PricingSection() {
           background: #f0fdf4;
           color: #166534;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           padding: 6px 14px;
           border-radius: 20px;
           border: 1px solid #bbf7d0;
@@ -518,7 +518,7 @@ function PricingSection() {
 
         .modern-title {
           font-size: 42px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f172a;
           margin-bottom: 14px;
           line-height: 1.15;
@@ -688,7 +688,7 @@ function PricingSection() {
           padding: 4px 18px;
           border-radius: 20px;
           font-size: 12px;
-          font-weight: 800;
+          font-weight: 600;
           white-space: nowrap;
           box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
         }
@@ -701,7 +701,7 @@ function PricingSection() {
 
         .plan-name-title {
           font-size: 22px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f172a;
           margin: 0 0 6px;
         }
@@ -740,7 +740,7 @@ function PricingSection() {
           background: #0f172a;
           color: white;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.2s ease;
         }
@@ -773,7 +773,7 @@ function PricingSection() {
 
         .feature-header-title {
           font-size: 13px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f172a;
           margin: 0 0 14px;
         }
@@ -869,13 +869,13 @@ function PricingSection() {
           padding: 4px 12px;
           border-radius: 20px;
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 600;
           margin-bottom: 10px;
         }
 
         .sales-modal-header h2 {
           font-size: 24px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f172a;
           margin: 0 0 6px;
         }
@@ -900,8 +900,8 @@ function PricingSection() {
         }
 
         .modal-form-group label {
-          font-size: 12px;
-          font-weight: 700;
+          font-size: 14px;
+          font-weight: 500;
           color: #334155;
           display: flex;
           align-items: center;
@@ -912,7 +912,7 @@ function PricingSection() {
           border: 1px solid #cbd5e1;
           border-radius: 10px;
           padding: 10px 14px;
-          font-size: 14px;
+          font-size: 15px;
           outline: none;
           font-family: inherit;
           transition: border-color 0.2s ease;
@@ -928,8 +928,8 @@ function PricingSection() {
           padding: 12px;
           border: none;
           border-radius: 12px;
-          font-size: 15px;
-          font-weight: 800;
+          font-size: 14px;
+          font-weight: 600;
           cursor: pointer;
           display: flex;
           align-items: center;

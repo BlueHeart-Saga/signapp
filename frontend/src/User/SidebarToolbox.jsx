@@ -270,9 +270,12 @@ const DocumentBuilder = () => {
                             <input
                               type="date"
                               value={field.value}
-                              onChange={(e) =>
-                                updateField(field.id, { value: e.target.value })
-                              }
+                              min={new Date().toISOString().split("T")[0]}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const todayStr = new Date().toISOString().split("T")[0];
+                                updateField(field.id, { value: val && val < todayStr ? todayStr : val });
+                              }}
                               style={{
                                 width: "100%",
                                 height: "100%",

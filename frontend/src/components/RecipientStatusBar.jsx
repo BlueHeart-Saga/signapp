@@ -167,7 +167,7 @@ export default function DocumentRecipientStatus({
                 sx={{
                   height: 18,
                   fontSize: '0.625rem',
-                  fontWeight: 800,
+                  fontWeight: 600,
                   textTransform: 'uppercase',
                   bgcolor: ROLE_COLORS[role] || '#64748b',
                   color: 'white',

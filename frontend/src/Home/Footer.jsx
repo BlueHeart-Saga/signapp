@@ -26,11 +26,10 @@ export default function Footer() {
      Social links configuration
   ---------------------------------- */
   const socialLinks = {
-    facebook: "https://www.facebook.com/profile.php?id=61579126233218",
-    website: "https://devopstrio.co.uk/",
-    linkedin:
-      "https://www.linkedin.com/company/devopstrioglobal/posts/?feedView=all",
-    instagram: "https://www.instagram.com/devopstrio_offcl/"
+    facebook: "https://www.facebook.com/esigniva",
+    website: "https://esigniva.devopstrio.co.uk/",
+    linkedin: "https://www.linkedin.com/company/esigniva/",
+    instagram: "https://www.instagram.com/esigniva_offcl/"
   };
 
   const openExternal = (url) => {

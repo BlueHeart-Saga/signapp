@@ -51,9 +51,9 @@ async def get_recipient_history(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {"history": [], "total": 0}
@@ -62,9 +62,9 @@ async def get_recipient_history(
         document_ids = [r["document_id"] for r in recipients]
         
         # Get all documents
-        documents = list(db.documents.find({
+        documents = await db.documents.find({
             "_id": {"$in": document_ids}
-        }))
+        }).to_list(length=1000)
         
         # Create document lookup
         doc_lookup = {str(doc["_id"]): doc for doc in documents}
@@ -76,13 +76,13 @@ async def get_recipient_history(
         history = []
         
         # 1. From recipient events (timeline events related to this recipient)
-        timeline_events = list(db.document_timeline.find({
+        timeline_events = await db.document_timeline.find({
             "document_id": {"$in": document_ids},
             "$or": [
                 {"actor.email": recipient["email"]},
                 {"metadata.recipient_email": recipient["email"]}
             ]
-        }).sort("timestamp", -1))
+        }).sort("timestamp", -1).to_list(length=1000)
         
         for event in timeline_events:
             doc_id = str(event["document_id"])
@@ -258,9 +258,9 @@ async def get_signing_summary(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return SigningSummary(
@@ -276,9 +276,9 @@ async def get_signing_summary(
         document_ids = [r["document_id"] for r in recipients]
         
         # Get all documents
-        documents = list(db.documents.find({
+        documents = await db.documents.find({
             "_id": {"$in": document_ids}
-        }))
+        }).to_list(length=1000)
         
         # Create lookup
         recipient_lookup = {str(r["document_id"]): r for r in recipients}
@@ -398,19 +398,19 @@ async def get_document_history_for_recipient(
             sender = await db.users.find_one({"_id": doc["owner_id"]})
         
         # Get all events for this document related to this recipient
-        events = list(db.document_timeline.find({
+        events = await db.document_timeline.find({
             "document_id": ObjectId(document_id),
             "$or": [
                 {"actor.email": recipient["email"]},
                 {"metadata.recipient_email": recipient["email"]}
             ]
-        }).sort("timestamp", 1))
+        }).sort("timestamp", 1).to_list(length=1000)
         
         # Get all recipient's fields and their completion history
-        fields = list(db.signature_fields.find({
+        fields = await db.signature_fields.find({
             "document_id": ObjectId(document_id),
             "recipient_id": recipient_doc["_id"]
-        }))
+        }).to_list(length=1000)
         
         field_history = []
         for field in fields:
@@ -533,9 +533,9 @@ async def get_recipient_timeline(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {"timeline": []}
@@ -547,14 +547,14 @@ async def get_recipient_timeline(
         start_date = end_date - timedelta(days=days)
         
         # Get all events in date range
-        events = list(db.document_timeline.find({
+        events = await db.document_timeline.find({
             "document_id": {"$in": document_ids},
             "timestamp": {"$gte": start_date, "$lte": end_date},
             "$or": [
                 {"actor.email": recipient["email"]},
                 {"metadata.recipient_email": recipient["email"]}
             ]
-        }).sort("timestamp", 1))
+        }).sort("timestamp", 1).to_list(length=1000)
         
         # Group events by time period
         timeline = {}
@@ -631,9 +631,9 @@ async def get_documents_grouped_by_sender(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {"senders": []}
@@ -641,9 +641,9 @@ async def get_documents_grouped_by_sender(
         document_ids = [r["document_id"] for r in recipients]
         
         # Get all documents
-        documents = list(db.documents.find({
+        documents = await db.documents.find({
             "_id": {"$in": document_ids}
-        }))
+        }).to_list(length=1000)
         
         # Group by sender
         senders = {}

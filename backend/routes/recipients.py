@@ -13,7 +13,7 @@ from .auth import get_current_user
 from routes.fields import validate_field_role
 from .email_service import send_bulk_invites, send_reminder_email
 from .fields import serialize_field_with_recipient
-from .documents import _log_event, load_document_pdf  # Import load_document_pdf
+from .documents import _log_event, load_document_pdf, update_document_summary_metadata  # Import load_document_pdf
 from storage import storage  # Import Azure storage provider
 
 router = APIRouter(prefix="/recipients", tags=["Recipients"])
@@ -89,7 +89,7 @@ class SendInvitesRequest(BaseModel):
     personal_messages: Optional[dict] = {}  # {"recipient_id": "personal message"}
     expiry_days: Optional[int] = None  # None means use document setting
     reminder_period: Optional[int] = None  # None means use document setting
-    signing_order_enabled: bool = False  # Add this flag
+    signing_order_enabled: Optional[bool] = None  # None preserves document setting
     
     
 def generate_recipient_color(email: str) -> str:
@@ -790,6 +790,16 @@ async def send_invites_to_recipients(
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
+        # Ensure document metadata, file page counts, and combined PDF are completely up-to-date
+        try:
+            await update_document_summary_metadata(document_id)
+            document = await db.documents.find_one({
+                "_id": ObjectId(document_id),
+                "owner_id": ObjectId(current_user["id"])
+            })
+        except Exception as e:
+            print(f"[send_invites] Error updating summary metadata: {e}")
+
         # Block re-send if already sent
         if document.get("status") != "draft":
             raise HTTPException(
@@ -824,34 +834,43 @@ async def send_invites_to_recipients(
                         detail=f"Recipient {recipient['email']} ({role}) must have at least one field assigned before sending."
                     )
 
-        # NEW: IF SEQUENTIAL, ONLY INVITE THE FIRST LEVEL
-        if invites_data.signing_order_enabled:
-            # Find the minimum signing order across all document recipients
+        # Determine whether sequential order is enabled:
+        # If explicitly passed in request payload, respect it. Otherwise fallback to document setting!
+        if invites_data.signing_order_enabled is not None:
+            is_sequential = bool(invites_data.signing_order_enabled)
+        else:
+            is_sequential = bool(document.get("signing_order_enabled", False))
+
+        # SEQUENTIAL SIGNING FLOW: ONLY INVITE THE FIRST ORDER
+        if is_sequential:
             all_doc_recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
-            min_order = min(r.get("signing_order", 1) for r in all_doc_recipients)
-            
-            # Repopulate current recipients to only send email to those at the lowest order
-            recipients = [r for r in all_doc_recipients if r.get("signing_order", 1) == min_order]
-            
-            # Log the sequential flow start
-            await _log_event(
-                document_id,
-                None,
-                "signing_order_activated",
-                {"first_order": min_order, "count": len(recipients)},
-                request
-            )
-            
-            # Mark all others as 'awaiting_previous'
-            await db.recipients.update_many(
-                {
-                    "document_id": ObjectId(document_id),
-                    "signing_order": {"$gt": min_order}
-                },
-                {"$set": {"status": "awaiting_previous"}}
-            )
+            if all_doc_recipients:
+                min_order = min(int(r.get("signing_order") or 1) for r in all_doc_recipients)
+                
+                # Filter to only send email to those at the lowest order
+                recipients = [r for r in all_doc_recipients if int(r.get("signing_order") or 1) == min_order]
+                
+                # Mark all higher order recipients as 'awaiting_previous'
+                awaiting_ids = [
+                    r["_id"] for r in all_doc_recipients 
+                    if int(r.get("signing_order") or 1) > min_order
+                ]
+                if awaiting_ids:
+                    await db.recipients.update_many(
+                        {"_id": {"$in": awaiting_ids}},
+                        {"$set": {"status": "awaiting_previous"}}
+                    )
+                
+                # Log the sequential flow start
+                await _log_event(
+                    document_id,
+                    None,
+                    "signing_order_activated",
+                    {"first_order": min_order, "count": len(recipients)},
+                    request
+                )
         
-        # Send invites in background - This will now only process the filtered list
+        # Send invites in background - This processes first-level in sequential, or all in parallel
         background_tasks.add_task(
             send_bulk_invites,
             document_id,
@@ -881,7 +900,7 @@ async def send_invites_to_recipients(
             "reminder_period": reminder_period,
             "expires_at": expires_at,
             "next_reminder_at": next_reminder_at,
-            "signing_order_enabled": invites_data.signing_order_enabled  # Save this
+            "signing_order_enabled": is_sequential  # Reliably persist order setting
         }
         
         await db.documents.update_one(
@@ -1499,7 +1518,7 @@ async def complete_field(
     doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
     
     # Use the unified load_document_pdf function
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     # 2) collect all completed fields
     fields = await db.signature_fields.find({
@@ -1538,20 +1557,46 @@ async def complete_field(
         folder=f"documents/{doc_id}"
     )
 
+    owner_id = str(doc.get("owner_id", "default"))
+    signed_preview_thumb_path = None
+    signed_page_thumbs = []
+    try:
+        from routes.documents import generate_file_thumbnail, generate_and_store_page_thumbnails
+        first_thumb_bytes = generate_file_thumbnail(final_pdf, 0)
+        signed_preview_thumb_path = storage.upload(
+            first_thumb_bytes,
+            f"signed_preview_{doc_id}.png",
+            folder=f"users/{owner_id}/thumbnails/{doc_id}"
+        )
+        signed_page_thumbs = generate_and_store_page_thumbnails(
+            final_pdf,
+            str(doc_id),
+            f"signed_{doc.get('filename', 'doc')}",
+            owner_id
+        )
+    except Exception as e:
+        print(f"[recipients.py finalization] Error generating thumbnails: {e}")
+
     # 6) update document
+    update_data = {
+        "status": "completed",
+        "completed_at": datetime.utcnow(),
+        "finalized_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "signed_pdf_path": signed_pdf_path,
+        "signed_count": await db.recipients.count_documents({
+            "document_id": ObjectId(doc_id),
+            "status": "completed"
+        })
+    }
+    if signed_preview_thumb_path:
+        update_data["preview_thumbnail_path"] = signed_preview_thumb_path
+    if signed_page_thumbs:
+        update_data["page_thumbnails"] = signed_page_thumbs
+
     await db.documents.update_one(
         {"_id": ObjectId(doc_id)},
-        {
-            "$set": {
-                "status": "completed",
-                "completed_at": datetime.utcnow(),
-                "signed_pdf_path": signed_pdf_path,
-                "signed_count": await db.recipients.count_documents({
-                    "document_id": ObjectId(doc_id),
-                    "status": "completed"
-                })
-            }
-        }
+        {"$set": update_data}
     )
     
     await _log_event(

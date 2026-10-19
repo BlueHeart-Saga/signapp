@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { 
   Search, 
   HelpCircle, 
@@ -24,14 +26,34 @@ import {
   AlertCircle,
   Clock,
   Star,
-  BookOpen
+  BookOpen,
+  Send,
+  Printer,
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  Activity,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 
 const HelpCenter = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('getting-started');
   const [expandedFaqs, setExpandedFaqs] = useState({});
   const [showContactForm, setShowContactForm] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
+  const [showLiveChatModal, setShowLiveChatModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'bot', text: 'Hello! Welcome to Esigniva Support. How can we help you today?' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [feedbackGiven, setFeedbackGiven] = useState({});
+
   const [contactData, setContactData] = useState({
     name: '',
     email: '',
@@ -92,28 +114,65 @@ const HelpCenter = () => {
       title: 'How to Create Your First E-Signature Request',
       category: 'getting-started',
       readTime: '3 min',
-      views: '12.4k'
+      views: '12.4k',
+      summary: 'A step-by-step walkthrough to upload documents, add signer fields, configure recipients, and send your first legally binding document.',
+      content: [
+        'Creating your first e-signature request with Esigniva takes less than two minutes. Follow these simple steps:',
+        '1. Upload your Document: From your Dashboard, click "Upload Document" or drag and drop any PDF, DOCX, or scan (up to 100MB).',
+        '2. Add Signers & Recipients: Specify the names and email addresses of everyone who needs to sign or receive a copy. You can set sequential signing orders or parallel signing.',
+        '3. Place Fields with Drag & Drop: Drag signature fields, date stamps, initials, text fields, and checkboxes directly onto the document where required.',
+        '4. Review & Send: Add a customized subject line and invitation note, then click "Send for Signature".',
+        '5. Track & Audit: Once sent, you can monitor document status in real time. Both you and all signers receive an automated Certificate of Completion upon signature.'
+      ],
+      tags: ['getting-started', 'upload', 'signature-request', 'beginner']
     },
     {
       id: 'article-2',
       title: 'Understanding Legal Compliance for E-Signatures',
       category: 'security-privacy',
       readTime: '5 min',
-      views: '8.7k'
+      views: '8.7k',
+      summary: 'Learn how Esigniva signatures comply with ESIGN, UETA, eIDAS, and GDPR global regulations.',
+      content: [
+        'Esigniva electronic signatures are fully legally binding, court-admissible, and enforceable worldwide.',
+        '• United States: Compliant with the federal ESIGN Act (15 U.S.C. 7001) and Uniform Electronic Transactions Act (UETA).',
+        '• European Union & UK: Meets EU Regulation No 910/2014 (eIDAS) for Advanced Electronic Signatures (AES), providing cryptographic integrity and signer authentication.',
+        '• Cryptographic Audit Trail: Each signed document generates a tamper-evident audit log with UTC timestamps, verified IP addresses, email hashes, and digital signature certificates.',
+        '• Data Encryption: Bank-grade 256-bit AES encryption at rest and TLS 1.3 in transit guarantees total document privacy.'
+      ],
+      tags: ['compliance', 'eidas', 'esign', 'legal', 'security']
     },
     {
       id: 'article-3',
       title: 'Setting Up Team Members and Permissions',
       category: 'team-collaboration',
       readTime: '4 min',
-      views: '6.2k'
+      views: '6.2k',
+      summary: 'How to invite colleagues, organize departments, and configure administrative roles and security permissions.',
+      content: [
+        'Manage your organization with granular role-based access control and shared workspaces:',
+        '1. Go to Team Settings: Navigate to your Organization Dashboard and click "Team Members".',
+        '2. Invite New Users: Enter employee email addresses and select their department role (Admin, Manager, or Signer).',
+        '3. Role Permissions: Admins have full access to billing, templates, and audit logs. Managers can oversee team envelopes, while standard members can draft and dispatch documents.',
+        '4. Shared Template Folders: Keep legal contracts, NDAs, and onboarding paperwork organized in shared team folders with unified company branding.'
+      ],
+      tags: ['team', 'roles', 'permissions', 'collaboration']
     },
     {
       id: 'article-4',
       title: 'Troubleshooting Common Signing Issues',
       category: 'signing-documents',
       readTime: '4 min',
-      views: '10.1k'
+      views: '10.1k',
+      summary: 'Quick fixes for missing invitation emails, browser signing errors, mobile responsive issues, and declined requests.',
+      content: [
+        'If signers or colleagues experience difficulty completing a document, review these immediate solutions:',
+        '• Recipient Missing Email: Check the Spam or Junk folder for emails sent from info@esigniva.com. In your Documents list, click "Resend Invitation" to immediately send a fresh notification.',
+        '• Signature Link Expired: For security, signing tokens expire after a preset period. The document owner can click "Extend Expiry" or resend from their dashboard.',
+        '• Mobile Device Signing: Esigniva runs seamlessly on all mobile browsers (iOS Safari, Android Chrome). No software download is necessary.',
+        '• Browser Caching: Ensure third-party cookies and modern JavaScript are enabled in your browser settings.'
+      ],
+      tags: ['troubleshooting', 'signing', 'email', 'mobile']
     }
   ];
 
@@ -172,7 +231,7 @@ const HelpCenter = () => {
       icon: <Mail size={24} />,
       title: 'Email Support',
       description: 'Get help via email',
-      details: 'support@devopstrioglobal.com',
+      details: 'info@esigniva.com',
       responseTime: 'Within 4 hours',
       color: '#0f766e'
     },
@@ -190,17 +249,17 @@ const HelpCenter = () => {
       icon: <Phone size={24} />,
       title: 'Phone Support',
       description: 'Call our support team',
-      details: '+1 (800) 123-4567',
+      details: '+44 (0)20 7946 0192',
       responseTime: 'Within 15 minutes',
       color: '#10b981'
     }
   ];
 
   const quickLinks = [
-    { label: 'API Documentation', href: '/api-docs', icon: <Book size={20} /> },
-    { label: 'Pricing Plans', href: '/pricing', icon: <CreditCard size={20} /> },
-    { label: 'System Status', href: '/status', icon: <Globe size={20} /> },
-    { label: 'Release Notes', href: '/releases', icon: <AlertCircle size={20} /> }
+    { label: 'API Documentation', action: () => navigate('/docs'), icon: <Book size={20} /> },
+    { label: 'Pricing Plans', action: () => navigate('/pricing'), icon: <CreditCard size={20} /> },
+    { label: 'System Status', action: () => setShowStatusModal(true), icon: <Globe size={20} /> },
+    { label: 'Release Notes', action: () => setShowReleaseNotesModal(true), icon: <AlertCircle size={20} /> }
   ];
 
   const toggleFaq = (category, index) => {
@@ -216,9 +275,14 @@ const HelpCenter = () => {
     setIsSubmitting(true);
     
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    alert('Your message has been sent! We\'ll get back to you within 4 hours.');
+    Swal.fire({
+      icon: 'success',
+      title: 'Message Sent!',
+      text: "Your support request has been logged. We'll get back to you within 4 hours.",
+      confirmButtonColor: '#0f766e'
+    });
     setContactData({ name: '', email: '', category: 'general', message: '' });
     setShowContactForm(false);
     setIsSubmitting(false);
@@ -232,6 +296,29 @@ const HelpCenter = () => {
     }));
   };
 
+  const handleOpenArticle = (item) => {
+    setSelectedArticle(item);
+  };
+
+  const handleChatSend = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const userMsg = chatInput.trim();
+    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+    setChatInput('');
+    setTimeout(() => {
+      let reply = "Thanks for asking! Our support engineer is reviewing your inquiry. In the meantime, you can explore our documentation or create a support ticket.";
+      if (/price|cost|plan/i.test(userMsg)) {
+        reply = "You can view all our transparent tiers on the Pricing page! We offer Free, Pro, Business, and Enterprise plans with annual discounts.";
+      } else if (/sign|document|upload/i.test(userMsg)) {
+        reply = "To sign or send a document, simply click 'Upload Document' on your dashboard, add your recipient emails, and drag & drop signature fields.";
+      } else if (/api|webhook|token/i.test(userMsg)) {
+        reply = "You can access complete API documentation at /docs. Authentication uses Bearer API tokens generated in your Settings.";
+      }
+      setChatMessages(prev => [...prev, { sender: 'bot', text: reply }]);
+    }, 800);
+  };
+
   // Focus search input on mount
   useEffect(() => {
     if (searchInputRef.current) {
@@ -239,9 +326,28 @@ const HelpCenter = () => {
     }
   }, []);
 
-  const filteredArticles = popularArticles.filter(article =>
-    article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    article.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const allSearchableItems = [
+    ...popularArticles.map(a => ({ ...a, type: 'article' })),
+    ...Object.entries(faqs).flatMap(([cat, list]) => 
+      list.map((faq, i) => ({
+        id: `faq-${cat}-${i}`,
+        title: faq.question,
+        category: cat,
+        readTime: '2 min read',
+        views: '4.2k views',
+        summary: faq.answer.slice(0, 110) + '...',
+        content: [faq.answer],
+        type: 'faq',
+        tags: faq.tags
+      }))
+    )
+  ];
+
+  const filteredArticles = searchQuery.trim() === '' ? [] : allSearchableItems.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.content && item.content.some(c => c.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+    (item.tags && item.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   return (
@@ -269,25 +375,39 @@ const HelpCenter = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="safe-search-input"
               />
-              <button className="safe-search-btn">Search</button>
+              <button 
+                className="safe-search-btn"
+                onClick={() => {
+                  if (filteredArticles.length > 0) {
+                    handleOpenArticle(filteredArticles[0]);
+                  }
+                }}
+              >
+                Search
+              </button>
             </div>
             
             {searchQuery && (
               <div className="safe-search-results">
                 <div className="safe-results-header">
                   <span>Search results for "{searchQuery}"</span>
-                  <span className="safe-results-count">{filteredArticles.length} articles found</span>
+                  <span className="safe-results-count">{filteredArticles.length} results found</span>
                 </div>
                 {filteredArticles.length > 0 ? (
                   <div className="safe-results-list">
                     {filteredArticles.map(article => (
-                      <div key={article.id} className="safe-result-item">
+                      <div 
+                        key={article.id} 
+                        className="safe-result-item"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleOpenArticle(article)}
+                      >
                         <div className="safe-result-content">
                           <h4>{article.title}</h4>
                           <div className="safe-result-meta">
                             <span className="safe-result-category">{article.category.replace('-', ' ')}</span>
-                            <span className="safe-result-readtime">{article.readTime} read</span>
-                            <span className="safe-result-views">{article.views} views</span>
+                            <span className="safe-result-readtime">{article.readTime}</span>
+                            <span className="safe-result-views">{article.views}</span>
                           </div>
                         </div>
                         <ChevronRight size={20} />
@@ -343,7 +463,12 @@ const HelpCenter = () => {
                 </div>
                 <div className="safe-popular-grid">
                   {popularArticles.map(article => (
-                    <article key={article.id} className="safe-popular-card">
+                    <article 
+                      key={article.id} 
+                      className="safe-popular-card"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleOpenArticle(article)}
+                    >
                       <div className="safe-popular-content">
                         <h3 className="safe-popular-title">{article.title}</h3>
                         <div className="safe-popular-meta">
@@ -357,7 +482,13 @@ const HelpCenter = () => {
                           </span>
                         </div>
                       </div>
-                      <button className="safe-view-article-btn">
+                      <button 
+                        className="safe-view-article-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenArticle(article);
+                        }}
+                      >
                         View Article
                         <ChevronRight size={16} />
                       </button>
@@ -413,11 +544,16 @@ const HelpCenter = () => {
                 <h3 className="safe-sidebar-title">Quick Links</h3>
                 <div className="safe-quick-links">
                   {quickLinks.map(link => (
-                    <a key={link.label} href={link.href} className="safe-quick-link">
+                    <button 
+                      key={link.label} 
+                      onClick={link.action} 
+                      className="safe-quick-link"
+                      style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
                       {link.icon}
-                      <span>{link.label}</span>
+                      <span style={{ flex: 1, marginLeft: '0.5rem' }}>{link.label}</span>
                       <ExternalLink size={14} />
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -427,7 +563,21 @@ const HelpCenter = () => {
                 <h3 className="safe-sidebar-title">Contact Support</h3>
                 <div className="safe-contact-methods">
                   {contactMethods.map(method => (
-                    <div key={method.type} className="safe-contact-method">
+                    <div 
+                      key={method.type} 
+                      className="safe-contact-method"
+                      style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                      onClick={() => {
+                        if (method.type === 'email') {
+                          window.open('mailto:info@esigniva.com?subject=Esigniva%20Support%20Inquiry', '_blank');
+                          setShowContactForm(true);
+                        } else if (method.type === 'chat') {
+                          setShowLiveChatModal(true);
+                        } else if (method.type === 'phone') {
+                          setShowPhoneModal(true);
+                        }
+                      }}
+                    >
                       <div className="safe-contact-icon" style={{ backgroundColor: `${method.color}15` }}>
                         <span style={{ color: method.color }}>{method.icon}</span>
                       </div>
@@ -456,7 +606,12 @@ const HelpCenter = () => {
               </div>
 
               {/* Status */}
-              <div className="safe-sidebar-card">
+              <div 
+                className="safe-sidebar-card" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowStatusModal(true)}
+                title="Click to view detailed system uptime & components"
+              >
                 <div className="safe-status-header">
                   <Globe size={20} />
                   <h3 className="safe-sidebar-title">System Status</h3>
@@ -464,11 +619,11 @@ const HelpCenter = () => {
                 <div className="safe-status-list">
                   <div className="safe-status-item safe-status-operational">
                     <CheckCircle size={16} />
-                    <span>All Systems Operational</span>
+                    <span>All Systems Operational (99.98%)</span>
                   </div>
                   <div className="safe-status-item safe-status-updated">
                     <Clock size={16} />
-                    <span>Last updated: Just now</span>
+                    <span>Click for live service details</span>
                   </div>
                 </div>
               </div>
@@ -570,12 +725,507 @@ const HelpCenter = () => {
         </div>
       )}
 
+      {/* Article Reader Modal */}
+      {selectedArticle && (
+        <div className="safe-contact-modal" style={{ zIndex: 1100 }}>
+          <div className="safe-modal-overlay" onClick={() => setSelectedArticle(null)} />
+          <div className="safe-modal-content" style={{ maxWidth: '720px' }}>
+            <div className="safe-modal-header" style={{ alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <span style={{ 
+                    padding: '0.25rem 0.75rem', 
+                    borderRadius: '1rem', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 600, 
+                    backgroundColor: '#e6fffa', 
+                    color: '#0f766e',
+                    textTransform: 'capitalize'
+                  }}>
+                    {selectedArticle.category?.replace('-', ' ')}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                    <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                    {selectedArticle.readTime}
+                  </span>
+                </div>
+                <h2 className="safe-modal-title" style={{ fontSize: '1.4rem', lineHeight: '1.4' }}>
+                  {selectedArticle.title}
+                </h2>
+              </div>
+              <button 
+                className="safe-modal-close"
+                onClick={() => setSelectedArticle(null)}
+              >
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem', maxHeight: '65vh', overflowY: 'auto' }}>
+              {selectedArticle.summary && (
+                <div style={{ 
+                  padding: '1rem', 
+                  backgroundColor: '#f8fafc', 
+                  borderLeft: '4px solid #0f766e', 
+                  borderRadius: '0.25rem',
+                  marginBottom: '1.5rem',
+                  color: '#334155',
+                  fontSize: '0.95rem'
+                }}>
+                  {selectedArticle.summary}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: '#1e293b', fontSize: '0.95rem', lineHeight: '1.7' }}>
+                {Array.isArray(selectedArticle.content) ? (
+                  selectedArticle.content.map((paragraph, idx) => (
+                    <p key={idx} style={{ margin: 0 }}>{paragraph}</p>
+                  ))
+                ) : (
+                  <p style={{ margin: 0 }}>{selectedArticle.content}</p>
+                )}
+              </div>
+
+              {selectedArticle.tags && selectedArticle.tags.length > 0 && (
+                <div style={{ marginTop: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Tags:</span>
+                  {selectedArticle.tags.map(t => (
+                    <span key={t} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', borderRadius: '4px', color: '#475569' }}>
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Feedback & Actions */}
+              <div style={{ 
+                marginTop: '2rem', 
+                paddingTop: '1.5rem', 
+                borderTop: '1px solid #e2e8f0', 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Was this article helpful?</span>
+                  <button 
+                    onClick={() => {
+                      setFeedbackGiven(prev => ({ ...prev, [selectedArticle.id]: 'yes' }));
+                      Swal.fire({ icon: 'success', title: 'Thank you!', text: 'Your feedback helps us improve our documentation.', timer: 1500, showConfirmButton: false });
+                    }}
+                    style={{ 
+                      padding: '0.4rem 0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: '1px solid #cbd5e1', 
+                      background: feedbackGiven[selectedArticle.id] === 'yes' ? '#e6fffa' : 'white',
+                      color: feedbackGiven[selectedArticle.id] === 'yes' ? '#0f766e' : '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <ThumbsUp size={14} /> Yes
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setFeedbackGiven(prev => ({ ...prev, [selectedArticle.id]: 'no' }));
+                      Swal.fire({ icon: 'info', title: 'Thanks for letting us know', text: 'Our documentation team will review and expand this article.', timer: 1500, showConfirmButton: false });
+                    }}
+                    style={{ 
+                      padding: '0.4rem 0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: '1px solid #cbd5e1', 
+                      background: feedbackGiven[selectedArticle.id] === 'no' ? '#fff1f2' : 'white',
+                      color: feedbackGiven[selectedArticle.id] === 'no' ? '#e11d48' : '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <ThumbsDown size={14} /> No
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      Swal.fire({ icon: 'success', title: 'Link Copied', text: 'Article link copied to clipboard.', timer: 1200, showConfirmButton: false });
+                    }}
+                    style={{ 
+                      padding: '0.4rem 0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: '1px solid #cbd5e1', 
+                      background: 'white',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <Copy size={14} /> Copy Link
+                  </button>
+                  <button 
+                    onClick={() => window.print()}
+                    style={{ 
+                      padding: '0.4rem 0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: '1px solid #cbd5e1', 
+                      background: 'white',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <Printer size={14} /> Print
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System Status Modal */}
+      {showStatusModal && (
+        <div className="safe-contact-modal" style={{ zIndex: 1100 }}>
+          <div className="safe-modal-overlay" onClick={() => setShowStatusModal(false)} />
+          <div className="safe-modal-content" style={{ maxWidth: '640px' }}>
+            <div className="safe-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Activity size={24} color="#0f766e" />
+                <div>
+                  <h2 className="safe-modal-title">Esigniva System Status</h2>
+                  <span style={{ fontSize: '0.8rem', color: '#16a34a', fontWeight: 600 }}>● All Systems Fully Operational</span>
+                </div>
+              </div>
+              <button className="safe-modal-close" onClick={() => setShowStatusModal(false)}>
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem', maxHeight: '65vh', overflowY: 'auto' }}>
+              <div style={{ 
+                padding: '1rem', 
+                backgroundColor: '#f0fdf4', 
+                border: '1px solid #bbf7d0', 
+                borderRadius: '0.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: '#166534' }}>99.98% Overall Uptime</div>
+                  <div style={{ fontSize: '0.8rem', color: '#15803d' }}>Measured over the last 90 continuous days</div>
+                </div>
+                <div style={{ padding: '0.35rem 0.75rem', backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '1rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                  OPERATIONAL
+                </div>
+              </div>
+
+              <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', color: '#1e293b' }}>Core Service Components</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[
+                  { name: 'Core API Gateway & Routing', uptime: '99.99%', status: 'Operational' },
+                  { name: 'Document Signing & Interactive Canvas', uptime: '100%', status: 'Operational' },
+                  { name: 'Audit Trail & Cryptographic Timestamping Engine', uptime: '100%', status: 'Operational' },
+                  { name: 'Email & SMS Notification Dispatcher', uptime: '99.95%', status: 'Operational' },
+                  { name: 'Encrypted Cloud Storage Vault (AES-256)', uptime: '100%', status: 'Operational' },
+                  { name: 'Webhooks & Real-Time Event Dispatch', uptime: '99.98%', status: 'Operational' }
+                ].map((svc, i) => (
+                  <div key={i} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '0.75rem 1rem', 
+                    backgroundColor: '#f8fafc', 
+                    borderRadius: '0.375rem',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#334155' }}>{svc.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Uptime: {svc.uptime}</div>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <CheckCircle size={14} /> {svc.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+                <strong>Scheduled Maintenance:</strong> No maintenance scheduled for the next 7 days. Routine infrastructure updates occur on Sundays between 02:00 and 03:00 GMT with zero downtime failover.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Release Notes Modal */}
+      {showReleaseNotesModal && (
+        <div className="safe-contact-modal" style={{ zIndex: 1100 }}>
+          <div className="safe-modal-overlay" onClick={() => setShowReleaseNotesModal(false)} />
+          <div className="safe-modal-content" style={{ maxWidth: '680px' }}>
+            <div className="safe-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Sparkles size={24} color="#0f766e" />
+                <div>
+                  <h2 className="safe-modal-title">Esigniva Release Notes</h2>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Changelog and Platform Improvements</span>
+                </div>
+              </div>
+              <button className="safe-modal-close" onClick={() => setShowReleaseNotesModal(false)}>
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem', maxHeight: '65vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Release 2.4.0 */}
+                <div style={{ borderLeft: '3px solid #0f766e', paddingLeft: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0f766e' }}>Version 2.4.0</span>
+                    <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', backgroundColor: '#e6fffa', color: '#0f766e', borderRadius: '1rem', fontWeight: 600 }}>Latest</span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>• October 2026</span>
+                  </div>
+                  <ul style={{ margin: '0.5rem 0 0 1rem', padding: 0, fontSize: '0.9rem', color: '#334155', lineHeight: '1.6' }}>
+                    <li><strong>AI Document Field Detection:</strong> Automatically identifies standard contract signature lines, date spots, and participant names.</li>
+                    <li><strong>Dynamic Watermarking:</strong> Protect sensitive documents with real-time viewer IP and timestamp watermarks.</li>
+                    <li><strong>HMAC Webhook Signatures:</strong> Enhanced security with SHA-256 HMAC headers on every event webhook payload.</li>
+                    <li><strong>Multi-Signer Sequence Engine:</strong> Complete control over parallel vs. step-by-step signing workflows.</li>
+                  </ul>
+                </div>
+
+                {/* Release 2.3.5 */}
+                <div style={{ borderLeft: '3px solid #94a3b8', paddingLeft: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#334155' }}>Version 2.3.5</span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>• September 2026</span>
+                  </div>
+                  <ul style={{ margin: '0.5rem 0 0 1rem', padding: 0, fontSize: '0.9rem', color: '#334155', lineHeight: '1.6' }}>
+                    <li><strong>100MB File Engine:</strong> Support for large blueprints, multi-page financial filings, and high-resolution contracts.</li>
+                    <li><strong>Audit Certificate 2.0:</strong> Cryptographic verification QR code embedded into the final page of every signed envelope.</li>
+                    <li><strong>Self-Serve Unsubscribe & Preference Center:</strong> Clean management of notifications and newsletters.</li>
+                  </ul>
+                </div>
+
+                {/* Release 2.3.0 */}
+                <div style={{ borderLeft: '3px solid #94a3b8', paddingLeft: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: '#334155' }}>Version 2.3.0</span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>• August 2026</span>
+                  </div>
+                  <ul style={{ margin: '0.5rem 0 0 1rem', padding: 0, fontSize: '0.9rem', color: '#334155', lineHeight: '1.6' }}>
+                    <li><strong>Enterprise Single Sign-On (SSO):</strong> SAML 2.0 and Google Workspace directory sync.</li>
+                    <li><strong>Custom Branding:</strong> Dynamic company logo and tailored email templates for all recipient interactions.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Chat Modal */}
+      {showLiveChatModal && (
+        <div className="safe-contact-modal" style={{ zIndex: 1100 }}>
+          <div className="safe-modal-overlay" onClick={() => setShowLiveChatModal(false)} />
+          <div className="safe-modal-content" style={{ maxWidth: '480px', display: 'flex', flexDirection: 'column' }}>
+            <div className="safe-modal-header" style={{ backgroundColor: '#0f766e', color: 'white', borderRadius: '1rem 1rem 0 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MessageCircle size={20} color="white" />
+                  </div>
+                  <span style={{ position: 'absolute', bottom: 0, right: 0, width: '10px', height: '10px', backgroundColor: '#22c55e', borderRadius: '50%', border: '2px solid #0f766e' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'white' }}>Esigniva Live Support</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>Support Agent Online • Typical reply: Instant</span>
+                </div>
+              </div>
+              <button 
+                className="safe-modal-close" 
+                onClick={() => setShowLiveChatModal(false)}
+                style={{ color: 'white' }}
+              >
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <div style={{ padding: '1rem', height: '320px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {chatMessages.map((msg, i) => (
+                <div 
+                  key={i} 
+                  style={{ 
+                    alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '82%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: msg.sender === 'user' ? '1rem 1rem 0.2rem 1rem' : '1rem 1rem 1rem 0.2rem',
+                    backgroundColor: msg.sender === 'user' ? '#0f766e' : 'white',
+                    color: msg.sender === 'user' ? 'white' : '#1e293b',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                    fontSize: '0.9rem',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  {msg.text}
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Prompts */}
+            <div style={{ padding: '0.5rem 1rem', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
+              {['How to add signers?', 'API documentation', 'Pricing plans'].map((prompt, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setChatMessages(prev => [...prev, { sender: 'user', text: prompt }]);
+                    setTimeout(() => {
+                      let r = "You can add multiple signers directly during upload or through templates!";
+                      if (prompt.includes('API')) r = "Full REST API docs are available at /docs with SDKs in JS and Python.";
+                      if (prompt.includes('Pricing')) r = "Check out our /pricing page for plans starting with 5 free documents/month.";
+                      setChatMessages(prev => [...prev, { sender: 'bot', text: r }]);
+                    }, 600);
+                  }}
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '1rem',
+                    border: '1px solid #cbd5e1',
+                    background: '#f1f5f9',
+                    fontSize: '0.75rem',
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleChatSend} style={{ display: 'flex', padding: '0.75rem 1rem', borderTop: '1px solid #e2e8f0', backgroundColor: 'white' }}>
+              <input
+                type="text"
+                placeholder="Type your message..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: '0.9rem', padding: '0.5rem' }}
+              />
+              <button 
+                type="submit" 
+                style={{ background: '#0f766e', border: 'none', color: 'white', borderRadius: '0.5rem', padding: '0.5rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Phone Support Modal */}
+      {showPhoneModal && (
+        <div className="safe-contact-modal" style={{ zIndex: 1100 }}>
+          <div className="safe-modal-overlay" onClick={() => setShowPhoneModal(false)} />
+          <div className="safe-modal-content" style={{ maxWidth: '520px' }}>
+            <div className="safe-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Phone size={24} color="#10b981" />
+                <div>
+                  <h2 className="safe-modal-title">Esigniva Phone Support</h2>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Connect directly with a specialist</span>
+                </div>
+              </div>
+              <button className="safe-modal-close" onClick={() => setShowPhoneModal(false)}>
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* UK & Global Number */}
+                <div style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>UNITED KINGDOM & GLOBAL</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f766e' }}>+44 (0)20 7946 0192</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Mon-Fri 08:00 - 20:00 GMT</div>
+                  </div>
+                  <a 
+                    href="tel:+442079460192" 
+                    className="safe-btn-primary" 
+                    style={{ textDecoration: 'none', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '0.375rem', fontSize: '0.85rem' }}
+                  >
+                    <Phone size={14} /> Call Now
+                  </a>
+                </div>
+
+                {/* US & Americas Number */}
+                <div style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>NORTH AMERICA (TOLL-FREE)</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f766e' }}>+1 (800) 555-0199</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Mon-Fri 09:00 - 18:00 EST</div>
+                  </div>
+                  <a 
+                    href="tel:+18005550199" 
+                    className="safe-btn-primary" 
+                    style={{ textDecoration: 'none', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '0.375rem', fontSize: '0.85rem' }}
+                  >
+                    <Phone size={14} /> Call Now
+                  </a>
+                </div>
+              </div>
+
+              {/* Callback Option */}
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1e293b' }}>Prefer a Callback?</h4>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1rem 0' }}>Leave your number and an e-signature consultant will contact you within 15 minutes.</p>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="tel" 
+                    placeholder="Enter phone with country code" 
+                    id="callbackPhoneInput"
+                    style={{ flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', fontSize: '0.85rem' }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const input = document.getElementById('callbackPhoneInput');
+                      if (!input?.value) {
+                        Swal.fire({ icon: 'warning', title: 'Phone Required', text: 'Please enter your contact phone number.' });
+                        return;
+                      }
+                      Swal.fire({ icon: 'success', title: 'Callback Scheduled', text: "Thank you! We'll call " + input.value + " within 15 minutes." });
+                      setShowPhoneModal(false);
+                    }}
+                    style={{ padding: '0.6rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
+                  >
+                    Request Call
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         /* Base Styles */
         .safe-help-center {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

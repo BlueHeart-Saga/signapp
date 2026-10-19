@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import {
   Home,
@@ -79,6 +79,7 @@ const menuItems = {
 export default function Sidebar({ collapsed, onToggle }) {
   const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
   const [openSubmenus, setOpenSubmenus] = useState({ "/user/documents": true });
@@ -250,7 +251,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           onClick={(e) => {
             e.stopPropagation();
             logout();
-            window.location.href = "/login";
+            navigate("/login");
           }}
         >
           <LogOut size={18} />

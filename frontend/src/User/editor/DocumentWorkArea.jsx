@@ -322,10 +322,13 @@ const DocumentWorkArea = ({
   }, [currentPage, scaledHeight, scaledHeaderHeight]);
 
   // Handle PDF load
-  const handlePdfLoadSuccess = useCallback(() => {
+  const handlePdfLoadSuccess = useCallback((pdf) => {
     setPdfLoaded(true);
     setPdfError(null);
-  }, []);
+    if (pdf?.numPages) {
+      onPdfLoaded?.(null, null, null, pdf.numPages);
+    }
+  }, [onPdfLoaded]);
 
   const handlePdfLoadError = useCallback((error) => {
     console.error('PDF load error:', error);

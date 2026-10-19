@@ -261,7 +261,7 @@ def generate_short_envelope_id() -> str:
     return f"ENV-{today}{sequence_str}"
 
 
-@router.get("/search", summary="Search documents by filename, envelope_id, status, or recipient")
+@router.get("/search", summary="Search documents by filename, envelope_id, status, date, or recipient")
 async def search_documents(
     q: str = Query(..., min_length=1, description="Search query string"),
     limit: int = Query(20, ge=1, le=100),
@@ -272,7 +272,8 @@ async def search_documents(
     Matches:
     - filename / title
     - envelope_id
-    - status
+    - status (draft, sent, in_progress, completed, voided, declined)
+    - date (today, yesterday, YYYY-MM, etc.)
     - recipient name / email
     - subject / message
     """
@@ -284,34 +285,98 @@ async def search_documents(
         if not clean_query:
             return {"results": [], "total": 0}
 
-        regex_pattern = re.compile(re.escape(clean_query), re.IGNORECASE)
+        owner_candidates = [user_id]
+        try:
+            owner_candidates.append(ObjectId(user_id))
+        except Exception:
+            pass
 
-        # Base filter: if admin, search across all non-deleted documents; otherwise scope to user
         if user_role == "admin":
             base_filter = {"status": {"$ne": "deleted"}}
         else:
-            user_email = current_user.get("email", "")
+            user_email = (current_user.get("email") or "").lower().strip()
+            or_clauses = [
+                {"owner_id": {"$in": owner_candidates}},
+                {"user_id": {"$in": owner_candidates}},
+                {"created_by": {"$in": owner_candidates}},
+            ]
+            if user_email:
+                or_clauses.append({"recipients.email": {"$regex": f"^{re.escape(user_email)}$", "$options": "i"}})
             base_filter = {
                 "status": {"$ne": "deleted"},
-                "$or": [
-                    {"user_id": user_id},
-                    {"created_by": user_id},
-                    {"owner_id": user_id},
-                    {"recipients.email": user_email}
-                ]
+                "$or": or_clauses
             }
 
-        # Match criteria across multiple fields
-        match_conditions = [
-            {"filename": regex_pattern},
-            {"title": regex_pattern},
-            {"envelope_id": regex_pattern},
-            {"status": regex_pattern},
-            {"subject": regex_pattern},
-            {"message": regex_pattern},
-            {"recipients.name": regex_pattern},
-            {"recipients.email": regex_pattern}
-        ]
+        # Check for advanced field prefix e.g. "status:completed", "filename:nda", "envelope:ENV"
+        match_conditions = []
+        if ":" in clean_query and not clean_query.startswith("http"):
+            parts = clean_query.split(":", 1)
+            prefix = parts[0].strip().lower()
+            val = parts[1].strip()
+            if prefix in ("filename", "name", "file"):
+                match_conditions.append({"filename": {"$regex": re.escape(val), "$options": "i"}})
+                match_conditions.append({"title": {"$regex": re.escape(val), "$options": "i"}})
+            elif prefix in ("status", "state"):
+                match_conditions.append({"status": {"$regex": f"^{re.escape(val)}$", "$options": "i"}})
+            elif prefix in ("envelope", "envelope_id", "env"):
+                match_conditions.append({"envelope_id": {"$regex": re.escape(val), "$options": "i"}})
+            elif prefix in ("recipient", "email", "to"):
+                match_conditions.append({"recipients.name": {"$regex": re.escape(val), "$options": "i"}})
+                match_conditions.append({"recipients.email": {"$regex": re.escape(val), "$options": "i"}})
+            elif prefix == "date":
+                try:
+                    date_parts = val.split("-")
+                    if len(date_parts) == 2:
+                        y, m = int(date_parts[0]), int(date_parts[1])
+                        start = datetime(y, m, 1)
+                        end = datetime(y + 1, 1, 1) if m == 12 else datetime(y, m + 1, 1)
+                        match_conditions.append({"uploaded_at": {"$gte": start, "$lt": end}})
+                except Exception:
+                    pass
+
+        if not match_conditions:
+            regex_pattern = {"$regex": re.escape(clean_query), "$options": "i"}
+            match_conditions = [
+                {"filename": regex_pattern},
+                {"title": regex_pattern},
+                {"envelope_id": regex_pattern},
+                {"status": regex_pattern},
+                {"subject": regex_pattern},
+                {"message": regex_pattern},
+                {"recipients.name": regex_pattern},
+                {"recipients.email": regex_pattern}
+            ]
+
+            # Semantic status matching
+            lower_q = clean_query.lower()
+            if lower_q in ("completed", "complete", "signed", "done"):
+                match_conditions.append({"status": "completed"})
+            elif lower_q in ("draft", "drafts", "saved"):
+                match_conditions.append({"status": "draft"})
+            elif lower_q in ("in progress", "inprogress", "pending", "in-progress", "waiting"):
+                match_conditions.append({"status": {"$in": ["in_progress", "sent"]}})
+            elif lower_q in ("sent", "delivered"):
+                match_conditions.append({"status": "sent"})
+            elif lower_q in ("voided", "void", "cancelled"):
+                match_conditions.append({"status": "voided"})
+            elif lower_q in ("declined", "rejected"):
+                match_conditions.append({"status": "declined"})
+
+            # Semantic date matching
+            now = datetime.utcnow()
+            if lower_q == "today":
+                start_today = datetime(now.year, now.month, now.day)
+                match_conditions.append({"uploaded_at": {"$gte": start_today}})
+            elif lower_q == "yesterday":
+                start_yesterday = datetime(now.year, now.month, now.day) - timedelta(days=1)
+                end_yesterday = datetime(now.year, now.month, now.day)
+                match_conditions.append({"uploaded_at": {"$gte": start_yesterday, "$lt": end_yesterday}})
+            elif lower_q in ("this week", "week"):
+                start_week = datetime(now.year, now.month, now.day) - timedelta(days=7)
+                match_conditions.append({"uploaded_at": {"$gte": start_week}})
+            elif lower_q in ("this month", "month"):
+                start_month = datetime(now.year, now.month, 1)
+                match_conditions.append({"uploaded_at": {"$gte": start_month}})
 
         final_query = {
             "$and": [
@@ -320,17 +385,25 @@ async def search_documents(
             ]
         }
 
-        cursor = db.documents.find(final_query).sort("uploaded_at", -1).limit(limit)
+        # Properly await the async cursor using .to_list()
+        documents = await db.documents.find(final_query).sort("uploaded_at", -1).limit(limit).to_list(length=limit)
         
         results = []
-        for doc in cursor:
+        for doc in documents:
+            uploaded_at = doc.get("uploaded_at") or doc.get("created_at") or doc.get("updated_at")
+            if isinstance(uploaded_at, datetime):
+                uploaded_at = uploaded_at.isoformat()
+            updated_at = doc.get("updated_at")
+            if isinstance(updated_at, datetime):
+                updated_at = updated_at.isoformat()
+
             results.append({
                 "id": str(doc["_id"]),
                 "filename": doc.get("filename") or doc.get("title") or "Untitled Document",
                 "title": doc.get("title") or doc.get("filename") or "Untitled Document",
                 "status": doc.get("status", "draft"),
-                "uploaded_at": doc.get("uploaded_at") or doc.get("created_at") or doc.get("updated_at"),
-                "updated_at": doc.get("updated_at"),
+                "uploaded_at": uploaded_at,
+                "updated_at": updated_at,
                 "envelope_id": doc.get("envelope_id"),
                 "recipient_count": len(doc.get("recipients", [])),
                 "recipients": [
@@ -546,7 +619,27 @@ async def serialize_document(doc):
         "expiry_days": doc.get("expiry_days"),
         "reminder_period": doc.get("reminder_period"),
         "signing_order_enabled": doc.get("signing_order_enabled"),
-        "expires_at": doc.get("expires_at").isoformat() + "Z" if doc.get("expires_at") else None
+        "expires_at": doc.get("expires_at").isoformat() + "Z" if doc.get("expires_at") else None,
+
+        # Multi-file envelope awareness
+        "files": [
+            {
+                "id": str(f["_id"]),
+                "filename": f.get("filename"),
+                "pages": f.get("page_count", 1),
+                "order": f.get("order", 1),
+                "start_page": f.get("start_page", 1),
+                "end_page": f.get("end_page", 1),
+                "page_range": (
+                    f"Page {f.get('start_page', 1)}"
+                    if f.get("start_page", 1) == f.get("end_page", 1)
+                    else f"Pages {f.get('start_page', 1)}–{f.get('end_page', 1)}"
+                ),
+                "thumbnail_url": f"/documents/{doc_id}/files/{f['_id']}/thumbnail"
+            }
+            for f in await db.document_files.find({"document_id": doc_id}).sort("order", 1).to_list(length=100)
+        ],
+        "files_count": await db.document_files.count_documents({"document_id": doc_id})
     }
 
 from .audit import log_audit_event
@@ -562,6 +655,7 @@ async def _log_event(
         "document_id": ObjectId(document_id),
         "timestamp": datetime.utcnow(),
         "type": event_type,
+        "action": event_type,
         "title": event_type.replace("_", " ").title(), # serialize_timeline_event will enrich this
         "description": "",
         "metadata": metadata or {}
@@ -894,29 +988,32 @@ def merge_pdfs(pdf_bytes_list: list[bytes]) -> bytes:
     return merged.tobytes()
 
 
-def get_merged_pdf(document_id: str) -> bytes:
-    files = list(
-        db.document_files
-        .find({"document_id": ObjectId(document_id)})
-        .sort("order", 1)
-    )
+async def get_merged_pdf(document_id: str) -> bytes:
+    try:
+        files = await db.document_files.find(
+            {"document_id": ObjectId(document_id)}
+        ).sort("order", 1).to_list(1000)
 
-    pdfs = []
+        pdfs = []
+        for f in files:
+            try:
+                data = storage.download(f["file_path"])
+                if data and len(data) > 100:
+                    pdfs.append(data)
+            except Exception as e:
+                print(f"[get_merged_pdf] Skipping file {f.get('filename')}: {e}")
+                continue
 
-    for f in files:
-        try:
-            # Fix: Use storage.download instead of fs.get
-            data = storage.download(f["file_path"])
-            if data and len(data) > 100:
-                pdfs.append(data)
-        except Exception as e:
-            print(f"[get_merged_pdf] Skipping file {f.get('filename')}: {e}")
-            continue
+        if pdfs:
+            return merge_pdfs(pdfs)
+    except Exception as e:
+        print(f"[get_merged_pdf] Error fetching files: {e}")
 
-    if not pdfs:
-        raise HTTPException(500, "No valid PDF files found for document")
+    doc = await db.documents.find_one({"_id": ObjectId(document_id)})
+    if doc and doc.get("pdf_file_path"):
+        return storage.download(doc["pdf_file_path"])
 
-    return merge_pdfs(pdfs)
+    raise HTTPException(500, "No valid PDF files found for document")
 
 
 
@@ -932,36 +1029,67 @@ def merge_files(files: list[tuple[bytes, str]]) -> bytes | None:
     return merge_pdfs(pdfs)
 
 
-def load_document_pdf(doc: dict, document_id: str) -> bytes:
+async def load_document_pdf(doc: dict, document_id: str) -> bytes:
     """
     Load PDF from Azure Blob Storage.
-    1) If document has multiple files → merge from document_files
-    2) Else fallback to pdf_file_path
+    0) If document is completed or has signed_pdf_path -> download and return signed PDF directly
+    1) If document has multiple files in document_files -> download all and merge in order
+    2) If 1 file in document_files -> use that file's file_path
+    3) Fallback to doc.pdf_file_path or doc.signed_pdf_path
     """
-    # 1️⃣ Multi-file support
-    files = list(
-        db.document_files
-        .find({"document_id": ObjectId(document_id)})
-        .sort("order", 1)
-    )
+    # 0) Priority: If document is completed or signed, ALWAYS load signed_pdf_path!
+    try:
+        signed_path = None
+        if doc and (doc.get("status") == "completed" or doc.get("signed_pdf_path")):
+            signed_path = doc.get("signed_pdf_path")
+        
+        if not signed_path and document_id:
+            try:
+                doc_rec = await db.documents.find_one({"_id": ObjectId(document_id)})
+                if doc_rec and (doc_rec.get("status") == "completed" or doc_rec.get("signed_pdf_path")):
+                    signed_path = doc_rec.get("signed_pdf_path")
+            except Exception:
+                pass
 
-    if files:
-        try:
+        if signed_path:
+            data = storage.download(signed_path)
+            if data and len(data) > 100:
+                return data
+    except Exception as e:
+        print(f"[load_document_pdf] signed_pdf_path check error: {e}")
+
+    try:
+        doc_oid = ObjectId(document_id)
+        files = await db.document_files.find({"document_id": doc_oid}).sort("order", 1).to_list(1000)
+        if files and len(files) > 1:
             pdfs = []
             for f in files:
-                data = storage.download(f["file_path"])
-                if data and len(data) > 100:
-                    pdfs.append(data)
-            
+                f_path = f.get("file_path")
+                if f_path:
+                    data = storage.download(f_path)
+                    if data and len(data) > 100:
+                        pdfs.append(data)
             if pdfs:
                 return merge_pdfs(pdfs)
-        except Exception as e:
-            print(f"[load_document_pdf] merge failed: {e}")
-            # fallback to single PDF
+        elif files and len(files) == 1:
+            f_path = files[0].get("file_path")
+            if f_path:
+                data = storage.download(f_path)
+                if data and len(data) > 100:
+                    return data
+    except Exception as e:
+        print(f"[load_document_pdf] document_files check error: {e}")
 
-    # 2️⃣ Prefer ORIGINAL PDF when intended for field application
-    # Using signed_pdf_path here was causing doubling in live document and previewers
-    pdf_path = doc.get("pdf_file_path") or doc.get("signed_pdf_path")
+    # Fallback to single PDF in doc
+    pdf_path = (doc.get("pdf_file_path") if doc else None) or (doc.get("signed_pdf_path") if doc else None)
+    if not pdf_path and document_id:
+        try:
+            doc_rec = await db.documents.find_one({"_id": ObjectId(document_id)})
+            if doc_rec:
+                pdf_path = doc_rec.get("pdf_file_path") or doc_rec.get("signed_pdf_path")
+        except Exception:
+            pass
+
     if not pdf_path:
         raise HTTPException(500, "Base PDF missing")
 
@@ -969,6 +1097,14 @@ def load_document_pdf(doc: dict, document_id: str) -> bytes:
         return storage.download(pdf_path)
     except Exception as e:
         raise HTTPException(500, f"Cannot read base PDF: {str(e)}")
+
+
+def load_document_pdf_sync(doc: dict, document_id: str) -> bytes:
+    """Synchronous fallback when async cannot be awaited."""
+    pdf_path = (doc.get("pdf_file_path") if doc else None) or (doc.get("signed_pdf_path") if doc else None)
+    if not pdf_path:
+        raise HTTPException(500, "Base PDF missing")
+    return storage.download(pdf_path)
 
 def calculate_file_page_ranges(files):
     """
@@ -1027,46 +1163,93 @@ def generate_and_store_page_thumbnails(pdf_bytes: bytes, document_id: str, filen
 
 async def update_document_summary_metadata(document_id: str):
     """
-    Recalculates a document's total page count and its flattened list 
-    of page thumbnails based on all the files it currently contains.
+    Recalculates a document's total page count, per-file start/end page ranges,
+    flattened list of page thumbnails, and ensures pdf_file_path points to
+    a valid combined/merged PDF representing ALL files currently in the document.
     """
     doc_id = ObjectId(document_id)
+    doc_record = await db.documents.find_one({"_id": doc_id})
+    if not doc_record:
+        return
+
     all_files = await db.document_files.find({"document_id": doc_id}).sort("order", 1).to_list(length=1000)
     
     total_pages = 0
     all_global_thumbs = []
+    current_page = 1
     
-    first_file_path = None
-    first_thumb_path = None
-    
+    # Calculate file page ranges and accumulate thumbnails
     for f in all_files:
-        if not first_file_path:
-            first_file_path = f.get("file_path")
-            first_thumb_path = f.get("thumbnail_path")
-            
+        f_pages = f.get("page_count", 0)
+        start_page = current_page
+        end_page = current_page + max(f_pages, 1) - 1
+        
+        await db.document_files.update_one(
+            {"_id": f["_id"]},
+            {"$set": {
+                "start_page": start_page,
+                "end_page": end_page
+            }}
+        )
+        current_page = end_page + 1
+        
         file_thumbs = f.get("page_thumbnails", [])
         for t in file_thumbs:
             all_global_thumbs.append({
                 "page": total_pages + 1,
-                "thumbnail_path": t["thumbnail_path"],
+                "thumbnail_path": t.get("thumbnail_path"),
                 "is_preview": False
             })
             total_pages += 1
         
-        # fallback if file has no page_thumbnails yet but has a count
-        # (This happens if we haven't yet finished generating thumbnails for a newly added file)
-        if not file_thumbs and f["page_count"] > 0:
-            total_pages += f["page_count"]
-            
+        if not file_thumbs and f_pages > 0:
+            total_pages += f_pages
+
+    if not all_files:
+        return
+
+    first_thumb_path = all_files[0].get("thumbnail_path")
+    active_pdf_path = None
+
+    if len(all_files) == 1:
+        active_pdf_path = all_files[0].get("file_path")
+    else:
+        # Multiple files: merge all files into a combined PDF so doc.pdf_file_path ALWAYS has all pages!
+        try:
+            pdfs = []
+            for f in all_files:
+                f_path = f.get("file_path")
+                if f_path:
+                    data = storage.download(f_path)
+                    if data and len(data) > 100:
+                        pdfs.append(data)
+            if pdfs:
+                combined_pdf = merge_pdfs(pdfs)
+                owner_id = str(doc_record.get("owner_id", "default"))
+                active_pdf_path = storage.upload(
+                    combined_pdf,
+                    f"combined_{document_id}.pdf",
+                    folder=f"users/{owner_id}/documents/{document_id}/combined"
+                )
+        except Exception as e:
+            print(f"[update_document_summary_metadata] Merge combined error: {e}")
+            active_pdf_path = all_files[0].get("file_path")
+
+    if not active_pdf_path:
+        active_pdf_path = all_files[0].get("file_path")
+
     # Update main doc record
+    update_data = {
+        "page_count": total_pages,
+        "page_thumbnails": all_global_thumbs,
+        "pdf_file_path": active_pdf_path,
+        "preview_thumbnail_path": first_thumb_path,
+        "updated_at": datetime.utcnow()
+    }
+    
     await db.documents.update_one(
         {"_id": doc_id},
-        {"$set": {
-            "page_count": total_pages,
-            "page_thumbnails": all_global_thumbs,
-            "pdf_file_path": first_file_path,
-            "preview_thumbnail_path": first_thumb_path
-        }}
+        {"$set": update_data}
     )
 
 def guard_document_active(doc):
@@ -1775,7 +1958,44 @@ async def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, docu
                 })
                 print(f"  - Added signature field: {field_type}")
             else:
-                print(f"  - WARNING: No image data for {field_type} field {field.get('_id')}")
+                # Handle typed initials or text signatures without image data
+                text_content = None
+                if isinstance(norm_val, dict) and norm_val.get("text"):
+                    text_content = norm_val.get("text")
+                elif isinstance(field_value, dict) and (field_value.get("text") or field_value.get("value")):
+                    text_content = field_value.get("text") or field_value.get("value")
+                elif isinstance(field_value, str) and not field_value.startswith("data:image"):
+                    text_content = field_value
+
+                if text_content and str(text_content).strip():
+                    font_fam = field_value.get("font_family") if isinstance(field_value, dict) else "Dancing Script"
+                    font_col = field_value.get("font_color") if isinstance(field_value, dict) else "#000000"
+                    signatures.append({
+                        "field_id": str(field["_id"]),
+                        "text": str(text_content).strip(),
+                        "signature_type": "type",
+                        "font_family": font_fam,
+                        "font_color": font_col,
+                        "type": field_type,
+                        "page": field.get("page", 0),
+                        "x": field.get("pdf_x", field.get("x", 0)),
+                        "y": field.get("pdf_y", field.get("y", 0)),
+                        "width": field.get("pdf_width", field.get("width", 100)),
+                        "height": field.get("pdf_height", field.get("height", 30)),
+                        "canvas_x": field.get("canvas_x"),
+                        "canvas_y": field.get("canvas_y"),
+                        "canvas_width": field.get("canvas_width") or document.get("canvas_width"),
+                        "canvas_height": field.get("canvas_height") or document.get("canvas_height"),
+                        "pdf_x": field.get("pdf_x"),
+                        "pdf_y": field.get("pdf_y"),
+                        "pdf_width": field.get("pdf_width"),
+                        "pdf_height": field.get("pdf_height"),
+                        "is_completed": True,
+                        "_render_completed": True
+                    })
+                    print(f"  - Added typed signature/initials field: {field_type} = '{text_content}'")
+                else:
+                    print(f"  - WARNING: No image or text data for {field_type} field {field.get('_id')}")
                 
         elif field_type in TEXT_FIELDS:
             # 🔥 USE CENTRALIZED NORMALIZATION
@@ -2421,20 +2641,30 @@ async def view_file_preview(
     """
     Get PREVIEW image for a file (first page as preview).
     """
-    # 🔐 Token from query (img-safe)
-    token = request.query_params.get("token")
-    if not token:
-        raise HTTPException(401, "Missing token")
+    user = await get_user_from_request(request)
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("id") or payload.get("_id")
-    except JWTError:
-        raise HTTPException(401, "Invalid token")
+        doc_oid = ObjectId(document_id)
+        file_oid = ObjectId(file_id)
+    except Exception:
+        raise HTTPException(400, "Invalid document or file ID")
+
+    # Verify owner or recipient access
+    doc = await db.documents.find_one({
+        "_id": doc_oid,
+        "owner_id": ObjectId(user["id"])
+    })
+    if not doc:
+        recipient = await db.recipients.find_one({
+            "document_id": doc_oid,
+            "email": user["email"]
+        })
+        if not recipient:
+            raise HTTPException(403, "Not authorized to view this file")
 
     file = await db.document_files.find_one({
-        "_id": ObjectId(file_id),
-        "document_id": ObjectId(document_id)
+        "_id": file_oid,
+        "document_id": doc_oid
     })
 
     if not file:
@@ -2468,7 +2698,8 @@ async def view_file_preview(
         io.BytesIO(img_bytes),
         media_type="image/png",
         headers={
-            "Cache-Control": "private, max-age=86400",
+            "Cache-Control": "no-cache, must-revalidate",
+            "Pragma": "no-cache",
             "Content-Disposition": f'inline; filename="{file.get("filename", "file")}_preview.png"'
         }
     )
@@ -2516,18 +2747,22 @@ async def get_page_thumbnail(
     if page_number < 1 or page_number > doc.get("page_count", 0):
         raise HTTPException(400, f"Invalid page number. Must be between 1 and {doc.get('page_count', 0)}")
     
+    is_completed = (doc.get("status") == "completed" or bool(doc.get("signed_pdf_path")))
+
     # Try to get pre-generated thumbnail
     thumbnails = doc.get("page_thumbnails", [])
     page_thumbnail = next((t for t in thumbnails if t.get("page") == page_number), None)
     
-    if page_thumbnail and page_thumbnail.get("thumbnail_path"):
+    # If completed, only use pre-generated thumbnail if it was generated from the signed PDF
+    if page_thumbnail and page_thumbnail.get("thumbnail_path") and (not is_completed or "signed" in page_thumbnail["thumbnail_path"]):
         try:
             thumb_bytes = storage.download(page_thumbnail["thumbnail_path"])
             return StreamingResponse(
                 io.BytesIO(thumb_bytes),
                 media_type="image/png",
                 headers={
-                    "Cache-Control": "public, max-age=86400",
+                    "Cache-Control": "no-cache, must-revalidate",
+                    "Pragma": "no-cache",
                     "Content-Disposition": f'inline; filename="page_{page_number}_thumb.png"'
                 }
             )
@@ -2535,20 +2770,17 @@ async def get_page_thumbnail(
             print(f"Error loading stored thumbnail: {e}")
             # Fall through to generate on the fly
     
-    # Generate thumbnail on the fly
-    pdf_path = doc.get("pdf_file_path")
-    if not pdf_path:
-        raise HTTPException(404, "PDF not found")
-    
+    # Generate thumbnail on the fly using load_document_pdf (which automatically prioritizes signed_pdf_path)
     try:
-        pdf_bytes = storage.download(pdf_path)
+        pdf_bytes = await load_document_pdf(doc, str(doc_id))
         thumb_bytes = generate_file_thumbnail(pdf_bytes, page_number - 1)  # 0-based index
         
         return StreamingResponse(
             io.BytesIO(thumb_bytes),
             media_type="image/png",
             headers={
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": "no-cache, must-revalidate",
+                "Pragma": "no-cache",
                 "Content-Disposition": f'inline; filename="page_{page_number}_thumb.png"'
             }
         )
@@ -2930,25 +3162,18 @@ async def rename_document_file(
         request
     )
 
-    # Fetch updated field to return its adjusted coordinates
-    updated_field = await db.signature_fields.find_one({"_id": fid})
-    
-    # Process updated_field for JSON serialization
-    from bson import json_util
-    import json
-    updated_field_json = json.loads(json_util.dumps(updated_field))
-    for key in ["_id", "document_id", "recipient_id"]:
-        if key in updated_field_json and isinstance(updated_field_json[key], dict) and "$oid" in updated_field_json[key]:
-            updated_field_json[key] = updated_field_json[key]["$oid"]
+    # If main document filename was old_name, keep document filename in sync
+    if doc.get("filename") == old_name:
+        await db.documents.update_one(
+            {"_id": doc_oid},
+            {"$set": {"filename": new_name}}
+        )
 
     return {
-        "message": "Field completed successfully",
-        "completed": True,
-        "field_completed": True,
-        "all_fields_completed": all_fields_completed,
-        "remaining_fields": remaining_fields,
-        "field_id": field_id,
-        "field": updated_field_json
+        "success": True,
+        "message": "File renamed successfully",
+        "file_id": str(file_oid),
+        "filename": new_name
     }
 
 
@@ -3064,11 +3289,9 @@ async def merge_selected_files(
         await db.document_files.delete_one({"_id": f["_id"]})
 
     # Reorder remaining files
-    remaining = list(
-        db.document_files
-        .find({"document_id": doc_oid})
-        .sort("order", 1)
-    )
+    remaining = await db.document_files.find(
+        {"document_id": doc_oid}
+    ).sort("order", 1).to_list(length=1000)
 
     for idx, f in enumerate(remaining, start=1):
         await db.document_files.update_one(
@@ -3079,10 +3302,16 @@ async def merge_selected_files(
     # Refresh document global metadata
     await update_document_summary_metadata(document_id)
 
-    # Return to draft
+    # Return to draft and update filename/title
     await db.documents.update_one(
         {"_id": doc_oid},
-        {"$set": {"status": "draft", "progress": 100, "processing_status": "Complete"}}
+        {"$set": {
+            "status": "draft",
+            "progress": 100,
+            "processing_status": "Complete",
+            "filename": merged_filename,
+            "title": merged_filename.replace(".pdf", "")
+        }}
     )
 
     # Timeline log
@@ -3418,6 +3647,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     except Exception:
         owner_filter = user_id_str
 
+    now = datetime.utcnow()
+    t_30 = now - timedelta(days=30)
+    t_60 = now - timedelta(days=60)
+
     # Count deleted documents
     deleted_count = await db.documents.count_documents({
         "owner_id": owner_filter,
@@ -3441,7 +3674,41 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         "deleted": deleted_count
     }
 
-    stats["total"] = sum(stats.values())
+    total_active = sum(v for k, v in stats.items() if k != "deleted")
+    stats["total"] = total_active
+
+    changes = {}
+    shares = {}
+    for st, count in stats.items():
+        if st == "total":
+            continue
+        share = round((count / max(total_active, 1)) * 100) if total_active > 0 else 0
+        shares[st] = share
+
+        st_query = {"status": st} if st not in ["deleted", "in_progress"] else (
+            {"$or": [{"is_deleted": True}, {"status": "deleted"}]} if st == "deleted" else {"status": {"$in": ["in_progress", "in-progress"]}}
+        )
+        curr_count = await db.documents.count_documents({
+            "owner_id": owner_filter,
+            **st_query,
+            "uploaded_at": {"$gte": t_30}
+        })
+        prev_count = await db.documents.count_documents({
+            "owner_id": owner_filter,
+            **st_query,
+            "uploaded_at": {"$gte": t_60, "$lt": t_30}
+        })
+        if prev_count > 0:
+            diff = curr_count - prev_count
+            pct = round((diff / prev_count) * 100)
+            changes[st] = f"+{pct}%" if pct > 0 else f"{pct}%"
+        elif curr_count > 0:
+            changes[st] = f"+{curr_count} new"
+        else:
+            changes[st] = f"{share}%"
+
+    stats["changes"] = changes
+    stats["shares"] = shares
 
     return stats
 
@@ -3453,20 +3720,20 @@ async def get_active_signers(current_user: dict = Depends(get_current_user)):
     owner_id = ObjectId(current_user["id"])
 
     # documents owned by user AND still active
-    active_docs = list(db.documents.find({
+    active_docs = await db.documents.find({
         "owner_id": owner_id,
         "status": {"$in": ["sent", "in_progress"]}
-    }, {"_id": 1}))
+    }, {"_id": 1}).to_list(length=1000)
 
     doc_ids = [d["_id"] for d in active_docs]
 
     if not doc_ids:
         return []
 
-    recipients = list(db.recipients.find({
+    recipients = await db.recipients.find({
         "document_id": {"$in": doc_ids},
         "status": {"$nin": ["completed", "declined", "expired"]}
-    }))
+    }).to_list(length=1000)
 
     return [serialize_recipient(r) for r in recipients]
 
@@ -3784,10 +4051,10 @@ async def remind_all_recipients(
 
         # Find all incomplete recipients
         # Incomplete if status not in ['signed', 'approved', 'completed', 'witnessed']
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "document_id": doc_oid,
             "status": {"$nin": ["signed", "approved", "completed", "witnessed", "voided", "declined"]}
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {"message": "No pending recipients found to remind"}
@@ -4173,6 +4440,30 @@ async def get_document_timeline(document_id: str, current_user: dict = Depends(g
         elif event.get("is_audit") and not final_logs[-1].get("is_audit"):
             pass
 
+    if not final_logs:
+        # Guarantee that every existing document always exhibits its initial creation lifecycle event
+        initial_ts = doc.get("created_at") or doc.get("uploaded_at") or datetime.utcnow()
+        owner_email = doc.get("owner_email") or doc.get("sender_email") or "Owner"
+        final_logs = [{
+            "document_id": doc_oid,
+            "type": "upload_document",
+            "action": "upload_document",
+            "timestamp": initial_ts,
+            "title": "Document Uploaded",
+            "description": f"Document '{doc.get('filename', 'document')}' was uploaded to the platform",
+            "metadata": {
+                "filename": doc.get("filename"),
+                "page_count": doc.get("page_count", 1),
+                "envelope_id": doc.get("envelope_id")
+            },
+            "actor": {
+                "id": str(doc.get("owner_id")) if doc.get("owner_id") else None,
+                "email": owner_email,
+                "role": "owner",
+                "name": doc.get("owner_name") or owner_email.split("@")[0]
+            }
+        }]
+
     return [
         serialize_timeline_event(log, doc)
         for log in final_logs
@@ -4258,7 +4549,76 @@ async def get_document_preview(
     if not doc:
         raise HTTPException(404, "Document not found")
     
-    # Try to get PREVIEW thumbnail from Azure
+    is_completed = (doc.get("status") == "completed" or bool(doc.get("signed_pdf_path")))
+    
+    # If completed and has signed_pdf_path, ensure the preview is from the signed PDF
+    if is_completed and doc.get("signed_pdf_path"):
+        thumb_path = doc.get("preview_thumbnail_path")
+        if thumb_path and "signed" in thumb_path:
+            try:
+                thumb_bytes = storage.download(thumb_path)
+                if thumb_bytes and len(thumb_bytes) > 50:
+                    if width != 400 or height != 300:
+                        img = Image.open(io.BytesIO(thumb_bytes))
+                        img.thumbnail((width, height), Image.Resampling.LANCZOS)
+                        buffer = io.BytesIO()
+                        img.save(buffer, format='PNG', optimize=True)
+                        thumb_bytes = buffer.getvalue()
+                    
+                    return StreamingResponse(
+                        io.BytesIO(thumb_bytes),
+                        media_type="image/png",
+                        headers={
+                            "Cache-Control": "no-cache, no-store, must-revalidate",
+                            "Pragma": "no-cache",
+                            "Expires": "0",
+                            "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
+                        }
+                    )
+            except Exception as e:
+                print(f"Error loading stored signed preview thumbnail: {e}")
+
+        # Stored signed thumbnail missing or unreadable: generate from signed_pdf_path
+        try:
+            signed_pdf_bytes = storage.download(doc["signed_pdf_path"])
+            thumb_bytes = generate_file_thumbnail(signed_pdf_bytes, 0)
+            
+            # Persist for subsequent fast loads
+            try:
+                owner_id = str(doc.get("owner_id", "default"))
+                new_thumb_path = storage.upload(
+                    thumb_bytes,
+                    f"signed_preview_{doc_id}.png",
+                    folder=f"users/{owner_id}/thumbnails/{doc_id}"
+                )
+                await db.documents.update_one(
+                    {"_id": doc_id},
+                    {"$set": {"preview_thumbnail_path": new_thumb_path, "updated_at": datetime.utcnow()}}
+                )
+            except Exception as e:
+                print(f"Error saving generated signed thumbnail: {e}")
+            
+            if width != 400 or height != 300:
+                img = Image.open(io.BytesIO(thumb_bytes))
+                img.thumbnail((width, height), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG', optimize=True)
+                thumb_bytes = buffer.getvalue()
+            
+            return StreamingResponse(
+                io.BytesIO(thumb_bytes),
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                    "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
+                }
+            )
+        except Exception as e:
+            print(f"Error generating signed preview: {e}")
+
+    # Standard (draft / in-progress) preview thumbnail from storage
     if doc.get("preview_thumbnail_path"):
         try:
             thumb_bytes = storage.download(doc["preview_thumbnail_path"])
@@ -4275,28 +4635,34 @@ async def get_document_preview(
                 io.BytesIO(thumb_bytes),
                 media_type="image/png",
                 headers={
-                    "Cache-Control": "public, max-age=86400",
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
                     "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
                 }
             )
         except Exception as e:
             print(f"Error loading preview thumbnail: {e}")
-            # Fall through to generate from PDF
     
-    # Fallback: Generate preview from first page
-    pdf_path = doc.get("pdf_file_path")
-    if not pdf_path:
-        raise HTTPException(404, "PDF not found")
-    
+    # Fallback: Generate preview from first page using load_document_pdf
     try:
-        pdf_bytes = storage.download(pdf_path)
+        pdf_bytes = await load_document_pdf(doc, str(doc_id))
         thumb_bytes = generate_file_thumbnail(pdf_bytes, 0)  # First page
+        
+        if width != 400 or height != 300:
+            img = Image.open(io.BytesIO(thumb_bytes))
+            img.thumbnail((width, height), Image.Resampling.LANCZOS)
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG', optimize=True)
+            thumb_bytes = buffer.getvalue()
         
         return StreamingResponse(
             io.BytesIO(thumb_bytes),
             media_type="image/png",
             headers={
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
                 "Content-Disposition": f'inline; filename="{doc.get("filename", "document")}_preview.png"'
             }
         )
@@ -4402,23 +4768,79 @@ async def download_summary_pdf(
     if not doc:
         raise HTTPException(404, "Document not found")
         
-    # Get details for summary
+    # Get details for summary (CosmosDB safe with ObjectId and str fallback)
     all_recipients = await db.recipients.find({"document_id": oid}).sort("signing_order", 1).to_list(length=1000)
+    if not all_recipients:
+        all_recipients = await db.recipients.find({"document_id": str(oid)}).sort("signing_order", 1).to_list(length=1000)
+        
     all_fields = await db.signature_fields.find({"document_id": oid}).to_list(length=1000)
-    timeline = await db.document_timeline.find({"document_id": oid}).sort("timestamp", -1).limit(50).to_list(length=1000)
+    if not all_fields:
+        all_fields = await db.signature_fields.find({"document_id": str(oid)}).to_list(length=1000)
+        
+    # Fetch timeline events from document_timeline and audit_logs
+    timeline_raw = await db.document_timeline.find({"document_id": oid}).sort("timestamp", -1).limit(50).to_list(50)
+    if not timeline_raw:
+        timeline_raw = await db.document_timeline.find({"document_id": str(oid)}).sort("timestamp", -1).limit(50).to_list(50)
+        
+    audit_raw = await db.audit_logs.find({"document_id": oid}).sort("timestamp", -1).limit(50).to_list(50)
+    if not audit_raw:
+        audit_raw = await db.audit_logs.find({"document_id": str(oid)}).sort("timestamp", -1).limit(50).to_list(50)
+        
+    # Merge and build recent activity timeline
+    combined_timeline = []
+    for event in timeline_raw:
+        actor = event.get("actor", {})
+        p_name = actor.get("name") or actor.get("email") or "System"
+        e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
+        details = event.get("description", "")
+        if not details:
+            details = event.get("title", event.get("type", "Activity").replace("_", " ").title())
+        combined_timeline.append({
+            "timestamp": event.get("timestamp"),
+            "date": e_date,
+            "event": event.get("title", event.get("type", "Activity").replace("_", " ").title()),
+            "participant": p_name,
+            "details": details
+        })
+        
+    for event in audit_raw:
+        meta = event.get("details") or event.get("metadata") or {}
+        p_name = event.get("performed_by_name") or event.get("email") or (meta.get("actor_name") if isinstance(meta, dict) else None) or "System"
+        ts = event.get("timestamp") or event.get("created_at")
+        e_date = ts.strftime("%Y-%m-%d %H:%M:%S") if ts else ""
+        action_name = str(event.get("action", "Activity")).replace("_", " ").title()
+        details = str(meta) if isinstance(meta, str) else (meta.get("description") if isinstance(meta, dict) and meta.get("description") else f"{action_name} recorded")
+        combined_timeline.append({
+            "timestamp": ts,
+            "date": e_date,
+            "event": action_name,
+            "participant": p_name,
+            "details": details
+        })
+        
+    combined_timeline.sort(key=lambda x: x.get("timestamp") or datetime.min, reverse=True)
+    recent_activity = combined_timeline[:25]
     
     # Format dates
     created_date = doc.get("uploaded_at")
     created_date_str = created_date.strftime("%B %d, %Y") if created_date else "Unknown"
-    completed_date = (doc.get("completed_at") or doc.get("finalized_at"))
-    completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else "Not completed"
+    
+    # Logical completed date
+    latest_rec_time = None
+    for r in all_recipients:
+        for tf in ["signed_at", "witnessed_at", "approved_at", "form_completed_at"]:
+            if r.get(tf):
+                if not latest_rec_time or r[tf] > latest_rec_time:
+                    latest_rec_time = r[tf]
+    completed_date = (doc.get("completed_at") or doc.get("finalized_at") or latest_rec_time or doc.get("updated_at") if doc.get("status") == "completed" else None)
+    completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else ("Completed" if doc.get("status") == "completed" else "Not completed")
     
     # Map participants
     participants = []
     for r in all_recipients:
         comp_time = ""
-        # Determine logical completion date
-        for t_field in ["signed_at", "approved_at", "form_completed_at", "viewer_at"]:
+        # Determine logical completion date including witnessed_at
+        for t_field in ["signed_at", "witnessed_at", "approved_at", "form_completed_at", "viewer_at"]:
             if r.get(t_field):
                 comp_time = r[t_field].strftime("%Y-%m-%d")
                 break
@@ -4426,11 +4848,26 @@ async def download_summary_pdf(
         r_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(r["_id"])]
         r_completed = len([f for f in r_fields if f.get("completed_at")])
         
+        # Resolve status accurately for witness and signers
+        r_role = r.get("role", "signer")
+        r_status = r.get("status", "pending")
+        if (
+            r.get("witnessed_at") or
+            r.get("signed_at") or
+            r.get("approved_at") or
+            r.get("form_completed_at") or
+            r_status.lower() == "completed" or
+            (r_fields and r_completed == len(r_fields))
+        ):
+            r_status = "completed"
+            if not comp_time and completed_date:
+                comp_time = completed_date.strftime("%Y-%m-%d")
+        
         participants.append({
             "name": r.get("name", "Unknown"),
             "email": r.get("email", ""),
-            "role": r.get("role", "signer"),
-            "status": r.get("status", "pending"),
+            "role": r_role,
+            "status": r_status,
             "completed_at": comp_time or None,
             "signing_order": r.get("signing_order", 1),
             "fields_assigned": len(r_fields),
@@ -4439,24 +4876,29 @@ async def download_summary_pdf(
             "terms_accepted": r.get("terms_accepted", False)
         })
         
-    # Recent activity
-    recent_activity = []
-    for event in timeline[:20]:
-        actor = event.get("actor", {})
-        p_name = actor.get("name") or actor.get("email") or "System"
-        e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
-        
-        details = event.get("description", "")
-        if not details:
-            details = event.get("title", event.get("type", "Activity").replace("_", " ").title())
-            
-        recent_activity.append({
-            "date": e_date,
-            "event": event.get("title", event.get("type", "Activity")),
-            "participant": p_name,
-            "details": details
+    # Format all fields for owner view
+    formatted_assigned_fields = []
+    for f in all_fields:
+        f_type = f.get("type", "unknown")
+        f_comp = f.get("completed_at")
+        val = f.get("value", "")
+        if isinstance(val, dict):
+            val = val.get("value") or ("[Signature captured]" if "image" in val else str(val)[:30])
+        formatted_assigned_fields.append({
+            "type": f_type,
+            "page": f.get("page", 0),
+            "completed": bool(f_comp),
+            "value": str(val) if val is not None else "",
+            "raw_value": f.get("value"),
+            "completed_at": f_comp.strftime("%Y-%m-%d %H:%M") if f_comp else None,
+            "required": f.get("required", True),
+            "label": f.get("label", "")
         })
         
+    total_f = len(all_fields)
+    completed_f = len([f for f in all_fields if f.get("completed_at")])
+    pct = round((completed_f / total_f * 100), 1) if total_f > 0 else (100.0 if doc.get("status") == "completed" else 0.0)
+    
     # Compile summary data
     summary_data = {
         "envelope_id": doc.get("envelope_id", "N/A"),
@@ -4473,8 +4915,8 @@ async def download_summary_pdf(
             "name": current_user.get("name", "Owner"),
             "email": current_user.get("email"),
             "role": "Owner",
-            "status": "active",
-            "completed_at": None,
+            "status": "completed" if doc.get("status") == "completed" else "active",
+            "completed_at": completed_date_str if doc.get("status") == "completed" else None,
             "ip_address": request.client.host if request and request.client else "Internal",
             "otp_verified": True,
             "terms_accepted": True,
@@ -4484,16 +4926,16 @@ async def download_summary_pdf(
             "has_initials_field": False
         },
         
-        "assigned_fields": [], # Owner isn't usually assigned fields in this view
+        "assigned_fields": formatted_assigned_fields,
         "all_recipients": participants,
         "statistics": {
             "total_recipients": len(all_recipients),
-            "completed_recipients": len([r for r in all_recipients if r.get("status") == "completed"]),
-            "total_fields": len(all_fields),
-            "completed_fields": len([f for f in all_fields if f.get("completed_at")]),
-            "completion_percentage": round((len([f for f in all_fields if f.get("completed_at")]) / len(all_fields) * 100), 1) if all_fields else 0,
-            "assigned_to_you": 0,
-            "completed_by_you": 0
+            "completed_recipients": len([p for p in participants if p.get("status") == "completed"]),
+            "total_fields": total_f,
+            "completed_fields": completed_f,
+            "completion_percentage": pct,
+            "assigned_to_you": total_f,
+            "completed_by_you": completed_f
         },
         "recent_activity": recent_activity,
         "summary_id": f"SUM-{uuid.uuid4().hex[:8].upper()}-{datetime.utcnow().strftime('%Y%m%d')}",
@@ -4534,12 +4976,12 @@ async def builder_pdf(
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
 
     # Always load merged PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     # Apply envelope header (FULL DOCUMENT)
     if show_envelope_header and doc.get("envelope_id"):
@@ -4600,14 +5042,14 @@ async def owner_preview(
     print(f"🔢 Signing Order Enabled: {signing_order_enabled}")
 
     # Get all fields for this document
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
     
     # Get all recipients for color mapping
-    recipients = list(db.recipients.find({
+    recipients = await db.recipients.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
     
     # Create recipient map
     recipient_map = {}
@@ -4638,7 +5080,7 @@ async def owner_preview(
         enriched_fields.append(enriched)
     
     # Load PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     
     # ============================================
@@ -4869,9 +5311,9 @@ async def view_document(
         raise HTTPException(403, "Not authorized")
 
     # Get all fields
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
     
     # Enrich fields with consistent value normalization
     enriched_fields = []
@@ -4886,7 +5328,7 @@ async def view_document(
         enriched_fields.append(enriched)
     
     # Load base PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
     
     # Apply envelope header if envelope ID exists
     envelope_id = doc.get("envelope_id")
@@ -5038,9 +5480,9 @@ async def view_signed_preview(
     
     if not completed_fields:
         # If no completed fields, get placeholder fields for preview
-        completed_fields = list(db.signature_fields.find({
+        completed_fields = await db.signature_fields.find({
             "document_id": ObjectId(doc_id)
-        }).limit(10))  # Limit to avoid excessive processing
+        }).limit(10).to_list(10)  # Limit to avoid excessive processing
     
     # Enrich fields with consistent normalization
     enriched_fields = []
@@ -5060,7 +5502,7 @@ async def view_signed_preview(
     print(f"Signed preview - Processing {len(enriched_fields)} fields")
     
     # Load base PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
     
     # Apply envelope header if envelope ID exists
     envelope_id = doc.get("envelope_id")
@@ -5190,9 +5632,9 @@ async def view_document_with_fields(
         raise HTTPException(404, "Document not found")
     
     # Get all fields with recipient info
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(document_id)
-    }))
+    }).to_list(length=1000)
     
     enriched_fields = []
     for field in fields:
@@ -5203,7 +5645,7 @@ async def view_document_with_fields(
     if preview_type == "final" and doc.get("signed_pdf_path"):
         pdf_bytes = storage.download(doc["signed_pdf_path"])
     else:
-        pdf_bytes = load_document_pdf(doc, document_id)
+        pdf_bytes = await load_document_pdf(doc, document_id)
         
         # Apply field overlays
         if enriched_fields:
@@ -5249,9 +5691,9 @@ async def view_field_preview(
         raise HTTPException(403, "Only document owner can view field preview")
 
     # Get all fields
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
     
     # Enrich fields
     enriched_fields = []
@@ -5266,7 +5708,7 @@ async def view_field_preview(
         enriched_fields.append(enriched)
     
     # Load PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     
     # ============================================
@@ -5722,16 +6164,16 @@ async def view_document_with_envelope(
         expires_date = expires_date.strftime("%Y-%m-%d") if hasattr(expires_date, 'strftime') else str(expires_date)[:10]
     
     # Get all fields for rendering
-    fields = list(db.signature_fields.find({
+    fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id)
-    }))
+    }).to_list(length=1000)
     
     # Get all recipients for header
     recipients_list = []
     if include_recipients:
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "document_id": ObjectId(doc_id)
-        }))
+        }).to_list(length=1000)
         
         for r in recipients:
             recipients_list.append({
@@ -5754,24 +6196,12 @@ async def view_document_with_envelope(
         enriched_fields.append(enriched)
     
     # Load base PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     
     # Apply envelope header
-    if header_style == "full":
-        # Apply full Docusign-like header
-        pdf_bytes = PDFEngine.apply_envelope_header(
-            pdf_bytes,
-            envelope_id=envelope_id,
-            document_name=document_name,
-            status=status,
-            sender=sender_name or sender_email,
-            created_date=created_date,
-            expires_date=expires_date,
-            color="#000000"  
-        )
-    elif header_style == "minimal":
-        # Apply minimal header
+    if header_style in ("full", "minimal"):
+        # Apply clean minimal header
         pdf_bytes = PDFEngine.apply_minimal_envelope_header(
             pdf_bytes,
             envelope_id=envelope_id,
@@ -5852,13 +6282,13 @@ async def get_final_document_with_envelope(
         raise HTTPException(400, "Document has no envelope ID")
 
     # Get completed fields
-    completed_fields = list(db.signature_fields.find({
+    completed_fields = await db.signature_fields.find({
         "document_id": ObjectId(doc_id),
         "completed_at": {"$exists": True}
-    }))
+    }).to_list(length=1000)
     
     # Load base PDF
-    pdf_bytes = load_document_pdf(doc, doc_id)
+    pdf_bytes = await load_document_pdf(doc, doc_id)
 
     
     # Apply completed fields
@@ -5897,15 +6327,10 @@ async def get_final_document_with_envelope(
     if completed_date:
         completed_date = completed_date.strftime("%Y-%m-%d") if hasattr(completed_date, 'strftime') else str(completed_date)[:10]
     
-    pdf_bytes = PDFEngine.apply_envelope_header(
+    pdf_bytes = PDFEngine.apply_minimal_envelope_header(
         pdf_bytes,
         envelope_id=envelope_id,
-        document_name=document_name,
-        status=status,
-        sender=sender_name or sender_email,
-        created_date=created_date,
-        expires_date=completed_date,  # Show completion date instead of expiry
-        color="#0d9488"
+        color="#000000"
     )
     
     # Add audit trail if requested
@@ -5974,15 +6399,23 @@ async def download_certificate_owner(
         
         # ========== GATHER ALL DOCUMENT DATA (same as recipient) ==========
         
-        # Get all recipients
-        recipients = list(db.recipients.find({
+        # Get all recipients (CosmosDB safe with ObjectId and str fallback)
+        recipients = await db.recipients.find({
             "document_id": doc_oid
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
+        if not recipients:
+            recipients = await db.recipients.find({
+                "document_id": str(doc_oid)
+            }).sort("signing_order", 1).to_list(length=1000)
         
         # Get all fields
-        all_fields = list(db.signature_fields.find({
+        all_fields = await db.signature_fields.find({
             "document_id": doc_oid
-        }))
+        }).to_list(length=1000)
+        if not all_fields:
+            all_fields = await db.signature_fields.find({
+                "document_id": str(doc_oid)
+            }).to_list(length=1000)
         
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
@@ -6012,6 +6445,13 @@ async def download_certificate_owner(
             "document_id": doc_oid,
             "action": "upload_document"
         })
+        if not creation_log:
+            creation_log = await db.document_timeline.find_one({
+                "document_id": str(doc_oid),
+                "action": "upload_document"
+            })
+        if not creation_log:
+            creation_log = await db.audit_logs.find_one({"document_id": doc_oid}) or await db.audit_logs.find_one({"document_id": str(doc_oid)})
         if creation_log and creation_log.get("metadata"):
             sender_ip = creation_log["metadata"].get("ip") or creation_log.get("metadata", {}).get("ip_address")
         
@@ -6038,16 +6478,25 @@ async def download_certificate_owner(
                 completion_timestamp = r.get("viewer_at")
                 completion_ip = r.get("viewed_ip", r.get("completed_ip", "Unknown"))
             
+            r_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(r.get("_id"))]
+            r_fields_done = len([f for f in r_fields if f.get("completed_at")])
+            is_r_done = bool(completion_timestamp or r.get("status") == "completed" or (r_fields and r_fields_done >= len(r_fields)))
+            
+            terms_accepted_date = None
+            if r.get("terms_accepted_at"):
+                terms_accepted_date = r["terms_accepted_at"].strftime("%Y-%m-%d %H:%M:%S")
+            
             recipients_data.append({
                 "name": r.get("name", "Unknown"),
                 "email": r.get("email", "No email"),
                 "role": role,
-                "status": r.get("status", "pending"),
-                "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else None,
+                "status": "completed" if is_r_done else r.get("status", "pending"),
+                "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else (r.get("completed_at").strftime("%Y-%m-%d %H:%M:%S") if r.get("completed_at") else None),
                 "ip_address": completion_ip,
                 "signing_order": r.get("signing_order", 0),
                 "otp_verified": r.get("otp_verified", False),
                 "terms_accepted": r.get("terms_accepted", False),
+                "terms_accepted_date": terms_accepted_date
             })
         
         # Prepare field completion history
@@ -6067,11 +6516,60 @@ async def download_certificate_owner(
             
             field_history.sort(key=lambda x: x.get("completed_at", ""), reverse=True)
         
+        # Fetch timeline and audit logs for Certificate recent_activity
+        timeline_raw = await db.document_timeline.find({"document_id": doc_oid}).sort("timestamp", -1).limit(50).to_list(50)
+        if not timeline_raw:
+            timeline_raw = await db.document_timeline.find({"document_id": str(doc_oid)}).sort("timestamp", -1).limit(50).to_list(50)
+            
+        audit_raw = await db.audit_logs.find({"document_id": doc_oid}).sort("timestamp", -1).limit(50).to_list(50)
+        if not audit_raw:
+            audit_raw = await db.audit_logs.find({"document_id": str(doc_oid)}).sort("timestamp", -1).limit(50).to_list(50)
+            
+        combined_timeline = []
+        for event in timeline_raw:
+            actor = event.get("actor", {})
+            p_name = actor.get("name") or actor.get("email") or "System"
+            e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
+            details = event.get("description", "")
+            if not details:
+                details = event.get("title", event.get("type", "Activity").replace("_", " ").title())
+            combined_timeline.append({
+                "timestamp": event.get("timestamp"),
+                "date": e_date,
+                "event": event.get("title", event.get("type", "Activity").replace("_", " ").title()),
+                "participant": p_name,
+                "details": details
+            })
+            
+        for event in audit_raw:
+            meta = event.get("details") or event.get("metadata") or {}
+            p_name = event.get("performed_by_name") or event.get("email") or (meta.get("actor_name") if isinstance(meta, dict) else None) or "System"
+            ts = event.get("timestamp") or event.get("created_at")
+            e_date = ts.strftime("%Y-%m-%d %H:%M:%S") if ts else ""
+            action_name = str(event.get("action", "Activity")).replace("_", " ").title()
+            details = str(meta) if isinstance(meta, str) else (meta.get("description") if isinstance(meta, dict) and meta.get("description") else f"{action_name} recorded")
+            combined_timeline.append({
+                "timestamp": ts,
+                "date": e_date,
+                "event": action_name,
+                "participant": p_name,
+                "details": details
+            })
+            
+        combined_timeline.sort(key=lambda x: x.get("timestamp") or datetime.min, reverse=True)
+        recent_activity = combined_timeline[:30]
+        
         # Format dates
         created_date = doc.get("uploaded_at")
         created_date_str = created_date.strftime("%B %d, %Y") if created_date else "Unknown"
         
         completed_date = doc.get("completed_at") or doc.get("finalized_at")
+        if not completed_date and doc_status == "completed":
+            recip_times = [r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at") for r in recipients if (r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at"))]
+            if recip_times:
+                completed_date = max(recip_times)
+            else:
+                completed_date = doc.get("updated_at")
         completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else "Unknown"
         
         # Generate unique certificate ID
@@ -6097,7 +6595,7 @@ async def download_certificate_owner(
             # Statistics
             "statistics": {
                 "total_recipients": len(recipients),
-                "completed_recipients": len([r for r in recipients if r.get("status") == "completed"]),
+                "completed_recipients": len([r for r in recipients_data if r.get("status") == "completed"]),
                 "total_fields": len(all_fields),
                 "completed_fields": len(completed_fields),
                 "completion_percentage": round((len(completed_fields) / len(all_fields) * 100), 1) if all_fields else 0,
@@ -6124,6 +6622,9 @@ async def download_certificate_owner(
             
             # Field history
             "field_history": field_history if include_timeline else [],
+            
+            # Document Activity (Recent Activity Audit Trail)
+            "recent_activity": recent_activity,
             
             # Certificate metadata
             "certificate_id": certificate_id,
@@ -6474,6 +6975,86 @@ async def download_signed_document_owner(
         raise HTTPException(500, "Internal server error while downloading document")
     
 
+@router.get("/{document_id}/files/{file_id}/download-signed")
+async def download_signed_file_owner(
+    document_id: str,
+    file_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None,
+    disposition: str = Query("attachment")
+):
+    """
+    Download a single signed sub-file from a multi-file envelope for the document owner.
+    """
+    try:
+        doc_oid = ObjectId(document_id)
+        fid = ObjectId(file_id)
+        doc = await db.documents.find_one({
+            "_id": doc_oid,
+            "owner_id": ObjectId(current_user["id"])
+        })
+        if not doc:
+            raise HTTPException(404, "Document not found")
+
+        sub_file = await db.document_files.find_one({"_id": fid, "document_id": doc_oid})
+        if not sub_file:
+            raise HTTPException(404, "File not found in document")
+
+        # Load base combined PDF with completed fields
+        pdf_path = doc.get("pdf_file_path")
+        if not pdf_path:
+            raise HTTPException(404, "Base PDF not found")
+
+        pdf_bytes = storage.download(pdf_path)
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
+
+        # Slice sub-document pages
+        start_p = max(0, sub_file.get("start_page", 1) - 1)
+        end_p = sub_file.get("end_page", sub_file.get("page_count", 1)) - 1
+
+        full_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        end_p = min(end_p, len(full_doc) - 1)
+        sub_doc = fitz.open()
+        if end_p >= start_p:
+            sub_doc.insert_pdf(full_doc, from_page=start_p, to_page=end_p)
+        sub_bytes = sub_doc.tobytes(clean=True)
+        sub_doc.close()
+        full_doc.close()
+
+        # Apply minimal watermark if signed
+        try:
+            sub_bytes = PDFEngine.apply_watermark(
+                sub_bytes,
+                "SIGNED DOCUMENT",
+                color="#4CAF50",
+                opacity=0.1,
+                font_size=42,
+                angle=45
+            )
+        except Exception:
+            pass
+
+        clean_fname = sub_file.get("filename", "subdocument.pdf")
+        if not clean_fname.lower().endswith(".pdf"):
+            clean_fname += ".pdf"
+        out_name = f"signed_{clean_fname}"
+
+        return StreamingResponse(
+            io.BytesIO(sub_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'{disposition}; filename="{out_name}"',
+                "Content-Length": str(len(sub_bytes)),
+                "X-Filename": out_name
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error downloading signed sub-file: {e}")
+        raise HTTPException(500, f"Error generating sub-file: {str(e)}")
+
+
 @router.get("/{document_id}/download/original")
 async def download_original_document_owner(
     document_id: str,
@@ -6725,8 +7306,8 @@ async def send_completed_document(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/search")
-async def search_documents(
+@router.get("/search-advanced")
+async def search_documents_advanced(
     request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
     limit: int = Query(8, ge=1, le=20, description="Maximum number of results"),
@@ -6882,345 +7463,368 @@ async def get_complete_analytics(
     request: Request = None
 ):
     """
-    Get complete high-level analytics data for dashboard using high-performance aggregation.
-    Consolidates data from documents, recipients, fields, and timeline.
+    Get complete high-level analytics data for dashboard using reliable, high-performance aggregation.
+    Consolidates data from documents, recipients, fields, timeline, audit logs, and credits.
     """
     try:
-        owner_id = ObjectId(current_user["id"])
+        user_id_str = str(current_user["id"])
+        try:
+            owner_obj_id = ObjectId(user_id_str)
+            owner_filter = {"$in": [owner_obj_id, user_id_str]}
+        except Exception:
+            owner_obj_id = user_id_str
+            owner_filter = user_id_str
+
         now = datetime.utcnow()
-        thirty_days_ago = now - timedelta(days=30)
-        
-        # 1. Consolidated Document & Recipient Aggregation
-        # Using $facet to run multiple independent aggregations in ONE database call
-        agg_results = await (db.documents.aggregate([
-            {"$match": {"owner_id": owner_id, "status": {"$ne": "deleted"}}},
-            {"$facet": {
-                "document_stats": [
-                    {"$group": {"_id": "$status", "count": {"$sum": 1}}},
-                    {"$project": {"status": "$_id", "count": 1, "_id": 0}}
-                ],
-                "recipient_stats": [
-                    {"$lookup": {
-                        "from": "recipients",
-                        "localField": "_id",
-                        "foreignField": "document_id",
-                        "as": "recips"
-                    }},
-                    {"$unwind": "$recips"},
-                    {"$group": {
-                        "_id": "$recips.status",
-                        "count": {"$sum": 1},
-                        "total_time": {
-                            "$sum": {
-                                "$cond": [
-                                    {"$and": [
-                                        {"$eq": ["$recips.status", "completed"]},
-                                        {"$gt": ["$recips.sent_at", None]},
-                                        {"$or": [{"$gt": ["$recips.signed_at", None]}, {"$gt": ["$recips.completed_at", None]}]}
-                                    ]},
-                                    {"$divide": [
-                                        {"$subtract": [
-                                            {"$ifNull": ["$recips.signed_at", "$recips.completed_at"]},
-                                            "$recips.sent_at"
-                                        ]},
-                                        3600000 # convert ms to hours
-                                    ]},
-                                    0
-                                ]
-                            }
-                        },
-                        "comp_count": {
-                            "$sum": {"$cond": [{"$eq": ["$recips.status", "completed"]}, 1, 0]}
-                        }
-                    }}
-                ],
-                "role_distribution": [
-                    {"$lookup": {
-                        "from": "recipients",
-                        "localField": "_id",
-                        "foreignField": "document_id",
-                        "as": "recips"
-                    }},
-                    {"$unwind": "$recips"},
-                    {"$group": {"_id": "$recips.role", "count": {"$sum": 1}}}
-                ],
-                "monthly_trends": [
-                    {"$match": {"uploaded_at": {"$gte": now - timedelta(days=180)}}},
-                    {"$group": {
-                        "_id": {
-                            "year": {"$year": "$uploaded_at"},
-                            "month": {"$month": "$uploaded_at"}
-                        },
-                        "total": {"$sum": 1},
-                        "completed": {"$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}}
-                    }},
-                    {"$sort": {"_id.year": 1, "_id.month": 1}}
-                ]
-            }}
-        ]))[0]
+        start_date = (now - timedelta(days=days)) if days > 0 else None
 
-        # Process Aggregation Results
-        doc_stats = {s: 0 for s in DOCUMENT_STATUSES}
-        total_docs = 0
-        for item in agg_results.get("document_stats", []):
-            st = item["status"]
-            if st in doc_stats:
-                doc_stats[st] = item["count"]
-                total_docs += item["count"]
-        doc_stats["total"] = total_docs
+        # 1. Fetch user documents (single fast round-trip)
+        user_docs = await db.documents.find(
+            {"owner_id": owner_filter},
+            {
+                "_id": 1,
+                "status": 1,
+                "is_deleted": 1,
+                "uploaded_at": 1,
+                "created_at": 1,
+                "sent_at": 1,
+                "completed_at": 1
+            }
+        ).to_list(length=10000)
 
-        recip_stats = {"total": 0, "avg_signing_time": 0, "completion_rate": 0, "by_role": {}}
-        total_recips = 0
-        total_comp = 0
+        doc_stats = {
+            "total": 0,
+            "draft": 0,
+            "sent": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "declined": 0,
+            "expired": 0,
+            "voided": 0,
+            "deleted": 0
+        }
+
+        all_doc_oids = []
+        all_doc_strs = []
+        active_doc_oids = []
+        active_doc_strs = []
+
+        trend_dict = {}
+
+        for d in user_docs:
+            d_oid = d["_id"]
+            d_str = str(d_oid)
+            all_doc_oids.append(d_oid)
+            all_doc_strs.append(d_str)
+
+            is_del = bool(d.get("is_deleted", False) or d.get("status") == "deleted")
+            if is_del:
+                doc_stats["deleted"] += 1
+                continue
+
+            active_doc_oids.append(d_oid)
+            active_doc_strs.append(d_str)
+
+            st = d.get("status", "draft")
+            if st in ["in_progress", "in-progress"]:
+                doc_stats["in_progress"] += 1
+            elif st in doc_stats:
+                doc_stats[st] += 1
+            else:
+                doc_stats["draft"] += 1
+
+            # Monthly Trend accumulator
+            c_at = d.get("uploaded_at") or d.get("created_at")
+            if c_at and isinstance(c_at, datetime):
+                ym = (c_at.year, c_at.month)
+                if ym not in trend_dict:
+                    trend_dict[ym] = {
+                        "month": c_at.strftime("%b %Y"),
+                        "total": 0,
+                        "completed": 0,
+                        "order": ym
+                    }
+                trend_dict[ym]["total"] += 1
+                if st == "completed":
+                    trend_dict[ym]["completed"] += 1
+
+        doc_stats["total"] = sum(v for k, v in doc_stats.items() if k != "deleted")
+
+        # Fallback monthly trends if fewer than 6 months
+        for i in range(5, -1, -1):
+            m_date = now - timedelta(days=i * 30)
+            ym = (m_date.year, m_date.month)
+            if ym not in trend_dict:
+                trend_dict[ym] = {
+                    "month": m_date.strftime("%b %Y"),
+                    "total": 0,
+                    "completed": 0,
+                    "order": ym
+                }
+        trend_list = [v for k, v in sorted(trend_dict.items(), key=lambda x: x[0])][-12:]
+
+        # 2. Recipient Analytics
+        all_active_ids = active_doc_oids + active_doc_strs
+        recipients_list = []
+        if all_active_ids:
+            recipients_list = await db.recipients.find(
+                {"document_id": {"$in": all_active_ids}}
+            ).to_list(length=10000)
+
+        recip_stats = {
+            "total": len(recipients_list),
+            "avg_signing_time": 0.0,
+            "completion_rate": 0.0,
+            "by_role": {}
+        }
+        comp_count = 0
         sum_hours = 0.0
-        
-        for item in agg_results.get("recipient_stats", []):
-            status = item["_id"] or "created"
-            count = item["count"]
-            recip_stats[status] = count
-            total_recips += count
-            if status == "completed":
-                total_comp = count
-                sum_hours = item["total_time"]
-        
-        recip_stats["total"] = total_recips
-        recip_stats["avg_signing_time"] = round(sum_hours / max(total_comp, 1), 1)
-        recip_stats["completion_rate"] = round((total_comp / max(total_recips, 1)) * 100, 1)
-        
-        # Map for frontend labels
+        for r in recipients_list:
+            st = r.get("status", "created")
+            recip_stats[st] = recip_stats.get(st, 0) + 1
+            if st == "completed":
+                comp_count += 1
+                sent_at = r.get("sent_at")
+                comp_at = r.get("signed_at") or r.get("completed_at")
+                if sent_at and comp_at:
+                    try:
+                        if isinstance(sent_at, str):
+                            sent_at = datetime.fromisoformat(sent_at.replace("Z", "+00:00"))
+                        if isinstance(comp_at, str):
+                            comp_at = datetime.fromisoformat(comp_at.replace("Z", "+00:00"))
+                        diff = (comp_at - sent_at).total_seconds() / 3600.0
+                        if diff >= 0:
+                            sum_hours += diff
+                    except Exception:
+                        pass
+            role = r.get("role") or "signer"
+            recip_stats["by_role"][role] = recip_stats["by_role"].get(role, 0) + 1
+
         recip_stats["invited"] = recip_stats.get("sent", 0)
         recip_stats["in_progress"] = recip_stats.get("viewed", 0)
+        if len(recipients_list) > 0:
+            recip_stats["completion_rate"] = round((comp_count / len(recipients_list)) * 100, 1)
+        if comp_count > 0:
+            recip_stats["avg_signing_time"] = round(sum_hours / comp_count, 1)
 
-        for item in agg_results.get("role_distribution", []):
-            role = item["_id"] or "signer"
-            recip_stats["by_role"][role] = item["count"]
-
-        # 2. Field Analysis Pipeline
-        field_agg = await (db.signature_fields.aggregate([
-            {"$lookup": {
-                "from": "documents",
-                "localField": "document_id",
-                "foreignField": "_id",
-                "as": "doc"
-            }},
-            {"$match": {"doc.owner_id": owner_id, "doc.status": {"$ne": "deleted"}}},
-            {"$facet": {
-                "counters": [
-                    {"$group": {
-                        "_id": None,
-                        "total": {"$sum": 1},
-                        "completed": {"$sum": {"$cond": [{"$ne": ["$completed_at", None]}, 1, 0]}}
-                    }}
-                ],
-                "by_type": [
-                    {"$group": {
-                        "_id": "$type",
-                        "total": {"$sum": 1},
-                        "completed": {"$sum": {"$cond": [{"$ne": ["$completed_at", None]}, 1, 0]}}
-                    }}
-                ]
-            }}
-        ]))[0]
+        # 3. Field Analysis
+        fields_list = []
+        if all_active_ids:
+            fields_list = await db.signature_fields.find(
+                {"document_id": {"$in": all_active_ids}}
+            ).to_list(length=10000)
 
         field_stats = {
-            "total_fields": 0, "completed_fields": 0, "completion_percentage": 0,
-            "by_type": {}, "signatures": {"total": 0, "completed": 0},
-            "initials": {"total": 0, "completed": 0}, "form_fields": {"total": 0, "completed": 0},
-            "checkboxes": {"total": 0, "completed": 0}
+            "total_fields": len(fields_list),
+            "completed_fields": 0,
+            "completion_percentage": 0.0,
+            "by_type": {},
+            "signatures": {"total": 0, "completed": 0, "percentage": 0.0},
+            "initials": {"total": 0, "completed": 0, "percentage": 0.0},
+            "form_fields": {"total": 0, "completed": 0, "percentage": 0.0},
+            "checkboxes": {"total": 0, "completed": 0, "percentage": 0.0}
         }
 
-        if field_agg.get("counters"):
-            c = field_agg["counters"][0]
-            field_stats["total_fields"] = c["total"]
-            field_stats["completed_fields"] = c["completed"]
-            field_stats["completion_percentage"] = round((c["completed"] / max(c["total"], 1)) * 100, 1)
+        for f in fields_list:
+            ftype = f.get("type", "textbox")
+            is_comp = bool(f.get("completed_at") or f.get("value") or f.get("signature_data") or f.get("is_completed"))
+            if is_comp:
+                field_stats["completed_fields"] += 1
 
-        for item in field_agg.get("by_type", []):
-            ftype = item["_id"]
-            if not ftype: continue
-            
-            total = int(item.get("total", 0))
-            completed = int(item.get("completed", 0))
-            percentage = round((completed / max(total, 1)) * 100, 1)
-            
-            field_stats["by_type"][ftype] = {
-                "total": total, 
-                "completed": completed, 
-                "percentage": percentage
-            }
-            
+            if ftype not in field_stats["by_type"]:
+                field_stats["by_type"][ftype] = {"total": 0, "completed": 0, "percentage": 0.0}
+            field_stats["by_type"][ftype]["total"] += 1
+            if is_comp:
+                field_stats["by_type"][ftype]["completed"] += 1
+
             if ftype in ["signature", "witness_signature", "stamp"]:
-                field_stats["signatures"]["total"] += total
-                field_stats["signatures"]["completed"] += completed
+                field_stats["signatures"]["total"] += 1
+                if is_comp:
+                    field_stats["signatures"]["completed"] += 1
             elif ftype == "initials":
-                field_stats["initials"]["total"] += total
-                field_stats["initials"]["completed"] += completed
-            elif ftype in ["textbox", "date", "mail", "dropdown"]:
-                field_stats["form_fields"]["total"] += total
-                field_stats["form_fields"]["completed"] += completed
+                field_stats["initials"]["total"] += 1
+                if is_comp:
+                    field_stats["initials"]["completed"] += 1
+            elif ftype in ["textbox", "date", "mail", "dropdown", "text"]:
+                field_stats["form_fields"]["total"] += 1
+                if is_comp:
+                    field_stats["form_fields"]["completed"] += 1
             elif ftype in ["checkbox", "radio"]:
-                field_stats["checkboxes"]["total"] += total
-                field_stats["checkboxes"]["completed"] += completed
+                field_stats["checkboxes"]["total"] += 1
+                if is_comp:
+                    field_stats["checkboxes"]["completed"] += 1
 
-        # Calculate category percentages
+        if field_stats["total_fields"] > 0:
+            field_stats["completion_percentage"] = round((field_stats["completed_fields"] / field_stats["total_fields"]) * 100, 1)
+
         for cat in ["signatures", "initials", "form_fields", "checkboxes"]:
-            field_stats[cat]["percentage"] = round((field_stats[cat]["completed"] / max(field_stats[cat]["total"], 1)) * 100, 1)
+            if field_stats[cat]["total"] > 0:
+                field_stats[cat]["percentage"] = round((field_stats[cat]["completed"] / field_stats[cat]["total"]) * 100, 1)
 
-        # 3. Timeline & Activity Intelligence
-        # Get list of user's document IDs for timeline queries
-        doc_ids_list = [d["_id"] for d in db.documents.find({"owner_id": owner_id, "status": {"$ne": "deleted"}}, {"_id": 1})]
-        
-        # Build timeline match query with date filtering
-        timeline_match = {"document_id": {"$in": doc_ids_list}}
-        if days > 0:
-            start_date = now - timedelta(days=days)
-            timeline_match["timestamp"] = {"$gte": start_date}
+        for ftype, st_data in field_stats["by_type"].items():
+            if st_data["total"] > 0:
+                st_data["percentage"] = round((st_data["completed"] / st_data["total"]) * 100, 1)
 
-        timeline_agg = await (db.document_timeline.aggregate([
-            {"$match": timeline_match},
-            {"$facet": {
-                "events": [{"$sort": {"timestamp": -1}}, {"$limit": 500}],
-                "type_counts": [
-                    {"$group": {"_id": "$type", "count": {"$sum": 1}}}
-                ],
-                "time_distribution": [
-                    {"$project": {
-                        "date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}},
-                        "hour": {"$hour": "$timestamp"}
-                    }},
-                    {"$group": {"_id": {"date": "$date", "hour": "$hour"}, "count": {"$sum": 1}}}
-                ]
-            }}
-        ]))[0]
+        # 4. Activity Intelligence (Timeline & Audit Logs)
+        all_match_ids = all_doc_oids + all_doc_strs
+        t_match = {"document_id": {"$in": all_match_ids}}
+        if start_date:
+            t_match["timestamp"] = {"$gte": start_date}
 
-        # Activity Intelligence
-        raw_counts = {str(i.get("_id", "unknown")): int(i.get("count", 0)) for i in timeline_agg.get("type_counts", [])}
-        act_stats: Dict[str, Any] = {
+        timeline_events = []
+        if all_match_ids:
+            timeline_events = await db.document_timeline.find(t_match).sort("timestamp", -1).to_list(length=2000)
+
+        # Also search audit logs for the user's documents
+        a_match = {"document_id": {"$in": all_doc_oids}}
+        if start_date:
+            a_match["timestamp"] = {"$gte": start_date}
+
+        audit_events = []
+        if all_doc_oids:
+            audit_events = await db.audit_logs.find(a_match).sort("timestamp", -1).to_list(length=2000)
+
+        raw_counts = {}
+        hourly = [0] * 24
+        day_counts = {}
+        platforms = {}
+
+        for ev in timeline_events:
+            etype = str(ev.get("type") or ev.get("action") or "unknown")
+            raw_counts[etype] = raw_counts.get(etype, 0) + 1
+
+            ts = ev.get("timestamp")
+            if isinstance(ts, datetime):
+                d_str = ts.strftime("%Y-%m-%d")
+                day_counts[d_str] = day_counts.get(d_str, 0) + 1
+                h = ts.hour
+                if 0 <= h < 24:
+                    hourly[h] += 1
+
+            meta = ev.get("metadata") or {}
+            ua = str(meta.get("user_agent") or ev.get("user_agent") or "")
+            if ua:
+                pf = "Mobile" if any(m in ua for m in ["Mobi", "Android", "iPhone"]) else "Tablet" if any(t in ua for t in ["Tablet", "iPad"]) else "Desktop"
+                platforms[pf] = platforms.get(pf, 0) + 1
+
+        for ev in audit_events:
+            action = str(ev.get("action") or "unknown")
+            raw_counts[action] = raw_counts.get(action, 0) + 1
+            ts = ev.get("timestamp")
+            if isinstance(ts, datetime) and not timeline_events:
+                d_str = ts.strftime("%Y-%m-%d")
+                day_counts[d_str] = day_counts.get(d_str, 0) + 1
+                h = ts.hour
+                if 0 <= h < 24:
+                    hourly[h] += 1
+            ua = str(ev.get("user_agent") or "")
+            if ua and not platforms:
+                pf = "Mobile" if any(m in ua for m in ["Mobi", "Android", "iPhone"]) else "Tablet" if any(t in ua for t in ["Tablet", "iPad"]) else "Desktop"
+                platforms[pf] = platforms.get(pf, 0) + 1
+
+        views_count = sum(raw_counts.get(k, 0) for k in ["document_viewed", "recipient_viewed", "view_live_document", "view", "view_document"])
+        signed_count = sum(raw_counts.get(k, 0) for k in ["recipient_completed", "recipient_signed", "field_completed", "document_completed", "document_signed", "signature_applied", "signing_completed", "manual_recipient_completion"])
+        download_count = sum(raw_counts.get(k, 0) for k in ["document_downloaded", "download_original", "download_signed_document", "download_certificate", "download_package", "download_professional_summary", "download_signed"])
+        declined_count = sum(raw_counts.get(k, 0) for k in ["decline_terms", "document_declined", "signing_cancelled", "recipient_declined"])
+
+        timeline_series = [{"date": d, "count": c} for d, c in sorted(day_counts.items())[-30:]]
+
+        act_stats = {
             "total": sum(raw_counts.values()),
-            "counts": raw_counts,
-            "timeline": [], 
-            "hourly": [0]*24, 
-            "platforms": {}
+            "total_activities": sum(raw_counts.values()),
+            "counts": {
+                "viewed": views_count,
+                "signed": signed_count,
+                "downloaded": download_count,
+                "declined": declined_count
+            },
+            "timeline": timeline_series,
+            "daily_timeline": timeline_series,
+            "hourly": hourly,
+            "platforms": platforms
         }
-        
-        # Normalize keys for frontend "Real-time Operations" dashboard
-        act_stats["counts"]["viewed"] = (
-            raw_counts.get("document_viewed", 0) + 
-            raw_counts.get("recipient_viewed", 0) + 
-            raw_counts.get("view_live_document", 0)
-        )
-        act_stats["counts"]["signed"] = (
-            raw_counts.get("recipient_completed", 0) + 
-            raw_counts.get("recipient_signed", 0) +
-            raw_counts.get("field_completed", 0) +
-            raw_counts.get("manual_recipient_completion", 0)
-        )
-        act_stats["counts"]["downloaded"] = (
-            raw_counts.get("document_downloaded", 0) + 
-            raw_counts.get("download_original", 0) + 
-            raw_counts.get("download_signed_document", 0) +
-            raw_counts.get("download_certificate", 0) +
-            raw_counts.get("download_package", 0) +
-            raw_counts.get("package_downloaded", 0) +
-            raw_counts.get("download_signed", 0) +
-            raw_counts.get("download_professional_summary", 0)
-        )
-        act_stats["counts"]["declined"] = (
-            raw_counts.get("decline_terms", 0) + 
-            raw_counts.get("document_declined", 0)
-        )
-        
-        # Process hourly and daily trends
-        day_counts: Dict[str, int] = {}
-        time_dist = timeline_agg.get("time_distribution", [])
-        if isinstance(time_dist, list):
-            for item in time_dist:
-                if isinstance(item, dict):
-                    id_data = item.get("_id", {})
-                    if isinstance(id_data, dict):
-                        d = str(id_data.get("date", ""))
-                        h_val = id_data.get("hour")
-                        h = int(h_val) if h_val is not None else -1
-                        c = int(item.get("count") or 0)
-                        if d:
-                            day_counts[d] = day_counts.get(d, 0) + c
-                        if 0 <= h < 24:
-                            act_stats["hourly"][h] += c
-            
-        # Get sorted timeline entries
-        timeline_items = sorted(day_counts.items())
-        act_stats["timeline"] = [{"date": d, "count": c} for d, c in timeline_items[-30:]]
 
-        # Platform detection from latest events
-        events_list = timeline_agg.get("events", [])
-        if isinstance(events_list, list):
-            for ev in events_list:
-                if isinstance(ev, dict):
-                    metadata = ev.get("metadata", {})
-                    if isinstance(metadata, dict):
-                        ua = str(metadata.get("user_agent", ""))
-                        if ua:
-                            pf = "Mobile" if "Mobi" in ua else "Tablet" if "Tablet" in ua else "Desktop"
-                            act_stats["platforms"][pf] = act_stats.get("platforms", {}).get(pf, 0) + 1
-
-        # 4. Funnel Analytics - Multi-stage conversion tracking
+        # 5. Conversion Funnel
         funnel_data = {
-            "uploaded": int(doc_stats.get("total", 0)),
+            "uploaded": int(doc_stats["total"]),
             "sent": sum(int(doc_stats.get(s, 0)) for s in ["sent", "in_progress", "completed"]),
-            "viewed": int(act_stats.get("counts", {}).get("document_viewed", 0) or 
-                         act_stats.get("counts", {}).get("recipient_viewed", 0) or 
-                         act_stats.get("counts", {}).get("viewed", 0)),
-            "started": int(field_stats.get("completed_fields", 0)),
-            "completed": int(doc_stats.get("completed", 0))
+            "viewed": max(
+                int(recip_stats.get("viewed", 0)) + int(recip_stats.get("completed", 0)),
+                views_count
+            ),
+            "started": int(field_stats["completed_fields"]),
+            "completed": int(doc_stats["completed"])
         }
 
-        # 5. Monthly Trends Data
-        trend_list = []
-        monthly_trends_list = agg_results.get("monthly_trends", [])
-        if isinstance(monthly_trends_list, list):
-            for item in monthly_trends_list:
-                if isinstance(item, dict):
-                    id_info = item.get("_id", {})
-                    if isinstance(id_info, dict):
-                        y = int(id_info.get("year", now.year))
-                        m = int(id_info.get("month", now.month))
-                        try:
-                            dt = datetime(y, m, 1)
-                            trend_list.append({
-                                "month": dt.strftime("%b %Y"),
-                                "total": int(item.get("total", 0)),
-                                "completed": int(item.get("completed", 0))
-                            })
-                        except (ValueError, TypeError):
-                            continue
-
-        # Subscription & Active Count
-        sub_record = await get_active_subscription(current_user["email"])
-        sub_info = {"has_active": False, "status": "inactive", "plan": "Free", "days_left": 0}
+        # 6. Subscription & Plan Info
+        user_email = current_user.get("email", "").lower()
+        sub_record = await get_active_subscription(user_email)
+        sub_info = {
+            "has_active": False,
+            "status": "inactive",
+            "plan": "Free",
+            "plan_name": "Free Plan",
+            "days_left": 0,
+            "days_remaining": 0
+        }
         if sub_record:
             exp_date = sub_record.get("expiry_date")
+            plan_code = str(sub_record.get("plan_type", "free"))
+            display_plan = str(PLAN_CONFIG.get(plan_code, {}).get("name", plan_code.title()))
+            days_left = max(0, (exp_date - now).days) if isinstance(exp_date, datetime) else 0
             sub_info.update({
-                "has_active": True, "status": str(sub_record.get("status", "active")),
-                "plan": str(PLAN_CONFIG.get(str(sub_record.get("plan_type")), {}).get("name", "Active Plan")),
-                "plan_type": str(sub_record.get("plan_type", "free")),
-                "days_left": max(0, (exp_date - now).days) if isinstance(exp_date, datetime) else 0
+                "has_active": True,
+                "status": str(sub_record.get("status", "active")),
+                "plan": display_plan,
+                "plan_name": display_plan,
+                "plan_type": plan_code,
+                "days_left": days_left,
+                "days_remaining": days_left
             })
 
-        # Credit Summary Calculation
+        # 7. Credit Summary & Real AI Templates Generated
         from services.credit_service import CreditService
-        credit_summary = await CreditService.get_credit_summary(current_user["email"])
+        credit_summary = await CreditService.get_credit_summary(user_email)
 
-        # Efficiency metrics calculation
-        hourly_series = act_stats.get("hourly", [0]*24)
+        ai_templates_count = await db.ai_generation_logs.count_documents({
+            "$or": [
+                {"user_id": user_id_str},
+                {"user_id": owner_obj_id},
+                {"user_email": user_email},
+                {"email": user_email}
+            ]
+        })
+        if ai_templates_count == 0:
+            ai_templates_count = await db.generated_templates.count_documents({
+                "$or": [
+                    {"createdBy": owner_obj_id},
+                    {"createdBy": user_id_str},
+                    {"user_id": user_id_str}
+                ]
+            })
+
+        plan_display = f"{credit_summary.get('plan_type', 'Standard').replace('_', ' ').title()} Plan"
+        credits_payload = {
+            "available": credit_summary.get("balance", credit_summary.get("available", 0)),
+            "total_allocated": credit_summary.get("limit", credit_summary.get("total_allocated", 0)),
+            "total_consumed": credit_summary.get("used", credit_summary.get("total_consumed", 0)),
+            "ai_templates_generated": ai_templates_count,
+            "plan_name": plan_display
+        }
+
+        # 8. Efficiency Metrics
         peak_hr = 0
-        if any(hourly_series):
-            peak_hr = hourly_series.index(max(hourly_series))
-        
-        platforms_dist = act_stats.get("platforms", {})
+        if any(hourly):
+            peak_hr = hourly.index(max(hourly))
+
         top_pf = "Desktop"
-        if isinstance(platforms_dist, dict) and platforms_dist:
-            top_pf = max(platforms_dist, key=lambda k: platforms_dist[k])
-        
+        if platforms:
+            top_pf = max(platforms, key=lambda k: platforms[k])
+
+        velocity = round((int(doc_stats.get("completed", 0)) / max(int(doc_stats.get("total", 0)), 1)) * 100, 1)
+
+        contacts_count = await db.contacts.count_documents({"owner_id": owner_filter})
+
         return {
             "documents": doc_stats,
             "recipients": recip_stats,
@@ -7229,22 +7833,17 @@ async def get_complete_analytics(
             "funnel": funnel_data,
             "trends": trend_list,
             "efficiency": {
-                "velocity": round((int(doc_stats.get("completed", 0)) / max(int(doc_stats.get("total", 0)), 1)) * 100, 1),
+                "velocity": velocity,
                 "completion_rate": recip_stats.get("completion_rate", 0),
                 "peak_hour": peak_hr,
                 "top_platform": top_pf,
                 "avg_signing_time": recip_stats.get("avg_signing_time", 0)
             },
             "subscription": sub_info,
-            "credits": {
-                "available": credit_summary.get("available", 0),
-                "total_allocated": credit_summary.get("total_allocated", 0),
-                "total_consumed": credit_summary.get("total_consumed", 0),
-                "plan_name": "Credit-Based Plan"
-            },
-            "contacts": {"total_contacts": await db.contacts.count_documents({"owner_id": owner_id})}
+            "credits": credits_payload,
+            "contacts": {"total_contacts": contacts_count}
         }
-        
+
     except Exception as exc:
         print(f"CRITICAL ANALYTICS ERROR: {exc}")
         import traceback

@@ -5626,7 +5626,8 @@ const DocumentBuilder = () => {
 
       await documentAPI.sendInvites(documentId, {
         recipient_ids: recipientIds,
-        message: "Please review and sign the document"
+        message: document?.common_message || "Please review and sign the document",
+        signing_order_enabled: Boolean(document?.signing_order_enabled)
       });
 
       // Show success message
@@ -6063,25 +6064,58 @@ const DocumentBuilder = () => {
             {Array.from({ length: numPages }, (_, pageIndex) => {
               const pdfPageNumber = pageIndex + 1;
               const isCurrentPage = pageIndex === currentPage;
+              const fileHeader = document?.files?.find(f => f.start_page === pdfPageNumber);
 
               return (
-                <Box
-                  key={`page-${pageIndex}`}
-                  sx={{
-                    width: `${scaledWidth}px`,
-                    height: `${scaledHeight}px`,
-                    position: 'relative',
-                    backgroundColor: 'white',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    boxShadow: 3,
-                    // border: isCurrentPage ? '3px solid #1976d2' : '1px solid #e0e0e0',
-                    transition: 'border 0.2s ease',
-                    '&:hover': {
-                      boxShadow: 4
-                    }
-                  }}
-                >
+                <React.Fragment key={`page-wrap-${pageIndex}`}>
+                  {fileHeader && (
+                    <Box
+                      sx={{
+                        width: `${scaledWidth}px`,
+                        p: 1.25,
+                        mt: pageIndex === 0 ? 0 : 2.5,
+                        mb: 1,
+                        bgcolor: '#0f172a',
+                        color: '#ffffff',
+                        borderRadius: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                        <Chip
+                          label={`Document ${fileHeader.order || pageIndex + 1}`}
+                          size="small"
+                          sx={{ bgcolor: '#0f766e', color: '#ffffff', fontWeight: 700, fontSize: '11px' }}
+                        />
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {fileHeader.filename}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8', flexShrink: 0 }}>
+                        {fileHeader.page_range} ({fileHeader.pages} {fileHeader.pages === 1 ? 'page' : 'pages'})
+                      </Typography>
+                    </Box>
+                  )}
+                  <Box
+                    key={`page-${pageIndex}`}
+                    sx={{
+                      width: `${scaledWidth}px`,
+                      height: `${scaledHeight}px`,
+                      position: 'relative',
+                      backgroundColor: 'white',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      boxShadow: 3,
+                      // border: isCurrentPage ? '3px solid #1976d2' : '1px solid #e0e0e0',
+                      transition: 'border 0.2s ease',
+                      '&:hover': {
+                        boxShadow: 4
+                      }
+                    }}
+                  >
                   <Page
                     pageNumber={pdfPageNumber}
                     scale={scale}
@@ -6123,8 +6157,9 @@ const DocumentBuilder = () => {
                   Page {pageIndex + 1}
                 </Box> */}
                 </Box>
-              );
-            })}
+              </React.Fragment>
+            );
+          })}
           </Box>
         </Document>
       );
@@ -6692,9 +6727,51 @@ const DocumentBuilder = () => {
             p: 0,
             overflow: 'hidden',
             display: 'flex',
+            flexDirection: 'column',
             mr: rightSidebarExpanded ? 2 : 0,
             transition: 'margin-right 0.3s ease'
           }}>
+            {/* Multi-Document Envelope Navigation Bar */}
+            {document?.files && document.files.length > 1 && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 2,
+                py: 0.85,
+                bgcolor: '#0f172a',
+                borderBottom: '1px solid #1e293b',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                zIndex: 10
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', mr: 0.5, flexShrink: 0 }}>
+                  Envelope Documents ({document.files.length}):
+                </Typography>
+                {document.files.map((file, idx) => (
+                  <Chip
+                    key={file.id || idx}
+                    icon={<FileText size={14} color="#ffffff" />}
+                    label={`${file.filename} (${file.page_range || `pp. ${file.start_page}–${file.end_page}`})`}
+                    onClick={() => {
+                      const targetPage = (file.start_page || 1) - 1;
+                      setCurrentPage(targetPage);
+                    }}
+                    sx={{
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      height: '28px',
+                      bgcolor: '#1e293b',
+                      color: '#f8fafc',
+                      border: '1px solid #334155',
+                      '&:hover': { bgcolor: '#0f766e', borderColor: '#0f766e' }
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+
             <Box sx={{
               flex: 1,
               position: 'relative',

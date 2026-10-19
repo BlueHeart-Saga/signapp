@@ -349,11 +349,11 @@ These Terms constitute a legally binding agreement between you ("User") and Esig
       content: `For questions about these Terms, please contact us:
 
 Esigniva Legal Department
-Email: support@devopstrioglobal.com
+Email: info@esigniva.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
 
-For legal notices, please use the above address or email support@devopstrioglobal.com.`
+For legal notices, please use the above address or email info@esigniva.com.`
     }
   ];
 
@@ -647,7 +647,7 @@ For legal notices, please use the above address or email support@devopstriogloba
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

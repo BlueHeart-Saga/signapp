@@ -28,9 +28,12 @@ import {
     Menu,
     MenuItem,
     DialogContentText,
-    Table
+    Table,
+    ToggleButtonGroup,
+    ToggleButton,
+    Skeleton
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import {
     CheckCircle as CheckIcon,
@@ -68,13 +71,15 @@ import {
     ContentCopy as ContentCopyIcon,
     ExpandMore as ExpandMoreIcon,
     CheckCircle as CheckCircleIcon,
-    CloudDownload as CloudDownloadIcon
+    CloudDownload as CloudDownloadIcon,
+    Description as DescriptionIcon,
+    Folder as FolderIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { format } from 'date-fns';
-import { useParams } from 'react-router-dom';
 import { EnhancedSignaturePadModal } from '../components/SignaturePad';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 // ======================
 // PDF.JS CONFIGURATION
@@ -101,7 +106,9 @@ const apiService = {
     },
 
     async fetchDocument(recipientId) {
-        const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/live-document`);
+        const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/live-document?t=${Date.now()}`, {
+            cache: 'no-store'
+        });
         if (!response.ok) throw new Error('Failed to fetch document');
 
         return response.blob();
@@ -154,6 +161,36 @@ const apiService = {
             throw error;
         }
     },
+    async resizeField(recipientId, fieldId, coords) {
+        console.log('Resizing field:', { recipientId, fieldId, coords });
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/signing/recipient/${recipientId}/fields/${fieldId}/resize`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(coords || {})
+                }
+            );
+
+            if (!response.ok) {
+                let errorMessage = 'Failed to update field size';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch (e) {
+                    const errorText = await response.text();
+                    if (errorText) errorMessage = errorText;
+                }
+                throw new Error(errorMessage);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Resize API error:', error);
+            throw error;
+        }
+    },
     async downloadDocument(recipientId, type = 'current') {
         const endpoint = type === 'signed' ? 'signed-preview' : 'document';
         const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/${endpoint}`);
@@ -203,7 +240,7 @@ const apiService = {
             new URLSearchParams(window.location.search).get('token') ||
             sessionStorage.getItem('signing_token');
 
-        let url = `${API_BASE_URL}/signing/recipient/${recipientId}/pages/${pageNumber}/thumbnail?width=${width}&height=${height}`;
+        let url = `${API_BASE_URL}/signing/recipient/${recipientId}/pages/${pageNumber}/thumbnail?width=${width}&height=${height}&v=${Date.now()}`;
 
         if (token) {
             url += `&token=${encodeURIComponent(token)}`;
@@ -382,11 +419,132 @@ const convertPDFToScreenCoordinates = (field, pageDimensions) => {
 
 
 // ======================
-// FIELD OVERLAY COMPONENT (Simplified - No draft mode)
+// FIELD SORTING & READING ORDER UTILITIES
 // ======================
 
+const getFieldReadingRank = (f) => {
+    const page = f.page ?? 0;
+    let topOffset = 0;
+    if (f.pdf_y !== undefined) {
+        // PDF coordinates have origin at bottom, so higher Y is higher on page
+        topOffset = Math.max(0, 800 - f.pdf_y);
+    } else if (f.canvas_y !== undefined) {
+        topOffset = f.canvas_y;
+    } else if (f.y !== undefined) {
+        topOffset = f.y;
+    }
+    const leftOffset = f.pdf_x ?? f.canvas_x ?? f.x ?? 0;
+    return page * 1000000 + topOffset * 1000 + leftOffset;
+};
+
+const sortFieldsByReadingOrder = (fieldsList) => {
+    return [...fieldsList].sort((a, b) => getFieldReadingRank(a) - getFieldReadingRank(b));
+};
+
+const getIncompleteFields = (fieldsList, values = {}) => {
+    return sortFieldsByReadingOrder(fieldsList).filter(f => {
+        const isDone = f.completed_at || f.is_completed || !!values[f.id];
+        return !isDone;
+    });
+};
+
+const findNextPendingField = (fieldsList, currentFieldId = null, values = {}) => {
+    const incomplete = getIncompleteFields(fieldsList, values);
+    if (incomplete.length === 0) return null;
+
+    if (!currentFieldId) return incomplete[0];
+
+    const currentField = fieldsList.find(f => f.id === currentFieldId);
+    if (!currentField) return incomplete[0];
+
+    const currentRank = getFieldReadingRank(currentField);
+    const nextAfter = incomplete.find(f => getFieldReadingRank(f) > currentRank && f.id !== currentFieldId);
+    if (nextAfter) return nextAfter;
+
+    const firstRemaining = incomplete.find(f => f.id !== currentFieldId);
+    return firstRemaining || null;
+};
+
+// Helper to trim empty transparent margins around signature/initial strokes
+// to match backend PDFEngine bounds perfectly and ensure consistent sizing
+const cropSignatureDataUrl = (dataUrl) => {
+    return new Promise((resolve) => {
+        if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+            resolve(dataUrl);
+            return;
+        }
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const imgData = ctx.getImageData(0, 0, img.width, img.height);
+                const data = imgData.data;
+                let minX = img.width, minY = img.height, maxX = 0, maxY = 0;
+                let hasContent = false;
+
+                for (let y = 0; y < img.height; y++) {
+                    for (let x = 0; x < img.width; x++) {
+                        const i = (y * img.width + x) * 4;
+                        const alpha = data[i + 3];
+                        if (alpha > 15) {
+                            const r = data[i], g = data[i + 1], b = data[i + 2];
+                            if (!(r > 245 && g > 245 && b > 245)) {
+                                hasContent = true;
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                            }
+                        }
+                    }
+                }
+
+                if (!hasContent) {
+                    resolve(dataUrl);
+                    return;
+                }
+
+                const contentW = maxX - minX + 1;
+                const contentH = maxY - minY + 1;
+                const padX = Math.max(4, Math.round(contentW * 0.04));
+                const padY = Math.max(4, Math.round(contentH * 0.04));
+
+                const finalMinX = Math.max(0, minX - padX);
+                const finalMinY = Math.max(0, minY - padY);
+                const finalMaxX = Math.min(img.width - 1, maxX + padX);
+                const finalMaxY = Math.min(img.height - 1, maxY + padY);
+
+                const finalW = finalMaxX - finalMinX + 1;
+                const finalH = finalMaxY - finalMinY + 1;
+
+                const trimmedCanvas = document.createElement('canvas');
+                trimmedCanvas.width = finalW;
+                trimmedCanvas.height = finalH;
+                const trimmedCtx = trimmedCanvas.getContext('2d');
+
+                trimmedCtx.drawImage(
+                    canvas,
+                    finalMinX, finalMinY, finalW, finalH,
+                    0, 0, finalW, finalH
+                );
+
+                resolve(trimmedCanvas.toDataURL('image/png'));
+            } catch (e) {
+                resolve(dataUrl);
+            }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+    });
+};
+
 // ======================
-// FIELD OVERLAY COMPONENT (Shows completed fields too)
+// FIELD OVERLAY COMPONENT (With Next & Pending Highlights)
 // ======================
 
 const FieldOverlay = React.memo(({
@@ -394,6 +552,7 @@ const FieldOverlay = React.memo(({
     screenPosition,
     pageDimensions,
     isCompleted,
+    isNextField = false,
     onClick,
     onUpdateCoords,
     recipientColor = 'rgb(13, 148, 136)',
@@ -408,9 +567,10 @@ const FieldOverlay = React.memo(({
     // Check if field is completed
     const completed = isCompleted || !!fieldValues[field.id] || field.completed_at || field.is_completed || false;
     const isSignatureField = ['signature', 'initials', 'stamp', 'witness_signature'].includes(field.type);
+    const isTextFormField = ['textbox', 'mail', 'date', 'dropdown', 'radio'].includes(field.type);
     
-    // Can only resize if the entire recipient signing process is not yet completed
-    const canMoveAndResize = !isRecipientCompleted && isSignatureField;
+    // Can only resize if the entire recipient signing process is not yet completed (signature, text & mail fields)
+    const canMoveAndResize = !isRecipientCompleted && (isSignatureField || field.type === 'textbox' || field.type === 'mail');
 
     // Helper to convert screen coordinates back to PDF points
     const convertScreenToPDFCoordinates = useCallback((x, y, w, h, dimensions) => {
@@ -426,6 +586,68 @@ const FieldOverlay = React.memo(({
         };
     }, []);
 
+    // Helper to calculate min and max resize boundaries based on field type and text length
+    const getFieldResizeBounds = useCallback((fieldObj, startXPos, startYPos) => {
+        const renderWidth = pageDimensions?.renderWidth || 800;
+        const renderHeight = pageDimensions?.renderHeight || 1100;
+        const maxWidthOnPage = Math.max(60, renderWidth - startXPos - 8);
+        const maxHeightOnPage = Math.max(20, renderHeight - startYPos - 8);
+
+        const val = fieldValues[fieldObj.id] || fieldObj.value;
+        let textVal = '';
+        if (typeof val === 'string') {
+            textVal = val;
+        } else if (val && typeof val === 'object') {
+            textVal = val.value || val.text || val.email || '';
+        }
+
+        if (fieldObj.type === 'mail') {
+            const measuredText = String(textVal).trim() || 'ENTER EMAIL';
+            // Minimum width strictly based on text length (~8.5px per char + 22px padding)
+            const minW = Math.max(90, Math.min(maxWidthOnPage, Math.round(measuredText.length * 8.5 + 22)));
+            // Maximum width: restricted for email (max 35 chars) to 380px or page boundary
+            const maxW = Math.min(maxWidthOnPage, Math.max(minW + 30, 380));
+            const minH = 26;
+            const maxH = Math.min(maxHeightOnPage, 45);
+            return { minW, maxW, minH, maxH };
+        }
+
+        if (fieldObj.type === 'textbox') {
+            const measuredText = String(textVal).trim() || 'ENTER TEXT';
+            const lines = measuredText.split('\n');
+            const maxLineLen = Math.max(...lines.map(l => l.length), 0);
+            // Minimum width strictly based on longest text line (~8.5px per char + 22px padding)
+            const minW = Math.max(90, Math.min(maxWidthOnPage, Math.round(maxLineLen * 8.5 + 22)));
+            // Maximum width: restricted for text (max 60 chars) to 520px or page boundary
+            const maxW = Math.min(maxWidthOnPage, Math.max(minW + 40, 520));
+
+            const lineCount = Math.max(1, lines.length);
+            const minH = Math.max(26, Math.min(maxHeightOnPage, lineCount * 22 + 8));
+            const maxH = lineCount > 1
+                ? Math.min(maxHeightOnPage, Math.max(minH + 40, 200))
+                : Math.min(maxHeightOnPage, 60);
+
+            return { minW, maxW, minH, maxH };
+        }
+
+        if (fieldObj.type === 'initials') {
+            return {
+                minW: 40,
+                maxW: Math.min(maxWidthOnPage, 160),
+                minH: 22,
+                maxH: Math.min(maxHeightOnPage, 90)
+            };
+        }
+
+        // Signature & stamp fields
+        return {
+            minW: 60,
+            maxW: Math.min(maxWidthOnPage, 500),
+            minH: 25,
+            maxH: Math.min(maxHeightOnPage, 220)
+        };
+    }, [pageDimensions, fieldValues]);
+
     // Resize handlers (No drag positioning, only resizing width and height)
     const handleResizeMouseDown = (e) => {
         e.preventDefault();
@@ -436,28 +658,27 @@ const FieldOverlay = React.memo(({
 
         const startX = e.clientX;
         const startY = e.clientY;
-        const startWidth = screenPosition.width;
-        const startHeight = screenPosition.height;
+        const startWidth = elementRef.current ? elementRef.current.offsetWidth : screenPosition.width;
+        const startHeight = elementRef.current ? elementRef.current.offsetHeight : screenPosition.height;
         const startLeft = screenPosition.x;
         const startTop = screenPosition.y;
 
+        const bounds = getFieldResizeBounds(field, startLeft, startTop);
         let resized = false;
 
         const handleMouseMove = (moveEvent) => {
             const dx = moveEvent.clientX - startX;
             const dy = moveEvent.clientY - startY;
 
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
                 resized = true;
             }
 
             let newWidth = startWidth + dx;
             let newHeight = startHeight + dy;
 
-            const renderWidth = pageDimensions.renderWidth;
-            const renderHeight = pageDimensions.renderHeight;
-            newWidth = Math.max(50, Math.min(newWidth, renderWidth - startLeft));
-            newHeight = Math.max(20, Math.min(newHeight, renderHeight - startTop));
+            newWidth = Math.max(bounds.minW, Math.min(newWidth, bounds.maxW));
+            newHeight = Math.max(bounds.minH, Math.min(newHeight, bounds.maxH));
 
             if (elementRef.current) {
                 elementRef.current.style.width = `${newWidth}px`;
@@ -475,8 +696,15 @@ const FieldOverlay = React.memo(({
             }, 100);
 
             if (resized && elementRef.current) {
-                const width = parseFloat(elementRef.current.style.width);
-                const height = parseFloat(elementRef.current.style.height);
+                let width = parseFloat(elementRef.current.style.width) || elementRef.current.offsetWidth;
+                let height = parseFloat(elementRef.current.style.height) || elementRef.current.offsetHeight;
+
+                width = Math.max(bounds.minW, Math.min(width, bounds.maxW));
+                height = Math.max(bounds.minH, Math.min(height, bounds.maxH));
+
+                // Clear inline styles so React state controls cleanly
+                elementRef.current.style.width = '';
+                elementRef.current.style.height = '';
 
                 const newPdfCoords = convertScreenToPDFCoordinates(
                     startLeft,
@@ -520,11 +748,12 @@ const FieldOverlay = React.memo(({
 
         const startX = touch.clientX;
         const startY = touch.clientY;
-        const startWidth = screenPosition.width;
-        const startHeight = screenPosition.height;
+        const startWidth = elementRef.current ? elementRef.current.offsetWidth : screenPosition.width;
+        const startHeight = elementRef.current ? elementRef.current.offsetHeight : screenPosition.height;
         const startLeft = screenPosition.x;
         const startTop = screenPosition.y;
 
+        const bounds = getFieldResizeBounds(field, startLeft, startTop);
         let resized = false;
 
         const handleTouchMove = (moveEvent) => {
@@ -533,7 +762,7 @@ const FieldOverlay = React.memo(({
             const dx = moveTouch.clientX - startX;
             const dy = moveTouch.clientY - startY;
 
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
                 resized = true;
                 if (moveEvent.cancelable) moveEvent.preventDefault();
             }
@@ -541,10 +770,8 @@ const FieldOverlay = React.memo(({
             let newWidth = startWidth + dx;
             let newHeight = startHeight + dy;
 
-            const renderWidth = pageDimensions.renderWidth;
-            const renderHeight = pageDimensions.renderHeight;
-            newWidth = Math.max(50, Math.min(newWidth, renderWidth - startLeft));
-            newHeight = Math.max(20, Math.min(newHeight, renderHeight - startTop));
+            newWidth = Math.max(bounds.minW, Math.min(newWidth, bounds.maxW));
+            newHeight = Math.max(bounds.minH, Math.min(newHeight, bounds.maxH));
 
             if (elementRef.current) {
                 elementRef.current.style.width = `${newWidth}px`;
@@ -562,8 +789,15 @@ const FieldOverlay = React.memo(({
             }, 100);
 
             if (resized && elementRef.current) {
-                const width = parseFloat(elementRef.current.style.width);
-                const height = parseFloat(elementRef.current.style.height);
+                let width = parseFloat(elementRef.current.style.width) || elementRef.current.offsetWidth;
+                let height = parseFloat(elementRef.current.style.height) || elementRef.current.offsetHeight;
+
+                width = Math.max(bounds.minW, Math.min(width, bounds.maxW));
+                height = Math.max(bounds.minH, Math.min(height, bounds.maxH));
+
+                // Clear inline styles so React state controls cleanly
+                elementRef.current.style.width = '';
+                elementRef.current.style.height = '';
 
                 const newPdfCoords = convertScreenToPDFCoordinates(
                     startLeft,
@@ -617,7 +851,53 @@ const FieldOverlay = React.memo(({
         return null;
     }, [fieldValues, field.id, field.value]);
 
-    const sigImage = isSignatureField && completed ? getSignatureImage() : null;
+    const rawSigImage = isSignatureField && completed ? getSignatureImage() : null;
+    const [croppedSigImage, setCroppedSigImage] = useState(rawSigImage);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (rawSigImage && typeof rawSigImage === 'string' && rawSigImage.startsWith('data:image')) {
+            cropSignatureDataUrl(rawSigImage).then(cropped => {
+                if (isMounted) {
+                    setCroppedSigImage(cropped);
+                }
+            });
+        } else {
+            setCroppedSigImage(rawSigImage);
+        }
+        return () => { isMounted = false; };
+    }, [rawSigImage]);
+
+    // Helper to extract text information for typed signatures
+    const getSignatureTextInfo = useCallback(() => {
+        if (!isSignatureField || !completed) return null;
+        const val = fieldValues[field.id] || field.value;
+        if (!val) return null;
+
+        let text = null;
+        let fontFamily = 'Dancing Script';
+        let fontColor = '#000000';
+        let isTyped = false;
+
+        if (typeof val === 'object') {
+            if (val.signature_type === 'type' || val.type === 'type' || (!val.image && val.text)) {
+                text = val.text || val.value;
+                isTyped = true;
+                fontFamily = val.font_family || 'Dancing Script';
+                fontColor = val.font_color || '#000000';
+            }
+        } else if (typeof val === 'string' && !val.startsWith('data:image')) {
+            text = val;
+            isTyped = true;
+        }
+
+        if (isTyped && text) {
+            return { text: String(text), fontFamily, fontColor };
+        }
+        return null;
+    }, [isSignatureField, completed, fieldValues, field.id, field.value]);
+
+    const sigTextInfo = getSignatureTextInfo();
 
     // Get display value for completed fields
     const getDisplayValue = () => {
@@ -665,9 +945,31 @@ const FieldOverlay = React.memo(({
             }
         }
 
-        // For completed fields, return empty string per user request.
-        // The background PDF will be refreshed to show the actual value.
+        // For completed fields:
         if (completed) {
+            // Text-based form fields (email, date, textbox, dropdown, radio) are already stamped and displayed on the PDF document.
+            // Do not show duplicate wrapped text inside the button; keep it transparent so document values show cleanly.
+            if (isTextFormField) {
+                return "";
+            }
+
+            const val = fieldValues[field.id] || field.value;
+            if (!val) return "";
+            if (typeof val === 'string') {
+                if (val.startsWith('data:image')) return ""; // rendered by croppedSigImage
+                return val;
+            }
+            if (typeof val === 'object') {
+                if (val.image) return ""; // rendered by croppedSigImage
+                if (val.value !== undefined) {
+                    if (field.type === 'checkbox' || field.type === 'approval') {
+                        return val.value ? "✓" : "";
+                    }
+                    if (typeof val.value === 'string' && val.value.startsWith('data:image')) return "";
+                    return String(val.value);
+                }
+                if (val.text) return String(val.text);
+            }
             return "";
         }
 
@@ -676,18 +978,51 @@ const FieldOverlay = React.memo(({
 
     const displayValue = getDisplayValue();
 
+    // Calculate font size & font styling matching real backend PDFEngine values
+    let fieldFontSize = '11px';
+    let fieldFontFamily = 'inherit';
+    let fieldFontColor = completed ? '#000000' : 'rgb(13, 148, 136)';
+
+    if (completed) {
+        if (sigTextInfo) {
+            // Typed signature / initials in PDFEngine: min(30, rect.height * 0.72)
+            const calculatedSize = Math.min(32, Math.max(14, Math.round(screenPosition.height * 0.72)));
+            fieldFontSize = `${calculatedSize}px`;
+            fieldFontFamily = sigTextInfo.fontFamily 
+                ? `${sigTextInfo.fontFamily}, 'Dancing Script', cursive, sans-serif`
+                : "'Dancing Script', cursive, sans-serif";
+            fieldFontColor = sigTextInfo.fontColor || '#000000';
+        } else if (field.type === 'checkbox' || field.type === 'approval') {
+            fieldFontSize = `${Math.min(26, Math.max(16, Math.round(screenPosition.height * 0.78)))}px`;
+            fieldFontFamily = 'Arial, sans-serif';
+        } else if (field.type === 'textbox' || field.type === 'mail' || field.type === 'date') {
+            // PDFEngine text fields use min(font_size, rect.height * 0.8) -> ~12-16px
+            const calculatedSize = Math.min(18, Math.max(12, Math.round(screenPosition.height * 0.60)));
+            fieldFontSize = `${calculatedSize}px`;
+            fieldFontFamily = 'Helvetica, Arial, sans-serif';
+            fieldFontColor = (field.type === 'attachment') ? '#2563eb' : '#000000';
+        } else {
+            const calculatedSize = Math.min(18, Math.max(12, Math.round(screenPosition.height * 0.55)));
+            fieldFontSize = `${calculatedSize}px`;
+        }
+    } else {
+        fieldFontSize = (field.type === 'textbox' || field.type === 'mail') ? '11px' : '9px';
+        fieldFontFamily = 'inherit';
+        fieldFontColor = 'rgb(13, 148, 136)';
+    }
+
     return (
         <Tooltip
             title={completed
                 ? `Click to edit ${fieldConfig.label.toLowerCase()}`
                 : `Click to ${field.type === 'signature' ? 'sign' : 'fill'}`
             }
-
             arrow
             placement="top"
         >
             <Box
                 ref={elementRef}
+                id={`field-overlay-${field.id}`}
                 sx={{
                     position: 'absolute',
                     left: `${screenPosition.x}px`,
@@ -695,7 +1030,7 @@ const FieldOverlay = React.memo(({
                     width: `${screenPosition.width}px`,
                     height: `${screenPosition.height}px`,
                     boxSizing: 'border-box',
-                    backgroundColor: isResizing ? 'white' : 'transparent',
+                    backgroundColor: (completed && !isTextFormField) ? '#ffffff' : (isResizing ? 'white' : 'transparent'),
 
                     // Border only on hover or when incomplete/resizing
                     border: completed
@@ -705,19 +1040,19 @@ const FieldOverlay = React.memo(({
 
                     cursor: 'pointer',
                     pointerEvents: 'auto',
-                    transition: 'border 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+                    transition: isResizing ? 'none' : 'border 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
 
                     '&:hover': {
                         borderColor: completed ? 'rgb(13, 148, 136)' : recipientColor,
                         boxShadow: '0 0 0 2px rgba(13, 148, 136, 0.2)',
-                        backgroundColor: isResizing ? 'white' : (completed ? 'transparent' : 'rgba(13, 148, 136, 0.02)')
+                        backgroundColor: (completed && !isTextFormField) ? '#ffffff' : (isResizing ? 'white' : 'rgba(13, 148, 136, 0.04)')
                     },
 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    zIndex: 100,
+                    zIndex: isResizing ? 120 : 100,
                     borderRadius: '2px',
                     userSelect: 'none'
                 }}
@@ -730,8 +1065,6 @@ const FieldOverlay = React.memo(({
                     onClick(field);
                 }}
             >
-
-
                 {/* Field content */}
                 <Box
                     sx={{
@@ -740,9 +1073,10 @@ const FieldOverlay = React.memo(({
                         justifyContent: 'center',
                         width: '100%',
                         height: '100%',
-                        fontSize: field.type === 'textbox' ? '11px' : '9px',
-                        fontWeight: 500,
-                        color: (completed && field.type === 'attachment') ? '#2563eb' : (completed ? '#000' : 'rgb(13, 148, 136)'),
+                        fontSize: fieldFontSize,
+                        fontFamily: fieldFontFamily,
+                        fontWeight: (sigTextInfo || !completed) ? 500 : 400,
+                        color: fieldFontColor,
                         textDecoration: (completed && field.type === 'attachment') ? 'underline' : 'none',
                         backgroundColor: 'transparent',
                         borderRadius: '2px',
@@ -751,24 +1085,24 @@ const FieldOverlay = React.memo(({
                         whiteSpace: (field.type === 'textbox' || field.type === 'mail') ? 'pre-wrap' : 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        padding: (isResizing && sigImage) ? '4px' : '2px',
-                        lineHeight: 1.1
+                        padding: (croppedSigImage || sigTextInfo) ? '0px' : (field.type === 'textbox' ? '2px' : '1px'),
+                        lineHeight: 1.15
                     }}
                 >
-                    {(isResizing && sigImage) ? (
+                    {croppedSigImage ? (
                         <img 
-                            src={sigImage} 
+                            src={croppedSigImage} 
                             alt="Signature" 
                             style={{ 
                                 width: '100%', 
                                 height: '100%', 
                                 objectFit: 'contain',
-                                pointerEvents: 'none'
+                                pointerEvents: 'none',
+                                display: 'block'
                             }} 
                         />
-                    ) : displayValue}
+                    ) : (sigTextInfo ? sigTextInfo.text : displayValue)}
                 </Box>
-
 
                 {/* Required indicator for incomplete fields */}
                 {!completed && field.required && (
@@ -820,7 +1154,110 @@ const FieldOverlay = React.memo(({
 FieldOverlay.displayName = 'FieldOverlay';
 
 // ======================
-// SINGLE PDF PAGE WITH OVERLAYS (Updated to include completed fields)
+// ELEGANT DOCUMENT PAGE SKELETON
+// ======================
+
+const PageSkeleton = React.memo(({ width, height, pageNum, totalPages }) => {
+    return (
+        <Box
+            sx={{
+                width: width ? `${width}px` : '100%',
+                height: height ? `${height}px` : '800px',
+                minHeight: height ? `${height}px` : '800px',
+                bgcolor: '#ffffff',
+                p: { xs: 3, sm: 6 },
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                boxSizing: 'border-box',
+                overflow: 'hidden'
+            }}
+        >
+            {/* Document Header Skeleton */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Skeleton variant="rounded" width={34} height={34} sx={{ bgcolor: 'rgba(13, 148, 136, 0.08)' }} />
+                    <Box>
+                        <Skeleton variant="text" width={140} height={20} animation="wave" />
+                        <Skeleton variant="text" width={90} height={14} animation="wave" />
+                    </Box>
+                </Box>
+                <Skeleton variant="rounded" width={80} height={24} sx={{ borderRadius: 1 }} animation="wave" />
+            </Box>
+
+            <Divider sx={{ mb: 4, opacity: 0.6 }} />
+
+            {/* Document Title / Subheading Skeleton */}
+            <Skeleton variant="text" width="55%" height={30} sx={{ mb: 1.5 }} animation="wave" />
+            <Skeleton variant="text" width="35%" height={18} sx={{ mb: 4 }} animation="wave" />
+
+            {/* Simulated Paragraph 1 */}
+            <Box sx={{ mb: 3 }}>
+                <Skeleton variant="text" width="98%" height={18} animation="wave" />
+                <Skeleton variant="text" width="94%" height={18} animation="wave" />
+                <Skeleton variant="text" width="96%" height={18} animation="wave" />
+                <Skeleton variant="text" width="85%" height={18} animation="wave" />
+                <Skeleton variant="text" width="60%" height={18} animation="wave" />
+            </Box>
+
+            {/* Simulated Paragraph 2 */}
+            <Box sx={{ mb: 3 }}>
+                <Skeleton variant="text" width="95%" height={18} animation="wave" />
+                <Skeleton variant="text" width="92%" height={18} animation="wave" />
+                <Skeleton variant="text" width="97%" height={18} animation="wave" />
+                <Skeleton variant="text" width="70%" height={18} animation="wave" />
+            </Box>
+
+            {/* Simulated Paragraph 3 */}
+            <Box sx={{ mb: 4 }}>
+                <Skeleton variant="text" width="99%" height={18} animation="wave" />
+                <Skeleton variant="text" width="91%" height={18} animation="wave" />
+                <Skeleton variant="text" width="88%" height={18} animation="wave" />
+                <Skeleton variant="text" width="50%" height={18} animation="wave" />
+            </Box>
+
+            {/* Center Loading Badge */}
+            <Box
+                sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    px: 3.5,
+                    py: 2.5,
+                    borderRadius: 3,
+                    border: '1px solid rgba(13, 148, 136, 0.25)',
+                    boxShadow: '0 8px 32px rgba(13, 148, 136, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04)',
+                    zIndex: 2
+                }}
+            >
+                <CircularProgress size={30} thickness={4} sx={{ color: 'rgb(13, 148, 136)' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b', letterSpacing: '0.01em' }}>
+                    Loading Page {pageNum}{totalPages ? ` of ${totalPages}` : ''}...
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
+                    Rendering document page
+                </Typography>
+            </Box>
+
+            {/* Bottom Footer Skeleton */}
+            <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', pt: 2, borderTop: '1px dashed #e2e8f0' }}>
+                <Skeleton variant="text" width={110} height={16} animation="wave" />
+                <Skeleton variant="text" width={50} height={16} animation="wave" />
+            </Box>
+        </Box>
+    );
+});
+PageSkeleton.displayName = 'PageSkeleton';
+
+// ======================
+// SINGLE PDF PAGE WITH OVERLAYS (Updated to include completed fields & next field highlighting)
 // ======================
 
 const PdfPageWithOverlays = React.memo(({
@@ -831,7 +1268,8 @@ const PdfPageWithOverlays = React.memo(({
     onUpdateCoords,
     recipientColors,
     isRecipientCompleted,
-    fieldValues = {}
+    fieldValues = {},
+    nextFieldId = null
 }) => {
 
     const pageFields = useMemo(() =>
@@ -860,6 +1298,7 @@ const PdfPageWithOverlays = React.memo(({
                         screenPosition={screenPosition}
                         pageDimensions={pageDimensions}
                         isCompleted={field.completed_at || field.is_completed || !!fieldValues[field.id]}
+                        isNextField={field.id === nextFieldId}
                         onClick={onFieldClick}
                         onUpdateCoords={onUpdateCoords}
                         recipientColor={recipientColors[field.recipient_id] || 'rgb(13, 148, 136)'}
@@ -890,8 +1329,28 @@ const DocumentPageThumbnail = React.memo(({
     fields = [],
     recipientColors = {},
     thumbnailUrl = null,
-    isLoading = false
+    isLoading = false,
+    fieldValues = {},
+    pageDimensions = null,
+    nextFieldId = null
 }) => {
+    const [pageMeta, setPageMeta] = useState(null);
+
+    const handlePageLoad = useCallback((page) => {
+        setPageMeta({
+            width: page.originalWidth || page.width,
+            height: page.originalHeight || page.height
+        });
+    }, []);
+
+    // Exact page dimensions in PDF points
+    const pdfW = pageDimensions?.pdfWidth || pageMeta?.width || 612;
+    const pdfH = pageDimensions?.pdfHeight || pageMeta?.height || 792;
+    const aspectRatio = pdfH / pdfW;
+
+    const thumbWidth = 140;
+    const thumbHeight = Math.max(80, Math.round(thumbWidth * aspectRatio));
+
     return (
         <Box
             onClick={onClick}
@@ -909,16 +1368,13 @@ const DocumentPageThumbnail = React.memo(({
             <Paper
                 elevation={isActive ? 6 : 1}
                 sx={{
-                    width: 140,
-                    height: 190,
+                    width: thumbWidth,
+                    height: thumbHeight,
                     position: 'relative',
                     overflow: 'hidden',
                     border: isActive ? '3px solid #0f766e' : '1px solid #e5e7eb',
                     transition: 'all 0.3s ease',
                     borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     bgcolor: '#fff',
                     boxShadow: isActive ? '0 10px 15px -3px rgba(13, 148, 136, 0.2)' : 'none'
                 }}
@@ -926,24 +1382,51 @@ const DocumentPageThumbnail = React.memo(({
                 {/* Thumbnail Background (PDF Page) */}
                 <Box
                     sx={{
-                        width: '100%',
-                        height: '100%',
+                        width: thumbWidth,
+                        height: thumbHeight,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        bgcolor: '#fff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        bgcolor: '#fff',
-                        position: 'relative'
+                        overflow: 'hidden'
                     }}
                 >
                     {documentUrl ? (
-                        <Document file={documentUrl}>
+                        <Document
+                            file={documentUrl}
+                            loading={
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                    <CircularProgress size={20} thickness={3} sx={{ color: '#0f766e' }} />
+                                </Box>
+                            }
+                        >
                             <Page
                                 pageNumber={pageNumber}
-                                width={140}
+                                width={thumbWidth}
+                                onLoadSuccess={handlePageLoad}
                                 renderAnnotationLayer={false}
                                 renderTextLayer={false}
+                                loading={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: thumbWidth, height: thumbHeight, bgcolor: '#ffffff' }}>
+                                        <CircularProgress size={18} thickness={3} sx={{ color: '#0f766e' }} />
+                                    </Box>
+                                }
                             />
                         </Document>
+                    ) : thumbnailUrl ? (
+                        <Box
+                            component="img"
+                            src={thumbnailUrl}
+                            alt={`Page ${pageNumber}`}
+                            sx={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                            }}
+                        />
                     ) : (
                         <CircularProgress size={20} thickness={3} sx={{ color: '#0f766e' }} />
                     )}
@@ -955,8 +1438,8 @@ const DocumentPageThumbnail = React.memo(({
                         position: 'absolute',
                         top: 0,
                         left: 0,
-                        width: '100%',
-                        height: '100%',
+                        width: `${thumbWidth}px`,
+                        height: `${thumbHeight}px`,
                         pointerEvents: 'none',
                         zIndex: 3,
                         overflow: 'hidden'
@@ -965,29 +1448,21 @@ const DocumentPageThumbnail = React.memo(({
                     {fields
                         .filter((f) => f.page === pageNumber - 1)
                         .map((f, idx) => {
-                            // Standard PDF Dimensions (Esigniva uses 612x792 points as standard)
-                            const PDF_W = 612;
-                            const PDF_H = 792;
+                            // Extract coordinates matching convertPDFToScreenCoordinates
+                            const pdfX = f.pdf_x ?? f.x ?? 0;
+                            const pdfY = f.pdf_y ?? f.y ?? 0;
+                            const pdfFieldWidth = f.pdf_width ?? f.width ?? 100;
+                            const pdfFieldHeight = f.pdf_height ?? f.height ?? 30;
 
-                            // Extract values, prioritizing pdf_ properties which are absolute
-                            const x = f.pdf_x ?? f.x ?? 0;
-                            const y = f.pdf_y ?? f.y ?? 0;
-                            const w = f.pdf_width ?? f.width ?? 100;
-                            const h = f.pdf_height ?? f.height ?? 30;
+                            // Convert to percentages (0 to 100%)
+                            const left = (pdfX / pdfW) * 100;
+                            // Y axis: in PDF points, origin is bottom-left, top is pdfH - (pdfY + pdfFieldHeight)
+                            const top = ((pdfH - (pdfY + pdfFieldHeight)) / pdfH) * 100;
+                            const width = (pdfFieldWidth / pdfW) * 100;
+                            const height = (pdfFieldHeight / pdfH) * 100;
 
-                            // Calculate percentages relative to PDF units
-                            const left = (x / PDF_W) * 100;
-                            let top = (y / PDF_H) * 100;
-
-                            // Invert Y if it's a PDF coordinate (bottom-up origin)
-                            if (f.pdf_y !== undefined) {
-                                top = 100 - ((y + h) / PDF_H * 100);
-                            }
-
-                            const width = (w / PDF_W) * 100;
-                            const height = (h / PDF_H) * 100;
-
-                            const isDone = f.completed_at || f.is_completed;
+                            const isDone = f.completed_at || f.is_completed || !!fieldValues[f.id];
+                            const isNext = f.id === nextFieldId;
                             const color = recipientColors[f.recipient_id] || '#0f766e';
 
                             return (
@@ -995,15 +1470,21 @@ const DocumentPageThumbnail = React.memo(({
                                     key={f.id || idx}
                                     sx={{
                                         position: 'absolute',
-                                        left: `${Math.max(0, Math.min(100, left))}%`,
-                                        top: `${Math.max(0, Math.min(100, top))}%`,
-                                        width: `${Math.max(4, width)}%`,
-                                        height: `${Math.max(4, height)}%`,
-                                        backgroundColor: isDone ? 'rgba(156, 163, 175, 0.4)' : `${color}33`,
-                                        border: `0.5px solid ${isDone ? '#9ca3af' : color}`,
-                                        borderRadius: '0.5px',
-                                        zIndex: 2,
-                                        transition: 'all 0.3s ease'
+                                        left: `${Math.max(0, Math.min(100 - Math.min(width, 100), left))}%`,
+                                        top: `${Math.max(0, Math.min(100 - Math.min(height, 100), top))}%`,
+                                        width: `${Math.max(3.5, Math.min(100, width))}%`,
+                                        height: `${Math.max(3, Math.min(100, height))}%`,
+                                        backgroundColor: isDone
+                                            ? 'rgba(156, 163, 175, 0.45)'
+                                            : (isNext ? `${color}55` : `${color}33`),
+                                        border: isNext
+                                            ? `1.5px solid ${color}`
+                                            : `0.8px solid ${isDone ? '#9ca3af' : color}`,
+                                        borderRadius: '1.5px',
+                                        boxShadow: isNext ? `0 0 0 1px ${color}, 0 0 4px ${color}88` : 'none',
+                                        boxSizing: 'border-box',
+                                        zIndex: isNext ? 3 : 2,
+                                        transition: 'all 0.25s ease'
                                     }}
                                 />
                             );
@@ -1014,9 +1495,9 @@ const DocumentPageThumbnail = React.memo(({
                 <Box
                     sx={{
                         position: 'absolute',
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
+                        bottom: 6,
+                        left: 6,
+                        right: 6,
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -1028,7 +1509,7 @@ const DocumentPageThumbnail = React.memo(({
                         sx={{
                             bgcolor: isActive ? '#0f766e' : 'rgba(0,0,0,0.6)',
                             color: '#fff',
-                            px: 1,
+                            px: 0.9,
                             py: 0.2,
                             borderRadius: '4px',
                             fontSize: '10px',
@@ -1050,7 +1531,7 @@ const DocumentPageThumbnail = React.memo(({
                                 py: 0.2,
                                 borderRadius: '4px',
                                 fontSize: '9px',
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 0.2,
@@ -1084,6 +1565,7 @@ const SigningPage = () => {
     const [fields, setFields] = useState([]);
     const [fieldValues, setFieldValues] = useState({}); // Added missing state
     const [activeField, setActiveField] = useState(null);
+    const [nextFieldId, setNextFieldId] = useState(null); // Active target field to highlight & auto-scroll
     const [modalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState(null);
     const [, setModalValue] = useState(null); // Changed from string to null
@@ -1093,11 +1575,13 @@ const SigningPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [numPages, setNumPages] = useState(0);
     const [pageDimensions, setPageDimensions] = useState({});
+    const [renderedPages, setRenderedPages] = useState({});
     const [, setSaving] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [recipientColors, setRecipientColors] = useState({});
+    const [downloadMenuAnchor, setDownloadMenuAnchor] = useState(null);
 
     const [thumbnailUrls, setThumbnailUrls] = useState({});
     const [loadingThumbnails, setLoadingThumbnails] = useState(false);
@@ -1113,6 +1597,27 @@ const SigningPage = () => {
     // Refs
     const containerRef = useRef(null);
     const pdfContainerRef = useRef(null);
+
+    // Auto-scroll helper: smoothly scroll to a target field and center it in the viewport
+    const scrollToField = useCallback((targetField, behavior = 'smooth') => {
+        if (!targetField) return;
+        setNextFieldId(targetField.id);
+        const targetPage = (targetField.page || 0) + 1;
+        setCurrentPage(targetPage);
+
+        // Allow layout to render / page dimensions to settle
+        setTimeout(() => {
+            const el = document.getElementById(`field-overlay-${targetField.id}`);
+            if (el) {
+                el.scrollIntoView({ behavior, block: 'center', inline: 'center' });
+            } else {
+                const pageEl = document.getElementById(`page-${targetPage}`);
+                if (pageEl) {
+                    pageEl.scrollIntoView({ behavior, block: 'start' });
+                }
+            }
+        }, 150);
+    }, []);
 
     // More Actions menu state
     const [actionsAnchor, setActionsAnchor] = useState(null);
@@ -1168,6 +1673,10 @@ const SigningPage = () => {
         }
     }, [recipientId]);
 
+    // Reset page rendered tracking whenever documentUrl changes
+    useEffect(() => {
+        setRenderedPages({});
+    }, [documentUrl]);
 
     // Add this effect to check document status and trigger emails if needed
     useEffect(() => {
@@ -1358,6 +1867,12 @@ const SigningPage = () => {
             });
             setFieldValues(initialFieldValues);
 
+            // Automatically find and highlight the first pending field in reading order
+            const initialNext = findNextPendingField(fieldsData, null, initialFieldValues);
+            if (initialNext) {
+                setNextFieldId(initialNext.id);
+            }
+
         } catch (err) {
             console.error('Failed to load data:', err);
             setError(err.message);
@@ -1377,42 +1892,6 @@ const SigningPage = () => {
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
     };
-
-    const handleUpdateFieldCoords = useCallback(async (fieldId, updatedCoords) => {
-        // 1. First, update the fields state synchronously
-        setFields(prev => prev.map(f => {
-            if (f.id === fieldId) {
-                return {
-                    ...f,
-                    ...updatedCoords
-                };
-            }
-            return f;
-        }));
-
-        // 2. Next, check if it's completed and trigger the API call outside the state updater
-        const currentField = fields.find(f => f.id === fieldId);
-        if (currentField) {
-            const isCompleted = currentField.completed_at || currentField.is_completed || !!fieldValues[fieldId];
-            if (isCompleted) {
-                const valueToSave = fieldValues[fieldId] || currentField.value;
-                if (valueToSave) {
-                    try {
-                        await apiService.saveFieldValue(
-                            recipientId,
-                            fieldId,
-                            valueToSave,
-                            updatedCoords
-                        );
-                        refreshLiveDocumentSilently();
-                    } catch (err) {
-                        console.error('Failed to update signature size:', err);
-                        showSnackbar('Failed to update signature size: ' + err.message, 'error');
-                    }
-                }
-            }
-        }
-    }, [fields, fieldValues, recipientId, refreshLiveDocumentSilently]);
 
     // Add this function to generate placeholder thumbnails
     const generatePlaceholderThumbnails = useCallback(() => {
@@ -1499,11 +1978,12 @@ const SigningPage = () => {
                 return;
             }
 
-            // Generate thumbnail URLs for each page
+            // Generate thumbnail URLs for each page with cache busting
             const pageMap = {};
+            const timestamp = Date.now();
 
             for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-                const baseUrl = `${API_BASE_URL}/signing/recipient/${recipientId}/pages/${pageNum}/thumbnail?width=120&height=150`;
+                const baseUrl = `${API_BASE_URL}/signing/recipient/${recipientId}/pages/${pageNum}/thumbnail?width=120&height=150&t=${timestamp}`;
                 const url = `${baseUrl}&token=${encodeURIComponent(token)}`;
                 pageMap[pageNum] = url;
             }
@@ -1523,6 +2003,83 @@ const SigningPage = () => {
             setLoadingThumbnails(false);
         }
     }, [recipientId, numPages, recipientInfo?.otp_verified, preloadImportantThumbnails, generatePlaceholderThumbnails]);
+
+    const handleUpdateFieldCoords = useCallback(async (fieldId, updatedCoords) => {
+        // 1. Immediately update fields state synchronously so UI resizes in real-time
+        setFields(prev => prev.map(f => {
+            if (f.id === fieldId) {
+                return {
+                    ...f,
+                    ...updatedCoords
+                };
+            }
+            return f;
+        }));
+
+        // 2. Also keep activeField synced if activeField matches
+        setActiveField(prev => {
+            if (prev && prev.id === fieldId) {
+                return {
+                    ...prev,
+                    ...updatedCoords
+                };
+            }
+            return prev;
+        });
+
+        // 3. Immediately persist size change to backend API for signature and initial fields!
+        try {
+            const result = await apiService.resizeField(recipientId, fieldId, updatedCoords);
+            if (result?.field) {
+                // Update with server verified coordinates and retain field id
+                setFields(prev => prev.map(f => {
+                    if (f.id === fieldId) {
+                        return {
+                            ...f,
+                            ...result.field,
+                            id: fieldId
+                        };
+                    }
+                    return f;
+                }));
+            }
+            showSnackbar('Size updated successfully', 'success');
+
+            // 🎯 Refresh live document and thumbnails so changes appear immediately without page refresh
+            await refreshLiveDocumentSilently();
+            loadThumbnails();
+
+        } catch (err) {
+            console.warn('Dedicated resizeField endpoint failed, checking fallback:', err);
+            // Fallback for completed fields: saveFieldValue
+            const currentField = fields.find(f => f.id === fieldId);
+            const isCompleted = currentField?.completed_at || currentField?.is_completed || !!fieldValues[fieldId];
+            if (isCompleted) {
+                const valueToSave = fieldValues[fieldId] || currentField?.value;
+                if (valueToSave) {
+                    try {
+                        await apiService.saveFieldValue(
+                            recipientId,
+                            fieldId,
+                            valueToSave,
+                            updatedCoords
+                        );
+                        showSnackbar('Size updated successfully', 'success');
+
+                        // 🎯 Refresh live document and thumbnails so changes appear immediately without page refresh
+                        await refreshLiveDocumentSilently();
+                        loadThumbnails();
+
+                    } catch (saveErr) {
+                        console.error('Fallback saveFieldValue failed:', saveErr);
+                        showSnackbar('Failed to update signature size: ' + saveErr.message, 'error');
+                    }
+                }
+            } else {
+                showSnackbar('Failed to update size: ' + err.message, 'error');
+            }
+        }
+    }, [fields, fieldValues, recipientId, refreshLiveDocumentSilently, loadThumbnails]);
 
     // Load thumbnails when document loads
     useEffect(() => {
@@ -1546,8 +2103,10 @@ const SigningPage = () => {
     const handleFieldClick = (field) => {
         console.log('Field clicked:', field);
 
-        setActiveField(field);
-        setModalType(field.type);
+        const freshestField = fields.find(f => f.id === field.id) || field;
+        setNextFieldId(freshestField.id);
+        setActiveField(freshestField);
+        setModalType(freshestField.type);
 
         // Reset all modal values
         setModalValue(null);
@@ -1574,8 +2133,10 @@ const SigningPage = () => {
                 const raw = field.value?.value || field.value;
 
                 const parsed = new Date(raw);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
                 setSelectedDate(
-                    parsed instanceof Date && !isNaN(parsed.getTime())
+                    parsed instanceof Date && !isNaN(parsed.getTime()) && parsed >= today
                         ? parsed
                         : new Date()
                 );
@@ -1634,6 +2195,45 @@ const SigningPage = () => {
         // Open modal
         setModalOpen(true);
     };
+
+    // Smart navigation helper to jump to next incomplete field or open it
+    const handleNavigateToNextField = useCallback((openModalIfAlreadyFocused = false) => {
+        const incomplete = getIncompleteFields(fields, fieldValues);
+        if (incomplete.length === 0) {
+            showSnackbar('All fields are completed! You can now finish.', 'success');
+            showFinishConfirmation();
+            return;
+        }
+
+        let targetField = null;
+        if (nextFieldId) {
+            const currentTarget = incomplete.find(f => f.id === nextFieldId);
+            if (currentTarget && openModalIfAlreadyFocused) {
+                handleFieldClick(currentTarget);
+                return;
+            }
+
+            const currentIndex = incomplete.findIndex(f => f.id === nextFieldId);
+            if (currentIndex !== -1 && currentIndex + 1 < incomplete.length) {
+                targetField = incomplete[currentIndex + 1];
+            } else {
+                targetField = incomplete[0];
+            }
+        } else {
+            targetField = incomplete[0];
+        }
+
+        if (!targetField) {
+            targetField = incomplete[0];
+        }
+
+        setNextFieldId(targetField.id);
+        scrollToField(targetField);
+
+        const typeLabel = FIELD_TYPES[targetField.type]?.label || targetField.type;
+        const pageNum = (targetField.page || 0) + 1;
+        showSnackbar(`Navigated to Page ${pageNum}: ${typeLabel} (${incomplete.length} remaining)`, 'info');
+    }, [fields, fieldValues, nextFieldId, scrollToField, showSnackbar, showFinishConfirmation]);
 
     const handleActionsMenuOpen = (event) => {
         setActionsAnchor(event.currentTarget);
@@ -1755,15 +2355,7 @@ const SigningPage = () => {
             });
 
             // Process based on field type
-            if (modalType === 'initials') {
-                // INITIALS FIELD - Should be image-based
-                if (valueFromModal && valueFromModal.image) {
-                    valueToSave = { image: valueFromModal.image };
-                } else {
-                    throw new Error('Please create or upload initials');
-                }
-            }
-            else if (modalType === 'textbox') {
+            if (modalType === 'textbox') {
                 if (
                     !valueFromModal ||
                     typeof valueFromModal.value !== 'string'
@@ -1778,29 +2370,36 @@ const SigningPage = () => {
             }
 
             else if (modalType === 'date') {
-                let dateObj = selectedDate;
-
-                // 🛡 normalize string → Date
-                if (typeof dateObj === 'string') {
-                    dateObj = new Date(dateObj);
+                let dateVal = valueFromModal?.value || selectedDate;
+                if (dateVal instanceof Date) {
+                    dateVal = dateVal.toISOString().split('T')[0];
+                } else if (typeof dateVal === 'string' && dateVal.includes('T')) {
+                    dateVal = dateVal.split('T')[0];
                 }
-
-                // 🛡 fallback if invalid
-                if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-                    dateObj = new Date();
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (!dateVal || dateVal < todayStr) {
+                    dateVal = todayStr;
                 }
-
-                else if (modalType === 'date') {
-                    valueToSave = valueFromModal; // already { value: 'YYYY-MM-DD' }
-                }
+                valueToSave = { value: dateVal };
             }
 
             else if (valueFromModal) {
                 // Signature pad fields
-                if (modalType === 'signature' || modalType === 'witness_signature') {
-                    // Image-based signatures
-                    if (valueFromModal.image) {
-                        valueToSave = { image: valueFromModal.image };
+                if (modalType === 'signature' || modalType === 'witness_signature' || modalType === 'initials') {
+                    if (valueFromModal && (valueFromModal.image || valueFromModal.text)) {
+                        let finalImage = valueFromModal.image;
+                        if (finalImage && typeof finalImage === 'string' && finalImage.startsWith('data:image')) {
+                            finalImage = await cropSignatureDataUrl(finalImage);
+                        }
+                        valueToSave = {
+                            ...valueFromModal,
+                            image: finalImage,
+                            text: valueFromModal.text || '',
+                            signature_type: valueFromModal.signature_type || (valueFromModal.text ? 'type' : 'draw'),
+                            font_family: valueFromModal.font_family,
+                            font_size: valueFromModal.font_size,
+                            font_color: valueFromModal.font_color
+                        };
                     } else {
                         throw new Error('No signature image created');
                     }
@@ -1861,13 +2460,52 @@ const SigningPage = () => {
             // Get coordinates if available
             const activePageNum = activeField.page + 1;
             const activePageDimensions = pageDimensions[activePageNum];
+            const freshestActiveField = fields.find(f => f.id === activeField.id) || activeField;
+
+            // Auto-adjust field width and height if content length/words increased
+            let fieldWidthToUse = freshestActiveField.width;
+            let fieldHeightToUse = freshestActiveField.height;
+
+            if (valueFromModal?.width && valueFromModal.width > fieldWidthToUse) {
+                fieldWidthToUse = valueFromModal.width;
+            } else if (modalType === 'textbox' || modalType === 'mail') {
+                const textVal = String(valueToSave?.value || valueToSave?.text || '');
+                if (textVal) {
+                    const lines = textVal.split('\n');
+                    const maxLineLen = Math.max(...lines.map(l => l.length), 0);
+                    const estimatedWidth = Math.max(fieldWidthToUse || 120, maxLineLen * 8.5 + 24);
+                    if (estimatedWidth > fieldWidthToUse) {
+                        fieldWidthToUse = estimatedWidth;
+                    }
+                    if (lines.length > 1) {
+                        const estimatedHeight = Math.max(fieldHeightToUse || 35, lines.length * 24 + 10);
+                        if (estimatedHeight > fieldHeightToUse) {
+                            fieldHeightToUse = estimatedHeight;
+                        }
+                    }
+                }
+            }
+
+            if (valueFromModal?.height && valueFromModal.height > fieldHeightToUse) {
+                fieldHeightToUse = valueFromModal.height;
+            }
+
+            // Ensure field width stays comfortably within page bounds
+            if (activePageDimensions) {
+                const maxX = activePageDimensions.renderWidth - 10;
+                const fieldLeft = freshestActiveField.canvas_x ?? freshestActiveField.x ?? 0;
+                if (fieldLeft + fieldWidthToUse > maxX) {
+                    fieldWidthToUse = Math.max(freshestActiveField.width, maxX - fieldLeft);
+                }
+            }
+
             const coords = activePageDimensions ? {
-                x: activeField.canvas_x ?? activeField.x,
-                y: activeField.canvas_y ?? activeField.y,
-                width: activeField.width,
-                height: activeField.height,
-                canvas_width: activeField.canvas_width ?? activePageDimensions.renderWidth,
-                canvas_height: activeField.canvas_height ?? activePageDimensions.renderHeight,
+                x: freshestActiveField.canvas_x ?? freshestActiveField.x,
+                y: freshestActiveField.canvas_y ?? freshestActiveField.y,
+                width: fieldWidthToUse,
+                height: fieldHeightToUse,
+                canvas_width: freshestActiveField.canvas_width ?? activePageDimensions.renderWidth,
+                canvas_height: freshestActiveField.canvas_height ?? activePageDimensions.renderHeight,
                 page_width: activePageDimensions.pdfWidth,
                 page_height: activePageDimensions.pdfHeight
             } : null;
@@ -1883,27 +2521,30 @@ const SigningPage = () => {
             console.log('Save successful:', result);
 
             // Update local state
-            setFields(prev =>
-                prev.map(f =>
-                    f.id === activeField.id
-                        ? {
-                            ...f,
-                            ...result.field, // Use updated coordinates and dimensions from server
-                            value: valueToSave,
-                            completed_at: result.field?.completed_at || new Date().toISOString(),
-                            is_completed: true
-                        }
-                        : f
-                )
+            const updatedFields = fields.map(f =>
+                f.id === activeField.id
+                    ? {
+                        ...f,
+                        ...result.field, // Use updated coordinates and dimensions from server
+                        width: fieldWidthToUse,
+                        height: fieldHeightToUse,
+                        value: valueToSave,
+                        completed_at: result.field?.completed_at || new Date().toISOString(),
+                        is_completed: true
+                    }
+                    : f
             );
+            setFields(updatedFields);
 
-            setFieldValues(prev => ({
-                ...prev,
+            const updatedFieldValues = {
+                ...fieldValues,
                 [activeField.id]: valueToSave
-            }));
+            };
+            setFieldValues(updatedFieldValues);
 
-            // 🔥 silently refresh PDF with signed content
+            // Silently update live PDF document & thumbnails in background
             refreshLiveDocumentSilently();
+            loadThumbnails();
 
             showSnackbar(
                 `${FIELD_TYPES[modalType]?.label || modalType} saved successfully`,
@@ -1914,13 +2555,16 @@ const SigningPage = () => {
             setSelectedDate(null);
             setTextInput('');
 
+            let workingFields = updatedFields;
+            let workingValues = updatedFieldValues;
+
             // 🔥 CONTINUOUS SIGNING / AUTOFILL LOGIC
             if (isQuickSignMode) {
 
                 // 1. Signature bulk-autofill logic (if applicable)
                 if (modalType === 'signature' || modalType === 'initials' || modalType === 'stamp') {
-                    const otherFields = fields.filter(f =>
-                        !f.completed_at &&
+                    const otherFields = updatedFields.filter(f =>
+                        !f.completed_at && !f.is_completed && !workingValues[f.id] &&
                         f.id !== activeField.id &&
                         f.type === modalType
                     );
@@ -1934,7 +2578,7 @@ const SigningPage = () => {
 
                         // Update local fields state for bulk fill
                         const bulkIds = new Set(otherFields.map(f => f.id));
-                        setFields(prev => prev.map(f => {
+                        workingFields = updatedFields.map(f => {
                             if (bulkIds.has(f.id)) {
                                 return {
                                     ...f,
@@ -1944,36 +2588,54 @@ const SigningPage = () => {
                                 };
                             }
                             return f;
-                        }));
-
-                        setFieldValues(prev => {
-                            const newValues = { ...prev };
-                            bulkIds.forEach(id => { newValues[id] = valueToSave; });
-                            return newValues;
                         });
+                        setFields(workingFields);
+
+                        workingValues = { ...workingValues };
+                        bulkIds.forEach(id => { workingValues[id] = valueToSave; });
+                        setFieldValues(workingValues);
                     }
                 }
 
                 // 2. Find the next field to sign (after potential bulk fill)
-                // We re-query the current state of completion
-                setFields(latestFields => {
-                    const nextIncomplete = latestFields.find(f => !f.completed_at && f.id !== activeField.id);
+                const nextIncomplete = findNextPendingField(workingFields, activeField.id, workingValues);
 
-                    if (nextIncomplete) {
-                        showSnackbar(`Moving to next field: ${FIELD_TYPES[nextIncomplete.type]?.label || nextIncomplete.type}...`, 'info');
-                        setTimeout(() => handleFieldClick(nextIncomplete), 600);
-                    } else {
-                        setIsQuickSignMode(false);
-                        showSnackbar('Great! All fields have been completed.', 'success');
-                        setTimeout(() => showFinishConfirmation(), 800);
-                    }
-                    return latestFields;
-                });
+                if (nextIncomplete) {
+                    setNextFieldId(nextIncomplete.id);
+                    scrollToField(nextIncomplete);
+                    showSnackbar(`Moving to next field: ${FIELD_TYPES[nextIncomplete.type]?.label || nextIncomplete.type}...`, 'info');
+                    setTimeout(() => handleFieldClick(nextIncomplete), 600);
+                } else {
+                    setNextFieldId(null);
+                    setIsQuickSignMode(false);
+                    showSnackbar('Great! All fields have been completed.', 'success');
+                    setTimeout(() => showFinishConfirmation(), 800);
+                }
             } else {
-                // Not in quick sign mode - just move page if needed
-                const nextPage = findNextPageWithIncompleteFields(fields, currentPage);
-                if (nextPage && nextPage !== currentPage) {
-                    setTimeout(() => setCurrentPage(nextPage), 300);
+                // Regular signing mode (Standard flow)
+                // 🎯 Automatically find next field, scroll to it, and highlight it!
+                const nextIncomplete = findNextPendingField(workingFields, activeField.id, workingValues);
+
+                if (nextIncomplete) {
+                    setNextFieldId(nextIncomplete.id);
+                    const remainingIncomplete = getIncompleteFields(workingFields, workingValues);
+                    const nextLabel = FIELD_TYPES[nextIncomplete.type]?.label || nextIncomplete.type;
+                    const nextPg = (nextIncomplete.page || 0) + 1;
+
+                    // Smooth auto scroll to center the next field
+                    setTimeout(() => {
+                        scrollToField(nextIncomplete);
+                    }, 150);
+
+                    showSnackbar(
+                        `Next field: ${nextLabel} on Page ${nextPg} (${remainingIncomplete.length} remaining)`,
+                        'info'
+                    );
+                } else {
+                    // All fields complete!
+                    setNextFieldId(null);
+                    showSnackbar('🎉 Awesome! All fields have been completed.', 'success');
+                    setTimeout(() => showFinishConfirmation(), 800);
                 }
             }
 
@@ -1996,7 +2658,7 @@ const SigningPage = () => {
         const pagesWithIncompleteFields = new Set();
 
         fieldsList.forEach(field => {
-            if (!field.completed_at) {
+            if (!field.completed_at && !field.is_completed && !fieldValues[field.id]) {
                 pagesWithIncompleteFields.add(field.page + 1); // Convert to 1-based page number
             }
         });
@@ -2030,6 +2692,29 @@ const SigningPage = () => {
         } catch (err) {
             console.error('Download error:', err);
             showSnackbar('Failed to download document', 'error');
+        }
+    };
+
+    const handleDownloadSubfile = async (file) => {
+        try {
+            const token = localStorage.getItem('signing_token') ||
+                new URLSearchParams(window.location.search).get('token') ||
+                sessionStorage.getItem('signing_token');
+            const res = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/files/${file.id}/download-signed${token ? `?token=${encodeURIComponent(token)}` : ''}`);
+            if (!res.ok) throw new Error('Failed to download individual file');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `signed_${file.filename}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showSnackbar(`${file.filename} downloaded successfully`, 'success');
+        } catch (err) {
+            console.error('Download subfile error:', err);
+            showSnackbar(`Failed to download ${file.filename}`, 'error');
         }
     };
 
@@ -2069,7 +2754,22 @@ const SigningPage = () => {
                 renderHeight: page.height  // already includes zoom
             }
         }));
+
+        // Safety fallback: ensure overlays reveal even if onRenderSuccess is delayed
+        setTimeout(() => {
+            setRenderedPages(prev => ({
+                ...prev,
+                [pageNumber]: true
+            }));
+        }, 800);
     };
+
+    const handlePageRenderSuccess = useCallback((pageNumber) => {
+        setRenderedPages(prev => ({
+            ...prev,
+            [pageNumber]: true
+        }));
+    }, []);
 
 
     const handleDocumentLoadSuccess = ({ numPages }) => {
@@ -2091,7 +2791,7 @@ const SigningPage = () => {
     // Calculate progress for each page
     const getPageFieldStats = (pageNum) => {
         const pageFields = fields.filter(f => f.page === pageNum - 1);
-        const completedFields = pageFields.filter(f => f.completed_at).length;
+        const completedFields = pageFields.filter(f => f.completed_at || f.is_completed || !!fieldValues[f.id]).length;
         const totalFields = pageFields.length;
 
         return {
@@ -2121,9 +2821,9 @@ const SigningPage = () => {
         // For other roles, check field completion
         // Treat signatures, initials, and stamps as required by default if not specified
         const requiredFields = fields.filter(f => f.required !== false && (f.required === true || ['signature', 'initials', 'stamp'].includes(f.type)));
-        const completedRequired = requiredFields.filter(f => f.completed_at).length;
+        const completedRequired = requiredFields.filter(f => f.completed_at || f.is_completed || !!fieldValues[f.id]).length;
         const allFields = fields.length;
-        const allCompleted = fields.filter(f => f.completed_at).length;
+        const allCompleted = fields.filter(f => f.completed_at || f.is_completed || !!fieldValues[f.id]).length;
 
         const allRequiredCompleted = requiredFields.length > 0
             ? (requiredFields.length === completedRequired)
@@ -2138,12 +2838,12 @@ const SigningPage = () => {
             allRequiredCompleted,
             showFinishButton: allRequiredCompleted
         };
-    }, [fields, recipientInfo]);
+    }, [fields, recipientInfo, fieldValues]);
 
     // Get incomplete fields for current page
     const currentPageIncompleteFields = useMemo(() =>
-        fields.filter(f => f.page === currentPage - 1 && !f.completed_at),
-        [fields, currentPage]
+        fields.filter(f => f.page === currentPage - 1 && !f.completed_at && !f.is_completed && !fieldValues[f.id]),
+        [fields, currentPage, fieldValues]
     );
 
     // Get next page with incomplete fields
@@ -2182,7 +2882,7 @@ const SigningPage = () => {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+            <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', position: 'relative' }}>
                 {/* Header - Simplified */}
                 <AppBar position="sticky" elevation={1} color="default" sx={{ bgcolor: 'white' }}>
                     <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 1, sm: 2 } }}>
@@ -2267,14 +2967,10 @@ const SigningPage = () => {
 
                             <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'flex' } }} />
 
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                noWrap
-                                sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: { sm: 120, md: 240 } }}
-                            >
-                                {documentInfo?.filename}
-                            </Typography>
+                            <FilenameDisplay
+                                filename={documentInfo?.filename}
+                                sx={{ display: { xs: 'none', sm: 'inline-flex' }, maxWidth: { sm: 160, md: 260 }, fontSize: '0.875rem', color: 'text.secondary' }}
+                            />
 
                             <Chip
                                 label={`${progress.completedFields}/${progress.totalFields}`}
@@ -2529,12 +3225,11 @@ const SigningPage = () => {
 
                 {/* Main content - Zoho-style layout */}
                 <Box sx={{ display: 'flex', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' } }}>
-                    {/* Left sidebar - Document pages preview (Zoho-style) */}
-
+                    {/* Left sidebar - Document pages preview */}
                     <Paper
                         elevation={1}
                         sx={{
-                            width: 180,  // Slightly wider for better thumbnails
+                            width: 180,
                             p: 1.5,
                             overflow: 'auto',
                             borderRadius: 0,
@@ -2542,15 +3237,12 @@ const SigningPage = () => {
                             display: { xs: 'none', md: 'block' }
                         }}
                     >
-                        <Box sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 1.5 }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'rgb(13, 148, 136)', mb: 1 }}>
-                                Document Pages
+                                Pages ({numPages})
                             </Typography>
 
-                            <Box sx={{ mb: 2, p: 1, bgcolor: '#f8f9fa', borderRadius: 1 }}>
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                    Total: {numPages} pages
-                                </Typography>
+                            <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f8f9fa', borderRadius: 1 }}>
                                 <Typography variant="caption" color="text.secondary" display="block">
                                     Fields: {progress.completedFields}/{progress.totalFields}
                                 </Typography>
@@ -2562,6 +3254,7 @@ const SigningPage = () => {
                             </Box>
                         </Box>
 
+                        {/* Thumbnail Pages List */}
                         <List disablePadding>
                             {Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => {
                                 const stats = getPageFieldStats(pageNum);
@@ -2573,6 +3266,8 @@ const SigningPage = () => {
                                             pageNumber={pageNum}
                                             documentUrl={documentUrl}
                                             isActive={currentPage === pageNum}
+                                            pageDimensions={pageDimensions[pageNum]}
+                                            nextFieldId={nextFieldId}
                                             onClick={() => {
                                                 const el = document.getElementById(`page-${pageNum}`);
                                                 if (el) {
@@ -2587,6 +3282,7 @@ const SigningPage = () => {
                                             recipientColors={recipientColors}
                                             thumbnailUrl={thumbnailUrl}
                                             isLoading={loadingThumbnails && !thumbnailUrl}
+                                            fieldValues={fieldValues}
                                         />
 
                                         {/* Quick navigation buttons for pages with fields */}
@@ -2600,13 +3296,21 @@ const SigningPage = () => {
                                                     fontSize: '0.7rem',
                                                     py: 0.2,
                                                     minHeight: 'auto',
-                                                    color: 'rgb(13, 148, 136)'
+                                                    color: 'rgb(13, 148, 136)',
+                                                    fontWeight: 600
                                                 }}
                                                 onClick={() => {
-                                                    setCurrentPage(pageNum);
-                                                    // Scroll to top of page viewer
-                                                    if (containerRef.current) {
-                                                        containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                                                    const pageIncomplete = fields.filter(
+                                                        f => f.page === pageNum - 1 && !f.completed_at && !f.is_completed && !fieldValues[f.id]
+                                                    );
+                                                    if (pageIncomplete.length > 0) {
+                                                        const sorted = sortFieldsByReadingOrder(pageIncomplete);
+                                                        setNextFieldId(sorted[0].id);
+                                                        scrollToField(sorted[0]);
+                                                    } else {
+                                                        const el = document.getElementById(`page-${pageNum}`);
+                                                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        setCurrentPage(pageNum);
                                                     }
                                                 }}
                                             >
@@ -2624,7 +3328,6 @@ const SigningPage = () => {
                                 fullWidth
                                 size="small"
                                 variant="outlined"
-
                                 startIcon={<RefreshIcon />}
                                 onClick={loadThumbnails}
                                 disabled={loadingThumbnails}
@@ -2697,26 +3400,72 @@ const SigningPage = () => {
 
                             <Box sx={{ display: 'flex', gap: 1 }}>
                                 {/* Next field button */}
-                                {currentPageIncompleteFields.length === 0 && nextPageWithFields && (
+                                {progress.totalFields > 0 && !progress.allRequiredCompleted && (
                                     <Button
-                                        variant="outlined"
+                                        variant="contained"
                                         size="small"
                                         endIcon={<NavigateNextIcon />}
-                                        onClick={() => setCurrentPage(nextPageWithFields)}
+                                        onClick={() => handleNavigateToNextField(true)}
+                                        sx={{
+                                            bgcolor: 'rgb(13, 148, 136)',
+                                            color: 'white',
+                                            fontWeight: 600,
+                                            textTransform: 'none',
+                                            fontSize: '0.8rem',
+                                            boxShadow: '0 2px 8px rgba(13, 148, 136, 0.3)',
+                                            '&:hover': { bgcolor: 'rgb(11, 130, 120)' }
+                                        }}
                                     >
-                                        Next Page with Fields
+                                        Next Field ({progress.totalFields - progress.completedFields})
                                     </Button>
                                 )}
 
                                 <Button
                                     variant="outlined"
                                     size="small"
-                                    onClick={() => handleDownload('current')}
+                                    onClick={(e) => {
+                                        if (documentInfo?.files && documentInfo.files.length > 1) {
+                                            setDownloadMenuAnchor(e.currentTarget);
+                                        } else {
+                                            handleDownload('current');
+                                        }
+                                    }}
+                                    endIcon={documentInfo?.files && documentInfo.files.length > 1 ? <ArrowDownIcon /> : null}
                                     startIcon={<DownloadIcon />}
                                     sx={{ color: 'rgb(13, 148, 136)', borderColor: 'rgb(13, 148, 136)' }}
                                 >
                                     Download
                                 </Button>
+
+                                <Menu
+                                    anchorEl={downloadMenuAnchor}
+                                    open={Boolean(downloadMenuAnchor)}
+                                    onClose={() => setDownloadMenuAnchor(null)}
+                                    PaperProps={{ sx: { minWidth: 240, borderRadius: 1.5, mt: 1 } }}
+                                >
+                                    <MenuItem onClick={() => { setDownloadMenuAnchor(null); handleDownload('current'); }}>
+                                        <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary="Combined Document (All Pages)" />
+                                    </MenuItem>
+                                    {documentInfo?.files && documentInfo.files.length > 1 && [
+                                        <Divider key="div" sx={{ my: 0.5 }} />,
+                                        <Box key="header" sx={{ px: 2, py: 0.5 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                                                Individual Documents
+                                            </Typography>
+                                        </Box>,
+                                        ...documentInfo.files.map(file => (
+                                            <MenuItem key={file.id} onClick={() => { setDownloadMenuAnchor(null); handleDownloadSubfile(file); }}>
+                                                <ListItemIcon><DescriptionIcon fontSize="small" sx={{ color: 'rgb(13, 148, 136)' }} /></ListItemIcon>
+                                                <ListItemText
+                                                    primary={file.filename}
+                                                    secondary={file.page_range}
+                                                    primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                                                />
+                                            </MenuItem>
+                                        ))
+                                    ]}
+                                </Menu>
                             </Box>
                         </Paper>
 
@@ -2738,15 +3487,30 @@ const SigningPage = () => {
                                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                     {currentPageIncompleteFields.map(field => {
                                         const fieldConfig = FIELD_TYPES[field.type] || FIELD_TYPES.textbox;
+                                        const isCurrentNext = field.id === nextFieldId;
                                         return (
                                             <Chip
                                                 key={field.id}
                                                 label={field.label || fieldConfig.label}
                                                 size="small"
-                                                onClick={() => handleFieldClick(field)}
+                                                onClick={() => {
+                                                    setNextFieldId(field.id);
+                                                    scrollToField(field);
+                                                    handleFieldClick(field);
+                                                }}
                                                 icon={React.createElement(fieldConfig.icon, { fontSize: 'small' })}
-                                                color="rgb(13, 148, 136)"
-                                                variant="outlined"
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    fontWeight: isCurrentNext ? 700 : 500,
+                                                    bgcolor: isCurrentNext ? 'rgb(13, 148, 136)' : 'white',
+                                                    color: isCurrentNext ? 'white' : 'rgb(13, 148, 136)',
+                                                    borderColor: 'rgb(13, 148, 136)',
+                                                    boxShadow: isCurrentNext ? '0 2px 6px rgba(13, 148, 136, 0.3)' : 'none',
+                                                    '&:hover': {
+                                                        bgcolor: isCurrentNext ? 'rgb(11, 130, 120)' : 'rgba(13, 148, 136, 0.08)'
+                                                    }
+                                                }}
+                                                variant={isCurrentNext ? 'filled' : 'outlined'}
                                             />
                                         );
                                     })}
@@ -2767,7 +3531,20 @@ const SigningPage = () => {
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'flex-start',
-                                p: 2
+                                p: 2,
+                                '& .react-pdf__Page__loading': {
+                                    display: 'none !important'
+                                },
+                                '& .react-pdf__Page': {
+                                    display: 'block',
+                                    position: 'relative',
+                                    backgroundColor: '#ffffff'
+                                },
+                                '& .react-pdf__Page__canvas': {
+                                    display: 'block !important',
+                                    margin: '0 auto',
+                                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                                }
                             }}
                         >
                             {documentUrl && (
@@ -2782,8 +3559,19 @@ const SigningPage = () => {
                                         file={documentUrl}
                                         onLoadSuccess={handleDocumentLoadSuccess}
                                         loading={
-                                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                                                <CircularProgress />
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+                                                <Paper
+                                                    elevation={3}
+                                                    sx={{
+                                                        width: { xs: '100%', sm: 612 * zoom },
+                                                        maxWidth: '100%',
+                                                        borderRadius: 1,
+                                                        overflow: 'hidden',
+                                                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                                                    }}
+                                                >
+                                                    <PageSkeleton width={612 * zoom} height={792 * zoom} pageNum={1} />
+                                                </Paper>
                                             </Box>
                                         }
                                         error={
@@ -2825,6 +3613,10 @@ const SigningPage = () => {
 
                                         {Array.from({ length: numPages }, (_, index) => {
                                             const pageNum = index + 1;
+                                            const dims = pageDimensions[pageNum] || pageDimensions[1];
+                                            const targetWidth = dims?.renderWidth ? dims.renderWidth : (612 * zoom);
+                                            const targetHeight = dims?.renderHeight ? dims.renderHeight : (792 * zoom);
+                                            const isRendered = !!renderedPages[pageNum];
 
                                             return (
                                                 <Box
@@ -2833,28 +3625,81 @@ const SigningPage = () => {
                                                     sx={{
                                                         position: 'relative',
                                                         mb: 4,
+                                                        width: targetWidth ? `${targetWidth}px` : 'auto',
+                                                        minHeight: targetHeight ? `${targetHeight}px` : '800px',
+                                                        maxWidth: '100%',
+                                                        bgcolor: '#ffffff',
+                                                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                                                        borderRadius: '4px',
+                                                        overflow: 'hidden',
                                                         scrollMarginTop: '80px' // important for scrolling from thumbnails
                                                     }}
                                                 >
+                                                    {/* Realistic Skeleton placeholder until this page canvas finishes rendering */}
+                                                    {!isRendered && (
+                                                        <Box
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                left: 0,
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                zIndex: 1
+                                                            }}
+                                                        >
+                                                            <PageSkeleton
+                                                                width={targetWidth}
+                                                                height={targetHeight}
+                                                                pageNum={pageNum}
+                                                                totalPages={numPages}
+                                                            />
+                                                        </Box>
+                                                    )}
+
                                                     <Page
                                                         pageNumber={pageNum}
                                                         scale={zoom}
                                                         renderAnnotationLayer={false}
                                                         renderTextLayer={true}
                                                         onLoadSuccess={(page) => handlePageLoadSuccess(page, pageNum)}
+                                                        onRenderSuccess={() => handlePageRenderSuccess(pageNum)}
+                                                        loading={
+                                                            <PageSkeleton
+                                                                width={targetWidth}
+                                                                height={targetHeight}
+                                                                pageNum={pageNum}
+                                                                totalPages={numPages}
+                                                            />
+                                                        }
                                                     />
 
+                                                    {/* Field overlays: Only visible once page canvas is rendered to avoid floating fields */}
                                                     {pageDimensions[pageNum] && (
-                                                        <PdfPageWithOverlays
-                                                            pageNumber={pageNum}
-                                                            fields={fields}
-                                                            pageDimensions={pageDimensions[pageNum]}
-                                                            onFieldClick={handleFieldClick}
-                                                            onUpdateCoords={handleUpdateFieldCoords}
-                                                            recipientColors={recipientColors}
-                                                            isRecipientCompleted={recipientInfo?.status === 'completed' || !!recipientInfo?.completed_at}
-                                                            fieldValues={fieldValues}
-                                                        />
+                                                        <Box
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                left: 0,
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                opacity: isRendered ? 1 : 0,
+                                                                transition: 'opacity 0.25s ease-in-out',
+                                                                pointerEvents: isRendered ? 'auto' : 'none',
+                                                                zIndex: 2
+                                                            }}
+                                                        >
+                                                            <PdfPageWithOverlays
+                                                                pageNumber={pageNum}
+                                                                fields={fields}
+                                                                pageDimensions={pageDimensions[pageNum]}
+                                                                onFieldClick={handleFieldClick}
+                                                                onUpdateCoords={handleUpdateFieldCoords}
+                                                                recipientColors={recipientColors}
+                                                                isRecipientCompleted={recipientInfo?.status === 'completed' || !!recipientInfo?.completed_at}
+                                                                fieldValues={fieldValues}
+                                                                nextFieldId={nextFieldId}
+                                                            />
+                                                        </Box>
                                                     )}
                                                 </Box>
                                             );
@@ -2938,8 +3783,8 @@ const SigningPage = () => {
                             ? activeField.dropdown_options
                             : []
                     }
-                    fieldWidth={activeField?.pdf_width || activeField?.width || 100}
-                    fieldHeight={activeField?.pdf_height || activeField?.height || 40}
+                    fieldWidth={activeField?.width || activeField?.pdf_width || 120}
+                    fieldHeight={activeField?.height || activeField?.pdf_height || 35}
                 />
 
                 {/* Snackbar for notifications */}
@@ -3002,9 +3847,9 @@ const SigningPage = () => {
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: 1 }}>
                                     Document Details
                                 </Typography>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                    <Typography variant="body2" fontWeight="medium">Filename:</Typography>
-                                    <Typography variant="body2">{documentInfo?.filename}</Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="medium" sx={{ flexShrink: 0 }}>Filename:</Typography>
+                                    <FilenameDisplay filename={documentInfo?.filename} sx={{ maxWidth: '65%', fontSize: '0.875rem' }} />
                                 </Box>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <Typography variant="body2" fontWeight="medium">Your Role:</Typography>
@@ -3285,9 +4130,12 @@ const SigningPage = () => {
                                                     </IconButton>
                                                 </Box>
                                             </Box>
-                                            <Box sx={{ display: 'flex', mb: 1 }}>
-                                                <Typography sx={{ minWidth: 140, color: 'text.secondary', fontSize: '0.9rem' }}>Document name</Typography>
-                                                <Typography sx={{ fontWeight: 500, fontSize: '0.9rem' }}>: {historyData.document.filename}</Typography>
+                                            <Box sx={{ display: 'flex', mb: 1, alignItems: 'center' }}>
+                                                <Typography sx={{ minWidth: 140, color: 'text.secondary', fontSize: '0.9rem', flexShrink: 0 }}>Document name</Typography>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                                    <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', mr: 0.5, flexShrink: 0 }}>:</Typography>
+                                                    <FilenameDisplay filename={historyData.document.filename} sx={{ fontWeight: 500, fontSize: '0.9rem' }} />
+                                                </Box>
                                             </Box>
                                             <Box sx={{ display: 'flex', mb: 1 }}>
                                                 <Typography sx={{ minWidth: 140, color: 'text.secondary', fontSize: '0.9rem' }}>Sender</Typography>

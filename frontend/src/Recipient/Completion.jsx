@@ -42,6 +42,7 @@ import {
 import { Description as DocumentIcon } from '@mui/icons-material';
 
 import { useParams } from 'react-router-dom';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
@@ -213,6 +214,14 @@ const Completion = () => {
     await downloadFile(
       `${API_BASE_URL}/signing/recipient/${recipientId}/download/package`,
       `Esigniva_Package_${documentInfo?.envelope_id || 'Document'}.zip`
+    );
+  };
+
+  /* ---------------- INDIVIDUAL SUBFILE DOWNLOAD ---------------- */
+  const handleSubfileDownload = async (file) => {
+    await downloadFile(
+      `${API_BASE_URL}/signing/recipient/${recipientId}/files/${file.id}/download-signed`,
+      `signed_${file.filename}`
     );
   };
 
@@ -418,12 +427,13 @@ const Completion = () => {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-              <DocumentIcon color="primary" sx={{ fontSize: { xs: 28, sm: 40 } }} />
-              <Box>
-                <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }, wordBreak: 'break-word' }}>
-                  {documentInfo?.filename || 'Document'}
-                </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
+              <DocumentIcon color="primary" sx={{ fontSize: { xs: 28, sm: 40 }, flexShrink: 0 }} />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <FilenameDisplay
+                  filename={documentInfo?.filename || 'Document'}
+                  sx={{ fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' }, fontWeight: 600 }}
+                />
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                   <Chip
                     label={getDocumentStatusText(documentInfo?.status)}
@@ -562,6 +572,67 @@ const Completion = () => {
                 but the final signed version will be available once all signers complete.
               </Typography>
             </Alert>
+          )}
+
+          {/* Files in this Envelope (Separated Documents) */}
+          {documentInfo?.files && documentInfo.files.length > 1 && (
+            <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e2e8f0' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <DocumentIcon fontSize="small" sx={{ color: '#0f766e' }} />
+                Documents in this Envelope ({documentInfo.files.length})
+              </Typography>
+              <Stack spacing={1}>
+                {documentInfo.files.map((file, idx) => (
+                  <Paper
+                    key={file.id || idx}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 2,
+                      borderRadius: 1.5,
+                      bgcolor: '#f8fafc',
+                      borderColor: '#e2e8f0'
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <DocumentIcon sx={{ color: '#0f766e', fontSize: 24, flexShrink: 0 }} />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {file.filename}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                          {file.page_range} ({file.pages} {file.pages === 1 ? 'page' : 'pages'})
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+                      onClick={() => handleSubfileDownload(file)}
+                      sx={{
+                        color: '#0f766e',
+                        borderColor: '#0f766e',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                        '&:hover': {
+                          borderColor: '#0d9488',
+                          bgcolor: 'rgba(15, 118, 110, 0.04)'
+                        }
+                      }}
+                    >
+                      Download File
+                    </Button>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
           )}
         </Paper>
 
@@ -712,6 +783,34 @@ const Completion = () => {
               </ListItemIcon>
               <ListItemText>Certificate of Completion</ListItemText>
             </MenuItem>
+
+            {/* 7. Separated Documents (if envelope has multiple files) */}
+            {documentInfo?.files && documentInfo.files.length > 1 && [
+              <Divider key="div-sep" sx={{ my: 0.5 }} />,
+              <Box key="header-sep" sx={{ px: 2, py: 0.75 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Separated Documents ({documentInfo.files.length})
+                </Typography>
+              </Box>,
+              ...documentInfo.files.map(file => (
+                <MenuItem
+                  key={file.id}
+                  onClick={() => {
+                    handleSubfileDownload(file);
+                    setAnchorEl(null);
+                  }}
+                >
+                  <ListItemIcon>
+                    <DocumentIcon fontSize="small" sx={{ color: '#0f766e' }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={file.filename}
+                    secondary={file.page_range}
+                    primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                  />
+                </MenuItem>
+              ))
+            ]}
           </Menu>
 
           {/* Pending Recipients List */}

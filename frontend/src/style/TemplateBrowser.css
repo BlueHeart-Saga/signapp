@@ -585,6 +585,7 @@
 .tempbrowser-card-content {
   padding: 0 14px;
   flex: 1;
+  min-width: 0;
 }
 
 .tempbrowser-template-title {
@@ -593,6 +594,9 @@
   color: #111827;
   margin: 0 0 4px;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tempbrowser-template-description {
@@ -888,6 +892,10 @@
   color: #111827;
   margin: 0;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding-right: 10px;
 }
 

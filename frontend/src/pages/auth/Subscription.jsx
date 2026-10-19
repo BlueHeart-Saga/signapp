@@ -729,7 +729,7 @@ export default function Subscription() {
         </div>
 
         <div class="footer">
-          Thank you for choosing Esigniva! If you have billing inquiries, please contact support@devopstrioglobal.com.<br/>
+          Thank you for choosing Esigniva! If you have billing inquiries, please contact info@esigniva.com.<br/>
           © 2026 Esigniva Inc. All rights reserved.
         </div>
 
@@ -827,17 +827,17 @@ export default function Subscription() {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
             <BoltIcon sx={{ color: '#0f766e', fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Available Credits Balance
             </Typography>
           </Box>
-          <Typography variant="h3" fontWeight={900} sx={{ color: '#0f172a', my: 0.5 }}>
+          <Typography variant="h3" fontWeight={600} sx={{ color: '#0f172a', my: 0.5 }}>
             {currentBalance.toLocaleString()}
           </Typography>
           <Chip
             size="small"
             label="NON-EXPIRING BALANCE"
-            sx={{ bgcolor: '#f0fdf4', color: '#166534', fontWeight: 800, fontSize: '0.7rem' }}
+            sx={{ bgcolor: '#f0fdf4', color: '#166534', fontWeight: 600, fontSize: '0.7rem' }}
           />
         </Paper>
       </Paper>
@@ -1388,7 +1388,7 @@ export default function Subscription() {
 
                   {/* TOP ROW: BRAND & STATUS BADGE */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                       {card.brand}
                     </Typography>
                     {card.isDefault ? (
@@ -1396,13 +1396,13 @@ export default function Subscription() {
                         label="DEFAULT METHOD"
                         size="small"
                         icon={<CheckIcon sx={{ fontSize: '14px !important', color: '#0f766e !important' }} />}
-                        sx={{ fontWeight: 900, fontSize: '0.68rem', bgcolor: '#ffffff', color: '#0f766e', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                        sx={{ fontWeight: 600, fontSize: '0.68rem', bgcolor: '#ffffff', color: '#0f766e', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
                       />
                     ) : (
                       <Chip
                         label="SAVED CARD"
                         size="small"
-                        sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff' }}
+                        sx={{ fontWeight: 600, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff' }}
                       />
                     )}
                   </Box>
@@ -1848,30 +1848,30 @@ export default function Subscription() {
             <Table>
               <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 800 }}>Invoice ID</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Date</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Description</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }} align="right">Action</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Invoice ID</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {invoices.map((inv) => (
                   <TableRow key={inv.id} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
-                    <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>{inv.id}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{inv.id}</TableCell>
                     <TableCell>{inv.date}</TableCell>
                     <TableCell>{inv.description}</TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>{inv.amount}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{inv.amount}</TableCell>
                     <TableCell>
-                      <Chip label={inv.status} color="success" size="small" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
+                      <Chip label={inv.status} color="success" size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell align="right">
                       <Button
                         size="small"
                         startIcon={<PictureAsPdfIcon />}
                         onClick={() => handleDownloadPdfReceipt(inv)}
-                        sx={{ textTransform: 'none', color: '#0f766e', fontWeight: 700 }}
+                        sx={{ textTransform: 'none', color: '#0f766e', fontWeight: 600 }}
                       >
                         PDF Receipt
                       </Button>
@@ -1907,11 +1907,11 @@ export default function Subscription() {
             <Table>
               <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>Date & Time</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>Type</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>Description / Action</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#0f172a' }} align="right">Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 800, color: '#0f172a' }} align="right">Balance After</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>Date & Time</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>Description / Action</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a' }} align="right">Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a' }} align="right">Balance After</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1933,7 +1933,7 @@ export default function Subscription() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <CalendarMonthIcon sx={{ fontSize: 18, color: '#64748b' }} />
                             <Box>
-                              <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
+                              <Typography variant="body2" fontWeight={600} sx={{ color: '#0f172a' }}>
                                 {dateInfo.formatted}
                               </Typography>
                               {dateInfo.relative && (
@@ -1949,18 +1949,18 @@ export default function Subscription() {
                             size="small"
                             label={tx.type?.toUpperCase() || (isCredit ? 'CREDIT' : 'DEBIT')}
                             color={isCredit ? 'success' : 'default'}
-                            sx={{ fontWeight: 800, borderRadius: '6px', fontSize: '0.7rem' }}
+                            sx={{ fontWeight: 600, borderRadius: '6px', fontSize: '0.7rem' }}
                           />
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={600} sx={{ color: '#334155' }}>
+                          <Typography variant="body2" fontWeight={500} sx={{ color: '#334155' }}>
                             {tx.description || tx.source || 'Metered Action'}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800, color: isCredit ? '#10b981' : '#ef4444', fontSize: '0.95rem' }}>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: isCredit ? '#10b981' : '#ef4444', fontSize: '0.95rem' }}>
                           {isCredit ? `+${tx.amount}` : tx.amount}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: '#0f172a' }}>
                           {tx.balance_after?.toLocaleString() ?? '-'}
                         </TableCell>
                       </TableRow>

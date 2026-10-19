@@ -201,11 +201,11 @@ async def verify_otp(request: OTPVerify):
         otp = request.otp
         
         # Find all recipients with this email and valid OTP
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": email,
             "otp": otp,
             "otp_expires": {"$gt": datetime.utcnow()}
-        }))
+        }).to_list(1000)
         
         if not recipients:
             raise HTTPException(status_code=400, detail="Invalid or expired OTP")

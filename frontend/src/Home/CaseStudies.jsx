@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 import {
   TrendingUp,
   Users,
@@ -36,14 +37,17 @@ const CaseStudies = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCaseStudy, setSelectedCaseStudy] = useState(null);
 
-  const filters = [
-    { id: 'all', label: 'All Industries', count: 12 },
-    { id: 'legal', label: 'Legal Services', count: 3 },
-    { id: 'real-estate', label: 'Real Estate', count: 2 },
-    { id: 'healthcare', label: 'Healthcare', count: 2 },
-    { id: 'finance', label: 'Financial Services', count: 2 },
-    { id: 'technology', label: 'Technology', count: 3 }
-  ];
+  const getIndustrySlug = (industry) => {
+    const map = {
+      'Legal Services': 'legal',
+      'Real Estate': 'real-estate',
+      'Healthcare': 'healthcare',
+      'Financial Services': 'finance',
+      'Technology': 'technology',
+      'Insurance': 'insurance'
+    };
+    return map[industry] || industry.toLowerCase().replace(/\s+/g, '-');
+  };
 
   const metrics = [
     { icon: <Clock size={20} />, label: 'Avg. Signing Time', value: '98% faster' },
@@ -82,9 +86,9 @@ const CaseStudies = () => {
       title: 'Global Law Firm Transforms Contract Management',
       company: 'Prestige Legal Partners',
       industry: 'Legal Services',
-      logo: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&h=300&fit=crop',
+      logo: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
       challenge: 'Manual contract signing processes causing delays and compliance risks across 15 international offices.',
-      solution: 'Implemented Esigniva with custom workflows and enterprise security features.',
+      solution: 'Implemented Esigniva with custom workflows, cryptographic seals, and enterprise security features.',
       results: [
         { metric: 'Signing Time Reduced', value: 'From 7 days to 15 minutes', icon: <Clock size={16} /> },
         { metric: 'Cost Savings', value: '$850K annually', icon: <DollarSign size={16} /> },
@@ -100,7 +104,7 @@ const CaseStudies = () => {
       title: 'Real Estate Agency Accelerates Property Transactions',
       company: 'Metro Properties Group',
       industry: 'Real Estate',
-      logo: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
+      logo: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop',
       challenge: 'Paper-based signing process delaying property closings and frustrating clients.',
       solution: 'Deployed Esigniva with mobile-first signing capabilities and template library.',
       results: [
@@ -108,7 +112,7 @@ const CaseStudies = () => {
         { metric: 'Client Satisfaction', value: '95% positive feedback', icon: <Heart size={16} /> },
         { metric: 'Paper Reduction', value: '15K+ pages saved monthly', icon: <FileText size={16} /> }
       ],
-      featured: true,
+      featured: false,
       readTime: '6 min read',
       published: '2025-01-10',
       tags: ['Real Estate', 'Mobile', 'Efficiency']
@@ -118,9 +122,9 @@ const CaseStudies = () => {
       title: 'Healthcare Provider Secures Patient Documentation',
       company: 'MediCare Solutions',
       industry: 'Healthcare',
-      logo: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=400&h=300&fit=crop',
+      logo: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=600&h=400&fit=crop',
       challenge: 'HIPAA compliance requirements for patient consent forms and medical records.',
-      solution: 'Esigniva with enhanced security features and HIPAA-compliant workflows.',
+      solution: 'Esigniva with enhanced security features, encrypted storage, and HIPAA-compliant workflows.',
       results: [
         { metric: 'Compliance Rate', value: '100% HIPAA compliant', icon: <Shield size={16} /> },
         { metric: 'Processing Time', value: '85% reduction', icon: <Clock size={16} /> },
@@ -136,9 +140,9 @@ const CaseStudies = () => {
       title: 'Financial Institution Modernizes Client Onboarding',
       company: 'GlobalTrust Bank',
       industry: 'Financial Services',
-      logo: 'https://images.unsplash.com/photo-1551836026-d5c2c5af78e4?w=400&h=300&fit=crop',
+      logo: 'https://images.unsplash.com/photo-1551836026-d5c2c5af78e4?w=600&h=400&fit=crop',
       challenge: 'Lengthy client onboarding process causing customer drop-off.',
-      solution: 'Integrated Esigniva with existing CRM systems for seamless onboarding.',
+      solution: 'Integrated Esigniva with existing CRM systems for seamless onboarding and KYC verification.',
       results: [
         { metric: 'Onboarding Time', value: 'From 2 weeks to 2 days', icon: <Clock size={16} /> },
         { metric: 'Client Acquisition', value: '40% increase', icon: <Users size={16} /> },
@@ -154,9 +158,9 @@ const CaseStudies = () => {
       title: 'Tech Startup Scales Document Operations',
       company: 'InnovateAI',
       industry: 'Technology',
-      logo: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop',
-      challenge: 'Rapid growth overwhelming manual document processes.',
-      solution: 'Esigniva with API integration and automated workflows.',
+      logo: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop',
+      challenge: 'Rapid growth overwhelming manual document and NDA processes.',
+      solution: 'Esigniva with developer API integration, webhooks, and automated signing workflows.',
       results: [
         { metric: 'Document Volume', value: '10x increase handled', icon: <FileText size={16} /> },
         { metric: 'Team Efficiency', value: '300 hours saved monthly', icon: <Users size={16} /> },
@@ -172,9 +176,9 @@ const CaseStudies = () => {
       title: 'Insurance Company Streamlines Claims Processing',
       company: 'SecureGuard Insurance',
       industry: 'Insurance',
-      logo: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop',
-      challenge: 'Paper-based claims creating bottlenecks and customer complaints.',
-      solution: 'Esigniva implementation with custom claims processing workflows.',
+      logo: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&h=400&fit=crop',
+      challenge: 'Paper-based claims creating bottlenecks, slow turnaround, and customer complaints.',
+      solution: 'Esigniva implementation with custom claims processing workflows and immediate audit trails.',
       results: [
         { metric: 'Processing Speed', value: '75% faster claims', icon: <Zap size={16} /> },
         { metric: 'Customer Satisfaction', value: '4.8/5 rating', icon: <Star size={16} /> },
@@ -184,19 +188,138 @@ const CaseStudies = () => {
       readTime: '8 min read',
       published: '2024-12-10',
       tags: ['Insurance', 'Claims', 'Customer Experience']
+    },
+    {
+      id: 7,
+      title: 'Apex Litigation Associates Digitizes Cross-Border Filings',
+      company: 'Apex Litigation Associates',
+      industry: 'Legal Services',
+      logo: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&h=400&fit=crop',
+      challenge: 'Multi-jurisdictional evidentiary documents required tamper-evident timestamps and verified witness sign-offs.',
+      solution: 'Adopted Esigniva Qualified Electronic Signature (QES) workflows with cryptographic certificates.',
+      results: [
+        { metric: 'Filing Turnaround', value: 'Under 1 hour across 6 nations', icon: <Clock size={16} /> },
+        { metric: 'Judicial Acceptance', value: '100% admissible in court', icon: <Shield size={16} /> },
+        { metric: 'Courier Costs Saved', value: '$320K saved in Year 1', icon: <DollarSign size={16} /> }
+      ],
+      featured: false,
+      readTime: '6 min read',
+      published: '2024-11-28',
+      tags: ['Legal', 'Court Admissible', 'Litigation']
+    },
+    {
+      id: 8,
+      title: 'Skyline Urban Realty Streamlines High-Rise Lease Agreements',
+      company: 'Skyline Urban Realty',
+      industry: 'Real Estate',
+      logo: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop',
+      challenge: 'Commercial tenant lease agreements experienced 12-day turnaround lags, leading to lost deposits.',
+      solution: 'Deployed Esigniva In-Person and Mobile SMS Signing links with automated reminder schedules.',
+      results: [
+        { metric: 'Lease Closing Rate', value: '94% completed in 24 hours', icon: <Zap size={16} /> },
+        { metric: 'Tenant Retention', value: '35% higher re-signing rate', icon: <Heart size={16} /> },
+        { metric: 'Administrative Hours', value: '45 hours saved per agent/month', icon: <Clock size={16} /> }
+      ],
+      featured: false,
+      readTime: '5 min read',
+      published: '2024-11-14',
+      tags: ['Real Estate', 'Commercial Leases', 'Mobile SMS']
+    },
+    {
+      id: 9,
+      title: 'BioHealth Diagnostics Accelerates Clinical Trial Consent',
+      company: 'BioHealth Diagnostics',
+      industry: 'Healthcare',
+      logo: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=600&h=400&fit=crop',
+      challenge: 'Patient consent collection in multinational clinical studies was hampered by paper tracking errors.',
+      solution: 'Implemented 21 CFR Part 11 compliant digital consent workflows with signer identity verification.',
+      results: [
+        { metric: 'Consent Compliance', value: 'Zero audit discrepancies', icon: <CheckCircle size={16} /> },
+        { metric: 'Study Launch Speed', value: '3 weeks faster clinical trial enrollment', icon: <TrendingUp size={16} /> },
+        { metric: 'Patient Dropout', value: 'Reduced by 60%', icon: <Users size={16} /> }
+      ],
+      featured: false,
+      readTime: '7 min read',
+      published: '2024-10-30',
+      tags: ['Healthcare', 'Clinical Trials', 'FDA Compliance']
+    },
+    {
+      id: 10,
+      title: 'Vanguard Wealth Management Automates Portfolio Authorizations',
+      company: 'Vanguard Wealth Management',
+      industry: 'Financial Services',
+      logo: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
+      challenge: 'High-net-worth investors required instant, multi-party authorization for high-volume transactions.',
+      solution: 'Configured Esigniva Sequential Envelopes with real-time biometric signatures and audit logs.',
+      results: [
+        { metric: 'Execution Velocity', value: 'Instant execution upon signature', icon: <Zap size={16} /> },
+        { metric: 'Client Security', value: 'Bank-grade 256-bit AES encryption', icon: <Shield size={16} /> },
+        { metric: 'Assets Protected', value: '$4.2B authorized safely', icon: <DollarSign size={16} /> }
+      ],
+      featured: false,
+      readTime: '8 min read',
+      published: '2024-10-18',
+      tags: ['Finance', 'Wealth Management', 'Security']
+    },
+    {
+      id: 11,
+      title: 'CloudScale Systems Embeds E-Signatures in SaaS Platform',
+      company: 'CloudScale Systems',
+      industry: 'Technology',
+      logo: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&h=400&fit=crop',
+      challenge: 'Needed white-labeled e-signatures inside their enterprise SaaS application via API.',
+      solution: 'Integrated the Esigniva REST API and webhooks in 3 days using the official JavaScript SDK.',
+      results: [
+        { metric: 'Time to Market', value: 'Live in production in 72 hours', icon: <Clock size={16} /> },
+        { metric: 'API Reliability', value: '99.99% uptime with 0 dropouts', icon: <CheckCircle size={16} /> },
+        { metric: 'Volume Handled', value: '500,000+ contracts signed annually', icon: <FileText size={16} /> }
+      ],
+      featured: false,
+      readTime: '6 min read',
+      published: '2024-09-25',
+      tags: ['Technology', 'API', 'Developer SDK']
+    },
+    {
+      id: 12,
+      title: 'Zenith Risk & Assurance Automates Policy Renewals',
+      company: 'Zenith Risk & Assurance',
+      industry: 'Insurance',
+      logo: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop',
+      challenge: 'Annual commercial policy renewals required multiple broker endorsements and manual follow-ups.',
+      solution: 'Automated renewal batch packets with dynamic merge fields and auto-reminders via Esigniva.',
+      results: [
+        { metric: 'Renewal Speed', value: '14 days reduced to 48 hours', icon: <Zap size={16} /> },
+        { metric: 'Policyholder Retention', value: '92% renewal completion', icon: <Users size={16} /> },
+        { metric: 'Operational Overhead', value: 'Saved $540K in manual processing', icon: <DollarSign size={16} /> }
+      ],
+      featured: false,
+      readTime: '7 min read',
+      published: '2024-09-12',
+      tags: ['Insurance', 'Renewals', 'Batch Processing']
     }
   ];
 
+  const filters = [
+    { id: 'all', label: 'All Industries', count: caseStudies.length },
+    { id: 'legal', label: 'Legal Services', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'legal').length },
+    { id: 'real-estate', label: 'Real Estate', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'real-estate').length },
+    { id: 'healthcare', label: 'Healthcare', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'healthcare').length },
+    { id: 'finance', label: 'Financial Services', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'finance').length },
+    { id: 'technology', label: 'Technology', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'technology').length },
+    { id: 'insurance', label: 'Insurance', count: caseStudies.filter(s => getIndustrySlug(s.industry) === 'insurance').length }
+  ];
+
   const filteredCaseStudies = caseStudies.filter(study => {
-    const matchesFilter = activeFilter === 'all' || study.industry.includes(activeFilter);
+    const matchesFilter = activeFilter === 'all' || getIndustrySlug(study.industry) === activeFilter;
     const matchesSearch = searchQuery === '' || 
       study.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       study.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      study.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
       study.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
-  const featuredStudy = caseStudies.find(study => study.featured);
+  const featuredStudy = caseStudies.find(study => study.featured) || caseStudies[0];
 
   const handleViewStudy = (study) => {
     setSelectedCaseStudy(study);
@@ -204,6 +327,100 @@ const CaseStudies = () => {
 
   const closeModal = () => {
     setSelectedCaseStudy(null);
+  };
+
+  const handleShare = async (study) => {
+    const targetStudy = study || featuredStudy;
+    const url = window.location.origin + '/case-studies?study=' + (targetStudy ? targetStudy.id : '');
+    const title = targetStudy ? `${targetStudy.title} | Esigniva Success Story` : 'Esigniva Case Studies';
+    const text = targetStudy ? `Read how ${targetStudy.company} achieved ${targetStudy.results[0]?.value} with Esigniva.` : 'Check out customer success stories on Esigniva.';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (err) {
+        // User cancelled or clipboard fallback
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    Swal.fire({
+      icon: 'success',
+      title: 'Link Copied!',
+      text: `Case study link for ${targetStudy.company} has been copied to your clipboard.`,
+      timer: 1800,
+      showConfirmButton: false
+    });
+  };
+
+  const handleDownloadPDF = (study) => {
+    const targetStudy = study || featuredStudy;
+    if (!targetStudy) return;
+
+    const reportContent = `============================================================
+ESIGNIVA ENTERPRISE SUCCESS STORY
+============================================================
+
+Title: ${targetStudy.title}
+Company: ${targetStudy.company}
+Industry: ${targetStudy.industry}
+Published: ${targetStudy.published}
+Read Time: ${targetStudy.readTime}
+
+------------------------------------------------------------
+THE CHALLENGE
+------------------------------------------------------------
+${targetStudy.challenge}
+
+------------------------------------------------------------
+THE SOLUTION
+------------------------------------------------------------
+${targetStudy.solution}
+
+------------------------------------------------------------
+KEY RESULTS & ACHIEVEMENTS
+------------------------------------------------------------
+${targetStudy.results.map(r => `• ${r.metric}: ${r.value}`).join('\n')}
+
+------------------------------------------------------------
+TAGS & COMPLIANCE
+------------------------------------------------------------
+${targetStudy.tags.join(', ')}
+
+============================================================
+Downloaded from Esigniva: https://esigniva.devopstrio.co.uk
+Verified Legally Binding E-Signature Platform
+============================================================
+`;
+    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Esigniva_CaseStudy_${targetStudy.company.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Report Downloaded!',
+      text: `Case study report for ${targetStudy.company} has been downloaded successfully.`,
+      timer: 2000,
+      showConfirmButton: false
+    });
+  };
+
+  const handleViewSimilarCases = (study) => {
+    const slug = getIndustrySlug(study.industry);
+    setActiveFilter(slug);
+    setSelectedCaseStudy(null);
+    setTimeout(() => {
+      const grid = document.getElementById('case-studies-grid');
+      if (grid) {
+        grid.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 150);
   };
 
   return (
@@ -277,15 +494,32 @@ const CaseStudies = () => {
                     Read Full Case Study
                     <ArrowRight size={18} />
                   </button>
-                  <button className="safe-btn-secondary">
+                  <button 
+                    className="safe-btn-secondary"
+                    onClick={() => handleDownloadPDF(featuredStudy)}
+                  >
                     <Download size={18} />
                     Download PDF
+                  </button>
+                  <button 
+                    className="safe-btn-secondary"
+                    onClick={() => handleShare(featuredStudy)}
+                    style={{ marginLeft: '0.5rem' }}
+                  >
+                    <Share2 size={18} />
+                    Share
                   </button>
                 </div>
               </div>
               
               <div className="safe-featured-image">
-                <img src={featuredStudy.logo} alt={featuredStudy.company} />
+                <img 
+                  src={featuredStudy.logo} 
+                  alt={featuredStudy.company} 
+                  onError={(e) => { 
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop'; 
+                  }} 
+                />
                 <div className="safe-image-overlay">
                   <div className="safe-overlay-content">
                     <h3>Key Achievement</h3>
@@ -390,7 +624,7 @@ const CaseStudies = () => {
       </section>
 
       {/* Case Studies Grid */}
-      <section className="safe-cs-grid-section">
+      <section className="safe-cs-grid-section" id="case-studies-grid">
         <div className="safe-cs-container">
           <div className="safe-grid-header">
             <h2 className="safe-section-title">Browse Case Studies</h2>
@@ -411,7 +645,13 @@ const CaseStudies = () => {
                   )}
                   
                   <div className="safe-study-image">
-                    <img src={study.logo} alt={study.company} />
+                    <img 
+                      src={study.logo} 
+                      alt={study.company}
+                      onError={(e) => { 
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop'; 
+                      }}
+                    />
                     <div className="safe-study-industry">
                       <Building size={14} />
                       {study.industry}
@@ -461,7 +701,10 @@ const CaseStudies = () => {
                         <BookOpen size={16} />
                         Read Case Study
                       </button>
-                      <button className="safe-share-btn">
+                      <button 
+                        className="safe-share-btn"
+                        onClick={() => handleShare(study)}
+                      >
                         <Share2 size={16} />
                         Share
                       </button>
@@ -500,11 +743,17 @@ const CaseStudies = () => {
               </p>
             </div>
             <div className="safe-cta-actions">
-              <button className="safe-cta-btn-primary">
+              <button 
+                className="safe-cta-btn-primary"
+                onClick={() => navigate('/register')}
+              >
                 Start Free Trial
                 <ArrowRight size={18} />
               </button>
-              <button className="safe-cta-btn-secondary">
+              <button 
+                className="safe-cta-btn-secondary"
+                onClick={() => navigate('/contactus?subject=Schedule%20a%20Demo')}
+              >
                 <UserCheck size={18} />
                 Schedule a Demo
               </button>
@@ -534,7 +783,13 @@ const CaseStudies = () => {
             
             <div className="safe-modal-body">
               <div className="safe-modal-hero">
-                <img src={selectedCaseStudy.logo} alt={selectedCaseStudy.company} />
+                <img 
+                  src={selectedCaseStudy.logo} 
+                  alt={selectedCaseStudy.company}
+                  onError={(e) => { 
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop'; 
+                  }}
+                />
                 <div className="safe-modal-hero-content">
                   <div className="safe-modal-stats">
                     {selectedCaseStudy.results.map((result, index) => (
@@ -592,14 +847,27 @@ const CaseStudies = () => {
                     <span key={index} className="safe-modal-tag">{tag}</span>
                   ))}
                 </div>
-                <div className="safe-modal-actions">
-                  <button className="safe-modal-btn-primary">
+                <div className="safe-modal-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <button 
+                    className="safe-modal-btn-primary"
+                    onClick={() => handleDownloadPDF(selectedCaseStudy)}
+                  >
                     <Download size={18} />
                     Download PDF Report
                   </button>
-                  <button className="safe-modal-btn-secondary">
+                  <button 
+                    className="safe-modal-btn-secondary"
+                    onClick={() => handleViewSimilarCases(selectedCaseStudy)}
+                  >
                     <ExternalLink size={18} />
-                    View Similar Cases
+                    View Similar Cases ({selectedCaseStudy.industry})
+                  </button>
+                  <button 
+                    className="safe-modal-btn-secondary"
+                    onClick={() => handleShare(selectedCaseStudy)}
+                  >
+                    <Share2 size={18} />
+                    Share
                   </button>
                 </div>
               </div>
@@ -613,7 +881,7 @@ const CaseStudies = () => {
         .safe-case-studies {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

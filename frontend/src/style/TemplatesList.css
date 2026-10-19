@@ -519,6 +519,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  max-width: 320px;
 }
 
 .tpl-icon {
@@ -534,12 +536,20 @@
   flex-shrink: 0;
 }
 
+.tpl-name-info {
+  min-width: 0;
+  flex: 1;
+}
+
 .tpl-name-info strong {
   display: block;
   font-size: 13.5px;
   font-weight: 600;
   color: #111827;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-description {
@@ -707,6 +717,7 @@
 .card-body {
   padding: 12px 16px;
   flex: 1;
+  min-width: 0;
 }
 
 .card-body h3 {
@@ -715,6 +726,9 @@
   color: #111827;
   margin: 0 0 6px;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .description {

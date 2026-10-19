@@ -193,7 +193,7 @@ const TrademarkPolicy = () => {
       subSections: [
         {
           title: 'How to Report',
-          content: `Submit detailed reports to support@devopstrioglobal.com with supporting evidence and context.`
+          content: `Submit detailed reports to info@esigniva.com with supporting evidence and context.`
         },
         {
           title: 'Required Information',
@@ -511,9 +511,9 @@ const TrademarkPolicy = () => {
                 <div className="safe-guidelines-contact">
                   <h4>Request Permission:</h4>
                   <div className="safe-contact-methods">
-                    <a href="mailto:support@devopstrioglobal.com" className="safe-contact-method">
+                    <a href="mailto:info@esigniva.com" className="safe-contact-method">
                       <Mail size={18} />
-                      <span>support@devopstrioglobal.com</span>
+                      <span>info@esigniva.com</span>
                     </a>
                   </div>
                 </div>
@@ -610,7 +610,7 @@ const TrademarkPolicy = () => {
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -652,7 +652,7 @@ const TrademarkPolicy = () => {
 
         .safe-hero-title {
           font-size: 3.5rem;
-          font-weight: 800;
+          font-weight: 600;
           margin: 0 0 1rem;
           line-height: 1.1;
         }

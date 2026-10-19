@@ -71,7 +71,7 @@ const DashboardAnalyticsInline = ({
     .filter(item => item.total > 0)
     .sort((a, b) => b.total - a.total);
 
-  const activityChartData = analyticsData.activities?.timeline || [];
+  const activityChartData = analyticsData.activities?.timeline || analyticsData.activities?.daily_timeline || [];
   const trendsData = analyticsData.trends || [];
   const funnelData = [
     { stage: 'Uploaded', value: analyticsData.funnel?.uploaded || 0, color: '#94a3b8' },
@@ -91,81 +91,93 @@ const DashboardAnalyticsInline = ({
   }));
 
   // Funnel Analytics Section
-  const FunnelSection = () => (
-    <div className="analytics-section-content">
-      <div className="funnel-container">
-        {funnelData.map((item, index) => {
-          const prevValue = index > 0 ? funnelData[index - 1].value : item.value;
-          const conversion = prevValue > 0 ? ((item.value / prevValue) * 100).toFixed(1) : 0;
+  const FunnelSection = () => {
+    const baseValue = funnelData[0]?.value || 0;
+    return (
+      <div className="analytics-section-content">
+        <div className="funnel-container">
+          {funnelData.map((item, index) => {
+            const prevValue = index > 0 ? funnelData[index - 1].value : item.value;
+            const conversion = prevValue > 0 ? ((item.value / prevValue) * 100).toFixed(1) : '0.0';
+            const barWidth = baseValue > 0 ? Math.min(100, Math.max(0, (item.value / baseValue) * 100)) : 0;
 
-          return (
-            <div key={index} className="funnel-stage">
-              <div className="stage-header">
-                <span className="stage-name">{item.stage}</span>
-                <span className="stage-value">{item.value}</span>
-              </div>
-              <div className="stage-bar-container">
-                <div
-                  className="stage-bar"
-                  style={{
-                    width: `${(item.value / funnelData[0].value) * 100}%`,
-                    backgroundColor: item.color
-                  }}
-                />
-              </div>
-              {index > 0 && (
-                <div className="stage-conversion">
-                  <TrendingUp size={12} />
-                  <span>{conversion}% conversion</span>
+            return (
+              <div key={index} className="funnel-stage">
+                <div className="stage-header">
+                  <span className="stage-name">{item.stage}</span>
+                  <span className="stage-value">{item.value}</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
+                <div className="stage-bar-container">
+                  <div
+                    className="stage-bar"
+                    style={{
+                      width: `${barWidth}%`,
+                      backgroundColor: item.color
+                    }}
+                  />
+                </div>
+                {index > 0 && (
+                  <div className="stage-conversion">
+                    <TrendingUp size={12} />
+                    <span>{conversion}% conversion</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Efficiency Section
-  const EfficiencySection = () => (
-    <div className="analytics-section-content">
-      <div className="analytics-kpi-grid">
-        <div className="kpi-card small">
-          <div className="kpi-icon orange"><Zap size={20} /></div>
-          <div className="kpi-content">
-            <span className="kpi-label">Velocity</span>
-            <span className="kpi-value">{analyticsData.efficiency?.velocity || 0}%</span>
-          </div>
-        </div>
-        <div className="kpi-card small">
-          <div className="kpi-icon teal"><Clock size={20} /></div>
-          <div className="kpi-content">
-            <span className="kpi-label">Avg. Sign Time</span>
-            <span className="kpi-value">{analyticsData.efficiency?.avg_signing_time || 0}h</span>
-          </div>
-        </div>
-        <div className="kpi-card small">
-          <div className="kpi-icon indigo"><Target size={20} /></div>
-          <div className="kpi-content">
-            <span className="kpi-label">Completion Rate</span>
-            <span className="kpi-value">{analyticsData.efficiency?.completion_rate || 0}%</span>
-          </div>
-        </div>
-      </div>
+  const EfficiencySection = () => {
+    const hasHourlyData = hourlyData.some(d => (d.count || 0) > 0);
 
-      {hourlyData.length > 0 && (
-        <div className="mini-chart mt-4">
-          <h5>Activity Distribution (24h)</h5>
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={hourlyData}>
-              <Tooltip />
-              <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+    return (
+      <div className="analytics-section-content">
+        <div className="analytics-kpi-grid">
+          <div className="kpi-card small">
+            <div className="kpi-icon orange"><Zap size={20} /></div>
+            <div className="kpi-content">
+              <span className="kpi-label">Velocity</span>
+              <span className="kpi-value">{analyticsData.efficiency?.velocity || 0}%</span>
+            </div>
+          </div>
+          <div className="kpi-card small">
+            <div className="kpi-icon teal"><Clock size={20} /></div>
+            <div className="kpi-content">
+              <span className="kpi-label">Avg. Sign Time</span>
+              <span className="kpi-value">{analyticsData.efficiency?.avg_signing_time || 0}h</span>
+            </div>
+          </div>
+          <div className="kpi-card small">
+            <div className="kpi-icon indigo"><Target size={20} /></div>
+            <div className="kpi-content">
+              <span className="kpi-label">Completion Rate</span>
+              <span className="kpi-value">{analyticsData.efficiency?.completion_rate || 0}%</span>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
+
+        {hasHourlyData ? (
+          <div className="mini-chart mt-4">
+            <h5>Activity Distribution (24h)</h5>
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={hourlyData}>
+                <Tooltip />
+                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="analytics-empty-state">
+            <span>No hourly activity recorded for this period yet</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Document Analytics Section
   const DocumentSection = () => (
@@ -208,7 +220,7 @@ const DashboardAnalyticsInline = ({
         <span className="status-badge voided">Voided: {analyticsData.documents?.voided || 0}</span>
       </div>
 
-      {documentChartData.length > 0 && (
+      {documentChartData.length > 0 ? (
         <div className="mini-chart">
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={documentChartData}>
@@ -223,6 +235,10 @@ const DashboardAnalyticsInline = ({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="analytics-empty-state">
+          <span>No active documents to display for status distribution</span>
         </div>
       )}
     </div>
@@ -281,7 +297,7 @@ const DashboardAnalyticsInline = ({
         </div>
       </div>
 
-      {roleDistributionData.length > 0 && (
+      {roleDistributionData.length > 0 ? (
         <div className="mini-pie-chart">
           <h5>Role Distribution</h5>
           <ResponsiveContainer width="100%" height={120}>
@@ -302,6 +318,10 @@ const DashboardAnalyticsInline = ({
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="analytics-empty-state">
+          <span>No recipient role distribution recorded yet</span>
         </div>
       )}
     </div>
@@ -334,25 +354,31 @@ const DashboardAnalyticsInline = ({
         </div>
       </div>
 
-      <div className="field-progress-list">
-        {fieldCompletionData.map((field, index) => (
-          <div key={index} className="field-progress-item">
-            <div className="field-progress-header">
-              <span className="field-name">{field.name}</span>
-              <span className="field-percent">{field.percentage}%</span>
+      {fieldCompletionData.length > 0 ? (
+        <div className="field-progress-list">
+          {fieldCompletionData.map((field, index) => (
+            <div key={index} className="field-progress-item">
+              <div className="field-progress-header">
+                <span className="field-name">{field.name}</span>
+                <span className="field-percent">{field.percentage}%</span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${field.percentage}%` }}
+                />
+              </div>
+              <div className="field-numbers">
+                <span>{field.completed} / {field.total}</span>
+              </div>
             </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${field.percentage}%` }}
-              />
-            </div>
-            <div className="field-numbers">
-              <span>{field.completed} / {field.total}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="analytics-empty-state">
+          <span>No signature or form fields added yet</span>
+        </div>
+      )}
 
       {Object.keys(analyticsData.fields?.by_type || {}).length > 0 && (
         <div className="field-type-stats">
@@ -418,9 +444,9 @@ const DashboardAnalyticsInline = ({
         </div>
       )}
 
-      {activityChartData.length > 0 && (
+      {activityChartData.length > 0 && activityChartData.some(d => (d.count || 0) > 0) ? (
         <div className="mini-chart">
-          <h5>Last 30 Days Trend</h5>
+          <h5>Timeline Trend</h5>
           <ResponsiveContainer width="100%" height={120}>
             <AreaChart data={activityChartData}>
               <Tooltip />
@@ -440,6 +466,10 @@ const DashboardAnalyticsInline = ({
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      ) : (
+        <div className="analytics-empty-state">
+          <span>No activity operations recorded for this time range</span>
+        </div>
       )}
     </div>
   );
@@ -451,9 +481,11 @@ const DashboardAnalyticsInline = ({
     const consumedCredits = creds.total_consumed ?? 0;
     const allocatedCredits = creds.total_allocated ?? (availableCredits + consumedCredits);
     const planName = creds.plan_name || 'Credit-Based Account';
+    const aiTemplatesGenerated = creds.ai_templates_generated ?? 0;
 
-    const docTotal = analyticsData.documents?.total || 0;
     const docSent = analyticsData.documents?.sent || 0;
+    const docCompleted = analyticsData.documents?.completed || 0;
+    const recipTotal = analyticsData.recipients?.total || 0;
 
     return (
       <div className="analytics-section-content">
@@ -527,7 +559,7 @@ const DashboardAnalyticsInline = ({
                     <span className="sub-table-desc">Create custom legal agreement via AI prompt</span>
                   </td>
                   <td><strong>3 Credits</strong> / template</td>
-                  <td><strong>{docTotal}</strong> generated</td>
+                  <td><strong>{aiTemplatesGenerated}</strong> generated</td>
                   <td>
                     <span className="sub-status-chip active">
                       <CheckCircle size={12} /> Ready
@@ -540,7 +572,7 @@ const DashboardAnalyticsInline = ({
                     <span className="sub-table-desc">Legal compliance certificate & IP timestamping</span>
                   </td>
                   <td><strong>Included</strong> (0 extra)</td>
-                  <td>Auto-attached</td>
+                  <td><strong>{docCompleted}</strong> attached</td>
                   <td>
                     <span className="sub-status-chip success">
                       <Shield size={12} /> Included
@@ -553,7 +585,7 @@ const DashboardAnalyticsInline = ({
                     <span className="sub-table-desc">2FA email code verification</span>
                   </td>
                   <td><strong>Included</strong> (0 extra)</td>
-                  <td>Unlimited</td>
+                  <td><strong>{recipTotal}</strong> processed</td>
                   <td>
                     <span className="sub-status-chip success">
                       <CheckCircle size={12} /> Verified
@@ -603,38 +635,46 @@ const DashboardAnalyticsInline = ({
   );
 
   // Trends Section
-  const TrendsSection = () => (
-    <div className="analytics-section-content">
-      {trendsData.length > 0 && (
-        <div className="trends-chart">
-          <h5>Monthly Growth</h5>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={trendsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#6366f1"
-                strokeWidth={2}
-                name="Docs Created"
-              />
-              <Line
-                type="monotone"
-                dataKey="completed"
-                stroke="#22c55e"
-                strokeWidth={2}
-                name="Signed"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
+  const TrendsSection = () => {
+    const hasTrends = trendsData.some(t => (t.total || 0) > 0 || (t.completed || 0) > 0);
+
+    return (
+      <div className="analytics-section-content">
+        {hasTrends ? (
+          <div className="trends-chart">
+            <h5>Monthly Growth</h5>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={trendsData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  name="Docs Created"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="completed"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  name="Signed"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="analytics-empty-state">
+            <span>No monthly document trends recorded yet</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, Mail, CheckCircle, AlertCircle, Copy, User } from 'lucide-react';
 import api from '../services/api';
+import FilenameDisplay from './FilenameDisplay';
 import '../style/EmailCompletedDocumentModal.css';
 
 const EmailCompletedDocumentModal = ({ 
@@ -134,15 +135,16 @@ const EmailCompletedDocumentModal = ({
       <div className="email-modal-container">
         {/* Header */}
         <div className="email-modal-header">
-          <div className="email-modal-title-section">
-            <div className="email-modal-icon">
+          <div className="email-modal-title-section" style={{ minWidth: 0, flex: 1 }}>
+            <div className="email-modal-icon" style={{ flexShrink: 0 }}>
               <Mail size={20} />
             </div>
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <h2>Send Completed Document</h2>
-              <p className="email-modal-subtitle">
-                {documentName} • {envelopeId ? `Envelope: ${envelopeId}` : 'No Envelope ID'}
-              </p>
+              <div className="email-modal-subtitle" style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: '4px' }}>
+                <FilenameDisplay filename={documentName} sx={{ minWidth: 0, maxWidth: '65%' }} />
+                <span style={{ flexShrink: 0 }}>• {envelopeId ? `Envelope: ${envelopeId}` : 'No Envelope ID'}</span>
+              </div>
             </div>
           </div>
           <button className="email-modal-close" onClick={onClose}>

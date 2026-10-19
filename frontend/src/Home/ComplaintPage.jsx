@@ -135,7 +135,13 @@ export default function ComplaintPage() {
 
               <label>
                 Incident Date & Time
-                <input type="datetime-local" name="incident_date" value={form.incident_date} onChange={handleChange} />
+                <input
+                  type="datetime-local"
+                  name="incident_date"
+                  max={new Date().toISOString().slice(0, 16)}
+                  value={form.incident_date}
+                  onChange={handleChange}
+                />
               </label>
             </section>
 

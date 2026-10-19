@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { downloadDocument, viewDocumentUrl } from '../services/DocumentAPI';
 import DocumentViewerModal from '../components/DocumentViewerModal';
+import FilenameDisplay from '../components/FilenameDisplay';
 import {
     Visibility as ViewIcon,
     GetApp as DownloadIcon
@@ -143,7 +144,7 @@ export default function AdminEnvelopeManagement() {
         <Box sx={{ p: 4, bgcolor: '#f8f9fa', minHeight: '100vh' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#1a1a1a', mb: 1 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, color: '#1a1a1a', mb: 1 }}>
                         Envelope Management
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
@@ -216,12 +217,15 @@ export default function AdminEnvelopeManagement() {
                                 ) : (
                                     envelopes.map((doc) => (
                                         <TableRow key={doc.id} hover>
-                                            <TableCell>
-                                                <Stack direction="row" spacing={1.5} alignItems="center">
-                                                    <DocumentIcon sx={{ color: '#64748b' }} />
-                                                    <Box>
-                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{doc.filename}</Typography>
-                                                        <Typography variant="caption" color="text.secondary">
+                                            <TableCell sx={{ maxWidth: { xs: 180, sm: 260, md: 360 }, minWidth: 0 }}>
+                                                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+                                                    <DocumentIcon sx={{ color: '#64748b', flexShrink: 0 }} />
+                                                    <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                                        <FilenameDisplay
+                                                            filename={doc.filename}
+                                                            sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+                                                        />
+                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                                                             Created {formatDate(doc)}
                                                         </Typography>
                                                     </Box>
@@ -333,8 +337,9 @@ export default function AdminEnvelopeManagement() {
             <Dialog open={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ fontWeight: 700 }}>Customize Envelope Identity</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                        Specify a manual tracking identifier for document: <strong>{selectedDoc?.filename}</strong>
+                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 0.5, minWidth: 0 }}>
+                        <span>Specify a manual tracking identifier for document:</span>
+                        <FilenameDisplay filename={selectedDoc?.filename} sx={{ fontWeight: 700, color: 'text.primary' }} />
                     </Typography>
                     <TextField
                         autoFocus

@@ -11,6 +11,8 @@
   display: flex;
   gap: 28px;
   align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* LEFT */
@@ -19,6 +21,7 @@
   flex-direction: column;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .doc-preview-view-btn {
@@ -45,6 +48,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Title */
@@ -53,6 +58,8 @@
   font-weight: 700;
   color: #111827;
   margin: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Owner */
@@ -122,3 +129,173 @@
     align-items: flex-start;
   }
 }
+
+/* ================= MULTI-FILE CONTAINER ================= */
+
+.doc-preview-files-badge {
+  color: #0f766e;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.doc-preview-multifile-container {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.doc-preview-multifile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.doc-preview-multifile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.doc-preview-folder-icon {
+  font-size: 20px;
+  color: #0f766e;
+}
+
+.doc-preview-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doc-preview-action-btn.secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.doc-preview-action-btn.secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Sub-file Grid */
+.doc-preview-files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.doc-subfile-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.doc-subfile-card:hover {
+  background: #ffffff;
+  border-color: #0f766e;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.doc-subfile-thumb {
+  position: relative;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.doc-subfile-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.doc-subfile-thumb:hover .doc-subfile-thumb-overlay {
+  opacity: 1;
+}
+
+.doc-subfile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.doc-subfile-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-subfile-pages {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.doc-subfile-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.doc-subfile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.doc-subfile-btn.view {
+  background: #0f766e;
+  color: #ffffff;
+  border: none;
+}
+
+.doc-subfile-btn.view:hover {
+  background: #115e59;
+}
+
+.doc-subfile-btn.download {
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.doc-subfile-btn.download:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+

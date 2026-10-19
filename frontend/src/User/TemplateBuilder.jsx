@@ -631,6 +631,7 @@ const getFieldComponent = (fieldType, fieldData, isPreview = false) => {
           type="date"
           fullWidth
           InputLabelProps={{ shrink: true }}
+          inputProps={{ min: new Date().toISOString().split("T")[0] }}
           disabled={isPreview}
         />
       );
@@ -2846,7 +2847,7 @@ const AITemplateGenerator = ({ onTemplateGenerated, onBack }) => {
           <Grid container spacing={3}>
             {PROMPT_SUGGESTIONS.map((category) => (
               <Grid item xs={12} key={category.category}>
-                <Typography variant="overline" sx={{ color: '#0f766e', fontWeight: 800, letterSpacing: 1.2 }}>
+                <Typography variant="overline" sx={{ color: '#0f766e', fontWeight: 600, letterSpacing: 1.2 }}>
                   {category.category}
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>

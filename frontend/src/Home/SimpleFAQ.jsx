@@ -111,7 +111,7 @@ function SimpleFAQ() {
 
         .section-title {
           font-size: 32px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f172a;
           text-align: center;
           margin-bottom: 40px;

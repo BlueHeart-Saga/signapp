@@ -104,7 +104,7 @@ const AbusePolicy = () => {
       subSections: [
         {
           title: 'How to Report',
-          content: `Report abuse by emailing support@devopstrioglobal.com with detailed information including document IDs, timestamps, and supporting evidence.`
+          content: `Report abuse by emailing info@esigniva.com with detailed information including document IDs, timestamps, and supporting evidence.`
         },
         {
           title: 'Required Information',
@@ -135,7 +135,7 @@ const AbusePolicy = () => {
         },
         {
           title: 'Appeal Process',
-          content: `Users may appeal enforcement decisions by contacting support@devopstrioglobal.com within 30 days. Appeals require evidence supporting your case.`
+          content: `Users may appeal enforcement decisions by contacting info@esigniva.com within 30 days. Appeals require evidence supporting your case.`
         }
       ],
       icon: <Scale size={20} />
@@ -339,14 +339,14 @@ const AbusePolicy = () => {
                     <Mail size={20} />
                     <div>
                       <div className="safe-report-label">Email Report</div>
-                      <div className="safe-report-value">support@devopstrioglobal.com</div>
+                      <div className="safe-report-value">info@esigniva.com</div>
                     </div>
                   </div>
                   <div className="safe-report-method">
                     <MessageSquare size={20} />
                     <div>
                       <div className="safe-report-label">Emergency Contact</div>
-                      <div className="safe-report-value">support@devopstrioglobal.com</div>
+                      <div className="safe-report-value">info@esigniva.com</div>
                     </div>
                   </div>
                   <div className="safe-report-note">
@@ -435,7 +435,7 @@ const AbusePolicy = () => {
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -477,7 +477,7 @@ const AbusePolicy = () => {
 
         .safe-hero-title {
           font-size: 3.5rem;
-          font-weight: 800;
+          font-weight: 600;
           margin: 0 0 1rem;
           line-height: 1.1;
         }

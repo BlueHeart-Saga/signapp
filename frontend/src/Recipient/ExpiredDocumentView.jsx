@@ -25,6 +25,7 @@ import {
     AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -137,16 +138,17 @@ const ExpiredDocumentView = () => {
 
                 {/* Document Info Card */}
                 <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 2, bgcolor: '#fcfcfc' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <DocumentIcon sx={{ mr: 2, color: '#64748b' }} />
-                        <Typography variant="h6" fontWeight={600} sx={{ flexGrow: 1 }}>
-                            {documentInfo?.filename || 'Document'}
-                        </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, minWidth: 0, gap: 1.5 }}>
+                        <DocumentIcon sx={{ color: '#64748b', flexShrink: 0 }} />
+                        <FilenameDisplay
+                            filename={documentInfo?.filename || 'Document'}
+                            sx={{ fontWeight: 600, fontSize: '1.25rem', minWidth: 0, flex: 1 }}
+                        />
                         <Chip
                             label="EXPIRED"
                             color="error"
                             size="small"
-                            sx={{ fontWeight: 700, borderRadius: 1 }}
+                            sx={{ fontWeight: 700, borderRadius: 1, flexShrink: 0 }}
                         />
                     </Box>
 

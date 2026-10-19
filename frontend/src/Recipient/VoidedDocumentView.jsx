@@ -20,6 +20,7 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -139,16 +140,17 @@ const handleViewVoidedDocument = () => {
 
         {/* Document Info Card */}
         <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <DocumentIcon color="error" sx={{ mr: 2 }} />
-            <Typography variant="h6" fontWeight={600}>
-              {documentInfo?.filename || 'Document'}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, minWidth: 0, gap: 1.5 }}>
+            <DocumentIcon color="error" sx={{ flexShrink: 0 }} />
+            <FilenameDisplay
+              filename={documentInfo?.filename || 'Document'}
+              sx={{ fontWeight: 600, fontSize: '1.25rem', minWidth: 0, flex: 1 }}
+            />
             <Chip 
               label="VOIDED" 
               color="error" 
               size="small" 
-              sx={{ ml: 2, fontWeight: 600 }}
+              sx={{ ml: 1, fontWeight: 600, flexShrink: 0 }}
             />
           </Box>
           

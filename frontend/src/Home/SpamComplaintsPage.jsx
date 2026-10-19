@@ -481,6 +481,7 @@ const SpamComplaintsPage = () => {
                       <input
                         type="date"
                         id="receivedDate"
+                        max={new Date().toISOString().split("T")[0]}
                         value={formData.receivedDate}
                         onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
                         required
@@ -718,13 +719,13 @@ const SpamComplaintsPage = () => {
             </div>
             <p>If you believe your account has been compromised or you've been a victim of fraud:</p>
             <div className="safe-emergency-contacts">
-              <a href="mailto:support@devopstrioglobal.com" className="safe-emergency-btn">
+              <a href="mailto:info@esigniva.com" className="safe-emergency-btn">
                 <Mail size={16} />
                 Email Security Team
               </a>
-              <a href="tel:+18001234567" className="safe-emergency-btn">
+              <a href="tel:+442079460192" className="safe-emergency-btn">
                 <Phone size={16} />
-                Call Emergency Line
+                Call Emergency Line (+44 20 7946 0192)
               </a>
             </div>
           </div>
@@ -736,7 +737,7 @@ const SpamComplaintsPage = () => {
         .safe-complaints-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -1305,7 +1306,7 @@ const SpamComplaintsPage = () => {
 
         .safe-section-number {
           color: #dc2626;
-          font-weight: 800;
+          font-weight: 600;
         }
 
         .safe-expand-arrow {

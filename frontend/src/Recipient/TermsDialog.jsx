@@ -64,6 +64,7 @@ import {
   Info as InfoIcon,
   Help as HelpIcon,
 } from '@mui/icons-material';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const TermsDialog = ({
   open,
@@ -356,11 +357,12 @@ const TermsDialog = ({
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', fontWeight: 500 }}>
                 DOCUMENT FOR SIGNATURE
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <DescriptionIcon sx={{ fontSize: '0.9rem', color: '#1976d2' }} />
-                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                  {documentInfo?.filename || 'Untitled Document'}
-                </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, minWidth: 0 }}>
+                <DescriptionIcon sx={{ fontSize: '0.9rem', color: '#1976d2', flexShrink: 0 }} />
+                <FilenameDisplay
+                  filename={documentInfo?.filename || 'Untitled Document'}
+                  sx={{ fontWeight: 600, fontSize: '0.85rem' }}
+                />
               </Box>
               <Typography variant="caption" sx={{ fontSize: '0.7rem', display: 'block' }}>
                 <strong>Recipient:</strong> {recipientInfo?.name} • <strong>Role:</strong> {recipientInfo?.role} • <strong>Email:</strong> {recipientInfo?.email}
@@ -754,7 +756,7 @@ const TermsDialog = ({
                 Support Email
               </Typography>
               <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                support@devopstrioglobal.com
+                info@esigniva.com
               </Typography>
             </Box>
             <Box>

@@ -439,23 +439,54 @@ class EsignivaSummaryEngine:
         
         # ========== ENVELOPE INFO BAR - Clean gray background ==========
         envelope_id = summary_data.get('envelope_id', 'N/A')
+        doc_status_raw = summary_data.get('document_status', 'unknown')
+        doc_status_upper = doc_status_raw.upper()
+        doc_status_color = EsignivaSummaryEngine.SUCCESS if doc_status_upper == 'COMPLETED' else (EsignivaSummaryEngine.WARNING if doc_status_upper in ['PENDING', 'SENT', 'IN_PROGRESS'] else EsignivaSummaryEngine.GRAY_700)
+        completed_val = summary_data.get('completed_date', 'Not completed')
         
+        env_style_left = ParagraphStyle(
+            'SummaryEnvLeft',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_700),
+            alignment=TA_LEFT
+        )
+        env_style_center = ParagraphStyle(
+            'SummaryEnvCenter',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_700),
+            alignment=TA_CENTER
+        )
+        env_style_right = ParagraphStyle(
+            'SummaryEnvRight',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaSummaryEngine.GRAY_700),
+            alignment=TA_RIGHT
+        )
+
         envelope_data = [
-            [f"Envelope ID: {envelope_id}", 
-             f"Status: {summary_data.get('document_status', 'unknown').upper()}",
-             f"Completed: {summary_data.get('completed_date', 'Not completed')}"]
+            [
+                Paragraph(f"<b>Envelope ID:</b> {envelope_id}", env_style_left), 
+                Paragraph(f"<b>Status:</b> <font color='{doc_status_color}'><b>{doc_status_upper}</b></font>", env_style_center),
+                Paragraph(f"<b>Completed:</b> {completed_val}", env_style_right)
+            ]
         ]
         
-        envelope_bar = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
+        envelope_bar = Table(envelope_data, colWidths=[doc.width * 0.46, doc.width * 0.24, doc.width * 0.30], hAlign='CENTER')
         envelope_bar.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(EsignivaSummaryEngine.GRAY_700)),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaSummaryEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
@@ -502,21 +533,48 @@ class EsignivaSummaryEngine:
         
         # 2. Recipient Summary (Right Column)
         current_recipient = summary_data.get('current_recipient', {})
+        role_raw = current_recipient.get('role', 'signer')
+        is_owner = role_raw.lower() in ['owner', 'sender']
         
-        status_text = current_recipient.get('status', 'pending').upper()
+        # Determine actual completed status
+        is_completed = False
+        comp_date_display = 'Not completed'
+        
+        if is_owner:
+            if summary_data.get('document_status', '').lower() == 'completed':
+                is_completed = True
+                comp_date_display = summary_data.get('completed_date', 'Completed')
+        else:
+            if (
+                current_recipient.get('completed_at') or
+                current_recipient.get('witnessed_at') or
+                current_recipient.get('signed_at') or
+                current_recipient.get('approved_at') or
+                current_recipient.get('status', '').lower() == 'completed'
+            ):
+                is_completed = True
+                raw_comp = current_recipient.get('completed_at') or current_recipient.get('witnessed_at') or current_recipient.get('signed_at') or current_recipient.get('approved_at')
+                if raw_comp:
+                    comp_date_display = str(raw_comp)[:10]
+                elif summary_data.get('completed_date'):
+                    comp_date_display = str(summary_data.get('completed_date'))[:10]
+                else:
+                    comp_date_display = 'Completed'
+
+        status_text = 'COMPLETED' if is_completed else current_recipient.get('status', 'pending').upper()
         status_badge = EsignivaSummaryEngine.create_status_badge(
             status_text, 
-            'completed' if status_text == 'COMPLETED' else 'pending'
+            'completed' if is_completed or status_text == 'COMPLETED' else 'pending'
         )
         
         recipient_info_data = [
             ["Name", ":", str(current_recipient.get('name', 'N/A'))[:25]],
             ["Email", ":", str(current_recipient.get('email', 'N/A'))[:25]],
-            ["Role", ":", current_recipient.get('role', 'signer').replace('_', ' ').title()],
+            ["Role", ":", role_raw.replace('_', ' ').title()],
             ["Status", ":", Paragraph(status_badge, styles['DocuSignBody'])],
-            ["Completed", ":", current_recipient.get('completed_at', 'Not completed')[:10] if current_recipient.get('completed_at') else 'Not completed'],
+            ["Completed", ":", comp_date_display],
             ["IP Address", ":", current_recipient.get('ip_address', 'Unknown')],
-            ["Authentication", ":", "OTP Verified" if current_recipient.get('otp_verified') else "Pending"],
+            ["Authentication", ":", "OTP Verified" if current_recipient.get('otp_verified') else "Verified"],
         ]
         
         recipient_table = Table(recipient_info_data, colWidths=[80, 15, 140], hAlign='LEFT')
@@ -535,7 +593,7 @@ class EsignivaSummaryEngine:
         ]))
         
         right_column = [
-            Paragraph("Recipient Summary", styles['DocuSignSection']),
+            Paragraph("Recipient Summary" if not is_owner else "Sender / Owner Summary", styles['DocuSignSection']),
             Spacer(1, 5),
             recipient_table
         ]
@@ -585,15 +643,38 @@ class EsignivaSummaryEngine:
         # ========== FIELD COMPLETION SUMMARY ==========
         # Field statistics cards
         stats = summary_data.get('statistics', {})
+        assigned_to_you = stats.get('assigned_to_you', 0)
+        completed_by_you = stats.get('completed_by_you', 0)
+        total_fields = stats.get('total_fields', 0)
+        completed_fields = stats.get('completed_fields', 0)
         
-        stat_data = [
-            ["Fields Assigned", "Fields Completed", "Completion Rate"],
-            [
-                str(stats.get('assigned_to_you', 0)),
-                str(stats.get('completed_by_you', 0)),
-                f"{stats.get('completion_percentage', 0)}%"
+        if is_owner or (assigned_to_you == 0 and total_fields > 0):
+            # Document-wide field summary for Owner
+            rate = stats.get('completion_percentage', 0)
+            if rate == 0 and total_fields > 0 and completed_fields > 0:
+                rate = round((completed_fields / total_fields) * 100, 1)
+            elif summary_data.get('document_status') == 'completed' and (total_fields == 0 or completed_fields == total_fields):
+                rate = 100
+                
+            stat_data = [
+                ["Total Fields", "Completed Fields", "Completion Rate"],
+                [
+                    str(total_fields),
+                    str(completed_fields),
+                    f"{rate}%"
+                ]
             ]
-        ]
+        else:
+            # Recipient-specific field summary
+            recipient_rate = round((completed_by_you / assigned_to_you * 100), 1) if assigned_to_you > 0 else (100 if is_completed else 0)
+            stat_data = [
+                ["Fields Assigned", "Fields Completed", "Completion Rate"],
+                [
+                    str(assigned_to_you),
+                    str(completed_by_you),
+                    f"{recipient_rate}%"
+                ]
+            ]
         
         stat_table = Table(stat_data, colWidths=[150, 150, 150], hAlign='LEFT')
         stat_table.setStyle(TableStyle([
@@ -715,18 +796,29 @@ class EsignivaSummaryEngine:
             ]
             
             for p in participants:
-                status = p.get('status', 'pending').upper()
-                status_color = EsignivaSummaryEngine.SUCCESS if status == 'COMPLETED' else EsignivaSummaryEngine.WARNING
+                p_role = p.get('role', 'signer')
+                p_raw_status = p.get('status', 'pending').lower()
+                p_is_done = (
+                    p_raw_status == 'completed' or
+                    bool(p.get('completed_at')) or
+                    bool(p.get('witnessed_at')) or
+                    bool(p.get('signed_at')) or
+                    bool(p.get('approved_at')) or
+                    (p.get('fields_assigned', 0) > 0 and p.get('fields_completed') == p.get('fields_assigned'))
+                )
                 
-                completed_date = p.get('completed_at', '—')
+                status = 'COMPLETED' if p_is_done else p_raw_status.upper()
+                status_color = EsignivaSummaryEngine.SUCCESS if p_is_done else EsignivaSummaryEngine.WARNING
+                
+                completed_date = p.get('completed_at') or p.get('witnessed_at') or p.get('signed_at') or p.get('approved_at') or '—'
                 if completed_date and completed_date != '—' and len(str(completed_date)) > 10:
-                    completed_date = completed_date[:10]
+                    completed_date = str(completed_date)[:10]
                 
                 participant_data.append([
                     Paragraph(f"<font name='Helvetica' size='9'>{p.get('name', 'N/A')}</font>", styles['DocuSignBody']),
                     Paragraph(f"<font name='Helvetica' size='9'>{p.get('email', 'N/A')}</font>", styles['DocuSignBody']),
-                    Paragraph(f"<font name='Helvetica' size='9'>{p.get('role', 'signer').replace('_', ' ').title()}</font>", styles['DocuSignBody']),
-                    Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'>{status}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9'>{p_role.replace('_', ' ').title()}</font>", styles['DocuSignBody']),
+                    Paragraph(f"<font name='Helvetica' size='9' color='{status_color}'><b>{status}</b></font>", styles['DocuSignBody']),
                     Paragraph(f"<font name='Helvetica' size='9'>{completed_date}</font>", styles['DocuSignBody']),
                 ])
             
@@ -874,7 +966,7 @@ class EsignivaSummaryEngine:
             ("Audit Trail & Traceability", "Esigniva maintains a comprehensive audit trail that logs every critical recipient action, including document access, field interactions, authentication challenges, and final approvals. This traceability is designed to support independent transaction review and evidentiary validation in the event of a dispute."),
             ("Account & Transaction Context", "This transaction was initiated and managed by the authorized account holder ('Sender') identified in the document metadata. Esigniva validates recipient access through secure delivery channels and secondary identity verification mechanisms where configured. All transaction logs are maintained within Esigniva's secure vault for the duration of the retention period."),
             ("Platform Security Assurance", "Esigniva applies advanced technical and organizational safeguards to protect signature data and transaction records. System controls—including data-at-rest encryption and secure transit protocols—are designed to support reliability, service continuity, and long-term evidentiary preservation."),
-            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or email us at <u>support@devopstrioglobal.com</u>. Esigniva provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
+            ("Help, Support & Contact Information", "For technical assistance or inquiries regarding the signatures contained within this document, please contact the original sender or email us at <u>info@esigniva.com</u>. Esigniva provides the technical infrastructure for this transaction but is not a party to the underlying legal agreements or commercial terms between the signers."),
             ("Certificate Limitations & Legal Disclaimer", "This certificate is a system-generated summary derived from Esigniva's encrypted transaction records. It does not constitute legal advice, nor does it independently validate the ultimate legal enforceability of specific clauses under localized jurisdictions. Enforceability is subject to applicable law and the specific consent of the involved parties.")
         ]
 
@@ -1390,23 +1482,53 @@ class EsignivaCertificateEngine:
         
         # ========== ENVELOPE INFO CARD ==========
         envelope_id = certificate_data.get('envelope_id', 'N/A')
+        doc_status = certificate_data.get('status', 'completed').upper()
+        status_color = EsignivaCertificateEngine.SUCCESS if doc_status == 'COMPLETED' else EsignivaCertificateEngine.WARNING
+        completed_val = certificate_data.get('completed_date', 'Not completed')
+        
+        cert_env_left = ParagraphStyle(
+            'CertEnvLeft',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_800),
+            alignment=TA_LEFT
+        )
+        cert_env_center = ParagraphStyle(
+            'CertEnvCenter',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_800),
+            alignment=TA_CENTER
+        )
+        cert_env_right = ParagraphStyle(
+            'CertEnvRight',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor(EsignivaCertificateEngine.GRAY_800),
+            alignment=TA_RIGHT
+        )
         
         envelope_data = [
-            [f"Envelope ID: {envelope_id}", 
-             f"Status: COMPLETED",
-             f"Completed: {certificate_data.get('completed_date', 'Not completed')}"]
+            [
+                Paragraph(f"<b>Envelope ID:</b> {envelope_id}", cert_env_left), 
+                Paragraph(f"<b>Status:</b> <font color='{status_color}'><b>{doc_status}</b></font>", cert_env_center),
+                Paragraph(f"<b>Completed:</b> {completed_val}", cert_env_right)
+            ]
         ]
         
-        envelope_card = Table(envelope_data, colWidths=[doc.width * 0.45, doc.width * 0.25, doc.width * 0.3], hAlign='CENTER')
+        envelope_card = Table(envelope_data, colWidths=[doc.width * 0.46, doc.width * 0.24, doc.width * 0.30], hAlign='CENTER')
         envelope_card.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_50)),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(EsignivaCertificateEngine.GRAY_700)),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(EsignivaCertificateEngine.GRAY_200)),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
@@ -1445,7 +1567,7 @@ class EsignivaCertificateEngine:
         story.append(Spacer(1, 20))
         
         # ========== DOCUMENT METRICS DASHBOARD ==========
-        story.append(Paragraph("Document Summary", styles['CertSection']))
+        story.append(Paragraph("Document Metrics & Overview", styles['CertSection']))
         
         stats = certificate_data.get('statistics', {})
         
@@ -1504,11 +1626,17 @@ class EsignivaCertificateEngine:
             signer_data = [["Signer", "Email", "Role", "Action", "Date/Time", "IP Address"]]
             
             for signer in recipients:
-                status = signer.get('status', '').upper()
-                
-                # Determine action text
                 role = signer.get('role', 'signer')
-                if status == 'COMPLETED':
+                raw_status = signer.get('status', '').lower()
+                is_done = (
+                    raw_status == 'completed' or
+                    bool(signer.get('completed_at')) or
+                    bool(signer.get('witnessed_at')) or
+                    bool(signer.get('signed_at')) or
+                    bool(signer.get('approved_at'))
+                )
+                
+                if is_done:
                     if role in ['signer', 'in_person_signer']:
                         action = "Signed"
                     elif role == 'approver':
@@ -1526,12 +1654,16 @@ class EsignivaCertificateEngine:
                     action = "Pending"
                     action_color = EsignivaCertificateEngine.GRAY_600
                 
+                comp_ts = signer.get('completed_at') or signer.get('witnessed_at') or signer.get('signed_at') or signer.get('approved_at') or '—'
+                if comp_ts and comp_ts != '—' and len(str(comp_ts)) > 19:
+                    comp_ts = str(comp_ts)[:19]
+                
                 signer_data.append([
                     Paragraph(f"<font name='Helvetica-Bold' size='8'>{signer.get('name', 'N/A')}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{signer.get('email', 'N/A')}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{role.replace('_', ' ').title()}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica-Bold' size='8' color='{action_color}'>{action}</font>", styles['CertBody']),
-                    Paragraph(f"<font name='Helvetica' size='8'>{signer.get('completed_at', '—')}</font>", styles['CertBody']),
+                    Paragraph(f"<font name='Helvetica' size='8'>{comp_ts}</font>", styles['CertBody']),
                     Paragraph(f"<font name='Helvetica' size='8'>{signer.get('ip_address', 'Unknown')}</font>", styles['CertBody']),
                 ])
             
@@ -1795,7 +1927,7 @@ class EsignivaCertificateEngine:
         story.append(Paragraph("<b>Global Support & Resource Center</b>", ParagraphStyle('SubAuthBold', parent=sub_auth_style, fontSize=9, spaceAfter=5)))
         story.append(Paragraph(
             "For assistance regarding your Esigniva account, technical troubleshooting, or to report unauthorized access, "
-            "please email our platform support team at <u>support@devopstrioglobal.com</u>. "
+            "please email our platform support team at <u>info@esigniva.com</u>. "
             "Our platform support team is available 24/7 to assist with platform-specific inquiries.",
             disclosure_style
         ))
@@ -1958,15 +2090,15 @@ def get_standard_email_footer():
                         <!-- Redesigned Footer Section Exactly as Image -->
                         <tr>
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9; background-color: #ffffff;">
-                                <!-- Policy Links -->
+                                <!-- Policy Links (Dynamic environment links) -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="{FRONTEND_URL}/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="{FRONTEND_URL}/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="{FRONTEND_URL}/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
+                                    <a href="{FRONTEND_URL}/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="{FRONTEND_URL}/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
                                 </div>
 
                                 <!-- Social Icons in Rounded Boxes (Teal Branding) -->
@@ -2446,10 +2578,22 @@ async def send_recipient_activity_notification_to_owner(
         branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
-        current_year = datetime.now().strftime('%Y')
         
-        # Get owner/sender info
-        owner = await db.users.find_one({"_id": document["owner_id"]})
+        # Get owner/sender info safely
+        owner_id = document.get("owner_id")
+        owner = None
+        if owner_id:
+            try:
+                owner = await db.users.find_one({"_id": ObjectId(owner_id)})
+            except Exception:
+                pass
+            if not owner:
+                try:
+                    owner = await db.users.find_one({"_id": str(owner_id)})
+                except Exception:
+                    pass
+
+        owner_name = (owner.get("full_name") or owner.get("name") or "Document Owner") if owner else "Document Owner"
         owner_email = document.get("owner_email") or (owner.get("email") if owner else "")
         if not owner_email:
             print("❌ Cannot notify owner: Owner email missing")
@@ -2457,33 +2601,83 @@ async def send_recipient_activity_notification_to_owner(
 
         recipient_name = recipient.get("name", "Recipient")
         recipient_email = recipient.get("email", "")
+        recipient_role = (recipient.get("role") or "signer").replace("_", " ").title()
         document_name = document.get("filename", "Document")
         timestamp = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
-        
+
+        # Fetch progress metrics across all recipients for this document
+        doc_id = document["_id"]
+        doc_query_ids = [doc_id]
+        if isinstance(doc_id, str):
+            try:
+                doc_query_ids.append(ObjectId(doc_id))
+            except Exception:
+                pass
+        elif isinstance(doc_id, ObjectId):
+            doc_query_ids.append(str(doc_id))
+
+        all_recipients = await db.recipients.find({
+            "document_id": {"$in": doc_query_ids}
+        }).to_list(1000)
+
+        total_recipients = len(all_recipients)
+        current_rid_str = str(recipient.get("_id", ""))
+        completed_recipients = len([
+            r for r in all_recipients
+            if r.get("status") == "completed" or (status == "completed" and str(r.get("_id")) == current_rid_str)
+        ])
+        progress_pct = int((completed_recipients / total_recipients * 100)) if total_recipients > 0 else 100
+
         # Status-specific formatting
         status_colors = {
-            "completed": "#059669", # Green
+            "completed": "#059669", # Emerald green
             "declined": "#dc2626",  # Red
-            "skipped": "#d97706"    # Orange
+            "skipped": "#d97706"    # Amber
         }
         status_text = {
-            "completed": "Successfully Completed Signing",
+            "completed": "Signed & Completed",
             "declined": "Declined to Sign",
-            "skipped": "Skipped Signing Step"
-        }
-        status_emojis = {
-            "completed": "✅",
-            "declined": "❌",
-            "skipped": "⏩"
+            "skipped": "Skipped Step"
         }
         
-        color = status_colors.get(status, "#374151")
+        color = status_colors.get(status, "#00A3A3")
         text = status_text.get(status, status.title())
-        emoji = status_emojis.get(status, "🔔")
         
-        subject = f"{emoji} {recipient_name} {status.title()} Signing – {document_name}"
-        
-        # 4. Handle Banner (CID: banner)
+        if status == "completed":
+            subject = f"🔔 {recipient_name} Signed '{document_name}' – Progress: {completed_recipients}/{total_recipients}"
+        elif status == "declined":
+            subject = f"❌ {recipient_name} Declined '{document_name}'"
+        else:
+            subject = f"🔔 Status Update: {recipient_name} on '{document_name}'"
+
+        # Check next recipient if sequential flow is enabled
+        next_info_html = ""
+        if document.get("signing_order_enabled"):
+            current_order = int(recipient.get("signing_order") or 1)
+            remaining_higher = [
+                r for r in all_recipients
+                if int(r.get("signing_order") or 1) > current_order and r.get("status") not in ["completed", "declined"]
+            ]
+            if remaining_higher:
+                remaining_higher.sort(key=lambda r: int(r.get("signing_order") or 1))
+                next_order = int(remaining_higher[0].get("signing_order") or 1)
+                next_group = [r for r in remaining_higher if int(r.get("signing_order") or 1) == next_order]
+                next_names = ", ".join([f"<strong>{r.get('name')}</strong> ({r.get('email')})" for r in next_group])
+                next_info_html = f"""
+                <div style="background-color: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 14px 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Next in Line (Order #{next_order})</div>
+                    <div style="font-size: 14px; color: #134e4a;">Signing invitation automatically sent to: {next_names}</div>
+                </div>
+                """
+            elif completed_recipients >= total_recipients:
+                next_info_html = """
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 18px; margin: 20px 0;">
+                    <div style="font-size: 12px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">🎉 All Signers Completed</div>
+                    <div style="font-size: 14px; color: #15803d;">All recipients have completed signing. Your finalized document package is being generated.</div>
+                </div>
+                """
+
+        # Handle Banner (CID: banner)
         images = {}
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         banner_path = os.path.join(base_dir, "static", "email", "Progress-update.png")
@@ -2495,7 +2689,8 @@ async def send_recipient_activity_notification_to_owner(
                 print(f"Error reading activity banner: {e}")
 
         standard_footer = get_standard_email_footer()
-        
+        summary_url = f"{FRONTEND_URL}/user/document-summary/{document['_id']}"
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -2503,28 +2698,27 @@ async def send_recipient_activity_notification_to_owner(
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
-                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f9fafb; }}
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f8fafc; }}
                 .brand-logo {{ height: 32px; width: auto; display: block; }}
                 .brand-name {{ font-size: 24px; font-weight: 800; color: #00A3A3; letter-spacing: -0.5px; }}
-                .header {{ background: #ffffff; color: #00A3A3; padding: 25px 30px; text-align: center; border-bottom: 2px solid #f1f5f9; }}
                 .banner-img {{ width: 100%; height: auto; display: block; margin: 0; }}
-                .content {{ padding: 30px; background: #ffffff; }}
-                .status-badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-weight: 500; font-size: 14px; background-color: {color}; margin-bottom: 20px; }}
-                .details-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }}
-                .details-table td {{ padding: 12px 0; border-bottom: 1px solid #e5e7eb; }}
-                .label {{ color: #6b7280; width: 140px; }}
-                .value {{ font-weight: 600; color: #111827; }}
-                .button {{ display: inline-block; background: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; margin-top: 20px; }}
+                .content {{ padding: 32px; background: #ffffff; }}
+                .status-badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px; color: white; font-weight: 600; font-size: 13px; background-color: {color}; margin-bottom: 18px; }}
+                .details-table {{ width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }}
+                .details-table td {{ padding: 12px 0; border-bottom: 1px solid #f1f5f9; }}
+                .label {{ color: #64748b; width: 140px; font-weight: 500; }}
+                .value {{ font-weight: 600; color: #0f172a; }}
+                .button {{ display: inline-block; background-color: #00A3A3; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(0, 163, 163, 0.25); }}
             </style>
         </head>
-        <body style="margin: 0; padding: 0; background-color: #ffffff;">
-            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
+        <body style="margin: 0; padding: 0; background-color: #f8fafc;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 24px 0;">
                 <tr>
                     <td align="center">
-                        <table width="100%" maxWidth="600" style="max-width: 600px; background-color: #ffffff; border-collapse: collapse; width: 100%;">
+                        <table width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border-collapse: collapse;">
                             <!-- Header: Logo -->
                             <tr>
-                                <td style="padding: 12px 20px; border-bottom: 1px solid #f1f5f9; text-align: left;">
+                                <td style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; text-align: left; background: #ffffff;">
                                     <table border="0" cellspacing="0" cellpadding="0">
                                         <tr>
                                             <td style="vertical-align: middle;">
@@ -2539,35 +2733,48 @@ async def send_recipient_activity_notification_to_owner(
                             </tr>
                             
                             <!-- Full-Width Banner -->
-                            <tr>
-                                <td style="padding: 0;">
-                                    <img src="cid:banner" alt="Progress Update" class="banner-img">
-                                </td>
-                            </tr>
+                            {f'<tr><td style="padding: 0;"><img src="cid:banner" alt="Progress Update" class="banner-img"></td></tr>' if "banner" in images else ''}
                             
                             <tr>
-                                <td class="header">
-                                    <h1 style="margin:0; font-size: 20px; color: #00A3A3;">Signing Progress Update</h1>
+                                <td style="padding: 24px 32px 10px 32px; background: #ffffff; border-bottom: 1px solid #f8fafc;">
+                                    <div class="status-badge">{text}</div>
+                                    <h1 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; line-height: 1.3;">Signing Progress Update</h1>
                                 </td>
                             </tr>
                             
                             <tr>
                                 <td class="content">
-                                    <div class="status-badge">{text}</div>
-                                    <p style="margin-top: 0;">Hello,</p>
-                                    <p>This is an automated update regarding your document <strong>{document_name}</strong>. A recipient has just updated their status.</p>
+                                    <p style="margin-top: 0; font-size: 15px; color: #334155;">Hello <strong>{owner_name}</strong>,</p>
+                                    <p style="font-size: 15px; color: #334155; margin-bottom: 20px;">
+                                        A recipient has taken action on your document <strong>{document_name}</strong>. Here are the updated details:
+                                    </p>
+
+                                    <!-- Progress Bar Card -->
+                                    <div style="margin: 18px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #334155;">
+                                            <span>Document Completion Progress</span>
+                                            <span style="color: #00A3A3;">{completed_recipients} of {total_recipients} Completed ({progress_pct}%)</span>
+                                        </div>
+                                        <div style="background-color: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                                            <div style="background-color: #00A3A3; width: {progress_pct}%; height: 8px; border-radius: 4px;"></div>
+                                        </div>
+                                    </div>
                                     
                                     <table class="details-table">
                                         <tr>
                                             <td class="label">Recipient</td>
-                                            <td class="value">{recipient_name} ({recipient_email})</td>
+                                            <td class="value">{recipient_name} &lt;{recipient_email}&gt;</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Role</td>
+                                            <td class="value">{recipient_role}</td>
                                         </tr>
                                         <tr>
                                             <td class="label">Status</td>
                                             <td class="value" style="color: {color};">{text}</td>
                                         </tr>
                                         <tr>
-                                            <td class="label">Timestamp</td>
+                                            <td class="label">Completed At</td>
                                             <td class="value">{timestamp}</td>
                                         </tr>
                                         <tr>
@@ -2575,9 +2782,14 @@ async def send_recipient_activity_notification_to_owner(
                                             <td class="value">{document_name}</td>
                                         </tr>
                                     </table>
+
+                                    {next_info_html}
                                     
-                                    <div style="text-align: center; margin-bottom: 20px;">
-                                        <a href="{FRONTEND_URL}/user/document-summary/{document['_id']}" class="button">View Document Status</a>
+                                    <div style="text-align: center; margin: 32px 0 16px 0;">
+                                        <a href="{summary_url}" class="button">View Document Summary →</a>
+                                    </div>
+                                    <div style="text-align: center; font-size: 12px; color: #94a3b8; margin-top: 8px;">
+                                        Click above to review document status, audit timeline, and activity.
                                     </div>
                                 </td>
                             </tr>
@@ -2591,42 +2803,42 @@ async def send_recipient_activity_notification_to_owner(
         </html>
         """
         
-        # Check idempotency to avoid double notifications for the same status
+        # Check idempotency to avoid double notifications for the same recipient status
+        recipient_id_str = str(recipient.get("_id", ""))
         existing = await db.document_activity.find_one({
-            "document_id": document["_id"],
+            "document_id": {"$in": doc_query_ids},
             "action": f"owner_notified_{status}",
-            "recipient_email": recipient_email
+            "$or": [
+                {"recipient_id": recipient_id_str},
+                {"recipient_email": recipient_email}
+            ]
         })
         
         if existing:
             print(f"ℹ️ Owner already notified for {status} status of {recipient_email}")
             return True
-        
-        # Determine receiver URL (use FRONTEND_URL from config or env)
-        receiver_url = FRONTEND_URL
-        if not receiver_url.startswith('http'):
-            receiver_url = f"https://{receiver_url}"
 
-        # Send email
+        # Send email to document owner
         success = await send_email(owner_email, subject, html_content, images=images)
         
         if success:
-            # Log the notification in activity
             await db.document_activity.insert_one({
                 "document_id": document["_id"],
                 "action": f"owner_notified_{status}",
+                "recipient_id": recipient_id_str,
                 "recipient_email": recipient_email,
                 "recipient_name": recipient_name,
                 "owner_email": owner_email,
                 "timestamp": datetime.utcnow(),
                 "status_notified": status
             })
-            print(f"Owner notified: {recipient_name} {status}")
+            print(f"✅ Owner notified: {recipient_name} {status} on {document_name}")
             
         return success
         
     except Exception as e:
         print(f"❌ Error notifying owner of recipient activity: {str(e)}")
+        return False
         return False
 
 def get_role_color(role: str, element: str = 'gradient') -> str:
@@ -2712,9 +2924,20 @@ async def send_role_based_email(recipient: dict, document: dict, otp: str,
     login_url = f"{FRONTEND_URL}/login"
     
     # Get sender (owner) information
-    sender = await db.users.find_one({"_id": document["owner_id"]})
-    sender_name = sender.get("full_name", "") or sender.get("name", "") if sender else document.get("owner_email", "")
-    sender_email = document.get("owner_email", "")
+    owner_id = document.get("owner_id")
+    sender = None
+    if owner_id:
+        try:
+            sender = await db.users.find_one({"_id": ObjectId(owner_id)})
+        except Exception:
+            pass
+        if not sender:
+            try:
+                sender = await db.users.find_one({"_id": str(owner_id)})
+            except Exception:
+                pass
+    sender_name = (sender.get("full_name") or sender.get("name")) if sender else (document.get("owner_email") or "Sender")
+    sender_email = (sender.get("email") if sender else "") or document.get("owner_email", "")
     sender_organization = sender.get("organization_name", "") if sender else ""
     sender_profile_picture = f"{BACKEND_URL}/users/profile/{sender['_id']}/picture" if sender and sender.get("profile_picture") else None
     
@@ -3362,7 +3585,7 @@ async def send_completed_document_to_recipients(document_id: str):
             from .documents import load_document_pdf, apply_completed_fields_to_pdf
             
             # Load base PDF (correctly handles multi-file and conversions)
-            pdf_bytes = load_document_pdf(document, str(document["_id"]))
+            pdf_bytes = await load_document_pdf(document, str(document["_id"]))
             if not pdf_bytes:
                 raise Exception("Could not load base PDF")
                 
@@ -3547,9 +3770,6 @@ async def send_document_completion_email(
         branding = await db.branding.find_one({}) or {}
         platform_name = branding.get("platform_name", "Esigniva")
         logo_url = f"{BACKEND_URL}/branding/logo/file" if branding.get("logo_file_path") else None
-        current_year = datetime.now().strftime('%Y')
-        FRONTEND_URL = os.getenv("FRONTEND_URL", "https://yourdomain.com")
-        
         # Document details
         document_name = document.get("filename", "Document")
         envelope_id = document.get("envelope_id", "")
@@ -4088,7 +4308,7 @@ async def generate_document_package(
                 from .documents import load_document_pdf, apply_completed_fields_to_pdf
                 
                 # Use unified rendering logic to get the perfect signed PDF
-                signed_pdf_bytes = load_document_pdf(document, str(document["_id"]))
+                signed_pdf_bytes = await load_document_pdf(document, str(document["_id"]))
                 if signed_pdf_bytes:
                     signed_pdf_bytes = await apply_completed_fields_to_pdf(signed_pdf_bytes, str(document["_id"]), document)
                     
@@ -4102,6 +4322,31 @@ async def generate_document_package(
                     signed_filename = f"completed_{bare_filename}.pdf"
                     zip_file.writestr(signed_filename, signed_pdf_bytes)
                     print(f"Added signed document (PDF): {signed_filename}")
+
+                    # If this is a multi-file envelope, extract and add each separated signed document
+                    try:
+                        import fitz
+                        doc_files = await db.document_files.find(
+                            {"document_id": ObjectId(document_id)}
+                        ).sort("order", 1).to_list(100)
+
+                        if len(doc_files) > 1 and signed_pdf_bytes:
+                            full_pdf_doc = fitz.open(stream=signed_pdf_bytes, filetype="pdf")
+                            for idx, f_entry in enumerate(doc_files, start=1):
+                                sp = max(0, f_entry.get("start_page", 1) - 1)
+                                ep = min(len(full_pdf_doc) - 1, f_entry.get("end_page", f_entry.get("page_count", 1)) - 1)
+                                if ep >= sp:
+                                    sub_pdf_doc = fitz.open()
+                                    sub_pdf_doc.insert_pdf(full_pdf_doc, from_page=sp, to_page=ep)
+                                    sub_clean_name = re.sub(r'[^\w\s\.-]', '', f_entry.get("filename", f"document_{idx}.pdf"))
+                                    if not sub_clean_name.lower().endswith(".pdf"):
+                                        sub_clean_name += ".pdf"
+                                    zip_file.writestr(f"signed_documents/{idx}_{sub_clean_name}", sub_pdf_doc.tobytes(clean=True))
+                                    sub_pdf_doc.close()
+                            full_pdf_doc.close()
+                            print(f"Added {len(doc_files)} individual signed documents to ZIP package")
+                    except Exception as sub_err:
+                        print(f"Warning: Could not add separated signed documents: {sub_err}")
                 else:
                     print(f"❌ Could not load base PDF for package")
             except Exception as e:
@@ -4120,7 +4365,7 @@ async def generate_document_package(
             if original_path:
                 try:
                     from .documents import load_document_pdf
-                    original_pdf_bytes = load_document_pdf(document, str(document["_id"]))
+                    original_pdf_bytes = await load_document_pdf(document, str(document["_id"]))
                     
                     if original_pdf_bytes:
                         bare_filename = base_name
@@ -4132,6 +4377,23 @@ async def generate_document_package(
                         original_filename = f"original_{bare_filename}.pdf"
                         zip_file.writestr(original_filename, original_pdf_bytes)
                         print(f"Added original document (PDF): {original_filename}")
+
+                    # If multi-file, add separated original documents into original_documents/ folder
+                    try:
+                        doc_files_orig = await db.document_files.find(
+                            {"document_id": ObjectId(document_id)}
+                        ).sort("order", 1).to_list(100)
+                        if len(doc_files_orig) > 1:
+                            for idx, f_entry in enumerate(doc_files_orig, start=1):
+                                if f_entry.get("file_path"):
+                                    orig_bytes = storage.download(f_entry["file_path"])
+                                    sub_clean_name = re.sub(r'[^\w\s\.-]', '', f_entry.get("filename", f"original_{idx}.pdf"))
+                                    if not sub_clean_name.lower().endswith(".pdf"):
+                                        sub_clean_name += ".pdf"
+                                    zip_file.writestr(f"original_documents/{idx}_{sub_clean_name}", orig_bytes)
+                            print(f"Added {len(doc_files_orig)} individual original documents to ZIP package")
+                    except Exception as orig_sub_err:
+                        print(f"Warning: Could not add original subfiles to package: {orig_sub_err}")
                 except Exception as e:
                     print(f"❌ Error adding original document to package: {e}")
             
@@ -4157,11 +4419,11 @@ async def generate_document_package(
             
             # 5. Add any ATTACHMENTS uploaded by recipients
             try:
-                attachment_fields = list(db.signature_fields.find({
+                attachment_fields = await db.signature_fields.find({
                     "document_id": ObjectId(document_id),
                     "type": "attachment",
                     "completed_at": {"$ne": None}
-                }))
+                }).to_list(1000)
                 
                 if attachment_fields:
                     print(f" Found {len(attachment_fields)} attachments to include")
@@ -4235,22 +4497,22 @@ async def prepare_summary_data(document: dict, recipient: dict) -> dict:
         recipient_id = recipient["_id"]
         
         # Get all recipients
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": document_id
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(1000)
         
         # Get all fields
-        all_fields = list(db.signature_fields.find({
+        all_fields = await db.signature_fields.find({
             "document_id": document_id
-        }))
+        }).to_list(1000)
         
         # Get fields assigned to this recipient
         recipient_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(recipient_id)]
         
         # Get document timeline
-        timeline = list(db.document_timeline.find({
+        timeline = await db.document_timeline.find({
             "document_id": document_id
-        }).sort("timestamp", -1).limit(20))
+        }).sort("timestamp", -1).limit(20).to_list(20)
         
         # Get document owner info
         owner = await db.users.find_one({"_id": document.get("owner_id")})
@@ -4452,22 +4714,22 @@ async def prepare_certificate_data(document: dict, recipient: dict) -> dict:
         document_id = document["_id"]
         
         # Get all recipients
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": document_id
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(1000)
         
         # Get all fields
-        all_fields = list(db.signature_fields.find({
+        all_fields = await db.signature_fields.find({
             "document_id": document_id
-        }))
+        }).to_list(1000)
         
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
         
         # Get document timeline for audit trail
-        timeline = list(db.document_timeline.find({
+        timeline = await db.document_timeline.find({
             "document_id": document_id
-        }).sort("timestamp", -1).limit(30))
+        }).sort("timestamp", -1).limit(30).to_list(30)
         
         # Prepare activity timeline (enriched)
         recent_activity = []

@@ -66,6 +66,90 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import api from "../services/api";
+import FilenameDisplay from './FilenameDisplay';
+
+// Auto-crop empty margins from signature canvas to match backend PDFEngine bounds perfectly
+export const cropCanvas = (canvas) => {
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  if (!w || !h) return canvas.toDataURL('image/png');
+
+  try {
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    let hasContent = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const alpha = data[i + 3];
+        if (alpha > 15) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          if (!(r > 245 && g > 245 && b > 245)) {
+            hasContent = true;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+    }
+
+    if (!hasContent) {
+      return canvas.toDataURL('image/png');
+    }
+
+    // Add 4% safety margin (matching backend _crop_and_optimize_signature_image)
+    const contentW = maxX - minX + 1;
+    const contentH = maxY - minY + 1;
+    const padX = Math.max(4, Math.round(contentW * 0.04));
+    const padY = Math.max(4, Math.round(contentH * 0.04));
+
+    const finalMinX = Math.max(0, minX - padX);
+    const finalMinY = Math.max(0, minY - padY);
+    const finalMaxX = Math.min(w - 1, maxX + padX);
+    const finalMaxY = Math.min(h - 1, maxY + padY);
+
+    const finalW = finalMaxX - finalMinX + 1;
+    const finalH = finalMaxY - finalMinY + 1;
+
+    const trimmedCanvas = document.createElement('canvas');
+    trimmedCanvas.width = finalW;
+    trimmedCanvas.height = finalH;
+    const trimmedCtx = trimmedCanvas.getContext('2d');
+
+    trimmedCtx.drawImage(
+      canvas,
+      finalMinX, finalMinY, finalW, finalH,
+      0, 0, finalW, finalH
+    );
+
+    return trimmedCanvas.toDataURL('image/png');
+  } catch (err) {
+    console.warn('Canvas cropping fallback:', err);
+    return canvas.toDataURL('image/png');
+  }
+};
+
+// Calculate dynamic dimensions for text/email fields based on word count & character length
+const calculateTextDimensions = (text, baseW, baseH) => {
+  if (!text) return { width: baseW || 120, height: baseH || 35 };
+  const lines = String(text).split('\n');
+  const maxLineLen = Math.max(...lines.map(l => l.length), 0);
+  const width = Math.max(baseW || 120, Math.min(650, Math.round(maxLineLen * 8.5 + 24)));
+  const height = Math.max(baseH || 35, Math.round(lines.length * 24 + 10));
+  return { width, height };
+};
+
+const calculateEmailWidth = (email, baseW) => {
+  if (!email) return baseW || 140;
+  return Math.max(baseW || 140, Math.min(600, Math.round(String(email).length * 8.5 + 24)));
+};
 
 // Enhanced signature pad that supports all field types
 const EnhancedSignaturePad = ({
@@ -116,7 +200,7 @@ const EnhancedSignaturePad = ({
   const [showDateOnStamp, setShowDateOnStamp] = useState(true);
   const [emailValid, setEmailValid] = useState(true);
   const [currentValue, setCurrentValue] = useState(null); // Track current value
-  const [selectedFontStyle, setSelectedFontStyle] = useState('handwriting'); // New state for font style
+  const [selectedFontStyle, setSelectedFontStyle] = useState('all'); // Filter for signature font styles: all, handwriting, formal, modern
 
   const getDefaultFontSize = () => {
     if (fieldType === 'initials') return 160; // ⬅ bigger like signature
@@ -276,6 +360,42 @@ const EnhancedSignaturePad = ({
     }
   ];
 
+  // Available signature fonts with categorized metadata for direct live preview
+  const allSignatureFonts = useMemo(() => [
+    // Handwriting / Cursive styles
+    { family: 'Dancing Script', label: 'Dancing Script', category: 'handwriting' },
+    { family: 'Great Vibes', label: 'Great Vibes', category: 'handwriting' },
+    { family: 'Pacifico', label: 'Pacifico', category: 'handwriting' },
+    { family: 'Caveat', label: 'Caveat', category: 'handwriting' },
+    { family: 'Satisfy', label: 'Satisfy', category: 'handwriting' },
+    { family: 'Sacramento', label: 'Sacramento', category: 'handwriting' },
+    { family: 'Alex Brush', label: 'Alex Brush', category: 'handwriting' },
+    { family: 'Allura', label: 'Allura', category: 'handwriting' },
+    { family: 'Yellowtail', label: 'Yellowtail', category: 'handwriting' },
+    { family: 'Parisienne', label: 'Parisienne', category: 'handwriting' },
+    { family: 'Kaushan Script', label: 'Kaushan Script', category: 'handwriting' },
+    { family: 'Cedarville Cursive', label: 'Cedarville Cursive', category: 'handwriting' },
+    { family: 'Homemade Apple', label: 'Homemade Apple', category: 'handwriting' },
+    { family: 'Shadows Into Light', label: 'Shadows Into Light', category: 'handwriting' },
+    { family: 'Kalam', label: 'Kalam', category: 'handwriting' },
+    // Formal styles
+    { family: 'Times New Roman', label: 'Times New Roman', category: 'formal' },
+    { family: 'Georgia', label: 'Georgia', category: 'formal' },
+    { family: 'Courier New', label: 'Courier New', category: 'formal' },
+    { family: 'Arial', label: 'Arial', category: 'formal' },
+    // Modern styles
+    { family: 'Montserrat', label: 'Montserrat', category: 'modern' },
+    { family: 'Poppins', label: 'Poppins', category: 'modern' },
+    { family: 'Roboto', label: 'Roboto', category: 'modern' }
+  ], []);
+
+  const filteredFonts = useMemo(() => {
+    if (selectedFontStyle === 'all') {
+      return allSignatureFonts;
+    }
+    return allSignatureFonts.filter(f => f.category === selectedFontStyle);
+  }, [allSignatureFonts, selectedFontStyle]);
+
   // Color options - black, blue, navy, red
   const colors = [
     '#000000', // Classic Black
@@ -379,17 +499,38 @@ const EnhancedSignaturePad = ({
     try {
       if (typeof value === 'object') {
         // Handle object values
-        if (value.image) {
-          setSignaturePreview(value.image);
-          loadImageSignature(value.image);
+        if (value.signature_type === 'type' || (value.text && !value.image)) {
+          setActiveTab(0);
+          setTextInput(value.text || '');
+          if (value.font_family) setFontFamily(value.font_family);
+          if (value.font_color) setFontColor(value.font_color);
+          if (value.font_size) setFontSize(value.font_size);
+        } else if (value.image) {
+          if (value.signature_type === 'upload') {
+            setActiveTab(2);
+            setUploadedImage(value.image);
+            setSignaturePreview(value.image);
+          } else {
+            setActiveTab(1);
+            setSignaturePreview(value.image);
+            loadImageSignature(value.image);
+          }
         } else if (value.text !== undefined) {
+          setActiveTab(0);
           setTextInput(value.text);
         } else if (value.value !== undefined) {
           switch (fieldType) {
             case 'textbox':
+              setTextInput(value.value || '');
+              if (value.font_size) setFontSize(value.font_size);
+              if (value.font_family) setFontFamily(value.font_family);
+              if (value.font_color) setFontColor(value.font_color);
+              const tDims = calculateTextDimensions(value.value, value.width || fieldWidth, value.height || fieldHeight);
+              setFWidth(tDims.width);
+              setFHeight(tDims.height);
+              break;
             case 'initials':
-              setTextInput(value.value);
-              // Load custom styling if present
+              setTextInput(value.value || '');
               if (value.font_size) setFontSize(value.font_size);
               if (value.font_family) setFontFamily(value.font_family);
               if (value.font_color) setFontColor(value.font_color);
@@ -397,10 +538,23 @@ const EnhancedSignaturePad = ({
               if (value.height) setFHeight(value.height);
               break;
             case 'mail':
-              setEmailInput(value.value);
+              setEmailInput(value.value || '');
+              const mW = calculateEmailWidth(value.value, value.width || fieldWidth);
+              setFWidth(mW);
               break;
             case 'date':
-              setSelectedDate(new Date(value.value));
+              if (value.value) {
+                const parsedDate = new Date(value.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (!isNaN(parsedDate.getTime()) && parsedDate >= today) {
+                  setSelectedDate(parsedDate);
+                } else {
+                  setSelectedDate(new Date());
+                }
+              } else {
+                setSelectedDate(new Date());
+              }
               break;
             case 'checkbox':
               setCheckboxValue(Boolean(value.value));
@@ -442,12 +596,19 @@ const EnhancedSignaturePad = ({
           } else {
             switch (fieldType) {
               case 'textbox':
+                setTextInput(value);
+                const strDims = calculateTextDimensions(value, fieldWidth, fieldHeight);
+                setFWidth(strDims.width);
+                setFHeight(strDims.height);
+                break;
               case 'initials':
                 const cleanText = value.replace(/[^a-zA-Z]/g, '').toUpperCase();
                 setTextInput(cleanText.substring(0, 3));
                 break;
               case 'mail':
                 setEmailInput(value);
+                const strEmailW = calculateEmailWidth(value, fieldWidth);
+                setFWidth(strEmailW);
                 break;
               case 'date':
                 try {
@@ -521,9 +682,9 @@ const EnhancedSignaturePad = ({
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const scaleFactor = 3;
+    const scaleFactor = 4;
 
-    // Set canvas size scaled up by 3x for crisp output
+    // Set canvas size scaled up by 4x for ultra-crisp output
     canvas.width = width * scaleFactor;
     canvas.height = (fieldType === 'initials' ? height * 1.2 : height) * scaleFactor;
 
@@ -570,7 +731,7 @@ const EnhancedSignaturePad = ({
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const scaleFactor = 3;
+    const scaleFactor = 4;
 
     ctx.strokeStyle = fontColor || '#000000';
     ctx.lineWidth = 0.8 * scaleFactor;
@@ -591,7 +752,7 @@ const EnhancedSignaturePad = ({
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const scaleFactor = 3;
+    const scaleFactor = 4;
 
     const points = pointsRef.current;
     points.push({ x, y });
@@ -797,7 +958,7 @@ const EnhancedSignaturePad = ({
     if (!canvas || !textInput.trim()) return '';
 
     const ctx = canvas.getContext('2d');
-    const scaleFactor = 3;
+    const scaleFactor = 4;
     
     // Check required width at minimum font size of 10px to avoid clipping
     const minFontSize = 10;
@@ -832,14 +993,14 @@ const EnhancedSignaturePad = ({
 
     ctx.fillText(textInput, startX, startY);
 
-    return canvas.toDataURL();
+    return cropCanvas(canvas);
   };
 
   const drawStampPreview = () => {
     const canvas = canvasRef.current;
     if (!canvas || !stampText) return;
 
-    const scaleFactor = 3;
+    const scaleFactor = 4;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -935,7 +1096,7 @@ const EnhancedSignaturePad = ({
         if (activeTab === 0) { // Type tab
           imageData = generateTextSignature();
         } else if (activeTab === 1) { // Draw tab
-          imageData = canvasRef.current?.toDataURL();
+          imageData = canvasRef.current ? cropCanvas(canvasRef.current) : null;
         } else { // Upload tab
           imageData = uploadedImage;
         }
@@ -943,8 +1104,11 @@ const EnhancedSignaturePad = ({
         if (imageData) {
           return {
             image: imageData,
-            text: textInput,
-            signature_type: activeTab === 0 ? 'type' : (activeTab === 1 ? 'draw' : 'upload')
+            text: activeTab === 0 ? textInput : undefined,
+            signature_type: activeTab === 0 ? 'type' : (activeTab === 1 ? 'draw' : 'upload'),
+            font_family: fontFamily,
+            font_color: fontColor,
+            font_size: fontSize
           };
         }
         return null;
@@ -1011,8 +1175,15 @@ const EnhancedSignaturePad = ({
       return !value.image;
     }
 
-    if (fieldType === 'textbox' || fieldType === 'mail' || fieldType === 'date') {
+    if (fieldType === 'textbox' || fieldType === 'mail') {
       return !value.value || value.value.trim() === '';
+    }
+
+    if (fieldType === 'date') {
+      if (!value.value || value.value.trim() === '') return true;
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (value.value < todayStr) return true;
+      return false;
     }
 
     if (fieldType === 'radio' || fieldType === 'dropdown') {
@@ -1097,8 +1268,21 @@ const EnhancedSignaturePad = ({
         };
         break;
       case 'mail':
+        payload = { 
+          value: value.value || '',
+          width: fWidth,
+          height: fHeight
+        };
+        break;
+
       case 'date':
-        // Value-based fields
+        if (value.value) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (value.value < todayStr) {
+            alert('Cannot select a past date. Please select today or a future date.');
+            return;
+          }
+        }
         payload = { value: value.value || '' };
         break;
 
@@ -1324,7 +1508,7 @@ const EnhancedSignaturePad = ({
   const renderTextTab = () => (
     <Box>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {fieldType === 'initials' ? 'Type your initials (1-3 letters)' : 'Type your signature'}
+        {fieldType === 'initials' ? 'Type your initials (1-3 letters)' : (fieldType === 'textbox' ? 'Enter text content' : 'Type your signature')}
       </Typography>
 
       <TextField
@@ -1336,11 +1520,14 @@ const EnhancedSignaturePad = ({
           if (fieldType === 'initials') {
             // Only allow letters for initials, auto-uppercase
             const cleaned = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
-            // Limit to 3 characters
             setTextInput(cleaned.substring(0, 3));
           } else if (fieldType === 'textbox') {
-            // Allow multiline and no char limit for textbox
-            setTextInput(e.target.value);
+            // Enforce maximum 60 character limit and adjust field dimensions dynamically
+            const val = e.target.value.substring(0, 60);
+            setTextInput(val);
+            const dims = calculateTextDimensions(val, fieldWidth, fieldHeight);
+            setFWidth(dims.width);
+            setFHeight(dims.height);
           } else {
             // Limit to 36 characters for signatures/stamps
             setTextInput(e.target.value.substring(0, 36));
@@ -1348,10 +1535,15 @@ const EnhancedSignaturePad = ({
         }}
         placeholder={
           fieldType === 'initials'
-            ? 'AB'  // Simple placeholder, no auto-fill
+            ? 'AB'
             : fieldType === 'textbox'
               ? 'Enter text (max 60 characters)...'
               : FIELD_CONFIG[fieldType]?.placeholder || 'Enter text...'
+        }
+        helperText={
+          fieldType === 'textbox'
+            ? `${textInput.length}/60 characters • ${textInput.trim() ? textInput.trim().split(/\s+/).length : 0} words (Width: ${fWidth}px)`
+            : undefined
         }
         sx={{ mb: 2 }}
         inputProps={{
@@ -1385,186 +1577,263 @@ const EnhancedSignaturePad = ({
         </Box>
       )}
 
-      {/* Font Size & Style Controls - Hidden for standard text fields per user request */}
-      {!['textbox', 'mail'].includes(fieldType) && (
+      {/* Signature Font Styles Direct Preview - Hidden for standard text fields */}
+      {!['textbox', 'mail'].includes(fieldType) ? (
         <Box sx={{ mb: 2 }}>
-          {/* Font Style Selection Dropdown */}
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Style</FormLabel>
-                <Select
-                  value={selectedFontStyle}
-                  onChange={(e) => {
-                    setSelectedFontStyle(e.target.value);
-                    // Set the first font of the selected style
-                    const style = fontStyles.find(s => s.name === e.target.value);
-                    if (style && style.fonts.length > 0) {
-                      setFontFamily(style.fonts[0]);
-                      setFontColor(style.color);
-                    }
-                  }}
+          {/* Header Bar: Filter Chips & Ink Palette */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 1.5,
+              flexWrap: 'wrap',
+              gap: 1.5,
+              p: 1.5,
+              bgcolor: '#f8fafc',
+              borderRadius: 2,
+              border: '1px solid #e2e8f0'
+            }}
+          >
+            {/* Filter Category Chips */}
+            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', mr: 0.5, letterSpacing: '0.05em' }}>
+                STYLE:
+              </Typography>
+              {[
+                { id: 'all', label: `All (${allSignatureFonts.length})` },
+                { id: 'handwriting', label: `Handwriting (${allSignatureFonts.filter(f => f.category === 'handwriting').length})` },
+                { id: 'formal', label: `Formal (${allSignatureFonts.filter(f => f.category === 'formal').length})` },
+                { id: 'modern', label: `Modern (${allSignatureFonts.filter(f => f.category === 'modern').length})` }
+              ].map(cat => (
+                <Chip
+                  key={cat.id}
+                  label={cat.label}
                   size="small"
-                >
-                  {fontStyles.map(style => (
-                    <MenuItem
-                      key={style.name}
-                      value={style.name}
-                      sx={{
-                        fontFamily: style.fonts[0],
-                        color: style.color,
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {style.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Family</FormLabel>
-                <Select
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  size="small"
+                  onClick={() => setSelectedFontStyle(cat.id)}
                   sx={{
-                    fontFamily: `"${fontFamily}", cursive`,
-                    '& .MuiSelect-select': {
-                      fontFamily: `"${fontFamily}", cursive !important`,
+                    fontWeight: selectedFontStyle === cat.id ? 700 : 500,
+                    fontSize: '0.75rem',
+                    bgcolor: selectedFontStyle === cat.id ? 'rgb(13, 148, 136)' : '#ffffff',
+                    color: selectedFontStyle === cat.id ? '#ffffff' : '#334155',
+                    border: '1px solid',
+                    borderColor: selectedFontStyle === cat.id ? 'rgb(13, 148, 136)' : '#cbd5e1',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: selectedFontStyle === cat.id ? 'rgb(11, 130, 120)' : '#f1f5f9'
                     }
                   }}
+                />
+              ))}
+            </Box>
+
+            {/* Controls: Size & Ink Color Palette */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              {/* Font Size Adjustment */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', mr: 0.5, letterSpacing: '0.05em' }}>
+                  SIZE:
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => setFontSize(prev => Math.max(48, (parseInt(prev) || 120) - 12))}
+                  sx={{ p: 0.5, border: '1px solid #cbd5e1', bgcolor: '#fff', '&:hover': { bgcolor: '#f1f5f9' } }}
+                  title="Smaller font size"
                 >
-                  {fontStyles.find(s => s.name === selectedFontStyle)?.fonts.map(font => (
-                    <MenuItem
-                      key={font}
-                      value={font}
-                      sx={{ fontFamily: `"${font}", cursive` }}
-                    >
-                      {font}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+                  <ZoomOutIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <Typography variant="caption" sx={{ minWidth: 32, textAlign: 'center', fontWeight: 600, color: '#334155' }}>
+                  {fontSize || 120}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => setFontSize(prev => Math.min(300, (parseInt(prev) || 120) + 12))}
+                  sx={{ p: 0.5, border: '1px solid #cbd5e1', bgcolor: '#fff', '&:hover': { bgcolor: '#f1f5f9' } }}
+                  title="Larger font size"
+                >
+                  <ZoomInIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Box>
 
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Font Size</FormLabel>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton size="small" onClick={() => setFontSize(Math.max(48, fontSize - 8))}>
-                    <ZoomOutIcon />
-                  </IconButton>
-                  <TextField
-                    type="number"
-                    value={fontSize}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                      if (val === '') {
-                        setFontSize(''); // Allow clearing
-                      } else if (!isNaN(val)) {
-                        setFontSize(val);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Enforce limits on blur
-                      const val = parseInt(fontSize);
-                      if (isNaN(val) || val < 12) setFontSize(12);
-                      if (val > 400) setFontSize(400);
-                    }}
-                    size="small"
-                    sx={{ width: 80 }}
-                    inputProps={{ min: 12, max: 400 }}
-                  />
-                  <IconButton size="small" onClick={() => setFontSize(Math.min(400, (parseInt(fontSize) || 0) + 8))}>
-                    <ZoomInIcon />
-                  </IconButton>
-                </Box>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <FormLabel sx={{ fontSize: '0.75rem', mb: 0.5 }}>Color</FormLabel>
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+              {/* Ink Color Selector */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', letterSpacing: '0.05em' }}>
+                  INK:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75 }}>
                   {colors.map(color => (
                     <IconButton
                       key={color}
                       size="small"
                       onClick={() => setFontColor(color)}
                       sx={{
-                        width: 28,
-                        height: 28,
+                        width: 26,
+                        height: 26,
                         backgroundColor: color,
-                        border: fontColor === color ? '2px solid #fff' : '1px solid #ccc',
-                        boxShadow: fontColor === color ? '0 0 0 2px #1976d2' : 'none',
-                        '&:hover': {
-                          opacity: 0.9,
-                        },
+                        border: fontColor === color ? '2px solid #fff' : '1px solid #cbd5e1',
+                        boxShadow: fontColor === color ? '0 0 0 2px rgb(13, 148, 136)' : 'none',
+                        '&:hover': { opacity: 0.9 }
                       }}
                     >
-                      {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 16 }} />}
+                      {fontColor === color && <CheckIcon sx={{ color: '#fff', fontSize: 14 }} />}
                     </IconButton>
                   ))}
                 </Box>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </Box>
-      )}
+              </Box>
+            </Box>
+          </Box>
 
-      <Box
-        sx={{
-          border: '1px solid #e0e0e0',
-          borderRadius: 1,
-          p: 3,
-          backgroundColor: '#fafafa',
-          minHeight: (fieldType === 'textbox' || fieldType === 'mail') ? 100 : (fieldType === 'initials' ? 180 : 120),
-          display: 'flex',
-          alignItems: (fieldType === 'textbox' || fieldType === 'mail') && textInput ? 'flex-start' : 'center',
-          justifyContent: 'center',
-          mb: 2,
-          width: '100%',
-          maxHeight: '300px',
-          overflowY: 'auto'
-        }}
-      >
-        {textInput ? (
+          {/* Direct Live Preview Full-Width Signature List (Image 2 style) */}
           <Box
             sx={{
-              fontFamily: (fieldType === 'initials' || fieldType === 'signature' || fieldType === 'witness_signature')
-                ? `"${fontFamily}", cursive`
-                : 'inherit',
-              fontSize: fieldType === 'initials' ? `${(fontSize || 120) * 0.4}px` : `${(fontSize || 24) * 0.8}px`,
-              color: fontColor || '#000000',
-              textAlign: fieldType === 'textbox' ? 'left' : 'center',
-              whiteSpace: 'pre-line',
-              fontWeight: fieldType === 'initials' ? 'bold' : 'normal',
-              textTransform: fieldType === 'initials' ? 'uppercase' : 'none',
-              letterSpacing: fieldType === 'initials' ? (selectedFontStyle === 'handwriting' ? 'normal' : '8px') : 'normal',
-              padding: '10px 20px',
-              width: fieldType === 'textbox' ? `${fWidth}px` : 'auto',
-              minHeight: fieldType === 'textbox' ? `${fHeight}px` : 'auto',
-              maxWidth: '100%',
-              overflow: 'visible',
-              wordBreak: 'break-word',
-              lineHeight: 1.2,
-              display: 'flex',
-              alignItems: (fieldType === 'textbox' || fieldType === 'mail') && textInput ? 'flex-start' : 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease-in-out'
+              maxHeight: '350px',
+              overflowY: 'auto',
+              border: '1px solid #e2e8f0',
+              borderRadius: 2,
+              bgcolor: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              '&::-webkit-scrollbar': { width: '6px' },
+              '&::-webkit-scrollbar-track': { background: '#f8fafc' },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'rgba(13, 148, 136, 0.3)',
+                borderRadius: '4px'
+              }
             }}
           >
-            {fieldType === 'initials' ? textInput.toUpperCase() : textInput}
+            {filteredFonts.map((font, idx) => {
+              const isSelected = fontFamily === font.family;
+              const displayText = textInput.trim()
+                ? (fieldType === 'initials' ? textInput.toUpperCase() : textInput)
+                : (fieldType === 'initials'
+                    ? (recipientData?.name ? recipientData.name.split(' ').map(n => n[0]).join('').substring(0, 3).toUpperCase() : 'JD')
+                    : (recipientData?.name || 'Your Signature'));
+
+              return (
+                <Box
+                  key={font.family}
+                  onClick={() => {
+                    setFontFamily(font.family);
+                  }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    minHeight: fieldType === 'initials' ? 62 : 68,
+                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                    bgcolor: isSelected ? 'rgba(13, 148, 136, 0.11)' : '#ffffff',
+                    borderBottom: idx === filteredFonts.length - 1 ? 'none' : '1px solid #edf2f7',
+                    transition: 'background-color 0.15s ease',
+                    userSelect: 'none',
+                    '&:hover': {
+                      bgcolor: isSelected ? 'rgba(13, 148, 136, 0.16)' : '#f8fafc'
+                    }
+                  }}
+                >
+                  {/* Left checkmark column */}
+                  <Box
+                    sx={{
+                      width: 48,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    {isSelected && (
+                      <CheckIcon
+                        sx={{
+                          color: 'rgb(13, 148, 136)',
+                          fontSize: 26
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Pure Signature Text Preview (Full Width, No font names) */}
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-start',
+                      overflow: 'hidden',
+                      pr: 3
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontFamily: `"${font.family}", cursive, sans-serif`,
+                        fontSize: fieldType === 'initials' ? '36px' : '30px',
+                        color: fontColor || '#000000',
+                        lineHeight: 1.2,
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        maxWidth: '100%',
+                        opacity: textInput.trim() ? 1 : 0.45,
+                        fontWeight: fieldType === 'initials' ? 600 : 'normal',
+                        letterSpacing: fieldType === 'initials' && font.category !== 'handwriting' ? '6px' : 'normal',
+                        transition: 'color 0.15s ease'
+                      }}
+                    >
+                      {displayText}
+                    </Typography>
+                  </Box>
+                </Box>
+              );
+            })}
           </Box>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            {fieldType === 'initials' ? 'Your initials will appear here' : 'Preview will appear here'}
-          </Typography>
-        )}
-      </Box>
+        </Box>
+      ) : (
+        /* Textbox Preview for non-signature text fields */
+        <Box
+          sx={{
+            border: '1px solid #e0e0e0',
+            borderRadius: 1,
+            p: 3,
+            backgroundColor: '#fafafa',
+            minHeight: 100,
+            display: 'flex',
+            alignItems: textInput ? 'flex-start' : 'center',
+            justifyContent: 'center',
+            mb: 2,
+            width: '100%',
+            maxHeight: '300px',
+            overflowY: 'auto'
+          }}
+        >
+          {textInput ? (
+            <Box
+              sx={{
+                fontFamily: 'inherit',
+                fontSize: '14px',
+                color: '#000000',
+                textAlign: 'left',
+                whiteSpace: 'pre-line',
+                padding: '10px 20px',
+                width: `${fWidth}px`,
+                minHeight: `${fHeight}px`,
+                maxWidth: '100%',
+                overflow: 'visible',
+                wordBreak: 'break-word',
+                lineHeight: 1.4,
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              {textInput}
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Preview will appear here
+            </Typography>
+          )}
+        </Box>
+      )}
 
       <canvas ref={textCanvasRef} style={{ display: 'none' }} />
     </Box>
@@ -1617,9 +1886,12 @@ const EnhancedSignaturePad = ({
               }}>
                 <AttachIcon sx={{ fontSize: 40, color: '#166534' }} />
               </Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                {attachmentFile.name}
-              </Typography>
+              <Box sx={{ maxWidth: '85%', mx: 'auto', mb: 0.5 }}>
+                <FilenameDisplay
+                  filename={attachmentFile.name}
+                  sx={{ fontWeight: 600, color: '#1e293b', fontSize: '1rem', justifyContent: 'center' }}
+                />
+              </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {(attachmentFile.size / 1024).toFixed(2)} KB • Ready to attach
               </Typography>
@@ -1858,11 +2130,23 @@ const EnhancedSignaturePad = ({
         fullWidth
         type="email"
         value={emailInput}
-        onChange={(e) => setEmailInput(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value.substring(0, 35);
+          setEmailInput(val);
+          const w = calculateEmailWidth(val, fieldWidth);
+          setFWidth(w);
+        }}
         placeholder="name@example.com"
         error={!emailValid && emailInput.length > 0}
-        helperText={!emailValid && emailInput.length > 0 ? "Please enter a valid email address" : ""}
+        helperText={
+          !emailValid && emailInput.length > 0 
+            ? "Please enter a valid email address" 
+            : `${emailInput.length}/35 characters (Width: ${fWidth}px)`
+        }
         sx={{ mb: 2 }}
+        inputProps={{
+          maxLength: 35
+        }}
         InputProps={{
           startAdornment: <MailIcon sx={{ mr: 1, color: 'text.secondary' }} />,
         }}
@@ -1872,18 +2156,18 @@ const EnhancedSignaturePad = ({
         sx={{
           border: '1px solid #e0e0e0',
           borderRadius: 1,
-          p: 3,
+          p: 2,
           backgroundColor: '#fafafa',
           textAlign: 'center',
           mb: 2,
         }}
       >
-        <MailIcon sx={{ fontSize: 48, color: emailValid ? '#1a73e8' : '#f44336', mb: 2 }} />
-        <Typography variant="h6" gutterBottom>
+        <MailIcon sx={{ fontSize: 40, color: emailValid ? '#1a73e8' : '#f44336', mb: 1 }} />
+        <Typography variant="body1" sx={{ fontWeight: 600, wordBreak: 'break-all' }} gutterBottom>
           {emailInput || 'No email entered'}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {emailValid ? 'Valid email address' : 'Enter a valid email address'}
+          {emailValid ? `Valid email address • Adjusted width: ${fWidth}px` : 'Enter a valid email address'}
         </Typography>
       </Box>
 
@@ -1893,48 +2177,83 @@ const EnhancedSignaturePad = ({
     </Box>
   );
 
-  const renderDateTab = () => (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          Select a date
-        </Typography>
+  const renderDateTab = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <DatePicker
-            value={selectedDate}
-            onChange={(newDate) => setSelectedDate(newDate)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                fullWidth
-                sx={{ maxWidth: 300 }}
-              />
-            )}
-          />
-        </Box>
+    return (
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Select a date
+          </Typography>
 
-        <Box
-          sx={{
-            border: '1px solid #e0e0e0',
-            borderRadius: 1,
-            p: 3,
-            backgroundColor: '#fafafa',
-            textAlign: 'center',
-            mb: 2,
-          }}
-        >
-          <CalendarIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h6" gutterBottom>
-            {selectedDate ? selectedDate.toLocaleDateString() : 'No date selected'}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Selected date will appear in the document
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <DatePicker
+              value={selectedDate}
+              disablePast
+              minDate={today}
+              onChange={(newDate) => {
+                if (newDate) {
+                  const checkDate = new Date(newDate);
+                  checkDate.setHours(0, 0, 0, 0);
+                  if (checkDate < today) {
+                    setSelectedDate(today);
+                    return;
+                  }
+                }
+                setSelectedDate(newDate);
+              }}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  sx: { maxWidth: 300 },
+                  inputProps: {
+                    min: todayStr
+                  }
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  fullWidth
+                  inputProps={{
+                    ...params.inputProps,
+                    min: todayStr
+                  }}
+                  sx={{ maxWidth: 300 }}
+                />
+              )}
+            />
+          </Box>
+
+          <Alert severity="info" sx={{ mb: 2, maxWidth: 360, mx: 'auto', textAlign: 'left', py: 0.5 }}>
+            Past dates cannot be selected.
+          </Alert>
+
+          <Box
+            sx={{
+              border: '1px solid #e0e0e0',
+              borderRadius: 1,
+              p: 2.5,
+              backgroundColor: '#fafafa',
+              textAlign: 'center',
+              mb: 2,
+            }}
+          >
+            <CalendarIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              {selectedDate ? selectedDate.toLocaleDateString() : 'No date selected'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Selected date will appear in the document
+            </Typography>
+          </Box>
         </Box>
-      </Box>
-    </LocalizationProvider>
-  );
+      </LocalizationProvider>
+    );
+  };
 
   const renderCheckboxTab = () => (
     <Box>

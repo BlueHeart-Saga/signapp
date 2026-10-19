@@ -50,6 +50,9 @@ import DashboardAnalyticsInline from "../components/DashboardAnalyticsInline";
 import templatesAPI from "../services/api";
 import { addFileToDocument, uploadDocument } from "../services/DocumentAPI";
 import { useAuth } from "../context/AuthContext";
+import { DashboardOverviewSkeleton } from "../components/DashboardSkeleton";
+import PageLoadingAnimation from "../components/PageLoadingAnimation";
+import FilenameDisplay from "../components/FilenameDisplay";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 const token = localStorage.getItem("token");
@@ -205,7 +208,7 @@ const UserDashboard = () => {
           icon: <FileText className="signapp-stats-icon" />,
           value: draft.toString(),
           label: 'draft',
-          change: getChangePercentage(draft),
+          change: getChangeDisplay('draft', draft, statsData),
           color: 'signapp-stat-grey',
           lightBg: 'signapp-stat-bg-grey',
           textColor: 'signapp-stat-text-grey',
@@ -215,7 +218,7 @@ const UserDashboard = () => {
           icon: <Send className="signapp-stats-icon" />,
           value: sent.toString(),
           label: 'sent',
-          change: getChangePercentage(sent),
+          change: getChangeDisplay('sent', sent, statsData),
           color: 'signapp-stat-blue',
           lightBg: 'signapp-stat-bg-blue',
           textColor: 'signapp-stat-text-blue',
@@ -225,7 +228,7 @@ const UserDashboard = () => {
           icon: <Clock className="signapp-stats-icon" />,
           value: inProgress.toString(),
           label: 'in_progress',
-          change: getChangePercentage(inProgress),
+          change: getChangeDisplay('in_progress', inProgress, statsData),
           color: 'signapp-stat-amber',
           lightBg: 'signapp-stat-bg-amber',
           textColor: 'signapp-stat-text-amber',
@@ -235,7 +238,7 @@ const UserDashboard = () => {
           icon: <CheckCircle className="signapp-stats-icon" />,
           value: completed.toString(),
           label: 'completed',
-          change: getChangePercentage(completed),
+          change: getChangeDisplay('completed', completed, statsData),
           color: 'signapp-stat-green',
           lightBg: 'signapp-stat-bg-green',
           textColor: 'signapp-stat-text-green',
@@ -245,7 +248,7 @@ const UserDashboard = () => {
           icon: <XCircle className="signapp-stats-icon" />,
           value: declined.toString(),
           label: 'declined',
-          change: getChangePercentage(declined),
+          change: getChangeDisplay('declined', declined, statsData),
           color: 'signapp-stat-red',
           lightBg: 'signapp-stat-bg-red',
           textColor: 'signapp-stat-text-red',
@@ -255,7 +258,7 @@ const UserDashboard = () => {
           icon: <AlertTriangle className="signapp-stats-icon" />,
           value: expired.toString(),
           label: 'expired',
-          change: getChangePercentage(expired),
+          change: getChangeDisplay('expired', expired, statsData),
           color: 'signapp-stat-orange',
           lightBg: 'signapp-stat-bg-orange',
           textColor: 'signapp-stat-text-orange',
@@ -265,7 +268,7 @@ const UserDashboard = () => {
           icon: <AlertCircle className="signapp-stats-icon" />,
           value: voided.toString(),
           label: 'voided',
-          change: getChangePercentage(voided),
+          change: getChangeDisplay('voided', voided, statsData),
           color: 'signapp-stat-purple',
           lightBg: 'signapp-stat-bg-purple',
           textColor: 'signapp-stat-text-purple',
@@ -275,7 +278,7 @@ const UserDashboard = () => {
           icon: <Trash2 className="signapp-stats-icon" />,
           value: deletedDocs.toString(),
           label: 'deleted',
-          change: getChangePercentage(deletedDocs),
+          change: getChangeDisplay('deleted', deletedDocs, statsData),
           color: 'signapp-stat-black',
           lightBg: 'signapp-stat-bg-black',
           textColor: 'signapp-stat-text-black',
@@ -315,9 +318,15 @@ const UserDashboard = () => {
   }, [navigate, fetchAnalyticsData]);
 
   // Helper functions
-  const getChangePercentage = (data) => {
-    if (typeof data !== "number") return '+0';
-    return `+${data}`;
+  const getChangeDisplay = (statusKey, count, statsData) => {
+    if (statsData?.changes && statsData.changes[statusKey]) {
+      return statsData.changes[statusKey];
+    }
+    const total = statsData?.total || 0;
+    if (total > 0 && count > 0) {
+      return `${Math.round((count / total) * 100)}%`;
+    }
+    return '0%';
   };
 
   const getActivityDescription = (activity) => {
@@ -698,27 +707,8 @@ const UserDashboard = () => {
     fetchAnalyticsData(timeRange);
   }, [timeRange, loadDashboardData, fetchAnalyticsData]);
 
-  if (loading) {
-    return (
-      <div className="ss-content-wrapper">
-        <div className="ss-loading-overlay">
-          <div className="ss-spinner-container">
-            <div className="ss-loading-spinner"></div>
-            <div className="ss-loader-text">
-              <p>Loading</p>
-              <div className="ss-rotating-words">
-                <span className="ss-word">Status</span>
-                <span className="ss-word">Reports</span>
-                <span className="ss-word">Features</span>
-                <span className="ss-word">Documents</span>
-                <span className="ss-word">Signatures</span>
-                <span className="ss-word">Status</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  if (loading && stats.length === 0) {
+    return <PageLoadingAnimation message="Loading your dashboard..." size={120} />;
   }
 
   return (
@@ -892,28 +882,38 @@ const UserDashboard = () => {
                   {/* 1 — Bar Chart - Using document stats */}
                   <div className="signapp-chart-card">
                     <h4>Status Distribution</h4>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart
-                        data={[
-                          { name: 'Draft', value: analyticsData.documents?.draft || 0 },
-                          { name: 'Sent', value: analyticsData.documents?.sent || 0 },
-                          { name: 'In Progress', value: analyticsData.documents?.in_progress || 0 },
-                          { name: 'Completed', value: analyticsData.documents?.completed || 0 },
-                          { name: 'Declined', value: analyticsData.documents?.declined || 0 },
-                          { name: 'Expired', value: analyticsData.documents?.expired || 0 },
-                          { name: 'Voided', value: analyticsData.documents?.voided || 0 }
-                        ].filter(item => item.value > 0)}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                      >
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip
-                          contentStyle={{ borderRadius: 12, border: "none" }}
-                          wrapperClassName="signapp-chart-tooltip"
-                        />
-                        <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#0f766e" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {(() => {
+                      const docStatusData = [
+                        { name: 'Draft', value: analyticsData.documents?.draft || 0 },
+                        { name: 'Sent', value: analyticsData.documents?.sent || 0 },
+                        { name: 'In Progress', value: analyticsData.documents?.in_progress || 0 },
+                        { name: 'Completed', value: analyticsData.documents?.completed || 0 },
+                        { name: 'Declined', value: analyticsData.documents?.declined || 0 },
+                        { name: 'Expired', value: analyticsData.documents?.expired || 0 },
+                        { name: 'Voided', value: analyticsData.documents?.voided || 0 }
+                      ].filter(item => item.value > 0);
+
+                      if (docStatusData.length === 0) {
+                        return <div className="signapp-chart-empty-state">No document status data recorded</div>;
+                      }
+
+                      return (
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart
+                            data={docStatusData}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                          >
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip
+                              contentStyle={{ borderRadius: 12, border: "none" }}
+                              wrapperClassName="signapp-chart-tooltip"
+                            />
+                            <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#0f766e" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
                   </div>
 
                   {/* 2 — Line Chart - Activity Timeline */}
@@ -921,9 +921,11 @@ const UserDashboard = () => {
                     <h4>Activity Timeline</h4>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart
-                        data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : [
-                          { date: 'No data', count: 0 }
-                        ]}
+                        data={analyticsData.activities?.timeline?.length ? analyticsData.activities.timeline : (
+                          analyticsData.activities?.daily_timeline?.length ? analyticsData.activities.daily_timeline : [
+                            { date: 'Today', count: 0 }
+                          ]
+                        )}
                         margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                       >
                         <XAxis dataKey="date" />
@@ -947,39 +949,44 @@ const UserDashboard = () => {
                   {/* 3 — Pie Chart - Recipient Status */}
                   <div className="signapp-chart-card">
                     <h4>Recipient Status</h4>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
-                            { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
-                            { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
-                            { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
-                          ].filter(item => item.value > 0)}
-                          dataKey="value"
-                          nameKey="name"
-                          outerRadius={80}
-                          fill="#0f766e"
-                          label
-                        >
-                          {[
-                            { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
-                            { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
-                            { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
-                            { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
-                          ].filter(item => item.value > 0).map((entry, index) => (
-                            <Cell
-                              key={index}
-                              fill={chartColors[index % chartColors.length]}
+                    {(() => {
+                      const recipPieData = [
+                        { name: 'Completed', value: analyticsData.recipients?.completed || 0 },
+                        { name: 'In Progress', value: analyticsData.recipients?.in_progress || 0 },
+                        { name: 'Invited', value: analyticsData.recipients?.invited || 0 },
+                        { name: 'Declined', value: analyticsData.recipients?.declined || 0 }
+                      ].filter(item => item.value > 0);
+
+                      if (recipPieData.length === 0) {
+                        return <div className="signapp-chart-empty-state">No recipient status data recorded</div>;
+                      }
+
+                      return (
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={recipPieData}
+                              dataKey="value"
+                              nameKey="name"
+                              outerRadius={80}
+                              fill="#0f766e"
+                              label
+                            >
+                              {recipPieData.map((entry, index) => (
+                                <Cell
+                                  key={index}
+                                  fill={chartColors[index % chartColors.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{ borderRadius: 12, border: "none" }}
+                              wrapperClassName="signapp-chart-tooltip"
                             />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ borderRadius: 12, border: "none" }}
-                          wrapperClassName="signapp-chart-tooltip"
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
                   </div>
 
                   {/* 4 — Area Chart - Document Growth */}
@@ -988,7 +995,7 @@ const UserDashboard = () => {
                     <ResponsiveContainer width="100%" height={250}>
                       <AreaChart
                         data={analyticsData.trends?.length ? analyticsData.trends : [
-                          { month: 'No Data', documents: 0, completed: 0 }
+                          { month: 'This Month', total: 0, completed: 0 }
                         ]}
                         margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                       >
@@ -1062,19 +1069,20 @@ const UserDashboard = () => {
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart
                         data={[
-                          { name: 'Completion Rate', value: analyticsData.recipients?.completion_rate || 0 },
-                          { name: 'Field Completion', value: analyticsData.fields?.completion_percentage || 0 },
-                          { name: 'Active Documents', value: analyticsData.documents?.in_progress || 0 },
-                          { name: 'Total Signatures', value: analyticsData.fields?.signatures?.total || 0 }
+                          { name: 'Completion Rate (%)', value: analyticsData.recipients?.completion_rate || 0 },
+                          { name: 'Field Completion (%)', value: analyticsData.fields?.completion_percentage || 0 },
+                          { name: 'Workflow Velocity (%)', value: analyticsData.efficiency?.velocity || 0 },
+                          { name: 'Signature Rate (%)', value: analyticsData.fields?.signatures?.percentage || 0 }
                         ]}
                         layout="vertical"
                         margin={{ top: 20, right: 30, left: 40, bottom: 40 }}
                       >
                         <XAxis type="number" domain={[0, 100]} />
-                        <YAxis dataKey="name" type="category" width={100} />
+                        <YAxis dataKey="name" type="category" width={140} />
                         <Tooltip
                           contentStyle={{ borderRadius: 12, border: "none" }}
                           wrapperClassName="signapp-chart-tooltip"
+                          formatter={(val) => [`${val}%`, 'Rate']}
                         />
                         <Bar dataKey="value" fill="#f97316" radius={[0, 8, 8, 0]} />
                       </BarChart>
@@ -1166,7 +1174,11 @@ const UserDashboard = () => {
                             <div className="ss-ra-item-details-box">
                               <div className="ss-ra-item-header-line">
                                 <h4 className="ss-ra-item-title">
-                                  {activity.title}
+                                  <FilenameDisplay
+                                    filename={activity.title}
+                                    tooltipPlacement="top-start"
+                                    sx={{ fontWeight: 600, color: 'var(--signapp-text-primary)' }}
+                                  />
                                 </h4>
                                 <span className={`ss-ra-status-tag ${statusBadge.bg} ${statusBadge.text}`}>
                                   {statusBadge.label}
@@ -1488,9 +1500,12 @@ const UserDashboard = () => {
               </button>
             </div>
             <div className="modal-content">
-              <p>
-                File will be appended to:
-                <strong> {mergeDoc?.filename}</strong>
+              <p style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', minWidth: 0 }}>
+                <span>File will be appended to:</span>
+                <FilenameDisplay
+                  filename={mergeDoc?.filename}
+                  sx={{ fontWeight: 600, color: '#1e293b' }}
+                />
               </p>
 
               <input

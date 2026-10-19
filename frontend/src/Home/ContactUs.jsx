@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
-import { Mail, Phone, MessageCircle } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Mail, Phone, MessageCircle, AlertCircle, CheckCircle, Clock, ShieldCheck, Copy, Check, Send } from "lucide-react";
 import { setPageTitle } from "../utils/pageTitle";
-import { useEffect } from "react";
+import showAlert from "../utils/swal";
 
 function ContactUs() {
   const [formData, setFormData] = useState({
@@ -11,13 +11,21 @@ function ContactUs() {
     message: "",
   });
 
-  const [submitStatus, setSubmitStatus] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreeToPolicy, setAgreeToPolicy] = useState(false);
   const [buttonState, setButtonState] = useState("default"); // "default" or "sent"
   const buttonRef = useRef(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
 
+  const nameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const subjectInputRef = useRef(null);
+  const messageInputRef = useRef(null);
 
   useEffect(() => {
     setPageTitle(
@@ -26,9 +34,82 @@ function ContactUs() {
     );
   }, []);
 
-  const handleChange = (e) => {
+  const validateField = (name, value) => {
+    let error = "";
+    if (name === "name") {
+      const trimmed = (value || "").trim();
+      if (!trimmed) {
+        error = "Full name is required";
+      } else if (trimmed.length < 2) {
+        error = "Name must be at least 2 characters";
+      } else if (!/[a-zA-Z]/.test(trimmed)) {
+        error = "Name must contain alphabetical characters";
+      } else if (/<[^>]*>/i.test(trimmed)) {
+        error = "Invalid characters detected in name";
+      }
+    } else if (name === "email") {
+      const trimmed = (value || "").trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!trimmed) {
+        error = "Email address is required";
+      } else if (!emailRegex.test(trimmed)) {
+        error = "Please enter a valid email address (e.g. name@company.com)";
+      }
+    } else if (name === "subject") {
+      const trimmed = (value || "").trim();
+      if (!trimmed) {
+        error = "Subject is required";
+      } else if (trimmed.length < 2) {
+        error = "Subject must be at least 2 characters";
+      }
+    } else if (name === "message") {
+      const trimmed = (value || "").trim();
+      if (!trimmed) {
+        error = "Message is required";
+      } else if (trimmed.length < 10) {
+        error = `Please write at least 10 characters (${10 - trimmed.length} more needed)`;
+      } else if (trimmed.length > 5000) {
+        error = "Message cannot exceed 5000 characters";
+      }
+    } else if (name === "agreeToPolicy") {
+      if (!value) {
+        error = "Please agree to the privacy policy to submit";
+      }
+    }
+    return error;
+  };
+
+  const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setButtonState("default");
+
+    if (submitted || touched[name]) {
+      const err = validateField(name, value);
+      setFieldErrors((prev) => ({ ...prev, [name]: err }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const err = validateField(name, value);
+    setFieldErrors((prev) => ({ ...prev, [name]: err }));
+  };
+
+  const handleCopy = (text, type) => {
+    try {
+      navigator.clipboard.writeText(text);
+      if (type === "email") {
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2000);
+      } else {
+        setCopiedPhone(true);
+        setTimeout(() => setCopiedPhone(false), 2000);
+      }
+    } catch (err) {
+      console.debug("Clipboard copy failed:", err);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -36,33 +117,43 @@ function ContactUs() {
 
     if (isSubmitting) return;
 
+    setSubmitted(true);
+    setTouched({
+      name: true,
+      email: true,
+      subject: true,
+      message: true,
+      agreeToPolicy: true,
+    });
+
+    const nameErr = validateField("name", formData.name);
+    const emailErr = validateField("email", formData.email);
+    const subjectErr = validateField("subject", formData.subject);
+    const messageErr = validateField("message", formData.message);
+    const policyErr = validateField("agreeToPolicy", agreeToPolicy);
+
+    const newErrors = {
+      name: nameErr,
+      email: emailErr,
+      subject: subjectErr,
+      message: messageErr,
+      agreeToPolicy: policyErr,
+    };
+
+    setFieldErrors(newErrors);
+
+    if (nameErr || emailErr || subjectErr || messageErr || policyErr) {
+      if (nameErr && nameInputRef.current) nameInputRef.current.focus();
+      else if (emailErr && emailInputRef.current) emailInputRef.current.focus();
+      else if (subjectErr && subjectInputRef.current) subjectInputRef.current.focus();
+      else if (messageErr && messageInputRef.current) messageInputRef.current.focus();
+      return;
+    }
+
     setIsSubmitting(true);
-    setSubmitStatus(null);
     setButtonState("default");
 
-    // Basic validation
-    if (!formData.name || !formData.email || !formData.message) {
-      setSubmitStatus(" Please fill in all required fields.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setSubmitStatus(" Please enter a valid email address.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!agreeToPolicy) {
-      setSubmitStatus(" Please agree to the privacy policy.");
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      // Trigger button animation
       if (buttonRef.current) {
         buttonRef.current.focus();
       }
@@ -88,33 +179,45 @@ function ContactUs() {
         throw new Error(result.detail || "Failed to submit form");
       }
 
-      // Set button to "sent" state after animation
-      setTimeout(() => {
-        setButtonState("sent");
-      }, 800);
+      setButtonState("sent");
 
-      setSubmitStatus("" + (result.message || "✅ Thank you! Your message has been sent successfully. Check your email for confirmation."));
+      // Show SweetAlert Success Modal
+      await showAlert.success(
+        "Message Sent Successfully!",
+        "Thank you for contacting Esigniva! A confirmation email has been dispatched to your inbox, and our dedicated team will get back to you shortly.",
+        {
+          confirmButtonText: "Got It",
+          timer: 5000,
+          timerProgressBar: true,
+        }
+      );
 
-      // Reset form after delay
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+      setAgreeToPolicy(false);
+      setTouched({});
+      setSubmitted(false);
+      setFieldErrors({});
+
       setTimeout(() => {
-        setFormData({ name: "", email: "", subject: "", message: "" });
-        setAgreeToPolicy(false);
-        setIsSubmitting(false);
-      }, 3000);
+        setButtonState("default");
+      }, 1500);
 
     } catch (error) {
       console.error("Error submitting contact form:", error);
-      setSubmitStatus("❌ " + (error.message || "Failed to send message. Please try again later."));
-      setIsSubmitting(false);
-      // Reset button state on error
       setButtonState("default");
+      showAlert.error(
+        "Submission Failed",
+        error.message || "Failed to send message. Please check your network and try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  // Reset button state when form changes
-  const handleFormChange = (e) => {
-    handleChange(e);
-    setButtonState("default");
   };
 
   return (
@@ -132,44 +235,90 @@ function ContactUs() {
             <img
               src="/images/contact-hero.jpg"
               alt="Contact Us Hero"
-              style={{ width: '100%', borderRadius: '20px', objectFit: 'cover', height: '100%' }}
+              style={{ width: '100%', borderRadius: '20px', objectFit: 'cover', height: '100%', minHeight: '380px' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/images/contact-hero.png";
+              }}
             />
+            {/* Overlay quick response badge */}
+            <div style={styles.heroBadge}>
+              <Clock size={16} color="#0f766e" />
+              <span>Average response time: <strong>under 2 hours</strong></span>
+            </div>
           </div>
 
           {/* Contact Methods Card */}
           <div style={styles.contactMethodsCard}>
             <div style={styles.contactMethod}>
-              <div style={{ ...styles.methodIcon, backgroundColor: '#e3f2fd00' }}>
-                <span style={styles.methodEmoji}><Mail size={28} color="#0f766e" /></span>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#f0fdfa' }}>
+                <span style={styles.methodEmoji}><Mail size={24} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
-                <h4 style={styles.methodTitle}>MAIL</h4>
-                <p style={styles.methodText}>support@devopstrioglobal.com</p>
+                <h4 style={styles.methodTitle}>EMAIL US DIRECTLY</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <a href="mailto:info@esigniva.com" style={styles.contactLink}>
+                    info@esigniva.com
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy("info@esigniva.com", "email")}
+                    style={styles.copyBtn}
+                    title="Copy email address"
+                  >
+                    {copiedEmail ? <Check size={14} color="#10b981" /> : <Copy size={14} color="#64748b" />}
+                    <span>{copiedEmail ? "Copied" : "Copy"}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             <div style={styles.divider}></div>
 
             <div style={styles.contactMethod}>
-              <div style={{ ...styles.methodIcon, backgroundColor: '#e8f5e900' }}>
-                <span style={styles.methodEmoji}><Phone size={28} color="#0f766e" /></span>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#f0fdfa' }}>
+                <span style={styles.methodEmoji}><Phone size={24} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
-                <h4 style={styles.methodTitle}>PHONE</h4>
-                <p style={styles.methodText}>+1 (555) 123-4567</p>
+                <h4 style={styles.methodTitle}>DIRECT PHONE LINE</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <a href="tel:+442079460192" style={styles.contactLink}>
+                    +44 (0)20 7946 0192
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy("+442079460192", "phone")}
+                    style={styles.copyBtn}
+                    title="Copy phone number"
+                  >
+                    {copiedPhone ? <Check size={14} color="#10b981" /> : <Copy size={14} color="#64748b" />}
+                    <span>{copiedPhone ? "Copied" : "Copy"}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             <div style={styles.divider}></div>
 
             <div style={styles.contactMethod}>
-              <div style={{ ...styles.methodIcon, backgroundColor: '#f3e5f500' }}>
-                <span style={styles.methodEmoji}><MessageCircle size={28} color="#0f766e" /></span>
+              <div style={{ ...styles.methodIcon, backgroundColor: '#f0fdfa' }}>
+                <span style={styles.methodEmoji}><MessageCircle size={24} color="#0f766e" /></span>
               </div>
               <div style={styles.methodDetails}>
-                <h4 style={styles.methodTitle}>LIVE MESSAGE</h4>
-                <p style={styles.methodText}>Available 9AM-6PM EST</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h4 style={styles.methodTitle}>LIVE SUPPORT</h4>
+                  <span style={styles.liveIndicator}>
+                    <span style={styles.liveDot}></span>
+                    Online
+                  </span>
+                </div>
+                <p style={styles.methodText}>Available 9:00 AM - 6:00 PM EST (Mon-Fri)</p>
               </div>
+            </div>
+
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
+              <ShieldCheck size={18} color="#0f766e" />
+              <span>All communications are 256-bit SSL encrypted & strictly confidential.</span>
             </div>
           </div>
         </div>
@@ -187,76 +336,148 @@ function ContactUs() {
           <div style={styles.formCard}>
             <div style={styles.formHeader}>
               <h2 style={styles.formTitle}>Get in touch</h2>
-              <p style={styles.formSubtitle}>Our friendly team would love to hear from you</p>
+              <p style={styles.formSubtitle}>
+                Have a question, need enterprise support, or looking to partner? Fill out the form and our team will get back to you shortly.
+              </p>
             </div>
 
-            <div style={styles.formContainer}>
+            <form onSubmit={handleSubmit} noValidate style={styles.formContainer}>
+              {/* Full Name */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Full name</label>
+                <label style={styles.label}>
+                  Full name <span style={styles.requiredAsterisk}>*</span>
+                </label>
                 <input
+                  ref={nameInputRef}
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleFormChange}
-                  placeholder="Enter your full name"
-                  style={styles.input}
+                  onBlur={handleBlur}
+                  placeholder="e.g. John Doe"
+                  style={styles.input(!!fieldErrors.name)}
                 />
+                {fieldErrors.name && (
+                  <p style={styles.errorText}>
+                    <AlertCircle size={14} />
+                    <span>{fieldErrors.name}</span>
+                  </p>
+                )}
               </div>
 
+              {/* Email Address */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Email</label>
+                <label style={styles.label}>
+                  Email address <span style={styles.requiredAsterisk}>*</span>
+                </label>
                 <input
+                  ref={emailInputRef}
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleFormChange}
-                  placeholder="Enter your email"
-                  style={styles.input}
+                  onBlur={handleBlur}
+                  placeholder="you@company.com"
+                  style={styles.input(!!fieldErrors.email)}
                 />
+                {fieldErrors.email && (
+                  <p style={styles.errorText}>
+                    <AlertCircle size={14} />
+                    <span>{fieldErrors.email}</span>
+                  </p>
+                )}
               </div>
 
+              {/* Subject */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Subject</label>
+                <label style={styles.label}>
+                  Subject <span style={styles.requiredAsterisk}>*</span>
+                </label>
                 <input
+                  ref={subjectInputRef}
                   type="text"
                   name="subject"
                   value={formData.subject}
                   onChange={handleFormChange}
+                  onBlur={handleBlur}
                   placeholder="What is this regarding?"
-                  style={styles.input}
+                  style={styles.input(!!fieldErrors.subject)}
                 />
+                {fieldErrors.subject && (
+                  <p style={styles.errorText}>
+                    <AlertCircle size={14} />
+                    <span>{fieldErrors.subject}</span>
+                  </p>
+                )}
               </div>
 
+              {/* Message */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Message</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={styles.label}>
+                    Message <span style={styles.requiredAsterisk}>*</span>
+                  </label>
+                  <span style={styles.charCounter(formData.message.length < 10 && (submitted || touched.message))}>
+                    {formData.message.length} / 5000 chars (min 10)
+                  </span>
+                </div>
                 <textarea
+                  ref={messageInputRef}
                   name="message"
                   value={formData.message}
                   onChange={handleFormChange}
-                  placeholder="How can we help you?"
+                  onBlur={handleBlur}
+                  placeholder="How can we help you? Please describe your request or question in detail..."
                   rows="4"
-                  style={styles.textarea}
+                  maxLength={5000}
+                  style={styles.textarea(!!fieldErrors.message)}
                 />
+                {fieldErrors.message && (
+                  <p style={styles.errorText}>
+                    <AlertCircle size={14} />
+                    <span>{fieldErrors.message}</span>
+                  </p>
+                )}
               </div>
 
-              <div style={styles.checkboxGroup}>
-                <input
-                  type="checkbox"
-                  id="privacy"
-                  checked={agreeToPolicy}
-                  onChange={(e) => setAgreeToPolicy(e.target.checked)}
-                  style={styles.checkbox}
-                />
-                <label htmlFor="privacy" style={styles.checkboxLabel}>
-                  I agree to with friendly{" "}
-                  <span style={styles.link}>privacy policy</span>
-                </label>
+              {/* Privacy Policy Checkbox */}
+              <div style={styles.checkboxWrapper}>
+                <div style={styles.checkboxGroup}>
+                  <input
+                    type="checkbox"
+                    id="privacy"
+                    checked={agreeToPolicy}
+                    onChange={(e) => {
+                      setAgreeToPolicy(e.target.checked);
+                      if (e.target.checked && fieldErrors.agreeToPolicy) {
+                        setFieldErrors((prev) => ({ ...prev, agreeToPolicy: "" }));
+                      }
+                    }}
+                    style={styles.checkbox}
+                  />
+                  <label htmlFor="privacy" style={styles.checkboxLabel}>
+                    I agree to the{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.link}>
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.link}>
+                      Privacy Policy
+                    </a>.
+                  </label>
+                </div>
+                {fieldErrors.agreeToPolicy && (
+                  <p style={{ ...styles.errorText, marginLeft: '28px', marginTop: '4px' }}>
+                    <AlertCircle size={14} />
+                    <span>{fieldErrors.agreeToPolicy}</span>
+                  </p>
+                )}
               </div>
 
               {/* Animated Button */}
               <button
                 ref={buttonRef}
-                onClick={handleSubmit}
+                type="submit"
                 className="button"
                 style={buttonStyles.button}
                 disabled={isSubmitting}
@@ -299,17 +520,24 @@ function ContactUs() {
                     </svg>
                   </div>
                   <p style={buttonStyles.paragraph}>
-                    <span style={{ '--i': 0 }}>S</span>
-                    <span style={{ '--i': 1 }}>e</span>
-                    <span style={{ '--i': 2 }}>n</span>
-                    <span style={{ '--i': 3 }}>d</span>
-                    <span style={{ '--i': 4 }}>M</span>
-                    <span style={{ '--i': 5 }}>e</span>
-                    <span style={{ '--i': 6 }}>s</span>
-                    <span style={{ '--i': 7 }}>s</span>
-                    <span style={{ '--i': 8 }}>a</span>
-                    <span style={{ '--i': 9 }}>g</span>
-                    <span style={{ '--i': 10 }}>e</span>
+                    {isSubmitting ? (
+                      <span>Sending Message...</span>
+                    ) : (
+                      <>
+                        <span style={{ '--i': 0 }}>S</span>
+                        <span style={{ '--i': 1 }}>e</span>
+                        <span style={{ '--i': 2 }}>n</span>
+                        <span style={{ '--i': 3 }}>d</span>
+                        <span style={{ '--i': 4 }}>&nbsp;</span>
+                        <span style={{ '--i': 5 }}>M</span>
+                        <span style={{ '--i': 6 }}>e</span>
+                        <span style={{ '--i': 7 }}>s</span>
+                        <span style={{ '--i': 8 }}>s</span>
+                        <span style={{ '--i': 9 }}>a</span>
+                        <span style={{ '--i': 10 }}>g</span>
+                        <span style={{ '--i': 11 }}>e</span>
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -348,18 +576,7 @@ function ContactUs() {
                   </p>
                 </div>
               </button>
-
-              {submitStatus && (
-                <div style={{
-                  ...styles.submitStatus,
-                  backgroundColor: submitStatus.includes('✅') ? '#d1fae5' : '#fee2e2',
-                  color: submitStatus.includes('✅') ? '#065f46' : '#991b1b',
-                  border: `1px solid ${submitStatus.includes('✅') ? '#a7f3d0' : '#fecaca'}`
-                }}>
-                  {submitStatus}
-                </div>
-              )}
-            </div>
+            </form>
           </div>
         </div>
       </div>
@@ -651,19 +868,20 @@ function ContactUs() {
   );
 }
 
-// Original styles remain the same
+// Enhanced styles
 const styles = {
   pageContainer: {
     minHeight: '100vh',
-    backgroundColor: '#ffffffff',
-    padding: '40px 20px'
+    backgroundColor: '#f8fafc',
+    padding: '48px 20px',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
   },
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '30px',
+    gridTemplateColumns: '1fr 1.15fr',
+    gap: '36px',
     alignItems: 'start',
   },
   leftSection: {
@@ -675,13 +893,33 @@ const styles = {
     backgroundColor: 'white',
     position: 'relative',
     overflow: 'hidden',
-    minHeight: '400px',
+    borderRadius: '20px',
+    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.07)',
+    border: '1px solid #f1f5f9',
+  },
+  heroBadge: {
+    position: 'absolute',
+    bottom: '16px',
+    left: '16px',
+    right: '16px',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    backdropFilter: 'blur(8px)',
+    padding: '10px 16px',
+    borderRadius: '12px',
+    fontSize: '13px',
+    color: '#334155',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+    border: '1px solid rgba(226, 232, 240, 0.8)',
   },
   contactMethodsCard: {
     backgroundColor: 'white',
     borderRadius: '20px',
     padding: '32px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)',
+    border: '1px solid #f1f5f9',
   },
   contactMethod: {
     display: 'flex',
@@ -692,103 +930,176 @@ const styles = {
   methodIcon: {
     width: '48px',
     height: '48px',
-    borderRadius: '12px',
+    borderRadius: '14px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    border: '1px solid #ccfbf1',
   },
   methodEmoji: {
-    fontSize: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   methodDetails: {
     flex: 1,
   },
   methodTitle: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: '#64748b',
     margin: '0 0 4px 0',
-    letterSpacing: '0.5px',
+    letterSpacing: '0.6px',
+    textTransform: 'uppercase',
+  },
+  contactLink: {
+    fontSize: '14.5px',
+    color: '#0f172a',
+    fontWeight: '600',
+    textDecoration: 'none',
+    transition: 'color 0.15s ease',
   },
   methodText: {
-    fontSize: '14px',
-    color: '#666',
+    fontSize: '13.5px',
+    color: '#64748b',
     margin: 0,
     fontWeight: '500',
   },
+  copyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '3px 8px',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+    fontSize: '11.5px',
+    fontWeight: '500',
+    color: '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  liveIndicator: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    backgroundColor: '#ecfdf5',
+    color: '#047857',
+    fontSize: '11.5px',
+    fontWeight: '600',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    border: '1px solid #a7f3d0',
+  },
+  liveDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    backgroundColor: '#10b981',
+    display: 'inline-block',
+  },
   divider: {
     height: '1px',
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#f1f5f9',
     margin: '16px 0',
   },
   rightSection: {
     position: 'sticky',
-    top: '40px',
+    top: '30px',
   },
   formCard: {
     backgroundColor: 'white',
-    borderRadius: '20px',
+    borderRadius: '24px',
     padding: '40px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    boxShadow: '0 12px 35px -10px rgba(0,0,0,0.06)',
+    border: '1px solid #f1f5f9',
   },
   formHeader: {
-    marginBottom: '32px',
+    marginBottom: '28px',
   },
   formTitle: {
     fontSize: '32px',
     fontWeight: '700',
     color: '#0f766e',
     margin: '0 0 8px 0',
+    letterSpacing: '-0.02em',
   },
   formSubtitle: {
-    fontSize: '15px',
-    color: '#0d948992',
+    fontSize: '14.5px',
+    color: '#64748b',
     margin: 0,
+    lineHeight: '1.5',
   },
   formContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '18px',
   },
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '6px',
   },
   label: {
-    fontSize: '14px',
+    fontSize: '13.5px',
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#334155',
   },
-  input: {
+  requiredAsterisk: {
+    color: '#ef4444',
+    marginLeft: '3px',
+  },
+  input: (hasError) => ({
     width: '100%',
     padding: '12px 16px',
-    fontSize: '15px',
-    border: '1.5px solid #e0e0e0',
+    fontSize: '14.5px',
+    border: hasError ? '1.5px solid #ef4444' : '1.5px solid #e2e8f0',
+    backgroundColor: hasError ? '#fef2f2' : '#ffffff',
     borderRadius: '10px',
     outline: 'none',
     transition: 'all 0.2s',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
-  },
-  textarea: {
+    color: '#0f172a',
+  }),
+  textarea: (hasError) => ({
     width: '100%',
     padding: '12px 16px',
-    fontSize: '15px',
-    border: '1.5px solid #e0e0e0',
+    fontSize: '14.5px',
+    border: hasError ? '1.5px solid #ef4444' : '1.5px solid #e2e8f0',
+    backgroundColor: hasError ? '#fef2f2' : '#ffffff',
     borderRadius: '10px',
     outline: 'none',
     transition: 'all 0.2s',
     fontFamily: 'inherit',
     resize: 'vertical',
     boxSizing: 'border-box',
+    color: '#0f172a',
+  }),
+  charCounter: (isWarning) => ({
+    fontSize: '12px',
+    fontWeight: '500',
+    color: isWarning ? '#ef4444' : '#94a3b8',
+  }),
+  errorText: {
+    color: '#ef4444',
+    fontSize: '12px',
+    fontWeight: '500',
+    marginTop: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  checkboxWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    marginTop: '2px',
   },
   checkboxGroup: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '10px',
-    marginTop: '4px',
   },
   checkbox: {
     width: '18px',
@@ -796,24 +1107,18 @@ const styles = {
     marginTop: '2px',
     cursor: 'pointer',
     accentColor: '#0f766e',
+    flexShrink: 0,
   },
   checkboxLabel: {
-    fontSize: '14px',
-    color: '#666',
-    lineHeight: '1.5',
+    fontSize: '13.5px',
+    color: '#475569',
+    lineHeight: '1.45',
   },
   link: {
-    color: '#3b82f6',
+    color: '#0f766e',
+    fontWeight: '600',
     textDecoration: 'underline',
     cursor: 'pointer',
-  },
-  submitStatus: {
-    marginTop: '16px',
-    padding: '12px 16px',
-    borderRadius: '10px',
-    fontSize: '14px',
-    fontWeight: '500',
-    textAlign: 'center',
   },
 };
 

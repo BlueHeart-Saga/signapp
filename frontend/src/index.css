@@ -4,10 +4,36 @@
 
 :root {
   --brand-color: #0f766e;
+  --font-family-sans: "Inter", "Segoe UI", Arial, sans-serif;
 }
 
-* {
-  font-family: "Inter", "Roboto", sans-serif;
+html,
+body,
+#root {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+/* Base typography hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+b, strong {
+  font-weight: 600;
 }
 
 /* Hide scrollbar utility */
@@ -69,14 +95,14 @@ img[alt*="logo"] {
 }
 
 .esigniva-swal-confirm-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
   font-size: 0.95rem !important;
   padding: 0.65rem 1.6rem !important;
   border-radius: 12px !important;
   border: none !important;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35) !important;
   transition: all 0.2s ease-in-out !important;
   margin: 0.5rem 0.35rem !important;
   cursor: pointer !important;
@@ -84,8 +110,8 @@ img[alt*="logo"] {
 
 .esigniva-swal-confirm-btn:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+  box-shadow: 0 6px 20px rgba(15, 118, 110, 0.45) !important;
+  background: linear-gradient(135deg, #115e59 0%, #0f766e 100%) !important;
 }
 
 .esigniva-swal-cancel-btn {
@@ -125,3 +151,71 @@ img[alt*="logo"] {
   font-weight: 600 !important;
   color: #0f172a !important;
 }
+
+/* Ensure Google Auth button exact same width and length as text box inputs */
+#googleSignInBtn,
+#googleRegisterBtn,
+#googleSignInBtnCompact,
+#googleSignInBtnDiv,
+#googleRegisterBtnDiv,
+#googleSignInBtnDiv > div,
+#googleRegisterBtnDiv > div,
+#googleSignInBtnDiv iframe,
+#googleRegisterBtnDiv iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* ============================================================
+   UNIVERSAL FILENAME TRUNCATION & OVERFLOW PROTECTION
+   ============================================================ */
+
+/* Single-line filename truncation standard */
+.truncate-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Flex/Grid containers containing dynamic text */
+.truncate-container {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Filename display component core class */
+.filename-display {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: bottom;
+}
+
+.filename-display:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Ensure document cards stay inside their grid boundaries */
+.doc-card,
+.zoho-doc-card,
+.dt-document-card,
+.template-card,
+.signapp-stat-card {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Prevent filenames from breaking table cells */
+table td {
+  min-width: 0;
+}
+
+

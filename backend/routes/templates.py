@@ -283,12 +283,19 @@ async def update_template(
 
 # ----- 📥 List All Templates -----
 @router.get("/")
-def list_templates(current_user: dict = Depends(get_current_user)):
+async def list_templates(current_user: dict = Depends(get_current_user)):
     """List all templates created by the logged-in user"""
     try:
-        templates = list(templates_collection.find(
-            {"createdBy": ObjectId(current_user["id"])}
-        ).sort("uploadedAt", -1))
+        user_id = current_user.get("id")
+        user_oid = ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id
+        templates = await templates_collection.find({
+            "$or": [
+                {"createdBy": user_oid},
+                {"createdBy": str(user_id)},
+                {"user_id": user_oid},
+                {"user_id": str(user_id)}
+            ]
+        }).sort("uploadedAt", -1).to_list(1000)
         
         return [serialize_template(t) for t in templates]
     except Exception as e:

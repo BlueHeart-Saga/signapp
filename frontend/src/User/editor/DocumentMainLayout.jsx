@@ -56,6 +56,7 @@ import SuccessDialog from './dialogs/SuccessDialog';
 import RenameDialog from './dialogs/RenameDialog';
 import FinishDialog from './dialogs/FinishDialog';
 import AutoSaveIndicator from './dialogs/AutoSaveIndicator';
+import FilenameDisplay from '../../components/FilenameDisplay';
 
 import { HistoryService } from '../../services/historyService';
 import { AutosaveService } from '../../services/autosaveService';
@@ -108,10 +109,11 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const [pdfPageWidth, setPdfPageWidth] = useState(612);
   const [pdfPageHeight, setPdfPageHeight] = useState(792);
 
-  const handlePdfDetails = useCallback((height, width, ptHeight) => {
+  const handlePdfDetails = useCallback((height, width, ptHeight, pages) => {
     if (height) setCanvasHeight(height);
     if (width) setPdfPageWidth(width);
     if (ptHeight) setPdfPageHeight(ptHeight);
+    if (pages && pages > 0) setNumPages(pages);
   }, []);
 
 
@@ -1200,17 +1202,28 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
             <ArrowBackIcon />
           </IconButton>
 
-          <Box sx={{ flexGrow: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="h6" noWrap>
-                {document.filename || 'Untitled Document'}
-              </Typography>
+          <Box sx={{ flexGrow: 1, minWidth: 0, mr: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, maxWidth: '100%' }}>
+              <Box sx={{ minWidth: 0, maxWidth: { xs: 160, sm: 260, md: 400, lg: 600 } }}>
+                <FilenameDisplay
+                  filename={document.filename || 'Untitled Document'}
+                  tooltipPlacement="bottom-start"
+                  sx={{
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    lineHeight: 1.6,
+                  }}
+                />
+              </Box>
 
               <IconButton
                 size="small"
                 onClick={() => setRenameDialogOpen(true)}
+                title="Rename Document"
                 sx={{
                   ml: 0.5,
+                  flexShrink: 0,
                   color: '#0f766e',
                   '&:hover': {
                     backgroundColor: 'rgba(13, 148, 136, 0.04)'
@@ -1524,6 +1537,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               fields={fields}
               recipients={recipients}
               canvasHeight={canvasHeight}
+              files={document?.files || []}
             />
           </Box>
         )}

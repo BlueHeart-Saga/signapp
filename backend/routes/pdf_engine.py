@@ -2,10 +2,11 @@ import fitz  # PyMuPDF
 import base64
 import json
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageChops
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 import re
+import os
 from bson import ObjectId
 
 
@@ -254,8 +255,199 @@ class PDFEngine:
         return result
     
     @staticmethod
+    def _parse_color_hex(color_val, default=(0, 0, 0)):
+        """Parse hex color or tuple/list to RGB float tuple (0.0 - 1.0)."""
+        if isinstance(color_val, (list, tuple)) and len(color_val) == 3:
+            return tuple(color_val)
+        if isinstance(color_val, str) and color_val.startswith("#"):
+            c = color_val.lstrip("#")
+            if len(c) == 6:
+                try:
+                    return (int(c[0:2], 16) / 255.0, int(c[2:4], 16) / 255.0, int(c[4:6], 16) / 255.0)
+                except Exception:
+                    pass
+        return default
+
+    @staticmethod
+    def _get_signature_font_args(font_family=""):
+        """
+        Map requested font family to either a high-quality TrueType font file or built-in PDF font.
+        PyMuPDF embeds TrueType font subsets into the PDF for crisp vector rendering on all devices.
+        """
+        family = (font_family or "").lower().strip()
+        win_fonts = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts")
+        
+        # Handwriting / Cursive fonts
+        if any(k in family for k in ["script", "dance", "dancing", "pacifico", "vibes", "sacramento", "brush", "alex", "allura", "caveat", "satisfy", "cursive"]):
+            candidates = [
+                os.path.join(win_fonts, "segoesc.ttf"),      # Segoe Script
+                os.path.join(win_fonts, "BRUSHSCI.TTF"),     # Brush Script MT
+                os.path.join(win_fonts, "FREESCPT.TTF"),     # Freestyle Script
+            ]
+            for c in candidates:
+                if os.path.exists(c):
+                    return {"fontfile": c}
+            return {"fontname": "Times-Italic"}
+        
+        # Formal / Serif fonts
+        if any(k in family for k in ["times", "georgia", "serif", "formal"]):
+            times_path = os.path.join(win_fonts, "timesi.ttf")
+            if os.path.exists(times_path):
+                return {"fontfile": times_path}
+            return {"fontname": "Times-Italic"}
+            
+        # Monospace
+        if any(k in family for k in ["courier", "mono"]):
+            cour_path = os.path.join(win_fonts, "couri.ttf")
+            if os.path.exists(cour_path):
+                return {"fontfile": cour_path}
+            return {"fontname": "Courier-Oblique"}
+            
+        # Modern / Sans fonts (Arial, Roboto, Calibri, Verdana, etc.)
+        if any(k in family for k in ["arial", "roboto", "calibri", "verdana", "sans"]):
+            arial_path = os.path.join(win_fonts, "ariali.ttf")
+            if os.path.exists(arial_path):
+                return {"fontfile": arial_path}
+            return {"fontname": "Helvetica-Oblique"}
+            
+        # Default handwriting fallback: Segoe Script if available, else Times-Italic
+        segoe_path = os.path.join(win_fonts, "segoesc.ttf")
+        if os.path.exists(segoe_path):
+            return {"fontfile": segoe_path}
+        brush_path = os.path.join(win_fonts, "BRUSHSCI.TTF")
+        if os.path.exists(brush_path):
+            return {"fontfile": brush_path}
+        return {"fontname": "Times-Italic"}
+
+    @staticmethod
+    def _render_vector_signature_text(page, rect, text: str, font_family: str = "", font_color=(0, 0, 0)):
+        """
+        Renders native vector text into the given bounding box with crisp, infinite-resolution glyphs.
+        Auto-scales font size to fit within bounds and centers horizontally/vertically.
+        """
+        if not text:
+            return
+            
+        font_args = PDFEngine._get_signature_font_args(font_family)
+        font_file = font_args.get("fontfile")
+        font_name = font_args.get("fontname")
+        
+        fitz_font = None
+        if font_file and os.path.exists(font_file):
+            try:
+                fitz_font = fitz.Font(fontfile=font_file)
+            except Exception:
+                font_file = None
+                font_name = "Times-Italic"
+                
+        def measure(txt, sz):
+            if fitz_font:
+                try:
+                    return fitz_font.text_length(txt, fontsize=sz)
+                except Exception:
+                    pass
+            try:
+                return fitz.get_text_length(txt, fontname=font_name or "Times-Italic", fontsize=sz)
+            except Exception:
+                return len(txt) * sz * 0.55
+
+        pad_x = 6.0
+        max_w = max(10.0, rect.width - (pad_x * 2))
+        fontsize = min(30.0, rect.height * 0.72)
+        min_size = 7.0
+        
+        while fontsize > min_size:
+            w = measure(text, fontsize)
+            if w <= max_w:
+                break
+            fontsize -= 0.5
+            
+        if fontsize < min_size:
+            fontsize = min_size
+            
+        tw = measure(text, fontsize)
+        if tw > max_w:
+            # Expand rect to the right so signature text is never cut off
+            new_w = tw + (pad_x * 2)
+            rect = fitz.Rect(rect.x0, rect.y0, rect.x0 + new_w, rect.y1)
+            
+        start_x = rect.x0 + max(pad_x, (rect.width - tw) / 2.0)
+        # Baseline positioning: center of box + ~33% of font size
+        base_y = rect.y0 + (rect.height / 2.0) + (fontsize * 0.33)
+        
+        kw = {"fontfile": font_file} if (font_file and fitz_font) else {"fontname": font_name or "Times-Italic"}
+        try:
+            page.insert_text(
+                fitz.Point(start_x, base_y),
+                text,
+                fontsize=fontsize,
+                color=font_color,
+                overlay=True,
+                **kw
+            )
+        except Exception as e:
+            print(f"Error inserting vector signature text: {e}")
+            page.insert_textbox(
+                rect,
+                text,
+                fontsize=fontsize,
+                fontname="Helvetica",
+                color=font_color,
+                align=1,
+                overlay=True
+            )
+
+    @staticmethod
+    def _crop_and_optimize_signature_image(image_bytes: bytes, max_dim: int = 2400) -> bytes:
+        """
+        Auto-trims empty margins from signature images and preserves high resolution.
+        Avoids downscaling to 72 DPI, preserving crisp vector-like stroke fidelity.
+        """
+        try:
+            img = Image.open(BytesIO(image_bytes))
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
+            
+            alpha = img.split()[-1]
+            min_a, max_a = alpha.getextrema()
+            
+            bbox = None
+            if min_a < 250:
+                # Transparent canvas image (draw or transparent PNG)
+                bbox = alpha.getbbox()
+            else:
+                # Opaque image (e.g. JPG with white background)
+                bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+                diff = ImageChops.difference(img, bg).convert("L")
+                diff_thresh = diff.point(lambda p: 255 if p > 25 else 0)
+                bbox = diff_thresh.getbbox()
+                
+            if bbox:
+                # Add a subtle safety margin (3-4%) around the bounding box
+                pad_x = max(4, int((bbox[2] - bbox[0]) * 0.04))
+                pad_y = max(4, int((bbox[3] - bbox[1]) * 0.04))
+                crop_box = (
+                    max(0, bbox[0] - pad_x),
+                    max(0, bbox[1] - pad_y),
+                    min(img.width, bbox[2] + pad_x),
+                    min(img.height, bbox[3] + pad_y)
+                )
+                img = img.crop(crop_box)
+                
+            # Cap maximum dimension only if exceptionally large (e.g. camera photo)
+            if img.width > max_dim or img.height > max_dim:
+                img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+                
+            buf = BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            return buf.getvalue()
+        except Exception as e:
+            print(f"Error optimizing signature image: {e}")
+            return image_bytes
+
+    @staticmethod
     def _apply_signature_field(page, rect, value, field):
-        """Apply signature - supports image overlays and native text signatures."""
+        """Apply signature - supports native vector text and high-definition cropped image overlays."""
         is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
         # Normalize nested value if present
@@ -265,95 +457,47 @@ class PDFEngine:
             if isinstance(inner, dict):
                 actual_val = inner
         
-        # Check if it's a typed signature
-        is_typed = False
+        # Extract fields
+        sig_type = ""
         text_content = ""
-        font_family = "Times-Italic"
+        font_family = "Dancing Script"
         font_color = (0, 0, 0)
+        image_data = None
         
         if isinstance(actual_val, dict):
-            if actual_val.get("signature_type") == "type" or (actual_val.get("text") and actual_val.get("image")):
-                is_typed = True
-                text_content = actual_val.get("text")
-                
-                custom_font = actual_val.get("font_family")
-                if custom_font:
-                    font_family = custom_font
-                
-                color_hex = actual_val.get("font_color")
-                if color_hex and color_hex.startswith("#"):
-                    try:
-                        c = color_hex.lstrip("#")
-                        if len(c) == 6:
-                            font_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
-                    except:
-                        pass
-        elif isinstance(actual_val, str) and not actual_val.startswith("data:image"):
-            is_typed = True
-            text_content = actual_val
+            sig_type = actual_val.get("signature_type", "")
+            text_content = actual_val.get("text", "")
+            font_family = actual_val.get("font_family") or "Dancing Script"
+            font_color = PDFEngine._parse_color_hex(actual_val.get("font_color"), (0, 0, 0))
             
-        # Draw native vector text signature if typed
-        if is_typed and text_content:
-            fontsize = min(24, rect.height * 0.75)
-            fontname = "Times-Italic"  # Standard PDF cursive-slanted vector font
-            
-            # Padding for width boundaries
-            pad_x = 6
-            max_width = rect.width - pad_x * 2
-            
-            # If the text at a readable minimum font size (10.0) is wider than max_width,
-            # dynamically expand the box to the right to fit the full text without clipping.
-            min_readable_size = 10.0
-            try:
-                required_width = fitz.get_text_length(text_content, fontname=fontname, fontsize=min_readable_size)
-            except:
-                required_width = len(text_content) * min_readable_size * 0.5
-                
-            if required_width > max_width:
-                # Expand rect to the right
-                new_width = required_width + pad_x * 2
-                rect = fitz.Rect(rect.x0, rect.y0, rect.x0 + new_width, rect.y1)
-                max_width = required_width
-            
-            # Auto-scale font size until single line fits
-            while fontsize > min_readable_size:
-                try:
-                    w = fitz.get_text_length(text_content, fontname=fontname, fontsize=fontsize)
-                except:
-                    w = len(text_content) * fontsize * 0.5
-                
-                if w <= max_width:
-                    break
-                fontsize -= 0.5
-                
-            if fontsize < min_readable_size:
-                fontsize = min_readable_size
-            
-            # Center vertically
-            vertical_padding = (rect.height - fontsize) / 2
-            sig_rect = rect
-            if vertical_padding > 0:
-                sig_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+            if "image" in actual_val:
+                image_data = PDFEngine.decode_base64_image(actual_val["image"])
+            elif "data" in actual_val and actual_val.get("type") == "image":
+                image_data = PDFEngine.decode_base64_image(actual_val["data"])
+        elif isinstance(actual_val, str):
+            if actual_val.startswith("data:image"):
+                image_data = PDFEngine.decode_base64_image(actual_val)
+            else:
+                sig_type = "type"
+                text_content = actual_val
 
-            page.insert_textbox(
-                sig_rect,
-                text_content,
-                fontsize=fontsize,
-                fontname=fontname,
-                color=font_color,
-                align=1,  # Centered
-                overlay=True
+        # Check if typed signature
+        is_typed = (sig_type == "type") or (bool(text_content) and not image_data)
+        
+        # 1. Native vector text signature
+        if is_typed and text_content and str(text_content).strip():
+            PDFEngine._render_vector_signature_text(
+                page, rect, str(text_content).strip(), font_family=font_family, font_color=font_color
             )
             return
 
-        # If no value and field is not completed, show placeholder
+        # 2. Incomplete placeholder
         if not actual_val and not is_completed:
-            # Show placeholder for empty signature field
             page.draw_rect(
                 rect,
-                color=(0.8, 0, 0),  # Red border for signature placeholder
+                color=(0.8, 0, 0),
                 width=1,
-                dashes=[3, 3],  # Dashed border
+                dashes=[3, 3],
                 overlay=True
             )
             
@@ -374,29 +518,17 @@ class PDFEngine:
             )
             return
             
-        # Otherwise, handle image-based signature (draw or upload)
-        image_data = None
-        if isinstance(actual_val, dict):
-            if "image" in actual_val:
-                image_data = PDFEngine.decode_base64_image(actual_val["image"])
-            elif "data" in actual_val and actual_val.get("type") == "image":
-                image_data = PDFEngine.decode_base64_image(actual_val["data"])
-        elif isinstance(actual_val, str):
-            image_data = PDFEngine.decode_base64_image(actual_val)
-            
+        # 3. Image-based signature (draw or upload) - high-res with auto-crop
         if image_data:
             try:
-                img = Image.open(BytesIO(image_data)).convert("RGBA")
-                img = img.resize((int(rect.width), int(rect.height)), Image.Resampling.LANCZOS)
-                
-                buf = BytesIO()
-                img.save(buf, format="PNG")
+                opt_png = PDFEngine._crop_and_optimize_signature_image(image_data)
                 page.insert_image(
                     rect,
-                    stream=buf.getvalue(),
-                    keep_proportion=False,
+                    stream=opt_png,
+                    keep_proportion=True,
                     overlay=True
                 )
+                return
             except Exception as e:
                 print(f"Error inserting signature image: {e}")
                 page.insert_textbox(
@@ -408,117 +540,120 @@ class PDFEngine:
                     align=1,
                     overlay=True
                 )
+                return
         elif actual_val:
-            page.insert_textbox(
-                rect,
-                str(actual_val)[:20],
-                fontsize=min(12, rect.height * 0.6),
-                fontname="Helvetica",
-                color=(0, 0.5, 0),
-                align=1,
-                overlay=True
-            )
-    
+            val_str = str(actual_val)
+            if val_str and not val_str.startswith("data:image"):
+                PDFEngine._render_vector_signature_text(
+                    page, rect, val_str, font_family=font_family, font_color=font_color
+                )
+            else:
+                page.insert_textbox(
+                    rect,
+                    "✓ Signed",
+                    fontsize=min(12, rect.height * 0.6),
+                    fontname="Helvetica",
+                    color=(0, 0.5, 0),
+                    align=1,
+                    overlay=True
+                )
+            return
+
     @staticmethod
     def _apply_initials_field(page, rect, value, field):
-        """Apply initials (image preferred, fallback to text) with proper sizing."""
-        is_completed = field.get("_render_completed", False)
+        """Apply initials (supports typed vector text and high-definition cropped image overlays)."""
+        is_completed = field.get("_render_completed", False) or field.get("is_completed", False)
         
         # Extract value based on format
+        actual_val = value if value is not None else field.get("value")
         image_data = None
         text_value = None
+        sig_type = ""
+        font_family = "Dancing Script"
+        font_color = (0, 0, 0)
         
-        if isinstance(value, dict):
-            # Handle dict format
-            if "image" in value:
-                image_data = PDFEngine.decode_base64_image(value.get("image"))
-            if "text" in value:
-                text_value = value.get("text")
-            elif "value" in value:
-                val = value.get("value")
-                # Check for image data in value key
-                if isinstance(val, str) and val.startswith("data:image"):
-                    image_data = PDFEngine.decode_base64_image(val)
-                elif isinstance(val, dict):
-                    if "image" in val:
-                        image_data = PDFEngine.decode_base64_image(val.get("image"))
-                    if "text" in val:
-                        text_value = val.get("text")
-                    elif "value" in val:
-                        text_value = str(val.get("value"))
+        if isinstance(actual_val, dict):
+            sig_type = actual_val.get("signature_type") or actual_val.get("type", "")
+            font_family = actual_val.get("font_family") or "Dancing Script"
+            font_color = PDFEngine._parse_color_hex(actual_val.get("font_color"), (0, 0, 0))
+            
+            # Check all possible image locations
+            raw_img = actual_val.get("image") or actual_val.get("data")
+            if not raw_img and isinstance(actual_val.get("value"), dict):
+                raw_img = actual_val["value"].get("image") or actual_val["value"].get("data")
+            elif not raw_img and isinstance(actual_val.get("value"), str) and str(actual_val.get("value")).startswith("data:image"):
+                raw_img = actual_val["value"]
+                
+            if raw_img and isinstance(raw_img, str) and raw_img.startswith("data:image"):
+                image_data = PDFEngine.decode_base64_image(raw_img)
+                
+            # Check all possible text locations
+            if actual_val.get("text"):
+                text_value = str(actual_val.get("text"))
+            elif actual_val.get("value") and not isinstance(actual_val.get("value"), dict):
+                val_s = str(actual_val.get("value"))
+                if not val_s.startswith("data:image"):
+                    text_value = val_s
+            elif isinstance(actual_val.get("value"), dict):
+                sub_val = actual_val["value"].get("text") or actual_val["value"].get("value")
+                if sub_val and not str(sub_val).startswith("data:image"):
+                    text_value = str(sub_val)
+                    
+        elif isinstance(actual_val, str):
+            if actual_val.startswith("data:image"):
+                image_data = PDFEngine.decode_base64_image(actual_val)
+            else:
+                sig_type = "type"
+                text_value = actual_val
+
+        # If not found yet, check field dict directly
+        if not image_data and not text_value and field:
+            raw_field_val = field.get("value")
+            if isinstance(raw_field_val, dict):
+                raw_img = raw_field_val.get("image") or raw_field_val.get("data")
+                if raw_img and isinstance(raw_img, str) and raw_img.startswith("data:image"):
+                    image_data = PDFEngine.decode_base64_image(raw_img)
+                sub_t = raw_field_val.get("text") or raw_field_val.get("value")
+                if sub_t and not str(sub_t).startswith("data:image"):
+                    text_value = str(sub_t)
+            elif isinstance(raw_field_val, str):
+                if raw_field_val.startswith("data:image"):
+                    image_data = PDFEngine.decode_base64_image(raw_field_val)
                 else:
-                    text_value = str(val)
-        elif isinstance(value, str):
-            if value.startswith("data:image"):
-                image_data = PDFEngine.decode_base64_image(value)
-            else:
-                text_value = value
-        
-        # COMPLETED FIELD - Always show something
-        if is_completed:
-            if image_data:
-                try:
-                    img = Image.open(BytesIO(image_data)).convert("RGBA")
-                    # Resize to fit
-                    img_width, img_height = img.size
-                    field_width = int(rect.width)
-                    field_height = int(rect.height)
-                    
-                    scale_w = field_width / img_width
-                    scale_h = field_height / img_height
-                    scale = min(scale_w, scale_h)
-                    
-                    new_width = int(img_width * scale)
-                    new_height = int(img_height * scale)
-                    
-                    # Center image
-                    x_offset = (field_width - new_width) // 2
-                    y_offset = (field_height - new_height) // 2
-                    
-                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    result_img = Image.new("RGBA", (field_width, field_height), (255, 255, 255, 0))
-                    result_img.paste(img, (x_offset, y_offset), img if img.mode == 'RGBA' else None)
-                    
-                    buf = BytesIO()
-                    result_img.save(buf, format="PNG")
-                    page.insert_image(rect, stream=buf.getvalue(), keep_proportion=False, overlay=True)
-                    return
-                except Exception as e:
-                    print("Initials image error:", e)
-                    # Fall through to text
-            
-            # TEXT FALLBACK
-            if text_value:
-                initials = str(text_value).upper()[:3]
-            else:
-                initials = "XX"  # Default placeholder
-            
-            # Extract color if available
-            text_color = (0, 0, 0)
-            font_color = value.get("font_color") if isinstance(value, dict) else None
-            if font_color and isinstance(font_color, str):
-                try:
-                    c = font_color.lstrip("#")
-                    if len(c) == 6:
-                        text_color = (int(c[0:2], 16)/255, int(c[2:4], 16)/255, int(c[4:6], 16)/255)
-                except:
-                    pass
+                    text_value = raw_field_val
 
-            font_size = min(16, rect.height * 0.7)
-            vertical_padding = (rect.height - font_size) / 2
-            text_rect = rect
-            if vertical_padding > 0:
-                text_rect = fitz.Rect(rect.x0, rect.y0 + vertical_padding, rect.x1, rect.y1)
+        # 1. Image initials (drawn or uploaded): auto-trim & high-res insertion
+        if image_data:
+            try:
+                opt_png = PDFEngine._crop_and_optimize_signature_image(image_data)
+                page.insert_image(
+                    rect,
+                    stream=opt_png,
+                    keep_proportion=True,
+                    overlay=True
+                )
+                return
+            except Exception as e:
+                print("Initials image error:", e)
 
-            page.insert_textbox(
-                text_rect,
-                initials,
-                fontsize=font_size,
-                fontname="Helvetica-Bold",
-                color=text_color,
-                align=1,  # Center
-                overlay=True
+        # 2. Typed initials: render as crisp native vector text
+        if text_value and str(text_value).strip() and not str(text_value).startswith("data:image"):
+            initials = str(text_value).strip().upper()[:4]
+            PDFEngine._render_vector_signature_text(
+                page, rect, initials, font_family=font_family, font_color=font_color
             )
+            return
+
+        # 3. Completed field fallback: derive from recipient name if available, otherwise cleanly return (never render 'XX')
+        if is_completed:
+            fallback_name = field.get("recipient_name") or field.get("signer_name") or field.get("name")
+            if fallback_name and str(fallback_name).strip():
+                parts = str(fallback_name).strip().split()
+                initials = "".join([p[0].upper() for p in parts if p])[:4]
+                if initials:
+                    PDFEngine._render_vector_signature_text(
+                        page, rect, initials, font_family=font_family, font_color=font_color
+                    )
             return
         
         # INCOMPLETE FIELD
@@ -630,13 +765,25 @@ class PDFEngine:
                     pass
 
         font_size = custom_font_size or field.get("font_size", 12)
-        max_font = min(font_size, rect.height * 0.8)
+        target_font = min(font_size, rect.height * 0.8)
+        current_font = custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica"
         
-        # Auto-shrink font to fit
+        # 🔥 Auto-expand rect width if word count / text length increases, up to right page margin
+        try:
+            needed_text_width = fitz.get_text_length(str(display_text), fontname=current_font, fontsize=target_font)
+            if needed_text_width > (rect.width - 6):
+                max_allowed_x1 = page.rect.width - 15
+                new_x1 = min(max_allowed_x1, rect.x0 + needed_text_width + 10)
+                if new_x1 > rect.x1:
+                    rect = fitz.Rect(rect.x0, rect.y0, new_x1, rect.y1)
+        except Exception:
+            pass
+
+        max_font = target_font
+        # Auto-shrink font only if it still doesn't fit within the expanded rect / page bounds
         while max_font > 6:
             try:
-                current_font = custom_font_family if custom_font_family in ["Helvetica", "Times-Roman", "Courier"] else "Helvetica"
-                text_width = fitz.get_text_length(display_text, fontname=current_font, fontsize=max_font)
+                text_width = fitz.get_text_length(str(display_text), fontname=current_font, fontsize=max_font)
                 if text_width <= (rect.width - 6):
                     break
                 max_font -= 0.5
@@ -1540,8 +1687,13 @@ class PDFEngine:
         
         for sig in signatures:
             try:
-                image_data = PDFEngine.decode_base64_image(sig.get("image", ""))
-                if not image_data:
+                sig_type = sig.get("signature_type", "")
+                text_content = sig.get("text", "")
+                image_str = sig.get("image", "")
+                is_sig_typed = (sig_type == "type") or (bool(text_content) and not image_str)
+                image_data = PDFEngine.decode_base64_image(image_str) if image_str else None
+                
+                if not is_sig_typed and not image_data:
                     continue
 
                 # 🔧 FIND FIELD FIRST
@@ -1591,18 +1743,20 @@ class PDFEngine:
                     coords["y"] + coords["height"]
                 )
 
-                img = Image.open(BytesIO(image_data)).convert("RGBA")
-                img = img.resize((int(rect.width), int(rect.height)), Image.Resampling.LANCZOS)
-
-                buf = BytesIO()
-                img.save(buf, format="PNG")
-
-                page.insert_image(
-                    rect,
-                    stream=buf.getvalue(),
-                    keep_proportion=False,
-                    overlay=True
-                )
+                if is_sig_typed and text_content and str(text_content).strip():
+                    font_family = sig.get("font_family") or "Dancing Script"
+                    font_color = PDFEngine._parse_color_hex(sig.get("font_color"), (0, 0, 0))
+                    PDFEngine._render_vector_signature_text(
+                        page, rect, str(text_content).strip(), font_family=font_family, font_color=font_color
+                    )
+                elif image_data:
+                    opt_png = PDFEngine._crop_and_optimize_signature_image(image_data)
+                    page.insert_image(
+                        rect,
+                        stream=opt_png,
+                        keep_proportion=True,
+                        overlay=True
+                    )
 
             except Exception as e:
                 print(f"Error applying signature: {e}")
@@ -1780,18 +1934,21 @@ class PDFEngine:
         recipients_by_email = {}
         
         if doc_ids and use_recipient_colors:
-            from database import db  # Import your database
-            doc_ids_list = [ObjectId(doc_id) if isinstance(doc_id, str) else doc_id for doc_id in doc_ids]
-            
-            all_recipients = list(db.recipients.find({
-                "document_id": {"$in": doc_ids_list}
-            }))
-            
-            for rec in all_recipients:
-                rec_id = str(rec["_id"])
-                recipients_by_id[rec_id] = rec
-                if rec.get("email"):
-                    recipients_by_email[rec["email"]] = rec
+            try:
+                from database import db  # Import your database
+                doc_ids_list = [ObjectId(doc_id) if isinstance(doc_id, str) else doc_id for doc_id in doc_ids]
+                
+                # Check if cursor is iterable or async
+                cursor = db.recipients.find({"document_id": {"$in": doc_ids_list}})
+                if hasattr(cursor, "__iter__"):
+                    all_recipients = list(cursor)
+                    for rec in all_recipients:
+                        rec_id = str(rec["_id"])
+                        recipients_by_id[rec_id] = rec
+                        if rec.get("email"):
+                            recipients_by_email[rec["email"]] = rec
+            except Exception:
+                pass
         
         for field in fields:
             try:
@@ -2238,25 +2395,24 @@ class PDFEngine:
         """
         result = pdf_bytes
         
-        # Apply envelope header if envelope_id is provided
+        # Apply clean minimal envelope header if envelope_id is provided
         if envelope_id:
-            result = PDFEngine.apply_envelope_header(
+            result = PDFEngine.apply_minimal_envelope_header(
                 result,
                 envelope_id=envelope_id,
-                document_name=document_name,
-                status=status,
-                sender=sender,
-                created_date=created_date,
-                color="#1a73e8"
+                color="#000000"
             )
         
-        # Apply all fields (including signatures if they're in fields list)
+        # Apply all fields (including signatures and initials if they're in fields list)
         if fields:
             result = PDFEngine.apply_all_fields(result, fields)
         
-        # Apply additional signatures
+        # Apply additional signatures only if not already applied in fields
         if signatures:
-            result = PDFEngine.apply_signatures_with_field_positions(result, signatures, fields)
+            applied_ids = {str(f.get("id", f.get("_id", ""))) for f in fields} if fields else set()
+            extra_sigs = [s for s in signatures if str(s.get("field_id", "")) not in applied_ids]
+            if extra_sigs:
+                result = PDFEngine.apply_signatures_with_field_positions(result, extra_sigs, fields)
         
         # Apply watermark
         if watermark_text:
@@ -2282,280 +2438,18 @@ class PDFEngine:
         sender: str = None,
         created_date: str = None,
         expires_date: str = None,
-        color: str = "#0d9488"  # Teal color
+        color: str = "#000000"
     ) -> bytes:
         """
-        Add Docusign-like envelope header at top of first page.
-        Includes envelope ID, document info, and status.
+        Clean envelope header. Delegates to apply_minimal_envelope_header
+        to maintain clean black envelope ID on each page and avoid unwanted
+        blue banners, sender profiles, QR boxes, left arrow graphics, or page shifts.
         """
-        pdf = PDFEngine.open_pdf(pdf_bytes)
-        
-        if len(pdf) == 0:
-            return pdf_bytes
-        
-        # Parse color
-        try:
-            color = color.lstrip("#")
-            r = int(color[0:2], 16) / 255
-            g = int(color[2:4], 16) / 255
-            b = int(color[4:6], 16) / 255
-        except:
-            r, g, b = 0.05, 0.58, 0.53  # #0d9488 teal default
-        
-        for page_num, page in enumerate(pdf):
-            rect = page.rect
-            
-            # Only add to first page, or add lighter version to subsequent pages
-            if page_num == 0:
-                # Full header for first page
-                header_height = 80
-                
-                # Add separator line only (no background)
-                page.draw_line(
-                    fitz.Point(rect.x0, rect.y0 + header_height),
-                    fitz.Point(rect.x1, rect.y0 + header_height),
-                    color=(r * 0.7, g * 0.7, b * 0.7),
-                    width=1,
-                    overlay=True
-                )
-                
-                # Logo/Icon area (left)
-                logo_rect = fitz.Rect(
-                    rect.x0 + 20,
-                    rect.y0 + 15,
-                    rect.x0 + 70,
-                    rect.y0 + header_height - 15
-                )
-                
-                # Draw envelope icon with text color
-                page.draw_rect(
-                    logo_rect,
-                    color=(r, g, b),
-                    width=1,
-                    fill=None,
-                    overlay=True
-                )
-                
-                # Envelope icon (simplified)
-                env_center_x = logo_rect.x0 + logo_rect.width / 2
-                env_center_y = logo_rect.y0 + logo_rect.height / 2
-                env_size = min(logo_rect.width, logo_rect.height) * 0.4
-                
-                # Envelope shape
-                page.draw_polyline(
-                    [
-                        fitz.Point(env_center_x - env_size, env_center_y - env_size * 0.5),
-                        fitz.Point(env_center_x, env_center_y + env_size * 0.5),
-                        fitz.Point(env_center_x + env_size, env_center_y - env_size * 0.5),
-                        fitz.Point(env_center_x - env_size, env_center_y - env_size * 0.5),
-                    ],
-                    color=(r, g, b),
-                    width=2,
-                    closePath=True,
-                    overlay=True
-                )
-                
-                # Document info area (center)
-                info_rect = fitz.Rect(
-                    logo_rect.x1 + 20,
-                    rect.y0 + 15,
-                    rect.x1 - 250,
-                    rect.y0 + header_height - 15
-                )
-                
-                # Envelope ID - large and prominent
-                env_id_text = f"ENVELOPE ID: {envelope_id}"
-                page.insert_textbox(
-                    fitz.Rect(info_rect.x0, info_rect.y0, info_rect.x1, info_rect.y0 + 24),
-                    env_id_text,
-                    fontsize=16,
-                    fontname="Helvetica-Bold",
-                    color=(r, g, b),
-                    align=0,
-                    overlay=True
-                )
-                
-                # Document name
-                if document_name:
-                    doc_name = f"Document: {document_name[:40]}{'...' if len(document_name) > 40 else ''}"
-                    page.insert_textbox(
-                        fitz.Rect(info_rect.x0, info_rect.y0 + 26, info_rect.x1, info_rect.y0 + 42),
-                        doc_name,
-                        fontsize=10,
-                        fontname="Helvetica",
-                        color=(0.2, 0.2, 0.2),  # Dark gray for readability
-                        align=0,
-                        overlay=True
-                    )
-                
-                # Status and dates
-                status_text = ""
-                if status:
-                    status_text = f"Status: {status.upper()}"
-                if created_date:
-                    status_text += f" | Created: {created_date}"
-                if status_text:
-                    page.insert_textbox(
-                        fitz.Rect(info_rect.x0, info_rect.y0 + 44, info_rect.x1, info_rect.y0 + 58),
-                        status_text,
-                        fontsize=9,
-                        fontname="Helvetica-Oblique",
-                        color=(0.4, 0.4, 0.4),  # Medium gray
-                        align=0,
-                        overlay=True
-                    )
-                
-                # Sender info (right side)
-                sender_rect = fitz.Rect(
-                    rect.x1 - 220,
-                    rect.y0 + 15,
-                    rect.x1 - 20,
-                    rect.y0 + header_height - 15
-                )
-                
-                if sender:
-                    page.insert_textbox(
-                        fitz.Rect(sender_rect.x0, sender_rect.y0, sender_rect.x1, sender_rect.y0 + 20),
-                        f"From: {sender}",
-                        fontsize=10,
-                        fontname="Helvetica",
-                        color=(0.2, 0.2, 0.2),  # Dark gray
-                        align=2,
-                        overlay=True
-                    )
-                
-                # Expiry info
-                if expires_date:
-                    page.insert_textbox(
-                        fitz.Rect(sender_rect.x0, sender_rect.y0 + 24, sender_rect.x1, sender_rect.y0 + 38),
-                        f"Expires: {expires_date}",
-                        fontsize=9,
-                        fontname="Helvetica-Oblique",
-                        color=(0.4, 0.4, 0.4),  # Medium gray
-                        align=2,
-                        overlay=True
-                    )
-                
-                # Add QR code area for envelope ID (optional)
-                qr_rect = fitz.Rect(
-                    rect.x1 - 70,
-                    rect.y0 + 15,
-                    rect.x1 - 20,
-                    rect.y0 + 65
-                )
-                
-                page.draw_rect(
-                    qr_rect,
-                    color=(r, g, b),
-                    width=1,
-                    fill=None,
-                    overlay=True
-                )
-                
-                # Add "SCAN ME" text in teal color
-                page.insert_textbox(
-                    qr_rect,
-                    "SCAN\nME",
-                    fontsize=8,
-                    fontname="Helvetica-Bold",
-                    color=(r, g, b),
-                    align=1,
-                    overlay=True
-                )
-                
-                # Shift all existing content down by header height
-                try:
-                    # Get existing content
-                    page.wrap_contents()
-                    
-                    # Create a translation matrix to move content down
-                    mat = fitz.Matrix(1, 0, 0, 1, 0, header_height)
-                    page.set_rotation(0)
-                    
-                    # Get mediabox and cropbox
-                    mediabox = page.mediabox
-                    cropbox = page.cropbox
-                    
-                    # Adjust boxes to accommodate header
-                    new_mediabox = fitz.Rect(
-                        mediabox.x0,
-                        mediabox.y0 + header_height,
-                        mediabox.x1,
-                        mediabox.y1 + header_height
-                    )
-                    
-                    new_cropbox = fitz.Rect(
-                        cropbox.x0,
-                        cropbox.y0 + header_height,
-                        cropbox.x1,
-                        cropbox.y1 + header_height
-                    )
-                    
-                    page.set_mediabox(new_mediabox)
-                    page.set_cropbox(new_cropbox)
-                    
-                except Exception as e:
-                    print(f"Warning: Could not shift content: {e}")
-                    # Fallback: just add header without shifting content
-                    # (content might be overlapped)
-            
-            else:
-                # For subsequent pages, add a minimal header
-                mini_header_height = 30
-                
-                # Add separator line only
-                page.draw_line(
-                    fitz.Point(rect.x0, rect.y0 + mini_header_height),
-                    fitz.Point(rect.x1, rect.y0 + mini_header_height),
-                    color=(r * 0.5, g * 0.5, b * 0.5),
-                    width=0.5,
-                    overlay=True
-                )
-                
-                # Add envelope ID continuation
-                continuation_text = f"Envelope ID: {envelope_id} - Page {page_num + 1} of {len(pdf)}"
-                page.insert_textbox(
-                    fitz.Rect(rect.x0 + 20, rect.y0 + 5, rect.x1 - 20, rect.y0 + 25),
-                    continuation_text,
-                    fontsize=9,
-                    fontname="Helvetica",
-                    color=(r, g, b),  # Teal color
-                    align=0,
-                    overlay=True
-                )
-                
-                # Shift content for subsequent pages too
-                try:
-                    page.wrap_contents()
-                    mat = fitz.Matrix(1, 0, 0, 1, 0, mini_header_height)
-                    page.set_rotation(0)
-                    
-                    mediabox = page.mediabox
-                    cropbox = page.cropbox
-                    
-                    new_mediabox = fitz.Rect(
-                        mediabox.x0,
-                        mediabox.y0 + mini_header_height,
-                        mediabox.x1,
-                        mediabox.y1 + mini_header_height
-                    )
-                    
-                    new_cropbox = fitz.Rect(
-                        cropbox.x0,
-                        cropbox.y0 + mini_header_height,
-                        cropbox.x1,
-                        cropbox.y1 + mini_header_height
-                    )
-                    
-                    page.set_mediabox(new_mediabox)
-                    page.set_cropbox(new_cropbox)
-                    
-                except Exception as e:
-                    print(f"Warning: Could not shift content on page {page_num}: {e}")
-        
-        result = pdf.tobytes(clean=True)
-        pdf.close()
-        return result
+        return PDFEngine.apply_minimal_envelope_header(
+            pdf_bytes,
+            envelope_id=envelope_id,
+            color="#000000"
+        )
 
     @staticmethod
     def apply_minimal_envelope_header(
@@ -2564,38 +2458,46 @@ class PDFEngine:
         color: str = "#000000"
     ) -> bytes:
         """
-        Minimal envelope header (just ID and page numbers).
-        Less intrusive, doesn't shift content.
+        Minimal envelope header (clean black ID on top of each page).
+        Less intrusive, preserves exact page dimensions without shifting content.
         """
+        if not envelope_id:
+            return pdf_bytes
+
         try:
             pdf = PDFEngine.open_pdf(pdf_bytes)
             
-            #  SAFETY CHECK: Ensure it's a valid PDF with pages
+            # Safety check: Ensure it's a valid PDF with pages
             if not pdf or not hasattr(pdf, "is_pdf") or not pdf.is_pdf or len(pdf) == 0:
-                if pdf: pdf.close()
+                if pdf:
+                    pdf.close()
                 return pdf_bytes
         except Exception as e:
             print(f"Skipping envelope header: {e}")
             return pdf_bytes
         
-        # Parse color
+        # Parse color (defaults to black)
         try:
-            color = color.lstrip("#")
-            r = int(color[0:2], 16) / 255
-            g = int(color[2:4], 16) / 255
-            b = int(color[4:6], 16) / 255
-        except:
-            r, g, b = 0.05, 0.58, 0.53  # #0d9488 teal
+            color_str = str(color).lstrip("#")
+            r = int(color_str[0:2], 16) / 255
+            g = int(color_str[2:4], 16) / 255
+            b = int(color_str[4:6], 16) / 255
+        except Exception:
+            r, g, b = 0.0, 0.0, 0.0  # Black default
         
+        env_upper = str(envelope_id).upper().strip()
+        id_text = f"ESIGNIVA ID : {env_upper}"
+
         for page_num, page in enumerate(pdf):
             try:
                 rect = page.rect
                 
-                # Add header bar at top
-                header_height = 20
+                # Check if envelope ID is already stamped on this page to prevent duplicate text
+                page_text = page.get_text("text") or ""
+                if env_upper in page_text.upper():
+                    continue
                 
-                # Left side: Envelope ID in teal color
-                id_text = f"ESIGNIVA ID : {envelope_id.upper()}"
+                # Stamp clean black envelope ID on top
                 page.insert_text(
                     fitz.Point(rect.x0 + 10, rect.y0 + 12),
                     id_text,
@@ -2607,17 +2509,6 @@ class PDFEngine:
             except Exception as e:
                 print(f"Error inserting header on page {page_num}: {e}")
                 continue
-            
-            # Right side: Page number in gray
-            # page_text = f"Page {page_num + 1} of {len(pdf)}"
-            # page.insert_text(
-            #     fitz.Point(rect.x1 - 60, rect.y0 + 12),
-            #     page_text,
-            #     fontsize=9,
-            #     fontname="Helvetica",
-            #     color=(0.5, 0.5, 0.5),
-            #     overlay=True
-            # )
         
         result = pdf.tobytes(clean=True)
         pdf.close()

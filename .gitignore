@@ -24,3 +24,10 @@ Thumbs.db
 frontend/node_modules/
 frontend/build/
 frontend/.env
+
+# Scratch & Local Test Files
+scratch/
+backend/scratch/
+*.docx
+backend/test_*.pdf
+build_docx_guide.py

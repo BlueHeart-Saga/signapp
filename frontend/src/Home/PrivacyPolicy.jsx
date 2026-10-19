@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import {
   Shield,
   Lock,
@@ -19,6 +21,7 @@ import {
 } from 'lucide-react';
 
 const PrivacyPolicy = () => {
+  const navigate = useNavigate();
   const [expandedSections, setExpandedSections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated] = useState('January 15, 2025');
@@ -258,14 +261,118 @@ We encourage you to review this Privacy Policy periodically for any changes.`
       content: `If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
 Esigniva Privacy Team
-Email: support@devopstrioglobal.com
+Email: info@esigniva.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
 
 Data Protection Officer:
-Email: support@devopstrioglobal.com`
+Email: info@esigniva.com`
     }
   ];
+
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      setExpandedSections(prev => ({ ...prev, [hash]: true }));
+      setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 300);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      const matchingIds = {};
+      sections.forEach(sec => {
+        const matches = 
+          sec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          sec.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          sec.subSections?.some(sub =>
+            sub.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            sub.content.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        if (matches) {
+          matchingIds[sec.id] = true;
+        }
+      });
+      setExpandedSections(prev => ({ ...prev, ...matchingIds }));
+    }
+  }, [searchQuery]);
+
+  const handleDownloadPDF = () => {
+    let text = `ESIGNIVA PRIVACY POLICY\n`;
+    text += `Last Updated: ${lastUpdated}\n`;
+    text += `Version: 3.2\n`;
+    text += `Website: https://esigniva.devopstrio.co.uk\n`;
+    text += `Contact: info@esigniva.com\n`;
+    text += `=================================================\n\n`;
+
+    sections.forEach((sec, idx) => {
+      text += `${idx + 1}. ${sec.title.toUpperCase()}\n`;
+      text += `${sec.content}\n\n`;
+      if (sec.subSections && sec.subSections.length > 0) {
+        sec.subSections.forEach(sub => {
+          text += `   - ${sub.title}:\n`;
+          text += `     ${sub.content.replace(/\n/g, '\n     ')}\n\n`;
+        });
+      }
+    });
+
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Esigniva_Privacy_Policy.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Privacy Policy Downloaded',
+      text: 'The complete official Esigniva Privacy Policy has been saved to your downloads.',
+      confirmButtonColor: '#0f766e'
+    });
+  };
+
+  const handlePrintPolicy = () => {
+    // Expand all sections prior to printing so the full document is printed
+    const allExpanded = {};
+    sections.forEach(s => { allExpanded[s.id] = true; });
+    setExpandedSections(allExpanded);
+    setTimeout(() => {
+      window.print();
+    }, 200);
+  };
+
+  const handleOpenDPA = (e) => {
+    e.preventDefault();
+    Swal.fire({
+      title: 'Data Processing Addendum (DPA)',
+      html: `
+        <div style="text-align: left; font-size: 0.9rem; line-height: 1.6; color: #374151; max-height: 350px; overflow-y: auto;">
+          <p><strong>Esigniva Data Processing Addendum (GDPR & CCPA Compliant)</strong></p>
+          <p>This Data Processing Addendum ("DPA") supplements the Esigniva Terms of Service entered into between you (the "Customer") and Esigniva ("Processor").</p>
+          <p><strong>1. Scope & Roles:</strong> Customer acts as the Data Controller; Esigniva acts as the Data Processor processing electronic signatures, signer identity hashes, and document audit records.</p>
+          <p><strong>2. Security Measures:</strong> Esigniva maintains SOC 2 Type II controls, 256-bit AES encryption at rest, TLS 1.3 in transit, and geographic data isolation within EU/UK/US regions upon request.</p>
+          <p><strong>3. Subprocessors:</strong> We engage verified subprocessors (AWS, SendGrid) bound by equivalent confidentiality and data protection covenants.</p>
+          <p><strong>4. Audit Rights & Breaches:</strong> We notify controllers of any confirmed security incidents within 48 hours and provide third-party audit reports upon verification.</p>
+        </div>
+      `,
+      confirmButtonText: 'Download DPA Summary',
+      showCancelButton: true,
+      cancelButtonText: 'Close',
+      confirmButtonColor: '#0f766e'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        handleDownloadPDF();
+      }
+    });
+  };
 
   const toggleSection = (sectionId) => {
     setExpandedSections(prev => ({
@@ -441,15 +548,22 @@ Email: support@devopstrioglobal.com`
 
             {/* Actions */}
             <div className="safe-policy-actions">
-              <button className="safe-action-btn safe-btn-primary">
+              <button className="safe-action-btn safe-btn-primary" onClick={handleDownloadPDF}>
                 <Download size={18} />
                 Download PDF
               </button>
-              <button className="safe-action-btn safe-btn-secondary">
+              <button className="safe-action-btn safe-btn-secondary" onClick={handlePrintPolicy}>
                 <Printer size={18} />
                 Print Policy
               </button>
-              <a href="/contact" className="safe-action-btn safe-btn-secondary">
+              <a 
+                href="/contactus?subject=Privacy%20Inquiry" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/contactus?subject=Privacy%20Inquiry');
+                }}
+                className="safe-action-btn safe-btn-secondary"
+              >
                 <Mail size={18} />
                 Contact Privacy Team
               </a>
@@ -459,7 +573,14 @@ Email: support@devopstrioglobal.com`
             <div className="safe-related-policies">
               <h3 className="safe-related-title">Related Policies</h3>
               <div className="safe-policies-grid">
-                <a href="/terms" className="safe-policy-link">
+                <a 
+                  href="/terms-of-service" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/terms-of-service');
+                  }}
+                  className="safe-policy-link"
+                >
                   <FileText size={18} />
                   <div>
                     <h4>Terms of Service</h4>
@@ -467,7 +588,14 @@ Email: support@devopstrioglobal.com`
                   </div>
                   <ExternalLink size={14} />
                 </a>
-                <a href="/cookies" className="safe-policy-link">
+                <a 
+                  href="/cookies" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/cookies');
+                  }}
+                  className="safe-policy-link"
+                >
                   <FileText size={18} />
                   <div>
                     <h4>Cookie Policy</h4>
@@ -475,7 +603,11 @@ Email: support@devopstrioglobal.com`
                   </div>
                   <ExternalLink size={14} />
                 </a>
-                <a href="/dpa" className="safe-policy-link">
+                <a 
+                  href="#dpa" 
+                  onClick={handleOpenDPA}
+                  className="safe-policy-link"
+                >
                   <FileText size={18} />
                   <div>
                     <h4>Data Processing Addendum</h4>
@@ -494,7 +626,7 @@ Email: support@devopstrioglobal.com`
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 
@@ -748,7 +880,7 @@ Email: support@devopstrioglobal.com`
 
         .safe-section-number {
           color: #0f766e;
-          font-weight: 800;
+          font-weight: 600;
         }
 
         .safe-expand-btn {

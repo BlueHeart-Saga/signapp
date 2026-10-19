@@ -42,7 +42,7 @@
   --signapp-info-dark: #2563eb;
 
   /* Typography */
-  --signapp-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --signapp-font-sans: "Inter", "Segoe UI", Arial, sans-serif;
   --signapp-font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
 
   /* Spacing */
@@ -366,17 +366,21 @@
 .signapp-search-item-title {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--signapp-space-2);
   margin-bottom: 0.25rem;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--signapp-gray-900);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .signapp-search-item-status {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 /* Status Badges */
@@ -749,21 +753,32 @@
   object-fit: cover;
 }
 
-.signapp-navbar-avatar-icon {
-  width: 30px;
-  height: 30px;
+.signapp-navbar-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.signapp-avatar-initial {
+  text-transform: uppercase;
+  user-select: none;
 }
 
 .signapp-navbar-username {
   font-size: 14px;
   font-weight: 700;
   color: #334155;
-  max-width: 120px;
-  /* limit width */
+  max-width: 140px;
   white-space: nowrap;
-  /* prevent wrap */
   overflow: hidden;
-  /* hide overflow */
   text-overflow: ellipsis;
-  /* show ... */
 }

@@ -1,12 +1,9 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Chip, Tooltip } from "@mui/material";
 import {
   Search,
-  Bell,
   User,
-  Settings,
   Menu,
   FileText,
   Clock,
@@ -17,22 +14,33 @@ import {
   ChevronRight,
   Loader,
   History,
-  Sparkles
+  Sparkles,
+  Send,
+  Users,
+  CreditCard,
+  Trash2,
+  LayoutDashboard,
+  Lock,
+  FileSignature,
+  Stamp,
+  Sliders,
+  ArrowRight
 } from 'lucide-react';
 
 import CreditBadge from "./CreditBadge";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import FilenameDisplay from "./FilenameDisplay";
 import "../style/Navbar.css";
 
 // ============================================
 // CONSTANTS & CONFIGURATION
 // ============================================
 const SEARCH_CONFIG = {
-  DEBOUNCE_DELAY: 400,
-  MAX_RESULTS: 8,
+  DEBOUNCE_DELAY: 300,
+  MAX_DOC_RESULTS: 8,
   MAX_RECENT_SEARCHES: 5,
-  MIN_QUERY_LENGTH: 2
+  MIN_QUERY_LENGTH: 1
 };
 
 const STATUS_CONFIG = {
@@ -44,28 +52,232 @@ const STATUS_CONFIG = {
   declined: { icon: AlertCircle, color: '#ef4444', label: 'Declined' }
 };
 
-const SYSTEM_SHORTCUTS = [
-  { keywords: ["document", "documents", "my documents", "files", "manage"], title: "My Documents & Envelopes", path: "/user/documents", category: "Navigation" },
-  { keywords: ["credit", "credits", "wallet", "buy credits", "balance", "subscription"], title: "Credit Wallet & Packages", path: "/user/subscription", category: "Wallet" },
-  { keywords: ["builder", "create", "new document", "upload", "sign"], title: "Document Builder", path: "/user/document-builder", category: "Action" },
-  { keywords: ["template", "templates", "ai template"], title: "Document Templates & AI", path: "/user/templates", category: "Templates" },
-  { keywords: ["trash", "deleted", "deleted documents", "bin"], title: "Trash / Deleted Documents", path: "/user/documents/trash", category: "Navigation" },
-  { keywords: ["setting", "settings", "profile", "account"], title: "Account & Profile Settings", path: "/user/settings", category: "Settings" },
-  { keywords: ["contact", "contacts", "recipient", "recipients"], title: "Contacts & Address Book", path: "/user/contacts", category: "Contacts" },
+// Global system pages, settings tabs, and status filters
+const GLOBAL_SHORTCUTS = [
+  // Core Pages
+  {
+    category: "Pages",
+    title: "Dashboard Overview",
+    subtitle: "Overview of your signing metrics, envelopes & activities",
+    path: "/user/dashboard",
+    keywords: ["dashboard", "home", "overview", "analytics", "stats", "main"],
+    icon: LayoutDashboard,
+    iconColor: "#2563eb",
+    role: "user"
+  },
+  {
+    category: "Pages",
+    title: "My Documents & Envelopes",
+    subtitle: "View and manage all uploaded and received documents",
+    path: "/user/documents",
+    keywords: ["document", "documents", "my documents", "envelopes", "files", "all files", "manage documents"],
+    icon: FileText,
+    iconColor: "#0284c7",
+    role: "user"
+  },
+  {
+    category: "Actions",
+    title: "Upload & Send Document",
+    subtitle: "Upload PDF or DOCX file and send for e-signatures",
+    path: "/user/document-builder",
+    keywords: ["builder", "upload", "create", "new document", "send document", "prepare", "sign"],
+    icon: Send,
+    iconColor: "#16a34a",
+    role: "user"
+  },
+  {
+    category: "Pages",
+    title: "Document Templates & AI",
+    subtitle: "Reusable agreement templates & AI smart contract generator",
+    path: "/user/templates",
+    keywords: ["template", "templates", "ai template", "reusable", "contracts", "ai builder"],
+    icon: Sparkles,
+    iconColor: "#7c3aed",
+    role: "user"
+  },
+  {
+    category: "Pages",
+    title: "Contacts & Address Book",
+    subtitle: "Manage saved recipient names, emails and favorites",
+    path: "/user/contacts",
+    keywords: ["contact", "contacts", "address book", "recipient", "recipients", "emails", "saved contacts"],
+    icon: Users,
+    iconColor: "#0891b2",
+    role: "user"
+  },
+  {
+    category: "Pages",
+    title: "Credit Wallet & Subscription",
+    subtitle: "Check balance, view packages and upgrade subscription plan",
+    path: "/user/subscription",
+    keywords: ["credit", "credits", "wallet", "subscription", "plan", "upgrade", "buy", "pricing", "billing", "packages"],
+    icon: CreditCard,
+    iconColor: "#ea580c",
+    role: "user"
+  },
+  {
+    category: "Pages",
+    title: "Trash / Deleted Envelopes",
+    subtitle: "View removed documents, restore files or empty trash",
+    path: "/user/documents/trash",
+    keywords: ["trash", "deleted", "bin", "recycle bin", "archive", "restore"],
+    icon: Trash2,
+    iconColor: "#dc2626",
+    role: "user"
+  },
+
+  // Settings Deep Links
+  {
+    category: "Settings",
+    title: "Profile & Personal Information",
+    subtitle: "Update full name, company name, job title, timezone and photo",
+    path: "/user/settings?tab=profile",
+    keywords: ["profile", "setting", "settings", "name", "full name", "company", "timezone", "account", "photo", "avatar", "user profile"],
+    icon: User,
+    iconColor: "#3b82f6"
+  },
+  {
+    category: "Settings",
+    title: "Signature & Initials Settings",
+    subtitle: "Configure default handwritten signature text and initials",
+    path: "/user/settings?tab=profile",
+    keywords: ["signature", "initial", "initials", "sign", "handwriting", "draw signature", "my signature"],
+    icon: FileSignature,
+    iconColor: "#6366f1"
+  },
+  {
+    category: "Settings",
+    title: "Stamp & Company Seal",
+    subtitle: "Upload, download or manage official company rubber stamp image",
+    path: "/user/settings?tab=profile",
+    keywords: ["stamp", "company stamp", "seal", "official seal", "stamp image", "download stamp", "upload stamp"],
+    icon: Stamp,
+    iconColor: "#059669"
+  },
+  {
+    category: "Settings",
+    title: "Security & Change Password",
+    subtitle: "Update account password, reset credentials and verify security",
+    path: "/user/settings?tab=security",
+    keywords: ["password", "security", "change password", "forgot password", "credentials", "auth", "lock"],
+    icon: Lock,
+    iconColor: "#d97706"
+  },
+  {
+    category: "Settings",
+    title: "Reminders & Expiry Schedule",
+    subtitle: "Configure automatic email reminder intervals & document expiration days",
+    path: "/user/settings?tab=schedule",
+    keywords: ["schedule", "reminder", "reminders", "expiry", "expiration", "days", "notifications", "alerts", "auto reminder"],
+    icon: Sliders,
+    iconColor: "#475569"
+  },
+
+  // Status Quick Filters
+  {
+    category: "Status Filter",
+    title: "Completed Documents",
+    subtitle: "Filter all fully signed and executed envelopes",
+    path: "/user/documents?status=completed",
+    keywords: ["completed", "complete", "signed", "done", "finished", "executed"],
+    icon: CheckCircle,
+    iconColor: "#10b981",
+    statusBadge: "completed",
+    role: "user"
+  },
+  {
+    category: "Status Filter",
+    title: "In Progress Documents",
+    subtitle: "Filter documents waiting on recipient actions or signatures",
+    path: "/user/documents?status=in_progress",
+    keywords: ["in progress", "inprogress", "pending", "signing", "waiting for others", "active"],
+    icon: Loader,
+    iconColor: "#f59e0b",
+    statusBadge: "in-progress",
+    role: "user"
+  },
+  {
+    category: "Status Filter",
+    title: "Sent Documents",
+    subtitle: "Filter envelopes dispatched to recipient outbox",
+    path: "/user/documents?status=sent",
+    keywords: ["sent", "delivered", "outbox", "dispatched"],
+    icon: Clock,
+    iconColor: "#3b82f6",
+    statusBadge: "sent",
+    role: "user"
+  },
+  {
+    category: "Status Filter",
+    title: "Draft Documents",
+    subtitle: "Filter unfinished document drafts ready to edit or send",
+    path: "/user/documents?status=draft",
+    keywords: ["draft", "drafts", "unpublished", "work in progress", "uncompleted"],
+    icon: FileText,
+    iconColor: "#6b7280",
+    statusBadge: "draft",
+    role: "user"
+  },
+  {
+    category: "Status Filter",
+    title: "Declined Documents",
+    subtitle: "Filter envelopes declined by one or more signers",
+    path: "/user/documents?status=declined",
+    keywords: ["declined", "rejected", "refused", "decline"],
+    icon: AlertCircle,
+    iconColor: "#ef4444",
+    statusBadge: "declined",
+    role: "user"
+  },
+  {
+    category: "Status Filter",
+    title: "Voided Documents",
+    subtitle: "Filter cancelled or voided envelopes",
+    path: "/user/documents?status=voided",
+    keywords: ["voided", "void", "cancelled", "rescinded", "terminated"],
+    icon: XCircle,
+    iconColor: "#ef4444",
+    statusBadge: "voided",
+    role: "user"
+  },
+
   // Admin shortcuts
-  { keywords: ["admin", "dashboard", "admin dashboard"], title: "Admin Dashboard Overview", path: "/admin/dashboard", category: "Admin", role: "admin" },
-  { keywords: ["user management", "users", "manage users"], title: "User Management", path: "/admin/users", category: "Admin", role: "admin" },
-  { keywords: ["envelope management", "admin envelopes", "envelopes"], title: "Envelope Management", path: "/admin/envelopes", category: "Admin", role: "admin" },
-  { keywords: ["logo", "branding", "platform logo"], title: "Platform Branding Settings", path: "/admin/logo", category: "Admin", role: "admin" },
+  {
+    category: "Admin",
+    title: "Admin Dashboard",
+    subtitle: "System overview, active users and platform usage metrics",
+    path: "/admin/dashboard",
+    keywords: ["admin", "dashboard", "overview"],
+    icon: LayoutDashboard,
+    iconColor: "#2563eb",
+    role: "admin"
+  },
+  {
+    category: "Admin",
+    title: "User Management",
+    subtitle: "Manage registered user accounts, roles and status",
+    path: "/admin/users",
+    keywords: ["users", "manage users", "user management", "accounts"],
+    icon: Users,
+    iconColor: "#7c3aed",
+    role: "admin"
+  },
+  {
+    category: "Admin",
+    title: "Envelope Management",
+    subtitle: "Global view of all platform envelopes and audit logs",
+    path: "/admin/envelopes",
+    keywords: ["admin envelopes", "all envelopes", "envelope management"],
+    icon: FileText,
+    iconColor: "#0284c7",
+    role: "admin"
+  }
 ];
 
 // ============================================
 // CUSTOM HOOKS
 // ============================================
 
-/**
- * Debounce hook for search input
- */
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -80,13 +292,9 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-/**
- * Hook for managing recent searches in localStorage
- */
 const useRecentSearches = (maxItems = SEARCH_CONFIG.MAX_RECENT_SEARCHES) => {
   const [recentSearches, setRecentSearches] = useState([]);
 
-  // Load from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("recentSearches");
@@ -98,19 +306,21 @@ const useRecentSearches = (maxItems = SEARCH_CONFIG.MAX_RECENT_SEARCHES) => {
     }
   }, [maxItems]);
 
-  // Save to localStorage
-  const saveRecentSearch = useCallback((query, document) => {
+  const saveRecentSearch = useCallback((query, item) => {
+    if (!query || !query.trim()) return;
     const newSearch = {
-      id: document.id || document.path || Date.now(),
-      query,
-      filename: document.filename || document.title || query,
+      id: item?.id || item?.path || Date.now(),
+      query: query.trim(),
+      filename: item?.filename || item?.title || query.trim(),
       timestamp: Date.now()
     };
 
     setRecentSearches(prev => {
-      const updated = [newSearch, ...prev.filter(s => s.id !== newSearch.id)]
+      const updated = [newSearch, ...prev.filter(s => s.query.toLowerCase() !== newSearch.query.toLowerCase())]
         .slice(0, maxItems);
-      localStorage.setItem("recentSearches", JSON.stringify(updated));
+      try {
+        localStorage.setItem("recentSearches", JSON.stringify(updated));
+      } catch (e) {}
       return updated;
     });
   }, [maxItems]);
@@ -118,9 +328,6 @@ const useRecentSearches = (maxItems = SEARCH_CONFIG.MAX_RECENT_SEARCHES) => {
   return { recentSearches, saveRecentSearch };
 };
 
-/**
- * Hook for click outside detection
- */
 const useClickOutside = (ref, handler) => {
   useEffect(() => {
     const listener = (event) => {
@@ -135,35 +342,10 @@ const useClickOutside = (ref, handler) => {
   }, [ref, handler]);
 };
 
-/**
- * Hook for keyboard shortcuts
- */
-const useKeyboardShortcuts = (inputRef, onEscape, onFocus) => {
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Ctrl/Cmd + K to focus search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        onFocus?.();
-      }
-      // Escape to close
-      if (e.key === 'Escape') {
-        onEscape?.();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onEscape, onFocus]);
-};
-
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Get user role from localStorage or token
- */
 const getUserRole = () => {
   try {
     const storedUser = localStorage.getItem("user");
@@ -182,19 +364,17 @@ const getUserRole = () => {
   }
 };
 
-/**
- * Format date relative to now
- */
 const formatRelativeDate = (dateString) => {
-  if (!dateString) return 'Unknown';
+  if (!dateString) return 'Recent';
 
   try {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Recent';
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 1) return 'Today';
+    if (diffDays <= 1) return 'Today';
     if (diffDays === 2) return 'Yesterday';
     if (diffDays <= 7) return `${diffDays} days ago`;
 
@@ -203,22 +383,26 @@ const formatRelativeDate = (dateString) => {
       day: 'numeric'
     });
   } catch {
-    return 'Unknown';
+    return 'Recent';
   }
+};
+
+// Resolve avatar image from user object (handling Google profile URLs, base64 data, etc.)
+const resolveAvatarSrc = (usr) => {
+  if (!usr) return null;
+  const pic = usr.profile_picture || usr.profile_image || usr.picture || usr.avatar_url || usr.photo_url || usr.avatar;
+  if (!pic) return null;
+  if (typeof pic === "string") return pic;
+  if (pic?.data) {
+    return `data:${pic.content_type || 'image/jpeg'};base64,${pic.data}`;
+  }
+  return null;
 };
 
 // ============================================
 // SUB-COMPONENTS
 // ============================================
 
-/**
- * Subscription Warning Chip
- */
-const SubscriptionWarning = () => null;
-
-/**
- * Search Results Component
- */
 const SearchResults = ({
   query,
   results,
@@ -231,16 +415,26 @@ const SearchResults = ({
 }) => {
   const qClean = (query || "").trim().toLowerCase();
 
+  // Match system shortcuts, settings tabs, and status filters
   const matchedShortcuts = useMemo(() => {
-    if (!qClean || qClean.length < 2) return [];
-    return SYSTEM_SHORTCUTS.filter(s => {
+    if (!qClean) return [];
+    return GLOBAL_SHORTCUTS.filter(s => {
       if (s.role && s.role !== userRole) return false;
-      return s.title.toLowerCase().includes(qClean) || s.keywords.some(k => k.includes(qClean) || qClean.includes(k));
+      const titleMatch = s.title.toLowerCase().includes(qClean);
+      const subtitleMatch = s.subtitle && s.subtitle.toLowerCase().includes(qClean);
+      const categoryMatch = s.category.toLowerCase().includes(qClean);
+      const keywordMatch = s.keywords.some(k => k.includes(qClean) || qClean.includes(k));
+      return titleMatch || subtitleMatch || categoryMatch || keywordMatch;
     });
   }, [qClean, userRole]);
 
+  // Group shortcuts into Settings, Status, and Pages
+  const settingsShortcuts = useMemo(() => matchedShortcuts.filter(s => s.category === "Settings"), [matchedShortcuts]);
+  const statusShortcuts = useMemo(() => matchedShortcuts.filter(s => s.category === "Status Filter"), [matchedShortcuts]);
+  const pageShortcuts = useMemo(() => matchedShortcuts.filter(s => s.category === "Pages" || s.category === "Actions"), [matchedShortcuts]);
+
   if (!query) {
-    // Recent searches view
+    // Recent searches & initial view
     return (
       <>
         <div className="signapp-search-header">
@@ -265,86 +459,168 @@ const SearchResults = ({
                   {search.query}
                 </div>
                 <div className="signapp-search-item-meta">
-                  <span>{search.filename}</span>
+                  <FilenameDisplay filename={search.filename} />
                 </div>
               </div>
             </div>
           ))
         ) : (
           <div className="signapp-search-empty small">
-            <Sparkles size={24} />
-            <p>Search Documents, Pages & Actions</p>
-            <span>Type a document name, envelope ID, recipient email, or page name</span>
+            <Sparkles size={24} color="#2563eb" />
+            <p>Global Search Across Everything</p>
+            <span>Search files by name, date, envelope ID, status, or jump to any settings & page</span>
           </div>
         )}
 
         <div className="signapp-search-tips">
-          <span className="tips-label">💡 Search tips:</span>
-          <span className="tip">Type filename or envelope ID (e.g. "contract" or "ENV-")</span>
-          <span className="tip">Search recipient name or email</span>
-          <span className="tip">Type "wallet", "templates", or "settings" for shortcuts</span>
+          <span className="tips-label">💡 Search anything:</span>
+          <span className="tip">Filename (e.g. "NDA", "Contract", "Offer Letter")</span>
+          <span className="tip">Status (e.g. "Completed", "In Progress", "Draft", "Sent")</span>
+          <span className="tip">Settings (e.g. "Profile", "Signature", "Stamp", "Password", "Schedule")</span>
+          <span className="tip">Date (e.g. "Today", "Yesterday", "2026-10")</span>
         </div>
       </>
     );
   }
 
-  // Search results view
-  if (isLoading) {
+  // Loading state
+  if (isLoading && results.length === 0 && matchedShortcuts.length === 0) {
     return (
       <div className="signapp-search-loading">
         <Loader size={24} className="spinning" />
-        <span>Searching documents & pages...</span>
+        <span>Searching documents, dates, statuses & settings...</span>
       </div>
     );
   }
 
+  // Empty state
   if (results.length === 0 && matchedShortcuts.length === 0) {
     return (
       <div className="signapp-search-empty">
         <Search size={32} />
         <p>No results found for "{query}"</p>
-        <span>Try searching by document title, envelope ID, recipient email, or status</span>
+        <span>Try searching by document title, date (e.g. "today"), status ("completed"), or settings</span>
       </div>
     );
   }
 
   return (
     <>
-      {/* System Shortcuts */}
-      {matchedShortcuts.length > 0 && (
+      {/* 1. Pages & Actions */}
+      {pageShortcuts.length > 0 && (
         <>
           <div className="signapp-search-header">
             <span className="signapp-search-header-title">
               <Sparkles size={14} />
-              Quick Navigation
+              Pages & Navigation ({pageShortcuts.length})
             </span>
           </div>
-          {matchedShortcuts.map((sc, idx) => (
-            <div
-              key={`sc-${idx}`}
-              className="signapp-search-item shortcut"
-              onClick={() => onResultClick({ isShortcut: true, path: sc.path, filename: sc.title })}
-            >
-              <div className="signapp-search-item-icon">
-                <Sparkles size={18} color="#0f766e" />
-              </div>
-              <div className="signapp-search-item-content">
-                <div className="signapp-search-item-title">
-                  {sc.title}
-                  <span className="signapp-search-item-status">
-                    <span className="status-badge status-sent">{sc.category}</span>
-                  </span>
+          {pageShortcuts.map((sc, idx) => {
+            const IconComponent = sc.icon || Sparkles;
+            return (
+              <div
+                key={`page-sc-${idx}`}
+                className="signapp-search-item shortcut"
+                onClick={() => onResultClick({ isShortcut: true, path: sc.path, filename: sc.title })}
+              >
+                <div className="signapp-search-item-icon" style={{ backgroundColor: `${sc.iconColor}15`, color: sc.iconColor }}>
+                  <IconComponent size={18} />
                 </div>
-                <div className="signapp-search-item-meta">
-                  <span className="meta-item">Jump directly to {sc.title}</span>
+                <div className="signapp-search-item-content">
+                  <div className="signapp-search-item-title">
+                    {sc.title}
+                    <span className="signapp-search-item-status">
+                      <span className="status-badge" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>{sc.category}</span>
+                    </span>
+                  </div>
+                  <div className="signapp-search-item-meta">
+                    <span className="meta-item">{sc.subtitle}</span>
+                  </div>
                 </div>
+                <ChevronRight size={16} color="#94a3b8" />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </>
       )}
 
-      {/* Document Results */}
+      {/* 2. Settings Deep Links */}
+      {settingsShortcuts.length > 0 && (
+        <>
+          <div className="signapp-search-header">
+            <span className="signapp-search-header-title">
+              <Sliders size={14} />
+              Settings & Account ({settingsShortcuts.length})
+            </span>
+          </div>
+          {settingsShortcuts.map((sc, idx) => {
+            const IconComponent = sc.icon || User;
+            return (
+              <div
+                key={`settings-sc-${idx}`}
+                className="signapp-search-item shortcut"
+                onClick={() => onResultClick({ isShortcut: true, path: sc.path, filename: sc.title })}
+              >
+                <div className="signapp-search-item-icon" style={{ backgroundColor: `${sc.iconColor}15`, color: sc.iconColor }}>
+                  <IconComponent size={18} />
+                </div>
+                <div className="signapp-search-item-content">
+                  <div className="signapp-search-item-title">
+                    {sc.title}
+                    <span className="signapp-search-item-status">
+                      <span className="status-badge" style={{ backgroundColor: '#f1f5f9', color: '#334155' }}>Settings</span>
+                    </span>
+                  </div>
+                  <div className="signapp-search-item-meta">
+                    <span className="meta-item">{sc.subtitle}</span>
+                  </div>
+                </div>
+                <ChevronRight size={16} color="#94a3b8" />
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* 3. Status Quick Filters */}
+      {statusShortcuts.length > 0 && (
+        <>
+          <div className="signapp-search-header">
+            <span className="signapp-search-header-title">
+              <CheckCircle size={14} />
+              Filter By Status ({statusShortcuts.length})
+            </span>
+          </div>
+          {statusShortcuts.map((sc, idx) => {
+            const IconComponent = sc.icon || CheckCircle;
+            return (
+              <div
+                key={`status-sc-${idx}`}
+                className="signapp-search-item shortcut"
+                onClick={() => onResultClick({ isShortcut: true, path: sc.path, filename: sc.title })}
+              >
+                <div className="signapp-search-item-icon" style={{ backgroundColor: `${sc.iconColor}15`, color: sc.iconColor }}>
+                  <IconComponent size={18} />
+                </div>
+                <div className="signapp-search-item-content">
+                  <div className="signapp-search-item-title">
+                    {sc.title}
+                    <span className="signapp-search-item-status">
+                      <span className={`status-badge status-${sc.statusBadge || 'sent'}`}>{sc.title.replace('Documents', '')}</span>
+                    </span>
+                  </div>
+                  <div className="signapp-search-item-meta">
+                    <span className="meta-item">{sc.subtitle}</span>
+                  </div>
+                </div>
+                <ArrowRight size={16} color="#94a3b8" />
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* 4. Document Results from Server */}
       {results.length > 0 && (
         <>
           <div className="signapp-search-header">
@@ -358,7 +634,8 @@ const SearchResults = ({
           </div>
 
           {results.map((doc) => {
-            const status = STATUS_CONFIG[doc.status] || STATUS_CONFIG.draft;
+            const statusKey = doc.status ? String(doc.status).toLowerCase().replace(/[\s-]/g, '_') : 'draft';
+            const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.draft;
             const StatusIcon = status.icon;
 
             return (
@@ -372,10 +649,15 @@ const SearchResults = ({
                 </div>
                 <div className="signapp-search-item-content">
                   <div className="signapp-search-item-title">
-                    {doc.filename}
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                      <FilenameDisplay
+                        filename={doc.filename || doc.title}
+                        middleTruncate={true}
+                      />
+                    </div>
                     <span className="signapp-search-item-status">
                       <StatusIcon size={14} color={status.color} />
-                      <span className={`status-badge status-${doc.status}`}>
+                      <span className={`status-badge status-${statusKey}`}>
                         {status.label}
                       </span>
                     </span>
@@ -402,30 +684,17 @@ const SearchResults = ({
         </>
       )}
 
+      {/* Footer link to view all */}
       <div
         className="signapp-search-view-all"
         onClick={onViewAll}
       >
-        <span>View all documents in dashboard</span>
+        <span>View all matching documents in My Documents</span>
         <ChevronRight size={16} />
       </div>
     </>
   );
 };
-
-/**
- * Icon Button Component
- */
-const IconButton = ({ icon: Icon, badge, onClick, title, className = "" }) => (
-  <button
-    className={`signapp-navbar-icon-btn ${className}`}
-    onClick={onClick}
-    title={title}
-  >
-    <Icon className="signapp-navbar-icon" />
-    {badge && <span className="signapp-navbar-badge" />}
-  </button>
-);
 
 // ============================================
 // MAIN COMPONENT
@@ -433,9 +702,21 @@ const IconButton = ({ icon: Icon, badge, onClick, title, className = "" }) => (
 
 const Navbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
-  const { user, subscription } = useAuth();
+  const { user: authUser } = useAuth();
 
-  // State
+  // Local user state synchronized with broadcast events
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : authUser;
+    } catch {
+      return authUser;
+    }
+  });
+
+  const [avatarError, setAvatarError] = useState(false);
+
+  // Search States
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -449,23 +730,36 @@ const Navbar = ({ toggleSidebar }) => {
   const debouncedQuery = useDebounce(searchQuery, SEARCH_CONFIG.DEBOUNCE_DELAY);
   const { recentSearches, saveRecentSearch } = useRecentSearches();
 
-  // Derived state
-  const userRole = user?.role || "user";
-  const showSubscriptionWarning = subscription && (
-    subscription.status === "expired" || subscription.days_remaining <= 3
-  );
+  // Keep currentUser synced with authUser
+  useEffect(() => {
+    if (authUser) {
+      setCurrentUser(authUser);
+      setAvatarError(false);
+    }
+  }, [authUser]);
 
-  // ============================================
-  // EFFECTS
-  // ============================================
+  // Listen to profile update broadcast events
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      if (e.detail) {
+        setCurrentUser(e.detail);
+        setAvatarError(false);
+      }
+    };
+    window.addEventListener("user_profile_updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("user_profile_updated", handleProfileUpdated);
+    };
+  }, []);
 
-  // Search documents
-  // In your Navbar component, update the search effect:
+  const userRole = currentUser?.role || getUserRole();
+
+  // Live document search effect
   useEffect(() => {
     const searchDocuments = async () => {
       const trimmedQuery = debouncedQuery.trim();
 
-      if (trimmedQuery.length < 2) { // Changed from 1 to 2
+      if (trimmedQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
         setSearchResults([]);
         setIsSearching(false);
         return;
@@ -474,24 +768,17 @@ const Navbar = ({ toggleSidebar }) => {
       setIsSearching(true);
       try {
         const response = await api.get(
-          `/documents/search?q=${encodeURIComponent(trimmedQuery)}&limit=8`
+          `/documents/search?q=${encodeURIComponent(trimmedQuery)}&limit=${SEARCH_CONFIG.MAX_DOC_RESULTS}`
         );
 
-        // Handle both array response and wrapped response
-        const results = Array.isArray(response.data) ? response.data :
-          (response.data?.results || []);
+        const results = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.results || []);
 
         setSearchResults(results);
       } catch (error) {
         console.error("Search failed:", error);
-
-        // Show user-friendly error
-        if (error.response?.status === 400) {
-          console.log("Invalid search query, showing empty results");
-          setSearchResults([]);
-        } else {
-          setSearchResults([]);
-        }
+        setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -500,21 +787,28 @@ const Navbar = ({ toggleSidebar }) => {
     searchDocuments();
   }, [debouncedQuery]);
 
-  // Click outside handler
+  // Click outside to dismiss search results
   useClickOutside(searchRef, () => setShowResults(false));
 
-  // Keyboard shortcuts
-  useKeyboardShortcuts(
-    inputRef,
-    () => setShowResults(false),
-    () => inputRef.current?.focus()
-  );
+  // Keyboard navigation & shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setShowResults(true);
+      }
+      if (e.key === 'Escape') {
+        setShowResults(false);
+      }
+    };
 
-  // ============================================
-  // HANDLERS
-  // ============================================
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
-  const handleDocumentClick = useCallback((item) => {
+  // Result Click Navigation Handler
+  const handleResultClick = useCallback((item) => {
     saveRecentSearch(searchQuery, item);
     setShowResults(false);
     setSearchQuery("");
@@ -540,17 +834,20 @@ const Navbar = ({ toggleSidebar }) => {
     }
   }, [searchQuery, saveRecentSearch, navigate, userRole]);
 
+  // View all results in MyDocuments with search query param
   const handleViewAllResults = useCallback(() => {
     setShowResults(false);
+    const q = searchQuery.trim();
     if (userRole === 'admin') {
       navigate(`/admin/envelopes`);
     } else {
-      navigate(`/user/documents`);
+      navigate(q ? `/user/documents?search=${encodeURIComponent(q)}` : `/user/documents`);
     }
-  }, [navigate, userRole]);
+  }, [navigate, userRole, searchQuery]);
 
   const handleRecentClick = useCallback((query) => {
     setSearchQuery(query);
+    setShowResults(true);
     inputRef.current?.focus();
   }, []);
 
@@ -560,9 +857,7 @@ const Navbar = ({ toggleSidebar }) => {
     inputRef.current?.focus();
   }, []);
 
-  // ============================================
-  // RENDER
-  // ============================================
+  const avatarSrc = resolveAvatarSrc(currentUser);
 
   return (
     <header className="signapp-navbar">
@@ -587,7 +882,7 @@ const Navbar = ({ toggleSidebar }) => {
             }}
             role="button"
             tabIndex={0}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 if (userRole === 'admin') navigate('/admin/dashboard');
                 else if (userRole === 'user') navigate('/user/dashboard');
@@ -604,7 +899,7 @@ const Navbar = ({ toggleSidebar }) => {
         <div className="signapp-navbar-right">
           <CreditBadge />
 
-          {/* Search */}
+          {/* Global Search Bar */}
           <div className="signapp-navbar-search-wrapper" ref={searchRef}>
             <div className={`signapp-navbar-search ${showResults ? 'active' : ''}`}>
               <Search className="signapp-navbar-search-icon" />
@@ -612,7 +907,7 @@ const Navbar = ({ toggleSidebar }) => {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search documents, pages... (⌘K)"
+                placeholder="Search documents, dates, status, settings... (⌘K)"
                 className="signapp-navbar-search-input"
                 value={searchQuery}
                 onChange={(e) => {
@@ -620,7 +915,12 @@ const Navbar = ({ toggleSidebar }) => {
                   setShowResults(true);
                 }}
                 onFocus={() => setShowResults(true)}
-                aria-label="Search documents"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    handleViewAllResults();
+                  }
+                }}
+                aria-label="Search documents and portal"
               />
 
               {searchQuery && (
@@ -640,7 +940,7 @@ const Navbar = ({ toggleSidebar }) => {
               )}
             </div>
 
-            {/* Search Results Dropdown */}
+            {/* Global Search Results Dropdown */}
             {showResults && (
               <div className="signapp-search-results">
                 <SearchResults
@@ -648,7 +948,7 @@ const Navbar = ({ toggleSidebar }) => {
                   results={searchResults}
                   isLoading={isSearching}
                   recentSearches={recentSearches}
-                  onResultClick={handleDocumentClick}
+                  onResultClick={handleResultClick}
                   onViewAll={handleViewAllResults}
                   onRecentClick={handleRecentClick}
                   userRole={userRole}
@@ -657,50 +957,39 @@ const Navbar = ({ toggleSidebar }) => {
             )}
           </div>
 
-          {/* Action Buttons */}
-          {/* <IconButton
-            icon={Bell}
-            badge
-            onClick={() => { }}
-            title="Notifications"
-          />
-
-          {userRole === "user" && (
-            <IconButton
-              icon={Settings}
-              onClick={() => navigate('/user/settings')}
-              title="Settings"
-              className="navbar-settings-icon"
-            />
-          )} */}
+          {/* Profile Section */}
           <div
             className="signapp-navbar-profile"
             onClick={userRole === "user" ? () => navigate("/user/settings") : undefined}
-            title={userRole === "user" ? "My Profile" : ""}
+            title={userRole === "user" ? "Account & Profile Settings" : ""}
             style={{ cursor: userRole === "user" ? "pointer" : "default" }}
           >
-            {(() => {
-              const pic = user?.profile_picture || user?.profile_image;
-              const avatarSrc = typeof pic === "string"
-                ? pic
-                : (pic?.data ? `data:${pic.content_type};base64,${pic.data}` : null);
-              
-              return avatarSrc ? (
-                <img
-                  src={avatarSrc}
-                  className="signapp-navbar-avatar"
-                  alt="profile"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              ) : (
-                <div className="signapp-navbar-avatar-fallback">
+            {avatarSrc && !avatarError ? (
+              <img
+                src={avatarSrc}
+                className="signapp-navbar-avatar"
+                alt="profile"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div className="signapp-navbar-avatar-fallback">
+                {currentUser?.full_name ? (
+                  <span className="signapp-avatar-initial">
+                    {currentUser.full_name.charAt(0).toUpperCase()}
+                  </span>
+                ) : currentUser?.email ? (
+                  <span className="signapp-avatar-initial">
+                    {currentUser.email.charAt(0).toUpperCase()}
+                  </span>
+                ) : (
                   <User size={18} />
-                </div>
-              );
-            })()}
+                )}
+              </div>
+            )}
 
             <span className="signapp-navbar-username desktop-only">
-              {user?.full_name || user?.email || "Esigniva User"}
+              {currentUser?.full_name || currentUser?.email || "Esigniva User"}
             </span>
           </div>
         </div>
@@ -710,3 +999,4 @@ const Navbar = ({ toggleSidebar }) => {
 };
 
 export default React.memo(Navbar);
+

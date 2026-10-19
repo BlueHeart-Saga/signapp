@@ -52,6 +52,26 @@ export const showAlert = {
   },
 
   /**
+   * Auto-navigating Success Alert (Compact, no buttons, auto-dismisses & redirects smoothly)
+   */
+  autoNavigate: (title, text = '', options = {}) => {
+    const timer = typeof options === 'number' ? options : (options.timer || 1400);
+    const extraOptions = typeof options === 'object' ? options : {};
+    return esignivaSwal.fire({
+      icon: 'success',
+      title: title || 'Success!',
+      text: text,
+      showConfirmButton: false,
+      timer: timer,
+      timerProgressBar: true,
+      width: '380px',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      ...extraOptions,
+    });
+  },
+
+  /**
    * Helper to extract clean, human-readable error message from backend response/exception
    */
   extractMessage: (error, defaultMessage = 'An unexpected error occurred. Please try again.') => {

@@ -134,7 +134,7 @@ const DocumentLeftBar = ({
       z-index: -1000;
       display: flex;
       flex-direction: column;
-      font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: "Inter", "Segoe UI", Arial, sans-serif;
     `;
 
     const bgColor = fieldColor.startsWith('hsl')
@@ -144,7 +144,7 @@ const DocumentLeftBar = ({
     dragPreview.innerHTML = `
       <div style="
         font-size: ${10 * zoomLevel}px;
-        font-weight: 800;
+        font-weight: 600;
         color: ${fieldColor};
         text-transform: uppercase;
         margin-bottom: ${4 * zoomLevel}px;
@@ -163,7 +163,7 @@ const DocumentLeftBar = ({
         justify-content: center;
         color: #344054;
         font-size: ${Math.min(11 * zoomLevel, (baseWidth * zoomLevel) / 6)}px;
-        font-weight: 800;
+        font-weight: 600;
         box-shadow: 0 8px 24px -6px rgba(0,0,0,0.15);
       ">
         ${displayText}

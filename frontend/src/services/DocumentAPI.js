@@ -217,6 +217,31 @@ export async function getFileThumbnails(documentId, fileId) {
 }
 
 
+export async function getDocumentFiles(documentId) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(
+    `${process.env.REACT_APP_API_BASE_URL || "http://localhost:9000"}/documents/${documentId}/files`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  if (!res.ok) throw new Error("Failed to load document files");
+  return res.json();
+}
+
+export const downloadSubDocument = async (documentId, fileId, filename) => {
+  const token = localStorage.getItem("token");
+  const url = `${process.env.REACT_APP_API_BASE_URL || "http://localhost:9000"}/documents/${documentId}/files/${fileId}/download-signed?token=${encodeURIComponent(token)}`;
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || `document_${fileId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 // Download document
 // export const downloadDocument = async (docId, filename) => {
 //   const res = await api.get(`/documents/${docId}/download`, {

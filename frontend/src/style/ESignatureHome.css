@@ -2,7 +2,7 @@
   max-width: 1150px;
   margin: auto;
   padding: 40px 20px;
-  font-family: Inter, Segoe UI, Arial;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
 }
 
 /* --------------- HERO --------------- */
@@ -27,7 +27,7 @@
 
 .esig-hero-title {
   font-size: 34px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -81,7 +81,7 @@
 
 .esig-feature-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .esig-feature-description {

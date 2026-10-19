@@ -38,6 +38,7 @@ import {
   Description as DocIcon,
 } from '@mui/icons-material';
 import { useParams } from "react-router-dom";
+import FilenameDisplay from '../components/FilenameDisplay';
 
 // Import your existing TermsDialog component
 import TermsDialog from './TermsDialog';
@@ -540,9 +541,12 @@ const OTPVerificationPage = () => {
           </Typography>
 
           <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#fff8e1' }}>
-            <Typography variant="body2">
-              <strong>Document:</strong> {documentInfo?.filename}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 0.5, mb: 0.5 }}>
+              <Typography variant="body2" sx={{ flexShrink: 0 }}>
+                <strong>Document:</strong>
+              </Typography>
+              <FilenameDisplay filename={documentInfo?.filename} sx={{ fontSize: '0.875rem' }} />
+            </Box>
             <Typography variant="body2">
               <strong>Status:</strong>{' '}
               <Chip label="DECLINED" color="warning" size="small" sx={{ ml: 1 }} />
@@ -748,11 +752,12 @@ const OTPVerificationPage = () => {
           {/* Document & Recipient Info Card */}
           <Card variant="outlined" sx={{ mb: 4, borderRadius: 2 }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <DocumentIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="subtitle1" fontWeight="600">
-                  {documentInfo?.name || documentInfo?.filename || 'Document'}
-                </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, minWidth: 0, gap: 1 }}>
+                <DocumentIcon color="primary" sx={{ flexShrink: 0 }} />
+                <FilenameDisplay
+                  filename={documentInfo?.name || documentInfo?.filename || 'Document'}
+                  sx={{ fontWeight: 600, fontSize: '1rem', minWidth: 0, flex: 1 }}
+                />
                 {termsAccepted && (
                   <Chip
                     icon={<CheckIcon />}
@@ -1297,9 +1302,12 @@ const OTPVerificationPage = () => {
                 VOIDED DOCUMENT DETAILS
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  <strong>Document:</strong> {documentInfo?.filename || 'Untitled'}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 0.5, mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ flexShrink: 0 }}>
+                    <strong>Document:</strong>
+                  </Typography>
+                  <FilenameDisplay filename={documentInfo?.filename || 'Untitled'} sx={{ fontSize: '0.875rem' }} />
+                </Box>
                 <Typography variant="body2">
                   <strong>Recipient:</strong> {recipientInfo?.name}
                 </Typography>
@@ -1383,9 +1391,12 @@ const OTPVerificationPage = () => {
                 SIGNING STATUS
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  <strong>Document:</strong> {documentInfo?.filename || 'Untitled'}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: 0.5, mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ flexShrink: 0 }}>
+                    <strong>Document:</strong>
+                  </Typography>
+                  <FilenameDisplay filename={documentInfo?.filename || 'Untitled'} sx={{ fontSize: '0.875rem' }} />
+                </Box>
                 <Typography variant="body2">
                   <strong>Recipient:</strong> {recipientInfo?.name}
                 </Typography>

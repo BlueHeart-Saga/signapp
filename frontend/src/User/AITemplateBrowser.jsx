@@ -26,6 +26,7 @@ import axios from 'axios';
 import { debounce } from 'lodash';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PageLoadingAnimation from '../components/PageLoadingAnimation';
 import {
   EmojiObjects as EmojiObjectsIcon,
   AutoAwesome as AutoAwesomeIcon,
@@ -1151,14 +1152,14 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
     if (documentId) {
       setToast({
         open: true,
-        message: 'AI template generated successfully! Redirecting to editor...',
+        message: 'AI template generated successfully! Redirecting to recipients...',
         type: 'success'
       });
       
-      // Close browser and navigate to editor
+      // Close browser and navigate to prepare-send
       setTimeout(() => {
         onClose();
-        navigate(`/user/documentbuilder/${documentId}`);
+        navigate(`/user/prepare-send/${documentId}`);
       }, 1500);
     }
   };
@@ -1326,12 +1327,7 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
 
           {/* Loading State */}
           {loading && (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <CircularProgress size={60} />
-              <Typography variant="h6" sx={{ mt: 2 }}>
-                Loading Templates...
-              </Typography>
-            </Box>
+            <PageLoadingAnimation message="Loading AI Templates..." size={110} minHeight="320px" />
           )}
 
           {/* Empty State */}

@@ -20,6 +20,7 @@ import {
   IconButton,
   Tooltip
 } from '@mui/material';
+import FilenameDisplay from '../../../components/FilenameDisplay';
 import {
   Send as SendIcon,
   Error as ErrorIcon,
@@ -331,9 +332,13 @@ const FinishDialog = ({
             </Tooltip>
           </Box>
 
-          <Typography variant="body2">
-            <strong>Name:</strong> {document?.filename || 'Untitled Document'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, flexShrink: 0 }}>Name:</Typography>
+            <FilenameDisplay
+              filename={document?.filename || 'Untitled Document'}
+              sx={{ fontSize: '0.875rem' }}
+            />
+          </Box>
           <Typography variant="body2">
             <strong>Pages:</strong> {document?.page_count || 1}
           </Typography>

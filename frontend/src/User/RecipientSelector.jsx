@@ -20,6 +20,7 @@ import {
   FaDownload
 } from 'react-icons/fa';
 import { recipientAPI, RecipientRoles, RoleDescriptions } from '../services/api';
+import FilenameDisplay from '../components/FilenameDisplay';
 import '../style/RecipientSelector.css';
 
 export default function RecipientManager({ document, onUpdate, defaultTab = 'manage' }) {
@@ -536,9 +537,13 @@ export default function RecipientManager({ document, onUpdate, defaultTab = 'man
         <div className="modal-backdrop">
           <div className="modal recipient-manager-modal">
             <div className="modal-header">
-              <h3>
-                <FaUsers className="header-icon" />
-                Manage Recipients - {document?.filename || 'Unknown Document'}
+              <h3 style={{ display: 'flex', alignItems: 'center', minWidth: 0, gap: '6px', maxWidth: 'calc(100% - 40px)' }}>
+                <FaUsers className="header-icon" style={{ flexShrink: 0 }} />
+                <span style={{ flexShrink: 0 }}>Manage Recipients -</span>
+                <FilenameDisplay
+                  filename={document?.filename || 'Unknown Document'}
+                  sx={{ minWidth: 0, flex: 1, fontWeight: 'inherit', fontSize: 'inherit' }}
+                />
               </h3>
               <button 
                 className="close-btn"

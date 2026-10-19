@@ -20,6 +20,7 @@ import {
   Zoom,
   useTheme,
 } from "@mui/material";
+import FilenameDisplay from "./FilenameDisplay";
 import {
   Close as CloseIcon,
   Description as DescriptionIcon,
@@ -299,8 +300,10 @@ const getUserFriendlyDescription = (event) => {
 // ENRICH EVENT
 // ============================================
 const enrichEvent = (event) => {
+  const ts = event.timestamp || event.created_at || event.time || event.date || new Date().toISOString();
   return {
     ...event,
+    timestamp: ts,
     userFriendlyTitle: getUserFriendlyTitle(event),
     userFriendlyDescription: getUserFriendlyDescription(event),
     category: getEventCategory(event),
@@ -313,10 +316,11 @@ const enrichEvent = (event) => {
 // TIME FORMATTING
 // ============================================
 const formatTimeAgo = (timestamp) => {
-  if (!timestamp) return 'Unknown';
+  if (!timestamp) return 'Just now';
 
   const now = new Date();
   const past = new Date(timestamp);
+  if (isNaN(past.getTime())) return 'Recently';
   const diffMs = now - past;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
@@ -330,8 +334,9 @@ const formatTimeAgo = (timestamp) => {
 };
 
 const formatFullDateTime = (timestamp) => {
-  if (!timestamp) return 'Unknown';
+  if (!timestamp) return 'Recently';
   const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return 'Recently';
   return date.toLocaleString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -345,8 +350,9 @@ const formatFullDateTime = (timestamp) => {
 
 const groupByDate = (events = []) => {
   return events.reduce((acc, event) => {
-    if (!event.timestamp) return acc;
-    const day = new Date(event.timestamp).toDateString();
+    const ts = event.timestamp || event.created_at || event.time || new Date().toISOString();
+    const parsedDate = new Date(ts);
+    const day = isNaN(parsedDate.getTime()) ? "Recent Activity" : parsedDate.toDateString();
     acc[day] = acc[day] || [];
     acc[day].push(event);
     return acc;
@@ -649,18 +655,20 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
       }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: 'background.paper' }}>
-          <Box>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, py: 2.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: 'background.paper', minWidth: 0, gap: 2 }}>
+          <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
             <Typography variant="h6" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TimelineIcon color="primary" />
-              Document Timeline
+              <TimelineIcon color="primary" sx={{ flexShrink: 0 }} />
+              <span>Document Timeline</span>
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {documentName || 'Document History'}
-            </Typography>
+            <Box sx={{ mt: 0.5, minWidth: 0 }}>
+              <FilenameDisplay
+                filename={documentName || 'Document History'}
+                sx={{ color: 'text.secondary', fontSize: '0.875rem' }}
+              />
+            </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             {totalEvents > 0 && (
               <>
                 <Tooltip title="Export Data">

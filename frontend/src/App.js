@@ -9,6 +9,9 @@ import Layout from "./components/Layout";
 import { AuthProvider } from "./context/AuthContext";
 import ScrollToTop from "./components/ScrollToTop";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ThemeProvider } from "@mui/material/styles";
+import { theme } from "./theme";
+import AppSplashLoader from "./components/AppSplashLoader";
 
 // Home & Core Pages
 import Home from "./Home/Home";
@@ -157,45 +160,25 @@ function AnimatedRoutes() {
   return (
     <>
       <ScrollToTop />
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+      <Routes>
 
         <Route
           path="/login"
           element={
-            // <motion.div
-            //   initial={{ opacity: 0, x: 80 }}
-            //   animate={{ opacity: 1, x: 0 }}
-            //   exit={{ opacity: 0, x: -80 }}
-            //   transition={{ duration: 0.45, ease: "easeInOut" }}
-            // >
             <Login />
-            // </motion.div>
           }
         />
 
         <Route
           path="/register"
           element={
-            // <motion.div
-            //   initial={{ opacity: 0, x: -80 }}
-            //   animate={{ opacity: 1, x: 0 }}
-            //   exit={{ opacity: 0, x: 80 }}
-            //   transition={{ duration: 0.45, ease: "easeInOut" }}
-            // >
             <Register />
-            // </motion.div>
           }
         />
 
 
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ForgotPassword />} />
-
-        {/* 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} /> */}
-
 
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
@@ -222,119 +205,85 @@ function AnimatedRoutes() {
           <Route path="/trademarkpolicy" element={<TrademarkPolicy />} />
           <Route path="/faq" element={<EsignivaFAQ />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route path="/cookies" element={<Cookies />} />
-
-
+          <Route path="/cookie-policy" element={<Cookies />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/api-docs" element={<Navigate to="/docs" replace />} />
+          <Route path="/enterprise-support" element={<Navigate to="/contactus?subject=Sales%20%26%20Enterprise" replace />} />
 
           <Route path="/e-sign/complaints" element={<ComplaintPage />} />
-
 
           <Route path="/document-management" element={<DocumentManagementHome />} />
           <Route path="/workflow-automation" element={<WorkflowAutomationHome />} />
           <Route path="/templates" element={<TemplatesHome />} />
         </Route>
 
-
-        {/* <Route path="/documents/:documentId/build" element={<DocumentBuilder />} />
-<Route path="/documents/:documentId/preview" element={<OwnerPreview />} /> */}
-
-
-
-
-
         <Route path="/verify/:recipientId" element={<OTPVerificationPage />} />
-
-        {/* <Route path="/sign/:recipientId" element={<RecipientSigningPage />} /> */}
         <Route path="/sign/:recipientId" element={<SigningPage />} />
-
         <Route path="/complete/:recipientId" element={<Completion />} />
 
         <Route path="/sign/:recipientId/voided" element={<VoidedDocumentView />} />
         <Route path="/sign/:recipientId/declined" element={<DeclinedDocumentView />} />
         <Route path="/sign/:recipientId/expired" element={<ExpiredDocumentView />} />
 
-
-
-
-        {/* ---------------- Admin Routes ---------------- */}
+        {/* ---------------- Admin Persistent Layout Routes ---------------- */}
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <Layout>
-                <Routes>
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="users" element={<UserManagement />} />
-                  <Route path="templates" element={<TemplateManagement />} />
-                  <Route path="logo" element={<DynamicLogo />} />
-                  <Route path="banner" element={<AdminBanner />} />
-                  <Route path="complaints" element={<AdminComplaints />} />
-                  <Route path="feedback" element={<AdminFeedback />} />
-                  <Route path="envelopes" element={<AdminEnvelopeManagement />} />
-                </Routes>
-              </Layout>
+              <Layout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="templates" element={<TemplateManagement />} />
+          <Route path="logo" element={<DynamicLogo />} />
+          <Route path="banner" element={<AdminBanner />} />
+          <Route path="complaints" element={<AdminComplaints />} />
+          <Route path="feedback" element={<AdminFeedback />} />
+          <Route path="envelopes" element={<AdminEnvelopeManagement />} />
+        </Route>
 
-        {/* ---------------- User Routes ---------------- */}
+        {/* ---------------- User Persistent Layout Routes ---------------- */}
         <Route
-          path="/user/*"
+          path="/user"
           element={
             <ProtectedRoute allowedRoles={["user", "admin"]}>
-              <Layout>
-                <Routes>
-                  <Route path="" element={<InitialDashboard />} />
-                  <Route path="dashboard" element={<UserDashboard />} />
-                  <Route path="documents/manage" element={<DocumentManagement />} />
-                  <Route path="documents/trash" element={<DeletedDocuments />} />
-
-                  <Route path="subscription" element={<Subscription />} />
-
-                  <Route path="documents" element={<MyDocuments />} />
-                  <Route path="document-builder" element={<DocumentBuilderPage />} />
-                  <Route path="ai-templates" element={<AITemplateGenerator />} />
-                  <Route path="ai-template" element={<PlanGuard><TemplateBuilder /></PlanGuard>} />
-                  <Route path="ai-template2" element={<AIDocumentGenerator />} />
-                  <Route path="templates" element={<PlanGuard><Templates /></PlanGuard>} />
-                  <Route path="templateslist" element={<UserTemplatesList />} />
-                  <Route path="contacts" element={<PlanGuard><Contacts /></PlanGuard>} />
-                  <Route path="d-sign" element={<ESignature />} />
-
-                  <Route path="settings" element={<Settings />} />
-
-                  <Route path="document-summary/:documentId" element={<DocumentSummary />}
-                  />
-
-
-                  <Route path="ai-document" element={<AIDocumentEditor />} />
-
-
-
-                  <Route path="prepare-send/:documentId" element={<PrepareSendRecipients />} />
-
-
-
-                  {/* AI Template Builder routes */}
-                  {/* <Route path="/ai/templates" element={<AITemplateBuilder />} /> */}
-                  {/* <Route path="/ai/templates/:id/edit" element={<AITemplateEditor />} /> */}
-
-                  {/* Redirect from documents to AI templates */}
-                  {/* <Route path="/documents/ai-templates" element={<Navigate to="/ai/templates" />} /> */}
-
-
-                </Routes>
-              </Layout>
+              <Layout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<InitialDashboard />} />
+          <Route path="dashboard" element={<UserDashboard />} />
+          <Route path="documents/manage" element={<DocumentManagement />} />
+          <Route path="documents/trash" element={<DeletedDocuments />} />
+
+          <Route path="subscription" element={<Subscription />} />
+
+          <Route path="documents" element={<MyDocuments />} />
+          <Route path="document-builder" element={<DocumentBuilderPage />} />
+          <Route path="ai-templates" element={<AITemplateGenerator />} />
+          <Route path="ai-template" element={<PlanGuard><TemplateBuilder /></PlanGuard>} />
+          <Route path="ai-template2" element={<AIDocumentGenerator />} />
+          <Route path="templates" element={<PlanGuard><Templates /></PlanGuard>} />
+          <Route path="templateslist" element={<UserTemplatesList />} />
+          <Route path="contacts" element={<PlanGuard><Contacts /></PlanGuard>} />
+          <Route path="d-sign" element={<ESignature />} />
+
+          <Route path="settings" element={<Settings />} />
+
+          <Route path="document-summary/:documentId" element={<DocumentSummary />} />
+          <Route path="ai-document" element={<AIDocumentEditor />} />
+          <Route path="prepare-send/:documentId" element={<PrepareSendRecipients />} />
+        </Route>
 
         {/* ---------------- User FULLSCREEN Routes (NO Layout) ---------------- */}
         <Route
           path="/user/documentbuilder/:documentId"
           element={
             <ProtectedRoute allowedRoles={["user", "admin"]}>
-              {/* <DocumentBuilder /> */}
               <DocumentMainLayout />
             </ProtectedRoute>
           }
@@ -349,65 +298,51 @@ function AnimatedRoutes() {
           }
         />
 
-
-        {/* ---------------- Recipient Routes ---------------- */}
+        {/* ---------------- Recipient Persistent Layout Routes ---------------- */}
         <Route
-          path="/recipient/*"
+          path="/recipient"
           element={
-
-            <Layout>
-              <Routes>
-                <Route path="home" element={<Dashboard />} />
-                <Route path="view" element={<ViewDocument />} />
-                <Route path="documents" element={<RecipientDocuments />} />
-                <Route path="history/:documentId" element={<RecipientHistory />} />
-
-                <Route path="*" element={<Navigate to="access" replace />} />
-
-              </Routes>
-            </Layout>
-
+            <Layout />
           }
-        />
-
+        >
+          <Route path="home" element={<Dashboard />} />
+          <Route path="view" element={<ViewDocument />} />
+          <Route path="documents" element={<RecipientDocuments />} />
+          <Route path="history/:documentId" element={<RecipientHistory />} />
+          <Route path="*" element={<Navigate to="access" replace />} />
+        </Route>
 
         <Route path="/recipient/access" element={<Access />} />
         <Route path="/recipient/dashboard" element={<RecipientDashboard />} />
         <Route path="/recipient/documents/:documentId" element={<DocumentDetails />} />
         <Route path="/recipient/history" element={<History />} />
 
-
-
         {/* ---------------- 404 FALLBACK ---------------- */}
         <Route path="*" element={<NotFound />} />
 
-
       </Routes>
-    </AnimatePresence>
     </>
   );
 }
 function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-          }}
-        />
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Suspense fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
-              <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            </div>
-          }>
-            <AnimatedRoutes />
-          </Suspense>
-        </Router>
-      </AuthProvider>
-    </ErrorBoundary>
+    <ThemeProvider theme={theme}>
+      <ErrorBoundary>
+        <AuthProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+            }}
+          />
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Suspense fallback={<AppSplashLoader message="Welcome to eSigniva..." />}>
+              <AnimatedRoutes />
+            </Suspense>
+          </Router>
+        </AuthProvider>
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 }
 

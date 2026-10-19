@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 import {
   HelpCircle,
   MessageSquare,
@@ -111,9 +112,9 @@ const Support = () => {
   const quickLinks = [
     { title: 'API Documentation', icon: <Code size={18} />, link: '/docs', category: 'developers' },
     { title: 'Security Center', icon: <Shield size={18} />, link: '/security', category: 'security' },
-    { title: 'Billing Help', icon: <CreditCard size={18} />, link: '/billing', category: 'account' },
-    { title: 'System Status', icon: <Globe size={18} />, link: '/status', category: 'status' },
-    { title: 'Video Tutorials', icon: <Video size={18} />, link: '/tutorials', category: 'learning' },
+    { title: 'Billing Help', icon: <CreditCard size={18} />, link: '/pricing', category: 'account' },
+    { title: 'System Status', icon: <Globe size={18} />, link: '#status', category: 'status', isTab: true },
+    { title: 'Video Tutorials', icon: <Video size={18} />, link: '#resources', category: 'learning', isTab: true },
     { title: 'Community Forum', icon: <Users size={18} />, link: '/community', category: 'community' }
   ];
 
@@ -241,7 +242,12 @@ const Support = () => {
 
   const handleContactSubmit = (e) => {
     e.preventDefault();
-    alert('Support ticket submitted! We\'ll get back to you soon.');
+    Swal.fire({
+      icon: 'success',
+      title: 'Support Ticket Submitted',
+      text: 'Thank you for contacting Esigniva support. Our technical team has received your ticket and will respond within your tier SLA.',
+      confirmButtonColor: '#0f766e'
+    });
     setContactData({ name: '', email: '', subject: '', message: '' });
     setShowContactForm(false);
   };
@@ -385,13 +391,18 @@ const Support = () => {
                           className="safe-channel-btn"
                           onClick={() => {
                             if (channel.id === 'live-chat') {
-                              alert('Live chat opened! A support agent will be with you shortly.');
+                              Swal.fire({
+                                icon: 'info',
+                                title: 'Live Chat Agent',
+                                text: 'Connecting you with an Esigniva live support specialist... Wait time: < 2 minutes.',
+                                confirmButtonColor: '#0f766e'
+                              });
                             } else if (channel.id === 'email') {
                               setShowContactForm(true);
                             } else if (channel.id === 'phone') {
-                              window.open('tel:+18001234567');
+                              window.location.href = 'tel:+442079460192';
                             } else {
-                              window.open('/enterprise-support');
+                              navigate('/contactus?subject=Sales%20%26%20Enterprise');
                             }
                           }}
                         >
@@ -410,7 +421,22 @@ const Support = () => {
                   <h3 className="safe-sidebar-title">Quick Resources</h3>
                   <div className="safe-quick-links-grid">
                     {quickLinks.map((link, index) => (
-                      <a key={index} href={link.link} className="safe-quick-link">
+                      <a 
+                        key={index} 
+                        href={link.link} 
+                        onClick={(e) => {
+                          if (link.isTab) {
+                            e.preventDefault();
+                            if (link.link === '#status') setActiveTab('status');
+                            if (link.link === '#resources') setActiveTab('resources');
+                            window.scrollTo({ top: 350, behavior: 'smooth' });
+                          } else if (link.link.startsWith('/')) {
+                            e.preventDefault();
+                            navigate(link.link);
+                          }
+                        }}
+                        className="safe-quick-link"
+                      >
                         <div className="safe-link-icon">
                           {link.icon}
                         </div>
@@ -833,7 +859,7 @@ const Support = () => {
         .safe-support {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

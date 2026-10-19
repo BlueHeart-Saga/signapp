@@ -2,6 +2,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { Modal, Box, Button, Typography, CircularProgress } from "@mui/material";
 import { useEffect, useState, useRef } from "react";
 import { renderAsync } from "docx-preview";
+import FilenameDisplay from "./FilenameDisplay";
 
 // PDF.js worker (REQUIRED)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -96,9 +97,17 @@ export default function UploadPreviewModal({ open, file, onClose, onUpload }) {
     <Modal open={open} onClose={onClose}>
       <Box sx={styles.modal}>
         {/* Header */}
-        <Typography variant="h6" sx={styles.header}>
-          Preview: {file.name}
-        </Typography>
+        <Box sx={{ ...styles.header, display: "flex", alignItems: "center", gap: 1, minWidth: 0, overflow: "hidden" }}>
+          <Typography component="span" sx={{ fontWeight: 700, fontSize: "1.25rem", color: "#1e293b", flexShrink: 0 }}>
+            Preview:
+          </Typography>
+          <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+            <FilenameDisplay
+              filename={file.name}
+              sx={{ fontWeight: 700, fontSize: "1.25rem", color: "#1e293b" }}
+            />
+          </Box>
+        </Box>
 
         {/* Preview Area */}
         <Box sx={styles.previewArea}>

@@ -378,8 +378,9 @@ import { documentsAPI } from '../services/api';
 // import { uploadDocument } from '../services/DocumentAPI';
 import '../style/documents.css';
 import '../style/TemplatesList.css';
+import FilenameDisplay from '../components/FilenameDisplay';
 import { useAuth } from '../context/AuthContext';
-import { CircularProgress, Box } from '@mui/material';
+import { CircularProgress, Box, Skeleton } from '@mui/material';
 import showAlert from '../utils/swal';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
@@ -731,11 +732,13 @@ export default function DocumentsAndTemplates() {
   // ============ TEMPLATES FUNCTIONS ============
   const getTemplateId = (template) => {
     if (!template) return null;
-    if (template._id && typeof template._id === 'object' && template._id.$oid) {
-      return template._id.$oid;
+    if (template.id) return String(template.id);
+    if (template._id) {
+      if (typeof template._id === 'object' && template._id.$oid) {
+        return String(template._id.$oid);
+      }
+      return String(template._id);
     }
-    if (typeof template._id === 'string') return template._id;
-    if (template.id) return template.id;
     return null;
   };
 
@@ -900,10 +903,10 @@ export default function DocumentsAndTemplates() {
         throw new Error("No document data in upload response");
       }
 
-      showAlert.toast("success", "Template imported! Loading document editor...");
+      showAlert.toast("success", "Template imported! Preparing document for recipients...");
 
       const docId = uploadedDocument.id || uploadedDocument._id;
-      navigate(`/user/documentbuilder/${docId}`, {
+      navigate(`/user/prepare-send/${docId}`, {
         state: {
           document: uploadedDocument,
           fromTemplate: true,
@@ -1313,7 +1316,9 @@ export default function DocumentsAndTemplates() {
                               <span className="dt-list-icon">
                                 {getFileIcon(document.mime_type, document.filename)}
                               </span>
-                              <span className="dt-list-name" title={document.filename}>{document.filename}</span>
+                              <span className="dt-list-name" title={document.filename}>
+                                <FilenameDisplay filename={document.filename} as="span" />
+                              </span>
                             </div>
                           </td>
                           <td>
@@ -1402,7 +1407,7 @@ export default function DocumentsAndTemplates() {
 
                       <div className="dt-document-card-body">
                         <h3 className="dt-document-name" title={document.filename}>
-                          {document.filename}
+                          <FilenameDisplay filename={document.filename} as="span" />
                         </h3>
 
                         <div className="dt-document-meta">
@@ -1633,11 +1638,25 @@ export default function DocumentsAndTemplates() {
 
                 {/* Templates Loading */}
                 {templatesLoading ? (
-                  <div className="dt-loading-container">
-                    <div className="dt-spinner"></div>
-                    <p>Loading templates...</p>
+                  <div className="dt-templates-grid">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="dt-template-card" style={{ border: "1px solid #e2e8f0", background: "#fff" }}>
+                        <Skeleton variant="rectangular" width="100%" height={120} sx={{ borderRadius: "8px 8px 0 0" }} />
+                        <div style={{ padding: 16 }}>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                            <Skeleton variant="rounded" width={55} height={18} sx={{ borderRadius: "4px" }} />
+                            <Skeleton variant="text" width={35} height={18} />
+                          </Box>
+                          <Skeleton variant="text" width="85%" height={24} sx={{ mb: 1 }} />
+                          <Skeleton variant="text" width="100%" height={16} />
+                          <Skeleton variant="text" width="60%" height={16} sx={{ mb: 2 }} />
+                          <Skeleton variant="rounded" width="100%" height={34} sx={{ borderRadius: "6px" }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ) : templatesError ? (
+                ) :
+ templatesError ? (
                   <div className="dt-error-alert">
                     <p> {templatesError}</p>
                     <button onClick={fetchTemplates} className="dt-btn dt-btn-outline">
@@ -1938,7 +1957,9 @@ export default function DocumentsAndTemplates() {
                               <span className="dt-list-icon">
                                 {getFileIcon(doc.mime_type, doc.filename)}
                               </span>
-                              <span className="dt-list-name" title={doc.filename}>{doc.filename}</span>
+                              <span className="dt-list-name" title={doc.filename}>
+                                <FilenameDisplay filename={doc.filename} as="span" />
+                              </span>
                             </div>
                           </td>
                           <td>{getDeletedDate(doc)}</td>
@@ -2025,7 +2046,7 @@ export default function DocumentsAndTemplates() {
                       </div>
                       <div className="dt-document-card-body">
                         <h3 className="dt-document-name" title={doc.filename}>
-                          {doc.filename}
+                          <FilenameDisplay filename={doc.filename} as="span" />
                         </h3>
 
                         <div className="dt-document-meta">

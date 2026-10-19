@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useParams } from 'react-router-dom';
+import FilenameDisplay from './FilenameDisplay';
 import API_BASE_URL from '../config/api';
 // import documentAPI from '../services/documentAPI';
 import CloseIcon from "@mui/icons-material/Close";
@@ -87,20 +88,23 @@ const OwnerPreview = () => {
                   mb: 1.5,
                   px: 0.5,
                   color: "#64748b",
-                  userSelect: 'none'
+                  userSelect: 'none',
+                  minWidth: 0,
+                  gap: 1.5
                 }}
               >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    letterSpacing: '0.02em',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  {docInfo?.filename || 'Owner Preview'}
-                </Typography>
+                <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <FilenameDisplay
+                    filename={docInfo?.filename || 'Owner Preview'}
+                    sx={{
+                      fontSize: "0.75rem",
+                      fontWeight: 500,
+                      letterSpacing: '0.02em',
+                      textTransform: 'uppercase',
+                      color: "#64748b"
+                    }}
+                  />
+                </Box>
 
                 <Typography
                   variant="caption"

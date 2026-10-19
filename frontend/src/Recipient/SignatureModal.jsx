@@ -87,7 +87,10 @@ const SignatureModal = ({
           throw new Error('Please draw your signature first');
         }
         
-        signatureData = sigCanvasRef.current.toDataURL('image/png');
+        signatureData = {
+          image: sigCanvasRef.current.toDataURL('image/png'),
+          signature_type: 'draw'
+        };
         
       } else if (tab === 1) {
         // Typed signature
@@ -95,24 +98,28 @@ const SignatureModal = ({
           throw new Error('Please enter your signature');
         }
         
-        // Create canvas for typed signature
+        // High-resolution canvas for typed signature (4x supersampling)
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 400;
-        canvas.height = 150;
+        canvas.width = 1200;
+        canvas.height = 450;
         
-        // Draw background
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Transparent background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw signature text
-        ctx.font = 'bold 40px "Great Vibes", cursive, "Dancing Script", "Brush Script MT"';
-        ctx.fillStyle = 'black';
+        ctx.font = 'bold 110px "Great Vibes", cursive, "Dancing Script", "Brush Script MT"';
+        ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2);
+        ctx.fillText(typedSignature.trim(), canvas.width / 2, canvas.height / 2);
         
-        signatureData = canvas.toDataURL('image/png');
+        signatureData = {
+          image: canvas.toDataURL('image/png'),
+          text: typedSignature.trim(),
+          signature_type: 'type',
+          font_family: 'Great Vibes'
+        };
         
       } else if (tab === 2) {
         // Upload signature (simplified)

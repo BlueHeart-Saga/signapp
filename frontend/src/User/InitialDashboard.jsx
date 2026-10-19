@@ -8,6 +8,8 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { setPageTitle } from "../utils/pageTitle";
 import PremiumBannerSlider from "../components/PremiumBannerSlider";
+import { DashboardOverviewSkeleton } from "../components/DashboardSkeleton";
+import PageLoadingAnimation from "../components/PageLoadingAnimation";
 
 // External CSS styles
 const styles = `
@@ -18,7 +20,7 @@ const styles = `
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   background: #f5f5f5;
   overflow-x: hidden;
 }
@@ -416,27 +418,8 @@ const InitialDashboard = () => {
 
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="ss-content-wrapper">
-        <div className="ss-loading-overlay">
-          <div className="ss-spinner-container">
-            <div className="ss-loading-spinner"></div>
-            <div className="ss-loader-text">
-              <p>Loading</p>
-              <div className="ss-rotating-words">
-                <span className="ss-word">Status</span>
-                <span className="ss-word">Reports</span>
-                <span className="ss-word">Features</span>
-                <span className="ss-word">Documents</span>
-                <span className="ss-word">Signatures</span>
-                <span className="ss-word">Status</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  if (loading && !user) {
+    return <PageLoadingAnimation message="Loading your workspace..." size={120} />;
   }
 
 

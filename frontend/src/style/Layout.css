@@ -2,7 +2,7 @@
   display: flex;
   height: 100vh;
   background: #ffffff;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   width: 100%;
 }
 
@@ -107,7 +107,7 @@
 
 .ss-loader-text {
   color: #1e293b;
-  font-family: "Inter", "Poppins", sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   font-weight: 600;
   font-size: 24px;
   height: 44px;
@@ -181,5 +181,34 @@
 
   100% {
     transform: translateY(0);
+  }
+}
+
+/* Brevo-Style Smooth Content Transition */
+.content-area-outlet {
+  animation: dashboardFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  min-height: 100%;
+}
+
+@keyframes dashboardFadeIn {
+  from {
+    opacity: 0.75;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-area-outlet,
+  .ss-loading-spinner,
+  .ss-word,
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -31,9 +31,11 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from database import db
-from config import JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ADMIN_SECRET_KEY, RECIPIENT_TOKEN_EXPIRE_MINUTES
+from config import JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ADMIN_SECRET_KEY, RECIPIENT_TOKEN_EXPIRE_MINUTES, FRONTEND_URL as DEFAULT_FRONTEND_URL
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", DEFAULT_FRONTEND_URL or "http://localhost:3001")
 
 # Security setup
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -142,6 +144,13 @@ def serialize_doc(doc):
         else:
             serialized[key] = serialize_doc(value)
     
+    # Normalize profile picture fields across providers (only if non-empty string or dict)
+    pic_val = serialized.get("picture") or serialized.get("avatar_url") or serialized.get("profile_image") or serialized.get("photo_url") or serialized.get("avatar")
+    if pic_val and not serialized.get("profile_picture"):
+        serialized["profile_picture"] = pic_val
+    if serialized.get("profile_picture") and not serialized.get("profile_image"):
+        serialized["profile_image"] = serialized["profile_picture"]
+
     return serialized
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -351,15 +360,15 @@ async def send_otp_email(email: str, otp: str):
                         <!-- Redesigned Footer Section Exactly as Image -->
                         <tr>
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
-                                <!-- Policy Links (Exactly as image) -->
+                                <!-- Policy Links (Dynamic environment links) -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="{FRONTEND_URL}/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="{FRONTEND_URL}/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="{FRONTEND_URL}/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
-                                    <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
+                                    <a href="{FRONTEND_URL}/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="{FRONTEND_URL}/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
                                 </div>
 
                                 <!-- Social Icons in Rounded Boxes -->
@@ -623,11 +632,11 @@ async def send_welcome_email(email: str, full_name: str = ""):
                                 <div style="text-align: left; margin-bottom: 35px;">
                                     <table border="0" cellspacing="0" cellpadding="0">
                                         <tr>
-                                            <td align="center" bgcolor="#00A3A3" style="border-radius: 8px;">
-                                                <a href="https://esigniva.devopstrio.co.uk/login" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 12px 30px; display: inline-block; font-weight: 700;">
-                                                    Click to proceed
-                                                </a>
-                                            </td>
+                                             <td align="center" bgcolor="#00A3A3" style="border-radius: 8px;">
+                                                 <a href="{FRONTEND_URL}/login" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 12px 30px; display: inline-block; font-weight: 700;">
+                                                     Click to proceed
+                                                 </a>
+                                             </td>
                                         </tr>
                                     </table>
                                 </div>
@@ -640,15 +649,15 @@ async def send_welcome_email(email: str, full_name: str = ""):
                         <!-- Redesigned Footer Section Exactly as Image -->
                         <tr>
                             <td style="padding: 40px 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
-                                <!-- Policy Links (Exactly as image) -->
+                                <!-- Policy Links (Dynamic environment links) -->
                                 <div style="margin-bottom: 12px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
-                                    <a href="https://esigniva.devopstrio.co.uk/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
+                                    <a href="{FRONTEND_URL}/privacy-policy" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Privacy Policy</a>
+                                    <a href="{FRONTEND_URL}/terms-of-service" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Terms of Service</a>
+                                    <a href="{FRONTEND_URL}/cookies" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Cookie Policy</a>
                                 </div>
                                 <div style="margin-bottom: 30px;">
-                                    <a href="https://esigniva.devopstrio.co.uk/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
-                                    <a href="#" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">Disclaimer</a>
+                                    <a href="{FRONTEND_URL}/complaints" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">GDPR Compliance</a>
+                                    <a href="{FRONTEND_URL}/faq" style="color: #1e293b; text-decoration: underline; font-size: 13px; margin: 0 8px; font-weight: 500;">FAQ</a>
                                 </div>
 
                                 <!-- Social Icons in Rounded Boxes -->
@@ -783,6 +792,17 @@ class RegisterSendOTPRequest(BaseModel):
 class RegisterVerifyOTPRequest(BaseModel):
     email: EmailStr
     otp: str
+
+class LoginSendOTPRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class LoginVerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class LoginResendOTPRequest(BaseModel):
+    email: EmailStr
 
 class RecipientSignup(BaseModel):
     email: EmailStr
@@ -1306,147 +1326,250 @@ async def register_verify_otp(request: RegisterVerifyOTPRequest):
             detail="Failed to verify code. Please try again."
         )
 
+async def verify_user_login_credentials(username: str, password_raw: str) -> dict:
+    """Validate username and password, checking lockouts and attempt counters. Returns user on success."""
+    # Check database connection
+    try:
+        await db_command('ping')
+    except Exception as db_error:
+        print(f"Database connection error during login: {db_error}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "Service Unavailable",
+                "message": "Unable to connect to authentication service. Please try again later.",
+                "code": "DB_CONNECTION_ERROR"
+            }
+        )
+    
+    # Validate input
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Email Required",
+                "message": "Please provide your email address.",
+                "code": "EMAIL_REQUIRED",
+                "field": "username"
+            }
+        )
+    
+    if not password_raw:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Password Required",
+                "message": "Please provide your password.",
+                "code": "PASSWORD_REQUIRED",
+                "field": "password"
+            }
+        )
+    
+    # Find user
+    try:
+        user = await db_find_one(db.users, {"email": username.lower()})
+    except Exception as e:
+        print(f"Error finding user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "Database Error",
+                "message": "Unable to verify credentials. Please try again.",
+                "code": "DB_QUERY_ERROR"
+            }
+        )
+
+    # User not found
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "Invalid Credentials",
+                "message": "The email or password you entered is incorrect.",
+                "code": "INVALID_CREDENTIALS"
+            }
+        )
+
+    # Check if user is active
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "Account Suspended",
+                "message": "Your account has been suspended. Please contact support for assistance.",
+                "code": "ACCOUNT_SUSPENDED"
+            }
+        )
+
+    # Handle Google OAuth users
+    if user.get("auth_provider") == "google" and "password" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "Google Account",
+                "message": "This account uses Google Sign-In. Please login with Google.",
+                "code": "USE_GOOGLE_LOGIN",
+                "auth_provider": "google"
+            }
+        )
+
+    # Check if password exists
+    if "password" not in user or not user["password"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "Invalid Credentials",
+                "message": "The email or password you entered is incorrect.",
+                "code": "INVALID_CREDENTIALS"
+            }
+        )
+
+    # Check if account is temporarily locked due to multiple failed login attempts
+    lockout_until = user.get("lockout_until")
+    if lockout_until:
+        now_utc = datetime.utcnow()
+        if isinstance(lockout_until, str):
+            try:
+                lockout_until = datetime.fromisoformat(lockout_until.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                lockout_until = None
+        if lockout_until and isinstance(lockout_until, datetime) and now_utc < lockout_until:
+            diff_sec = max(1, int((lockout_until - now_utc).total_seconds()))
+            diff_min = max(1, (diff_sec + 59) // 60)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "error": "Account Temporarily Locked",
+                    "message": f"Too many failed login attempts. For security reasons, please wait {diff_min} minute{'s' if diff_min > 1 else ''} ({diff_sec}s) before trying again, or reset your password.",
+                    "code": "ACCOUNT_LOCKED_TEMPORARY",
+                    "retry_after": diff_sec,
+                    "lockout_until": lockout_until.isoformat()
+                }
+            )
+
+    # Verify password
+    try:
+        password = password_raw
+        password_bytes = password.encode("utf-8")
+        if len(password_bytes) > 72:
+            password = password[:72]
+
+        password_valid = pwd_ctx.verify(password, user["password"])
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Authentication Error",
+                "message": "Unable to verify password. Please try again.",
+                "code": "PASSWORD_VERIFICATION_ERROR"
+            }
+        )
+
+    if not password_valid:
+        # Log failed attempt
+        try:
+            await db_insert_one(db.login_attempts, {
+                "email": username.lower(),
+                "success": False,
+                "reason": "invalid_password",
+                "timestamp": datetime.utcnow()
+            })
+        except:
+            pass
+
+        now_utc = datetime.utcnow()
+        prev_lockout = user.get("lockout_until")
+        if isinstance(prev_lockout, str):
+            try:
+                prev_lockout = datetime.fromisoformat(prev_lockout.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                prev_lockout = None
+
+        if prev_lockout and isinstance(prev_lockout, datetime) and now_utc >= prev_lockout:
+            current_attempts = 1
+        else:
+            current_attempts = user.get("failed_login_attempts", 0) + 1
+
+        max_attempts = 5
+        lockout_minutes = 5
+
+        if current_attempts >= max_attempts:
+            lockout_time = now_utc + timedelta(minutes=lockout_minutes)
+            try:
+                await db_update_one(
+                    db.users,
+                    {"_id": user["_id"]},
+                    {"$set": {
+                        "failed_login_attempts": current_attempts,
+                        "lockout_until": lockout_time,
+                        "last_failed_login": now_utc
+                    }}
+                )
+            except Exception as e:
+                print(f"Error recording login lockout: {e}")
+
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "error": "Account Temporarily Locked",
+                    "message": f"Too many failed login attempts ({current_attempts}/{max_attempts}). For your security, your account is temporarily locked for {lockout_minutes} minutes. Please wait before trying again or reset your password.",
+                    "code": "ACCOUNT_LOCKED_TEMPORARY",
+                    "retry_after": lockout_minutes * 60,
+                    "lockout_until": lockout_time.isoformat()
+                }
+            )
+        else:
+            try:
+                await db_update_one(
+                    db.users,
+                    {"_id": user["_id"]},
+                    {"$set": {
+                        "failed_login_attempts": current_attempts,
+                        "last_failed_login": now_utc
+                    }}
+                )
+            except Exception as e:
+                print(f"Error updating failed login attempts: {e}")
+
+            remaining = max_attempts - current_attempts
+            if current_attempts >= 3:
+                msg = f"Incorrect password. Warning: You have entered an incorrect password {current_attempts} times. {remaining} attempt{'s' if remaining > 1 else ''} remaining before temporary account lockout."
+            else:
+                msg = "The email or password you entered is incorrect."
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "error": "Invalid Credentials",
+                    "message": msg,
+                    "code": "INVALID_CREDENTIALS",
+                    "attempts": current_attempts,
+                    "remaining_attempts": remaining
+                }
+            )
+
+    return user
+
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Login endpoint with comprehensive error handling"""
+    """Login endpoint with comprehensive error handling (standard single-step OAuth2)"""
     try:
-        # Check database connection
-        try:
-            await db_command('ping')
-        except Exception as db_error:
-            print(f"Database connection error during login: {db_error}")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={
-                    "error": "Service Unavailable",
-                    "message": "Unable to connect to authentication service. Please try again later.",
-                    "code": "DB_CONNECTION_ERROR"
-                }
-            )
-        
-        # Validate input
-        if not form_data.username:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "Email Required",
-                    "message": "Please provide your email address.",
-                    "code": "EMAIL_REQUIRED",
-                    "field": "username"
-                }
-            )
-        
-        if not form_data.password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": "Password Required",
-                    "message": "Please provide your password.",
-                    "code": "PASSWORD_REQUIRED",
-                    "field": "password"
-                }
-            )
-        
-        # Find user
-        try:
-            user = await db_find_one(db.users, {"email": form_data.username.lower()})
-        except Exception as e:
-            print(f"Error finding user: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={
-                    "error": "Database Error",
-                    "message": "Unable to verify credentials. Please try again.",
-                    "code": "DB_QUERY_ERROR"
-                }
-            )
+        user = await verify_user_login_credentials(form_data.username, form_data.password)
 
-        # User not found
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": "Invalid Credentials",
-                    "message": "The email or password you entered is incorrect.",
-                    "code": "INVALID_CREDENTIALS"
-                }
-            )
-
-        # Check if user is active
-        if not user.get("is_active", True):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error": "Account Suspended",
-                    "message": "Your account has been suspended. Please contact support for assistance.",
-                    "code": "ACCOUNT_SUSPENDED"
-                }
-            )
-
-        # Handle Google OAuth users
-        if user.get("auth_provider") == "google" and "password" not in user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": "Google Account",
-                    "message": "This account uses Google Sign-In. Please login with Google.",
-                    "code": "USE_GOOGLE_LOGIN",
-                    "auth_provider": "google"
-                }
-            )
-
-        # Check if password exists
-        if "password" not in user or not user["password"]:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": "Invalid Credentials",
-                    "message": "The email or password you entered is incorrect.",
-                    "code": "INVALID_CREDENTIALS"
-                }
-            )
-
-        # Verify password
-        try:
-            password = form_data.password
-
-            password_bytes = password.encode("utf-8")
-            if len(password_bytes) > 72:
-                password = password[:72]
-
-            password_valid = pwd_ctx.verify(password, user["password"])
-            
-        except Exception as e:
-            print(f"Password verification error: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail={
-                    "error": "Authentication Error",
-                    "message": "Unable to verify password. Please try again.",
-                    "code": "PASSWORD_VERIFICATION_ERROR"
-                }
-            )
-
-        if not password_valid:
-            # Log failed attempt
+        # Reset failed login attempts on successful authentication
+        if user.get("failed_login_attempts", 0) > 0 or user.get("lockout_until"):
             try:
-                await db_insert_one(db.login_attempts, {
-                    "email": form_data.username.lower(),
-                    "success": False,
-                    "reason": "invalid_password",
-                    "timestamp": datetime.utcnow()
-                })
-            except:
-                pass  # Don't fail login if logging fails
-            
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": "Invalid Credentials",
-                    "message": "The email or password you entered is incorrect.",
-                    "code": "INVALID_CREDENTIALS"
-                }
-            )
+                await db_update_one(
+                    db.users,
+                    {"_id": user["_id"]},
+                    {"$set": {
+                        "failed_login_attempts": 0,
+                        "lockout_until": None
+                    }}
+                )
+            except Exception as e:
+                print(f"Error resetting failed login attempts: {e}")
 
         # Create access token
         try:
@@ -1455,7 +1578,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                     "sub": user["email"],
                     "id": str(user["_id"]),
                     "email": user["email"],
-                    "role": user["role"]
+                    "role": user.get("role", "user")
                 }
             )
         except Exception as e:
@@ -1499,6 +1622,163 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 "code": "UNEXPECTED_ERROR"
             }
         )
+
+@router.post("/login/send-otp")
+async def login_send_otp(
+    request: LoginSendOTPRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Step 1 of 2-Step Login:
+    Validates user credentials. If valid, generates a 6-digit OTP,
+    stores in db.login_otps, and sends the code to user's email.
+    """
+    email_clean = request.email.strip().lower()
+    user = await verify_user_login_credentials(email_clean, request.password.strip())
+    
+    otp = generate_otp()
+    otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    
+    await db_update_one(
+        db.login_otps,
+        {"email": email_clean},
+        {"$set": {
+            "email": email_clean,
+            "otp": otp,
+            "expires_at": otp_expiry,
+            "created_at": datetime.utcnow()
+        }},
+        upsert=True
+    )
+    
+    print(f"LOGIN OTP for {email_clean}: {otp}")
+    background_tasks.add_task(send_otp_email, email_clean, otp)
+    
+    return {
+        "success": True,
+        "message": f"Verification code sent to {email_clean}",
+        "email": email_clean,
+        "step": 2
+    }
+
+@router.post("/login/verify-otp", response_model=TokenResponse)
+async def login_verify_otp(request: LoginVerifyOTPRequest):
+    """
+    Step 2 of 2-Step Login:
+    Verifies 6-digit OTP and completes authentication, returning TokenResponse.
+    """
+    email_clean = request.email.strip().lower()
+    otp_clean = request.otp.strip()
+    
+    now_utc = datetime.utcnow()
+    otp_record = await db_find_one(db.login_otps, {
+        "email": email_clean,
+        "otp": otp_clean,
+        "expires_at": {"$gt": now_utc}
+    })
+    
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Invalid Code",
+                "message": "Invalid or expired verification code. Please check your code or request a new one.",
+                "code": "INVALID_OTP"
+            }
+        )
+    
+    # Clean up used OTP
+    try:
+        await db_delete_many(db.login_otps, {"email": email_clean})
+    except Exception as e:
+        print(f"Warning: Failed to delete login OTP: {e}")
+        
+    user = await db_find_one(db.users, {"email": email_clean})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Reset failed login attempts on successful OTP completion
+    if user.get("failed_login_attempts", 0) > 0 or user.get("lockout_until"):
+        try:
+            await db_update_one(
+                db.users,
+                {"_id": user["_id"]},
+                {"$set": {
+                    "failed_login_attempts": 0,
+                    "lockout_until": None
+                }}
+            )
+        except Exception as e:
+            print(f"Error resetting failed login attempts: {e}")
+
+    try:
+        access_token, expires_at = create_access_token(
+            data={
+                "sub": user["email"],
+                "id": str(user["_id"]),
+                "email": user["email"],
+                "role": user.get("role", "user")
+            }
+        )
+    except Exception as e:
+        print(f"Token creation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Token Generation Failed",
+                "message": "Unable to create access token. Please try again.",
+                "code": "TOKEN_CREATION_ERROR"
+            }
+        )
+
+    try:
+        await db_insert_one(db.login_attempts, {
+            "email": email_clean,
+            "success": True,
+            "timestamp": datetime.utcnow()
+        })
+    except:
+        pass
+
+    return TokenResponse(
+        access_token=access_token,
+        expires_at=expires_at,
+        user=serialize_doc(user)
+    )
+
+@router.post("/login/resend-otp")
+async def login_resend_otp(
+    request: LoginResendOTPRequest,
+    background_tasks: BackgroundTasks
+):
+    """Resend OTP for 2-step login"""
+    email_clean = request.email.strip().lower()
+    user = await db_find_one(db.users, {"email": email_clean})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    otp = generate_otp()
+    otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    
+    await db_update_one(
+        db.login_otps,
+        {"email": email_clean},
+        {"$set": {
+            "email": email_clean,
+            "otp": otp,
+            "expires_at": otp_expiry,
+            "created_at": datetime.utcnow()
+        }},
+        upsert=True
+    )
+    
+    print(f"RESENT LOGIN OTP for {email_clean}: {otp}")
+    background_tasks.add_task(send_otp_email, email_clean, otp)
+    
+    return {
+        "success": True,
+        "message": "A new verification code has been sent to your email."
+    }
 
 @router.post("/register/recipient")
 async def register_recipient(recipient_data: RecipientSignup):
@@ -1737,6 +2017,23 @@ async def reset_password(request: ResetPasswordRequest):
                 detail="Password must be at least 6 characters"
             )
         
+        # Check against current/previous password
+        user = await db_find_one(db.users, {"email": request.email.lower()})
+        if user and user.get("password"):
+            check_pw = request.new_password
+            if len(check_pw.encode("utf-8")) > 72:
+                check_pw = check_pw[:72]
+            try:
+                if pwd_ctx.verify(check_pw, user["password"]):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="The new password must be different from your current password."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                print(f"Password comparison error: {e}")
+
         # Update user password
         password_bytes = request.new_password.encode("utf-8")
         if len(password_bytes) > 72:
@@ -1747,7 +2044,12 @@ async def reset_password(request: ResetPasswordRequest):
         await db_update_one(
             db.users,
             {"email": request.email.lower()},
-            {"$set": {"password": hashed_password, "updated_at": datetime.utcnow()}}
+            {"$set": {
+                "password": hashed_password,
+                "updated_at": datetime.utcnow(),
+                "failed_login_attempts": 0,
+                "lockout_until": None
+            }}
         )
         
         # Mark OTP as used
@@ -1821,6 +2123,13 @@ async def change_password(
             )
         if len(new_pw.encode("utf-8")) > 72:
             new_pw = new_pw[:72]
+
+        # Check if new password is same as current password
+        if user_pw and pwd_ctx.verify(new_pw, user_pw):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The new password must be different from your current password."
+            )
         
         # Update password
         hashed_password = pwd_ctx.hash(new_pw)
@@ -1875,17 +2184,31 @@ async def change_password(
 # ============================================
 
 @router.get("/google/login")
-async def google_login(request: Request):
-    """Redirect to Google OAuth"""
+async def google_login(request: Request, origin: Optional[str] = None):
+    """Redirect to Google OAuth with dynamic origin propagation"""
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Google OAuth is not configured"
         )
     
+    # Capture client origin (from query param or referer) for accurate environment redirect
+    client_origin = origin
+    if not client_origin:
+        referer = request.headers.get("referer")
+        if referer:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(referer)
+                if parsed.scheme and parsed.netloc:
+                    client_origin = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
     state_payload = {
         "nonce": secrets.token_urlsafe(8),
-        "exp": datetime.utcnow() + timedelta(minutes=5)
+        "exp": datetime.utcnow() + timedelta(minutes=10),
+        "origin": client_origin
     }
 
     state = jwt.encode(state_payload, JWT_SECRET, algorithm="HS256")
@@ -1930,9 +2253,11 @@ async def google_callback(
                 detail="Google OAuth is not configured"
             )
         
-        # Verify state to prevent CSRF
+        # Verify state to prevent CSRF and extract dynamic client origin
+        client_origin = None
         try:
-            jwt.decode(state, JWT_SECRET, algorithms=["HS256"])
+            decoded_state = jwt.decode(state, JWT_SECRET, algorithms=["HS256"])
+            client_origin = decoded_state.get("origin")
         except JWTError:
             raise HTTPException(
                 status_code=400,
@@ -2059,9 +2384,9 @@ async def google_callback(
             }
         )
         
-        # Redirect to frontend with token
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
-        redirect_url = f"{frontend_url}/auth/success?token={access_token}"
+        # Redirect to frontend with token (dynamic origin or configured FRONTEND_URL)
+        target_frontend = client_origin or os.getenv('FRONTEND_URL', 'http://localhost:3001')
+        redirect_url = f"{target_frontend}/auth/success?token={access_token}"
         
         return RedirectResponse(url=redirect_url)
         
@@ -2070,8 +2395,8 @@ async def google_callback(
     except Exception as e:
         print(f"Google OAuth error: {e}")
         # Redirect to frontend with error
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
-        error_redirect = f"{frontend_url}/login?error=Google+authentication+failed"
+        target_frontend = client_origin or os.getenv('FRONTEND_URL', 'http://localhost:3001')
+        error_redirect = f"{target_frontend}/login?error=Google+authentication+failed"
         return RedirectResponse(url=error_redirect)
 
 @router.post("/google/verify-token")
@@ -2190,9 +2515,14 @@ async def google_verify_token(request: GoogleTokenRequest):
 # USER PROFILE & HEALTH ROUTES
 # ============================================
 
+from fastapi import Response
+
 @router.get("/me")
-async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
-    """Get current user profile"""
+async def get_current_user_profile(response: Response, current_user: dict = Depends(get_current_user)):
+    """Get current user profile without caching"""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return current_user
 
 import base64
@@ -2210,6 +2540,8 @@ async def update_profile(
     expiry_days: Optional[int] = Form(None),
     signature_text: Optional[str] = Form(None),
     initials_text: Optional[str] = Form(None),
+    remove_stamp: Optional[str] = Form(None),
+    remove_profile_picture: Optional[str] = Form(None),
     profile_picture: UploadFile = File(None),
     stamp_image: UploadFile = File(None),
     current_user: dict = Depends(get_current_user)
@@ -2217,12 +2549,19 @@ async def update_profile(
     try:
         print(f"Updating profile for user: {current_user.get('email')}")
         
+        # Validation: Name cannot be empty
+        if not full_name or not full_name.strip():
+            raise HTTPException(status_code=400, detail="Please enter your name")
+
+        clean_name = full_name.strip()
+        parts = clean_name.split(" ", 1)
+        resolved_fn = first_name.strip() if first_name and first_name.strip() else parts[0]
+        resolved_ln = last_name.strip() if last_name and last_name.strip() else (parts[1] if len(parts) > 1 else "")
+
         update_data = {
-            "full_name": full_name,
-            "first_name": first_name,
-            "last_name": last_name,
-            "company": company,
-            "job_title": job_title,
+            "full_name": clean_name,
+            "first_name": resolved_fn,
+            "last_name": resolved_ln,
             "date_format": date_format,
             "time_zone": time_zone,
             "reminder_days": reminder_days,
@@ -2231,6 +2570,13 @@ async def update_profile(
             "initials_text": initials_text,
             "updated_at": datetime.utcnow()
         }
+
+        if company is not None:
+            update_data["company"] = company.strip()
+            update_data["organization_name"] = company.strip()
+
+        if job_title is not None:
+            update_data["job_title"] = job_title.strip()
 
         # Remove None values to avoid overwriting existing data with nulls
         update_data = {k: v for k, v in update_data.items() if v is not None}
@@ -2263,11 +2609,29 @@ async def update_profile(
             except Exception as e:
                 print(f"Error processing stamp image: {e}")
 
+        unset_data = {}
+        if remove_stamp in ("true", "1", "yes"):
+            unset_data["stamp_image"] = ""
+        if remove_profile_picture in ("true", "1", "yes"):
+            unset_data["profile_picture"] = ""
+            unset_data["profile_image"] = ""
+            unset_data["picture"] = ""
+            unset_data["avatar_url"] = ""
+            unset_data["photo_url"] = ""
+            unset_data["avatar"] = ""
+            if "profile_picture" in update_data:
+                del update_data["profile_picture"]
+
         # Target user by ID or email
         user_id = current_user.get("id") or current_user.get("_id")
         user_email = current_user.get("email")
         if not user_id and not user_email:
             raise HTTPException(status_code=400, detail="User identification not found in token")
+
+        # Build mongo update operations
+        update_operations = {"$set": update_data}
+        if unset_data:
+            update_operations["$unset"] = unset_data
 
         # Update user in database
         result = None
@@ -2275,17 +2639,17 @@ async def update_profile(
         if user_id:
             try:
                 filter_query = {"_id": ObjectId(user_id)}
-                result = await db_update_one(db.users, filter_query, {"$set": update_data})
+                result = await db_update_one(db.users, filter_query, update_operations)
             except Exception:
                 result = None
 
         if not result or result.matched_count == 0:
             if user_email:
                 filter_query = {"email": user_email.lower()}
-                result = await db_update_one(db.users, filter_query, {"$set": update_data})
+                result = await db_update_one(db.users, filter_query, update_operations)
                 if result.matched_count == 0:
                     filter_query = {"email": user_email}
-                    result = await db_update_one(db.users, filter_query, {"$set": update_data})
+                    result = await db_update_one(db.users, filter_query, update_operations)
 
         if not result or result.matched_count == 0:
             print(f"No user found with id: {user_id} or email: {user_email}")
@@ -2311,6 +2675,64 @@ async def update_profile(
             status_code=500,
             detail=f"Failed to update profile: {str(e)}"
         )
+
+@router.post("/remove-profile-picture")
+async def remove_profile_picture_endpoint(current_user: dict = Depends(get_current_user)):
+    """Remove user's profile picture and revert to initials"""
+    try:
+        user_id = current_user.get("id") or current_user.get("_id")
+        user_email = current_user.get("email")
+        if not user_id and not user_email:
+            raise HTTPException(status_code=400, detail="User identification not found in token")
+
+        unset_data = {
+            "profile_picture": "",
+            "profile_image": "",
+            "picture": "",
+            "avatar_url": "",
+            "photo_url": "",
+            "avatar": ""
+        }
+        update_operations = {
+            "$unset": unset_data,
+            "$set": {"updated_at": datetime.utcnow()}
+        }
+
+        filter_query = None
+        result = None
+        if user_id:
+            try:
+                filter_query = {"_id": ObjectId(user_id)}
+                result = await db_update_one(db.users, filter_query, update_operations)
+            except Exception:
+                result = None
+
+        if not result or result.matched_count == 0:
+            if user_email:
+                filter_query = {"email": user_email.lower()}
+                result = await db_update_one(db.users, filter_query, update_operations)
+                if result.matched_count == 0:
+                    filter_query = {"email": user_email}
+                    result = await db_update_one(db.users, filter_query, update_operations)
+
+        if not result or result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        updated_user = await db_find_one(db.users, filter_query)
+        serialized_user = serialize_doc(updated_user)
+        serialized_user["profile_picture"] = None
+        serialized_user["profile_image"] = None
+
+        return {
+            "status": "success",
+            "message": "Profile picture removed successfully",
+            "user": serialized_user
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error removing profile picture: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove profile picture")
 
 @router.post("/update-onboarding")
 async def update_onboarding(

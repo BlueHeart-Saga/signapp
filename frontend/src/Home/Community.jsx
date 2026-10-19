@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import {
   Users,
   MessageSquare,
@@ -37,7 +38,9 @@ import {
   ChevronRight,
   Plus,
   Menu,
-  X
+  X,
+  Send,
+  CornerDownRight
 } from 'lucide-react';
 
 const Community = () => {
@@ -45,6 +48,36 @@ const Community = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [savedTopicIds, setSavedTopicIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('esigniva_saved_discussions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [selectedDiscussion, setSelectedDiscussion] = useState(null);
+  const [discussionReplies, setDiscussionReplies] = useState({
+    1: [
+      { id: 101, author: 'David Wilson', avatar: 'https://i.pravatar.cc/150?img=11', role: 'Integration Architect', time: '1 hour ago', content: 'We implemented this using Node.js and AWS Lambda. Make sure you verify the HMAC-SHA256 signature in the X-Esigniva-Signature header!' },
+      { id: 102, author: 'Maria Garcia', avatar: 'https://i.pravatar.cc/150?img=9', role: 'Security Engineer', time: '30 mins ago', content: 'Also remember to return a 200 HTTP response quickly before doing heavy document processing asynchronously.' }
+    ],
+    2: [
+      { id: 201, author: 'Kevin Patel', avatar: 'https://i.pravatar.cc/150?img=15', role: 'DevOps Lead', time: '3 hours ago', content: 'For high-volume throughput, use the bulk batch endpoint and implement exponential backoff on 429 status codes.' }
+    ],
+    3: [
+      { id: 301, author: 'Lisa Ray', avatar: 'https://i.pravatar.cc/150?img=20', role: 'Operations Director', time: '12 hours ago', content: 'Incredible speedup! Did you connect it with Salesforce or custom CRM?' }
+    ]
+  });
+  const [newReplyText, setNewReplyText] = useState('');
+  const [showNewDiscussionModal, setShowNewDiscussionModal] = useState(false);
+  const [newDiscussionData, setNewDiscussionData] = useState({
+    title: '',
+    category: 'questions',
+    content: ''
+  });
 
   const communityStats = [
     { icon: <Users size={24} />, label: 'Members', value: '50K+', change: '+12%' },
@@ -260,14 +293,14 @@ const Community = () => {
       title: 'GitHub Repository',
       icon: <Github size={20} />,
       color: '#333',
-      link: 'https://github.com/esigniva',
+      link: 'https://github.com/Devopstrio/SafeSign_Platform',
       description: 'Open-source libraries'
     },
     {
       title: 'Video Tutorials',
       icon: <Video size={20} />,
       color: '#ff0000',
-      link: '/tutorials',
+      link: '/login',
       description: 'Step-by-step guides'
     },
     {
@@ -286,9 +319,132 @@ const Community = () => {
     { platform: 'YouTube', icon: <Youtube size={20} />, subscribers: '8.7K' }
   ];
 
-  const filteredTopics = activeTab === 'all' 
-    ? topics 
-    : topics.filter(topic => topic.category === activeTab);
+  const [allTopics, setAllTopics] = useState(topics);
+
+  const handleSaveTopic = (topicId) => {
+    setSavedTopicIds(prev => {
+      let updated;
+      if (prev.includes(topicId)) {
+        updated = prev.filter(id => id !== topicId);
+        Swal.fire({
+          icon: 'info',
+          title: 'Removed from Bookmarks',
+          text: 'Discussion removed from your saved list.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        updated = [...prev, topicId];
+        Swal.fire({
+          icon: 'success',
+          title: 'Discussion Saved!',
+          text: 'This discussion is bookmarked for quick access.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+      try {
+        localStorage.setItem('esigniva_saved_discussions', JSON.stringify(updated));
+      } catch (e) { }
+      return updated;
+    });
+  };
+
+  const handleShareTopic = async (topic) => {
+    const url = window.location.origin + '/community?topic=' + topic.id;
+    const title = `${topic.title} | Esigniva Community`;
+    const text = `Join the discussion on Esigniva Community: ${topic.title}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (e) { }
+    }
+    await navigator.clipboard.writeText(url);
+    Swal.fire({
+      icon: 'success',
+      title: 'Link Copied!',
+      text: 'Discussion link has been copied to your clipboard.',
+      timer: 1600,
+      showConfirmButton: false
+    });
+  };
+
+  const handleJoinDiscussion = (topic) => {
+    setSelectedDiscussion(topic);
+  };
+
+  const handleAddReply = (e) => {
+    e.preventDefault();
+    if (!newReplyText.trim() || !selectedDiscussion) return;
+    const topicId = selectedDiscussion.id;
+    const newReply = {
+      id: Date.now(),
+      author: 'You (Current User)',
+      avatar: 'https://i.pravatar.cc/150?img=12',
+      role: 'Contributor',
+      time: 'Just now',
+      content: newReplyText.trim()
+    };
+    setDiscussionReplies(prev => ({
+      ...prev,
+      [topicId]: [...(prev[topicId] || []), newReply]
+    }));
+    setNewReplyText('');
+    Swal.fire({
+      icon: 'success',
+      title: 'Contribution Added!',
+      text: 'Your response was posted to the discussion thread.',
+      timer: 1500,
+      showConfirmButton: false
+    });
+  };
+
+  const handleCreateDiscussion = (e) => {
+    e.preventDefault();
+    if (!newDiscussionData.title.trim() || !newDiscussionData.content.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Fields Required',
+        text: 'Please enter both a discussion title and message content.'
+      });
+      return;
+    }
+    const created = {
+      id: Date.now(),
+      title: newDiscussionData.title.trim(),
+      author: 'You',
+      authorAvatar: 'https://i.pravatar.cc/150?img=12',
+      category: newDiscussionData.category,
+      replies: 0,
+      likes: 1,
+      views: '1',
+      solved: false,
+      time: 'Just now',
+      excerpt: newDiscussionData.content.trim().slice(0, 100) + '...'
+    };
+    setAllTopics(prev => [created, ...prev]);
+    setActiveTab(newDiscussionData.category);
+    setShowNewDiscussionModal(false);
+    setNewDiscussionData({ title: '', category: 'questions', content: '' });
+    Swal.fire({
+      icon: 'success',
+      title: 'Discussion Published!',
+      text: 'Your topic has been posted to the Esigniva Community.',
+      confirmButtonColor: '#0f766e'
+    });
+  };
+
+  const filteredTopics = (activeTab === 'all'
+    ? allTopics
+    : allTopics.filter(topic => topic.category === activeTab)
+  ).filter(topic =>
+    searchQuery === '' ||
+    topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    topic.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    topic.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getCategoryColor = (category) => {
     const colors = {
@@ -327,7 +483,7 @@ const Community = () => {
               Join thousands of developers, businesses, and e-signature enthusiasts sharing knowledge,
               solving problems, and building amazing things with Esigniva
             </p>
-            
+
             {/* Stats */}
             <div className="safe-hero-stats">
               {communityStats.map((stat, index) => (
@@ -368,7 +524,7 @@ const Community = () => {
                     <ChevronRight size={16} />
                   </button>
                 </div>
-                
+
                 <div className="safe-featured-grid">
                   {featuredTopics.map(topic => (
                     <div key={topic.id} className="safe-featured-card">
@@ -378,7 +534,7 @@ const Community = () => {
                           Trending
                         </div>
                       )}
-                      
+
                       <div className="safe-featured-header">
                         <div className="safe-topic-category" style={{ color: getCategoryColor(topic.category) }}>
                           {getCategoryIcon(topic.category)}
@@ -391,12 +547,12 @@ const Community = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       <h3 className="safe-topic-title">{topic.title}</h3>
                       <p className="safe-topic-excerpt">
                         Explore best practices and implementation strategies for integrating Esigniva webhooks...
                       </p>
-                      
+
                       <div className="safe-topic-meta">
                         <div className="safe-author-info">
                           <img src={topic.authorAvatar} alt={topic.author} className="safe-author-avatar" />
@@ -420,17 +576,27 @@ const Community = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="safe-topic-actions">
-                        <button className="safe-action-btn">
+                        <button
+                          className="safe-action-btn"
+                          onClick={() => handleJoinDiscussion(topic)}
+                        >
                           <MessageSquare size={16} />
                           Join Discussion
                         </button>
-                        <button className="safe-action-btn safe-action-secondary">
-                          <Bookmark size={16} />
-                          Save
+                        <button
+                          className="safe-action-btn safe-action-secondary"
+                          onClick={() => handleSaveTopic(topic.id)}
+                          style={savedTopicIds.includes(topic.id) ? { backgroundColor: '#0f766e', color: 'white', borderColor: '#0f766e' } : {}}
+                        >
+                          <Bookmark size={16} fill={savedTopicIds.includes(topic.id) ? 'currentColor' : 'none'} />
+                          {savedTopicIds.includes(topic.id) ? 'Saved' : 'Save'}
                         </button>
-                        <button className="safe-action-btn safe-action-secondary">
+                        <button
+                          className="safe-action-btn safe-action-secondary"
+                          onClick={() => handleShareTopic(topic)}
+                        >
                           <Share2 size={16} />
                           Share
                         </button>
@@ -455,7 +621,7 @@ const Community = () => {
                       </button>
                     ))}
                   </div>
-                  
+
                   <div className="safe-tools-bar">
                     <div className="safe-search-box">
                       <Search size={18} />
@@ -467,9 +633,9 @@ const Community = () => {
                         className="safe-search-input"
                       />
                     </div>
-                    
+
                     <div className="safe-filters-wrapper">
-                      <button 
+                      <button
                         className="safe-filter-btn"
                         onClick={() => setShowFilters(!showFilters)}
                       >
@@ -477,8 +643,11 @@ const Community = () => {
                         Filter
                         <ChevronDown className={`safe-filter-arrow ${showFilters ? 'safe-arrow-open' : ''}`} />
                       </button>
-                      
-                      <button className="safe-new-topic-btn">
+
+                      <button
+                        className="safe-new-topic-btn"
+                        onClick={() => setShowNewDiscussionModal(true)}
+                      >
                         <Plus size={18} />
                         New Topic
                       </button>
@@ -498,9 +667,9 @@ const Community = () => {
                             </span>
                             <span>{topic.category}</span>
                           </div>
-                          
+
                           <h3 className="safe-topic-title-small">{topic.title}</h3>
-                          
+
                           <div className="safe-topic-author">
                             <img src={topic.authorAvatar} alt={topic.author} className="safe-author-avatar-small" />
                             <span className="safe-author-name-small">{topic.author}</span>
@@ -510,7 +679,7 @@ const Community = () => {
                             </span>
                           </div>
                         </div>
-                        
+
                         <div className="safe-topic-stats-small">
                           <div className="safe-stat-group">
                             <div className="safe-stat-value-small">{topic.replies}</div>
@@ -526,7 +695,7 @@ const Community = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="safe-topic-actions-small">
                         {topic.solved && (
                           <div className="safe-solved-indicator">
@@ -534,7 +703,10 @@ const Community = () => {
                             Solved
                           </div>
                         )}
-                        <button className="safe-reply-btn">
+                        <button
+                          className="safe-reply-btn"
+                          onClick={() => handleJoinDiscussion(topic)}
+                        >
                           <MessageSquare size={16} />
                           Reply
                         </button>
@@ -553,7 +725,7 @@ const Community = () => {
                   <Calendar size={20} />
                   <h3 className="safe-sidebar-title">Upcoming Events</h3>
                 </div>
-                
+
                 <div className="safe-events-list">
                   {upcomingEvents.map(event => (
                     <div key={event.id} className={`safe-event-card ${event.featured ? 'safe-event-featured' : ''}`}>
@@ -563,7 +735,7 @@ const Community = () => {
                           Featured
                         </div>
                       )}
-                      
+
                       <div className="safe-event-info">
                         <h4 className="safe-event-title">{event.title}</h4>
                         <div className="safe-event-meta">
@@ -581,7 +753,7 @@ const Community = () => {
                           {event.speaker}
                         </div>
                       </div>
-                      
+
                       <div className="safe-event-actions">
                         <div className="safe-event-attendees">
                           <Users size={12} />
@@ -594,7 +766,7 @@ const Community = () => {
                     </div>
                   ))}
                 </div>
-                
+
                 <button className="safe-view-calendar-btn">
                   View Full Calendar
                   <ChevronRight size={16} />
@@ -607,7 +779,7 @@ const Community = () => {
                   <Award size={20} />
                   <h3 className="safe-sidebar-title">Top Contributors</h3>
                 </div>
-                
+
                 <div className="safe-contributors-list">
                   {topContributors.map(contributor => (
                     <div key={contributor.id} className="safe-contributor-card">
@@ -633,7 +805,7 @@ const Community = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="safe-contributor-actions">
                         <button className="safe-follow-btn">
                           Follow
@@ -653,7 +825,7 @@ const Community = () => {
                   <FileText size={20} />
                   <h3 className="safe-sidebar-title">Resources</h3>
                 </div>
-                
+
                 <div className="safe-resources-list">
                   {resources.map((resource, index) => (
                     <a
@@ -684,7 +856,7 @@ const Community = () => {
                   <Globe size={20} />
                   <h3 className="safe-sidebar-title">Join Us Online</h3>
                 </div>
-                
+
                 <div className="safe-social-links">
                   {socialLinks.map((social, index) => (
                     <a
@@ -707,12 +879,22 @@ const Community = () => {
               </div>
 
               {/* CTA */}
-              <div className="safe-community-cta">
+              <div
+                className="safe-community-cta"
+                onClick={() => setShowNewDiscussionModal(true)}
+                style={{ cursor: 'pointer' }}
+              >
                 <h3 className="safe-cta-title">Ready to Contribute?</h3>
                 <p className="safe-cta-text">
                   Share your knowledge, ask questions, and help others in the community
                 </p>
-                <button className="safe-cta-btn">
+                <button
+                  className="safe-cta-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewDiscussionModal(true);
+                  }}
+                >
                   <Plus size={18} />
                   Start New Discussion
                 </button>
@@ -729,7 +911,7 @@ const Community = () => {
             <Shield size={28} />
             <h2 className="safe-guidelines-title">Community Guidelines</h2>
           </div>
-          
+
           <div className="safe-guidelines-grid">
             <div className="safe-guideline-card">
               <div className="safe-guideline-icon safe-icon-positive">
@@ -740,7 +922,7 @@ const Community = () => {
                 Treat all community members with respect and kindness
               </p>
             </div>
-            
+
             <div className="safe-guideline-card">
               <div className="safe-guideline-icon safe-icon-help">
                 <MessageSquare size={20} />
@@ -750,7 +932,7 @@ const Community = () => {
                 Share your knowledge and help fellow community members
               </p>
             </div>
-            
+
             <div className="safe-guideline-card">
               <div className="safe-guideline-icon safe-icon-constructive">
                 <Zap size={20} />
@@ -760,7 +942,7 @@ const Community = () => {
                 Provide constructive feedback and suggestions
               </p>
             </div>
-            
+
             <div className="safe-guideline-card">
               <div className="safe-guideline-icon safe-icon-warning">
                 <AlertCircle size={20} />
@@ -797,12 +979,416 @@ const Community = () => {
         </div>
       </section>
 
+      {/* Discussion Thread Modal */}
+      {selectedDiscussion && (
+        <div
+          className="safe-modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem'
+          }}
+          onClick={() => setSelectedDiscussion(null)}
+        >
+          <div
+            className="safe-discussion-modal"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '750px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '1rem'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                  <span style={{
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    backgroundColor: `${getCategoryColor(selectedDiscussion.category)}20`,
+                    color: getCategoryColor(selectedDiscussion.category)
+                  }}>
+                    {selectedDiscussion.category}
+                  </span>
+                  {selectedDiscussion.solved && (
+                    <span style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      color: '#059669',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      backgroundColor: '#d1fae5',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px'
+                    }}>
+                      <CheckCircle size={14} /> Solved
+                    </span>
+                  )}
+                  <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>{selectedDiscussion.time}</span>
+                </div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+                  {selectedDiscussion.title}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedDiscussion(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  borderRadius: '8px',
+                  display: 'flex'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Author info & content */}
+            <div style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <img
+                  src={selectedDiscussion.authorAvatar}
+                  alt={selectedDiscussion.author}
+                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#111827' }}>{selectedDiscussion.author}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Author & Contributor</div>
+                </div>
+              </div>
+
+              <div style={{
+                fontSize: '0.975rem',
+                lineHeight: 1.6,
+                color: '#374151',
+                backgroundColor: '#f9fafb',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '1px solid #f3f4f6',
+                marginBottom: '1.5rem'
+              }}>
+                {selectedDiscussion.excerpt || 'Welcome to this community discussion thread. Share your questions, tips, or experiences regarding this workflow.'}
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <button
+                  onClick={() => handleSaveTopic(selectedDiscussion.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: savedTopicIds.includes(selectedDiscussion.id) ? '#fef3c7' : '#f3f4f6',
+                    color: savedTopicIds.includes(selectedDiscussion.id) ? '#d97706' : '#4b5563',
+                    border: 'none',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Bookmark size={16} fill={savedTopicIds.includes(selectedDiscussion.id) ? '#d97706' : 'none'} />
+                  {savedTopicIds.includes(selectedDiscussion.id) ? 'Saved' : 'Bookmark'}
+                </button>
+                <button
+                  onClick={() => handleShareTopic(selectedDiscussion)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#f3f4f6',
+                    color: '#4b5563',
+                    border: 'none',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Share2 size={16} />
+                  Share Discussion
+                </button>
+              </div>
+
+              {/* Replies list */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#111827', marginBottom: '1rem' }}>
+                Replies ({(discussionReplies[selectedDiscussion.id] || []).length})
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                {(!discussionReplies[selectedDiscussion.id] || discussionReplies[selectedDiscussion.id].length === 0) ? (
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                    No replies yet. Be the first to share your insights!
+                  </p>
+                ) : (
+                  discussionReplies[selectedDiscussion.id].map(reply => (
+                    <div key={reply.id} style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <img src={reply.avatar} alt={reply.author} style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+                          <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#111827' }}>{reply.author}</span>
+                          <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.1rem 0.5rem', borderRadius: '4px' }}>{reply.role}</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{reply.time}</span>
+                      </div>
+                      <p style={{ fontSize: '0.9rem', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                        {reply.content}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add reply form */}
+              <form onSubmit={handleAddReply} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <textarea
+                  value={newReplyText}
+                  onChange={(e) => setNewReplyText(e.target.value)}
+                  placeholder="Write your contribution or reply here..."
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '10px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                  required
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      backgroundColor: '#0f766e',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.6rem 1.25rem',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Send size={16} />
+                    Post Reply
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start New Discussion Modal */}
+      {showNewDiscussionModal && (
+        <div
+          className="safe-modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem'
+          }}
+          onClick={() => setShowNewDiscussionModal(false)}
+        >
+          <div
+            className="safe-new-discussion-modal"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '600px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f8fafc'
+            }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>
+                Start a New Discussion
+              </h2>
+              <button
+                onClick={() => setShowNewDiscussionModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  display: 'flex'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDiscussion} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>
+                  Discussion Title *
+                </label>
+                <input
+                  type="text"
+                  value={newDiscussionData.title}
+                  onChange={(e) => setNewDiscussionData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g., How do I customize webhook retry intervals?"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>
+                  Category *
+                </label>
+                <select
+                  value={newDiscussionData.category}
+                  onChange={(e) => setNewDiscussionData(prev => ({ ...prev, category: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  <option value="questions">Questions & Help</option>
+                  <option value="showcase">Showcase & Projects</option>
+                  <option value="ideas">Feature Ideas & Suggestions</option>
+                  <option value="tutorials">Tutorials & Guides</option>
+                  <option value="announcements">General Announcements</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>
+                  Description / Details *
+                </label>
+                <textarea
+                  value={newDiscussionData.content}
+                  onChange={(e) => setNewDiscussionData(prev => ({ ...prev, content: e.target.value }))}
+                  placeholder="Provide context, code snippets, or background so community members can assist..."
+                  rows={4}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNewDiscussionModal(false)}
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    background: '#ffffff',
+                    color: '#374151',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#0f766e',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Publish Discussion
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         /* Base Styles */
         .safe-community {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

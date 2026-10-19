@@ -143,9 +143,9 @@ async def access_recipient_documents(access: RecipientAccessRequest):
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": access.email.lower()
-        }).sort("created_at", -1))
+        }).sort("created_at", -1).to_list(length=1000)
         
         if not recipients:
             raise HTTPException(404, "No documents found for this email")
@@ -266,9 +266,9 @@ async def get_my_documents(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }).sort("created_at", -1))
+        }).sort("created_at", -1).to_list(length=1000)
         
         if not recipients:
             return {"documents": [], "total": 0}
@@ -332,15 +332,15 @@ async def get_document_details(
             raise HTTPException(403, "You are not assigned to this document")
         
         # Get all recipients for this document
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": ObjectId(document_id)
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
         
         # Get fields for this recipient
-        fields = list(db.signature_fields.find({
+        fields = await db.signature_fields.find({
             "document_id": ObjectId(document_id),
             "recipient_id": recipient_doc["_id"]
-        }))
+        }).to_list(length=1000)
         
         # Enrich fields
         field_list = []
@@ -357,9 +357,13 @@ async def get_document_details(
             })
         
         # Get document timeline/activity
-        timeline = list(db.document_timeline.find({
-            "document_id": ObjectId(document_id)
-        }).sort("timestamp", -1).limit(20))
+        timeline_cursor = db.document_timeline.find({
+            "$or": [
+                {"document_id": ObjectId(document_id)},
+                {"document_id": str(document_id)}
+            ]
+        }).sort("timestamp", -1).limit(50)
+        timeline = await timeline_cursor.to_list(length=50)
         
         timeline_list = []
         for event in timeline:
@@ -430,7 +434,7 @@ async def download_document(
             raise HTTPException(400, "Signed document not available yet")
         
         # Load PDF using load_document_pdf from documents.py
-        pdf_bytes = load_document_pdf(doc, document_id)
+        pdf_bytes = await load_document_pdf(doc, document_id)
         
         # Apply completed fields if requested and document is completed
         if include_signatures and doc.get("status") == "completed":
@@ -515,7 +519,7 @@ async def preview_document(
             raise HTTPException(403, "Not authorized")
         
         # Get PDF using load_document_pdf
-        pdf_bytes = load_document_pdf(doc, document_id)
+        pdf_bytes = await load_document_pdf(doc, document_id)
         
         # Generate thumbnail for requested page
         import fitz
@@ -544,7 +548,8 @@ async def preview_document(
             io.BytesIO(buffer.getvalue()),
             media_type="image/png",
             headers={
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": "no-cache, must-revalidate",
+                "Pragma": "no-cache",
                 "X-Page-Number": str(page),
                 "X-Total-Pages": str(total_pages)   # no crash
             }
@@ -581,18 +586,18 @@ async def get_document_status(
             raise HTTPException(403, "Not authorized")
         
         # Get all recipients for status
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": ObjectId(document_id)
-        }))
+        }).to_list(length=1000)
         
         total_recipients = len(all_recipients)
         completed_recipients = len([r for r in all_recipients if r.get("status") == "completed"])
         
         # Get recipient's fields
-        fields = list(db.signature_fields.find({
+        fields = await db.signature_fields.find({
             "document_id": ObjectId(document_id),
             "recipient_id": recipient_doc["_id"]
-        }))
+        }).to_list(length=1000)
         
         total_fields = len(fields)
         completed_fields = len([f for f in fields if f.get("completed_at")])
@@ -651,9 +656,9 @@ async def get_document_recipients(
             raise HTTPException(403, "Not authorized")
         
         # Get all recipients
-        all_recipients = list(db.recipients.find({
+        all_recipients = await db.recipients.find({
             "document_id": ObjectId(document_id)
-        }).sort("signing_order", 1))
+        }).sort("signing_order", 1).to_list(length=1000)
         
         recipients_list = []
         for r in all_recipients:
@@ -778,9 +783,13 @@ async def get_document_timeline(
             raise HTTPException(403, "Not authorized")
         
         # Get timeline events
-        events = list(db.document_timeline.find({
-            "document_id": ObjectId(document_id)
-        }).sort("timestamp", -1).limit(limit))
+        events_cursor = db.document_timeline.find({
+            "$or": [
+                {"document_id": ObjectId(document_id)},
+                {"document_id": str(document_id)}
+            ]
+        }).sort("timestamp", -1).limit(limit)
+        events = await events_cursor.to_list(length=limit)
         
         timeline = []
         for event in events:
@@ -817,9 +826,9 @@ async def get_recipient_statistics(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {
@@ -834,9 +843,9 @@ async def get_recipient_statistics(
         document_ids = [r["document_id"] for r in recipients]
         
         # Get all documents
-        documents = list(db.documents.find({
+        documents = await db.documents.find({
             "_id": {"$in": document_ids}
-        }))
+        }).to_list(length=1000)
         
         # Map recipients to documents
         recipient_map = {str(r["document_id"]): r for r in recipients}
@@ -934,20 +943,22 @@ async def get_document_thumbnail(
         if not recipient_doc and str(doc.get("owner_id")) != recipient.get("id"):
             raise HTTPException(403, "Not authorized")
         
-        # Try to get pre-generated thumbnail from Azure
-        if doc.get("preview_thumbnail_path"):
+        is_completed = (doc.get("status") == "completed" or bool(doc.get("signed_pdf_path")))
+
+        # Try to get pre-generated thumbnail from Azure (only if not completed, or if thumbnail is already the signed version)
+        if doc.get("preview_thumbnail_path") and (not is_completed or "signed" in doc["preview_thumbnail_path"]):
             try:
                 thumb_bytes = storage.download(doc["preview_thumbnail_path"])
                 return StreamingResponse(
                     io.BytesIO(thumb_bytes),
                     media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=86400"}
+                    headers={"Cache-Control": "no-cache, must-revalidate", "Pragma": "no-cache"}
                 )
             except:
                 pass
         
-        # Generate thumbnail on the fly
-        pdf_bytes = load_document_pdf(doc, document_id)
+        # Generate thumbnail on the fly (load_document_pdf prioritizes signed_pdf_path)
+        pdf_bytes = await load_document_pdf(doc, document_id)
         
         import fitz
         from PIL import Image
@@ -973,7 +984,7 @@ async def get_document_thumbnail(
         return StreamingResponse(
             io.BytesIO(buffer.getvalue()),
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=3600"}
+            headers={"Cache-Control": "no-cache, must-revalidate", "Pragma": "no-cache"}
         )
         
     except Exception as e:
@@ -992,9 +1003,9 @@ async def search_documents(
     """
     try:
         # Find all recipients with this email
-        recipients = list(db.recipients.find({
+        recipients = await db.recipients.find({
             "email": recipient["email"]
-        }))
+        }).to_list(length=1000)
         
         if not recipients:
             return {"documents": [], "total": 0}

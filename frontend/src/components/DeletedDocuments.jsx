@@ -22,6 +22,7 @@ import {
   restoreDocument,
   permanentDeleteDocument,
 } from "../services/DocumentAPI";
+import FilenameDisplay from "./FilenameDisplay";
 
 export default function DeletedDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -86,11 +87,16 @@ export default function DeletedDocuments() {
           <TableBody>
             {documents.map((doc) => (
               <TableRow key={doc.id} hover>
-                <TableCell>
-                  <Typography fontWeight={500}>{doc.filename}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Deleted at: {doc.deleted_at || "—"}
-                  </Typography>
+                <TableCell sx={{ maxWidth: { xs: 160, sm: 260, md: 380 }, minWidth: 0 }}>
+                  <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+                    <FilenameDisplay
+                      filename={doc.filename}
+                      sx={{ fontWeight: 500, color: '#1e293b' }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                      Deleted at: {doc.deleted_at || "—"}
+                    </Typography>
+                  </Box>
                 </TableCell>
 
                 <TableCell>

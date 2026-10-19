@@ -221,12 +221,12 @@ We encourage you to review this policy periodically to stay informed about our u
       content: `If you have questions about our use of cookies or this Cookie Policy, please contact us:
 
 Esigniva Privacy Team
-Email: support@devopstrioglobal.com
+Email: info@esigniva.com
 Address: 123 Security Lane, San Francisco, CA 94107, USA
 Phone: +1 (800) 123-4567
 
 Data Protection Officer:
-Email: support@devopstrioglobal.com`
+Email: info@esigniva.com`
     }
   ];
 
@@ -623,7 +623,7 @@ Email: support@devopstrioglobal.com`
         .safe-policy-page {
           min-height: 100vh;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
         }
 

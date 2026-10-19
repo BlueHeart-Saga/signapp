@@ -74,24 +74,30 @@ async def get_complete_document_data(document_id: str) -> Dict[str, Any]:
             return None
         
         # Get all recipients
-        recipients = list(db.recipients.find(
+        recipients = await db.recipients.find(
             {"document_id": ObjectId(document_id)}
-        ).sort("signing_order", 1))
+        ).sort("signing_order", 1).to_list(length=1000)
         
         # Get all signature fields
-        signature_fields = list(db.signature_fields.find(
+        signature_fields = await db.signature_fields.find(
             {"document_id": ObjectId(document_id)}
-        ))
+        ).to_list(length=1000)
         
         # Get timeline events (from document_timeline collection)
-        timeline_events = list(db.document_timeline.find(
-            {"document_id": ObjectId(document_id)}
-        ).sort("timestamp", 1))
+        timeline_events = await db.document_timeline.find({
+            "$or": [
+                {"document_id": ObjectId(document_id)},
+                {"document_id": str(document_id)}
+            ]
+        }).sort("timestamp", 1).to_list(length=1000)
         
         # Get audit logs (from audit_logs collection)
-        audit_logs = list(db.audit_logs.find(
-            {"document_id": ObjectId(document_id)}
-        ).sort("timestamp", 1))
+        audit_logs = await db.audit_logs.find({
+            "$or": [
+                {"document_id": ObjectId(document_id)},
+                {"document_id": str(document_id)}
+            ]
+        }).sort("timestamp", 1).to_list(length=1000)
         
         # Get all users for enrichment
         user_ids = set()
@@ -376,9 +382,12 @@ async def get_minimal_summary(
     })
     
     # Get recent activity
-    recent_activity = list(db.document_timeline.find(
-        {"document_id": ObjectId(document_id)}
-    ).sort("timestamp", -1).limit(5))
+    recent_activity = await db.document_timeline.find({
+        "$or": [
+            {"document_id": ObjectId(document_id)},
+            {"document_id": str(document_id)}
+        ]
+    }).sort("timestamp", -1).limit(5).to_list(length=5)
     
     return {
         "document": {

@@ -1,18 +1,33 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import ProfileSetupModal from "./ProfileSetupModal";
+import DashboardSkeleton from "./DashboardSkeleton";
+import PageLoadingAnimation from "./PageLoadingAnimation";
 import "../style/Layout.css";
 
 export default function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(true);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
   const hasCheckedRef = useRef(false);
+  const prevPathRef = useRef(location.pathname);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Smooth route transition: Show logo animation cleanly during page navigation loop
+  useEffect(() => {
+    if (prevPathRef.current !== location.pathname) {
+      prevPathRef.current = location.pathname;
+      setIsNavigating(true);
+      const timer = setTimeout(() => {
+        setIsNavigating(false);
+      }, 1100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed(prev => !prev);
@@ -25,9 +40,8 @@ export default function Layout({ children }) {
     return user.full_name && user.full_name.trim().length > 0;
   };
 
-  // Check user profile after login/register
+  // Check user profile after login/register (runs unobtrusively in background)
   useEffect(() => {
-    // Prevent multiple checks
     if (hasCheckedRef.current) return;
 
     const checkProfile = () => {
@@ -35,10 +49,7 @@ export default function Layout({ children }) {
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
 
-        console.log("Checking profile - Token:", !!token, "User:", !!userStr);
-
         if (!token || !userStr) {
-          setIsChecking(false);
           return;
         }
 
@@ -47,37 +58,32 @@ export default function Layout({ children }) {
           user = JSON.parse(userStr);
         } catch (e) {
           console.error("Failed to parse user data:", e);
-          setIsChecking(false);
           return;
         }
 
         const profileComplete = isProfileComplete(user);
-        console.log("Profile complete:", profileComplete, "User data:", user);
 
         // Only show popup if profile is NOT complete
         if (!profileComplete) {
-          // Small delay to ensure smooth UI
           setTimeout(() => {
             setShowProfilePopup(true);
-          }, 100);
+          }, 300);
         } else {
           setShowProfilePopup(false);
         }
       } catch (error) {
         console.error("Error checking profile:", error);
       } finally {
-        setIsChecking(false);
         hasCheckedRef.current = true;
       }
     };
 
     checkProfile();
-  }, []); // Empty dependency array - run once on mount
+  }, []);
 
   // Handle route changes - check if we need to show popup on dashboard routes
   useEffect(() => {
-    // Only check again if we're on dashboard and popup is not showing
-    if (location.pathname.includes('/dashboard') && !showProfilePopup && !isChecking) {
+    if (location.pathname.includes('/dashboard') && !showProfilePopup) {
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
@@ -90,15 +96,13 @@ export default function Layout({ children }) {
         }
       }
     }
-  }, [location.pathname, showProfilePopup, isChecking]);
+  }, [location.pathname, showProfilePopup]);
 
   // Handle profile completion
   const handleProfileComplete = useCallback((updatedUser) => {
-    console.log("Profile completed, updating state");
     setShowProfilePopup(false);
 
     let role = "user";
-    // Update localStorage with the new user data
     if (updatedUser) {
       localStorage.setItem("user", JSON.stringify(updatedUser));
       role = updatedUser.role || localStorage.getItem("role") || "user";
@@ -124,43 +128,6 @@ export default function Layout({ children }) {
     }
   }, [navigate]);
 
-  // Don't render children while checking (prevents flash)
-  if (isChecking) {
-    return (
-      <div className="layout">
-        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(prev => !prev)} />
-        <div className={`main ${collapsed ? "collapsed" : ""}`}>
-          <Navbar toggleSidebar={toggleSidebar} />
-          <div className="content" style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '400px'
-          }}>
-            <div className="ss-content-wrapper">
-              <div className="ss-loading-overlay">
-                <div className="ss-spinner-container">
-                  <div className="ss-loading-spinner"></div>
-                  <div className="ss-loader-text">
-                    <p>Loading</p>
-                    <div className="ss-rotating-words">
-                      <span className="ss-word">Status</span>
-                      <span className="ss-word">Reports</span>
-                      <span className="ss-word">Features</span>
-                      <span className="ss-word">Documents</span>
-                      <span className="ss-word">Signatures</span>
-                      <span className="ss-word">Status</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="layout">
       {/* Mobile Sidebar Backdrop */}
@@ -180,7 +147,15 @@ export default function Layout({ children }) {
         <Navbar toggleSidebar={toggleSidebar} />
 
         <div className="content">
-          {children}
+          {isNavigating ? (
+            <PageLoadingAnimation />
+          ) : (
+            <Suspense fallback={<PageLoadingAnimation />}>
+              <div key={location.pathname} className="content-area-outlet">
+                {children || <Outlet />}
+              </div>
+            </Suspense>
+          )}
         </div>
 
         {showProfilePopup && (

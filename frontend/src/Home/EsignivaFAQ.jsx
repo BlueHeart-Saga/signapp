@@ -285,7 +285,7 @@ function EsignivaFAQ() {
         .esigniva-faq {
           width: 100%;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: "Inter", "Segoe UI", Arial, sans-serif;
           color: #111827;
           line-height: 1.6;
         }
@@ -304,7 +304,7 @@ function EsignivaFAQ() {
 
         .faq-title {
           font-size: 48px;
-          font-weight: 800;
+          font-weight: 600;
           color: #0f766e;
           margin-bottom: 16px;
           line-height: 1.2;

@@ -59,6 +59,15 @@ class ContactCreate(BaseModel):
     subject: Optional[str] = None
     message: str
 
+class NewsletterSubscribe(BaseModel):
+    email: EmailStr
+    consent: bool = True
+    source: Optional[str] = "blog"
+
+class NewsletterUnsubscribe(BaseModel):
+    email: EmailStr
+    reason: Optional[str] = None
+
 class FeedbackCreate(BaseModel):
     message: str
     email: Optional[str] = None
@@ -107,22 +116,72 @@ def send_smtp_email(to_email: str, subject: str, html_content: str) -> bool:
 @router.post("/contact")
 async def submit_contact_form(data: ContactCreate, request: Request):
     """
-    Public pre-login contact form submission endpoint.
+    Public pre-login contact form submission endpoint with comprehensive validation.
+    - Validates name (2-100 chars, letters required, no script injection)
+    - Validates email format and bounds
+    - Validates message (10-5000 chars)
+    - Enforces IP abuse rate limiting
     - Saves submission in MongoDB (`contact_submissions`)
     - Sends notification email to admin/support
     - Sends automatic Thank You response email to submitter
     """
-    if not data.name.strip() or not data.email.strip() or not data.message.strip():
-        raise HTTPException(status_code=400, detail="Name, email, and message are required.")
+    # 1. Name validation
+    name = (data.name or "").strip()
+    if len(name) < 2 or len(name) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Name must be between 2 and 100 characters in length."
+        )
+    if "<script" in name.lower() or not re.search(r"[a-zA-Z]", name):
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid name containing alphabetical characters."
+        )
+
+    # 2. Email validation
+    email = (data.email or "").strip().lower()
+    if not email or len(email) > 255:
+        raise HTTPException(
+            status_code=400,
+            detail="A valid email address is required (maximum 255 characters)."
+        )
+
+    # 3. Subject validation
+    subject = (data.subject or "General Inquiry").strip()
+    if len(subject) > 200:
+        subject = subject[:200]
+
+    # 4. Message validation
+    message = (data.message or "").strip()
+    if len(message) < 10 or len(message) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Message must be between 10 and 5000 characters in length."
+        )
+
+    # 5. Abuse protection: Rate limiting (max 10 submissions/minute per IP)
+    client_ip = get_client_ip(request)
+    if client_ip and client_ip not in ["localhost"]:
+        one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+        recent_count = await db.contact_submissions.count_documents({
+            "ip_address": client_ip,
+            "created_at": {"$gte": one_minute_ago}
+        })
+        if recent_count >= 10:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many contact requests from your network. Please wait a moment before trying again."
+            )
 
     submission = {
-        "name": data.name.strip(),
-        "email": data.email.strip().lower(),
-        "subject": data.subject.strip() if data.subject else "General Inquiry",
-        "message": data.message.strip(),
+        "name": name,
+        "email": email,
+        "subject": subject,
+        "message": message,
+        "type": "contact",
         "status": "new",
         "created_at": datetime.utcnow(),
-        "ip_address": request.client.host if request.client else None,
+        "ip_address": client_ip,
         "user_agent": request.headers.get("user-agent"),
         "admin_reply": None,
         "replied_at": None
@@ -167,7 +226,7 @@ async def submit_contact_form(data: ContactCreate, request: Request):
           <p>Best regards,<br/><strong>The Esigniva Team</strong></p>
         </div>
         <div class="footer">
-          <p>© 2026 Esigniva. All rights reserved.<br/>Need urgent assistance? Contact us at support@devopstrioglobal.com</p>
+          <p>© 2026 Esigniva. All rights reserved.<br/>Need urgent assistance? Contact us at info@esigniva.com</p>
         </div>
       </div>
     </body>
@@ -198,7 +257,7 @@ async def submit_contact_form(data: ContactCreate, request: Request):
     """
 
     send_smtp_email(
-        to_email="support@devopstrioglobal.com",
+        to_email="info@esigniva.com",
         subject=f"[NEW CONTACT INQUIRY] {submission['subject']} - from {submission['name']}",
         html_content=admin_notify_html
     )
@@ -457,3 +516,117 @@ async def delete_contact_submission(
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Submission not found")
     return {"success": True, "message": "Submission deleted successfully"}
+
+# ──────────────────────────────────────────────
+# PUBLIC: NEWSLETTER SUBSCRIPTION (BLOG & SITE)
+# ──────────────────────────────────────────────
+@router.post("/api/newsletter/subscribe")
+@router.post("/newsletter/subscribe")
+async def subscribe_newsletter(data: NewsletterSubscribe, request: Request):
+    """
+    Blog & Public Newsletter Subscription with explicit consent tracking (BUG-013).
+    - Validates email address format and length.
+    - Requires explicit consent (GDPR compliant).
+    - Enforces rate limiting against bot abuse.
+    - Idempotent upsert into `db.newsletter_subscribers`.
+    """
+    if not data.consent:
+        raise HTTPException(
+            status_code=400,
+            detail="You must consent to receive marketing newsletters to subscribe."
+        )
+
+    email = (data.email or "").strip().lower()
+    if not email or len(email) > 255:
+        raise HTTPException(
+            status_code=400,
+            detail="A valid email address is required (maximum 255 characters)."
+        )
+
+    # Basic regex validation
+    email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if not re.match(email_regex, email):
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid email address."
+        )
+
+    client_ip = get_client_ip(request)
+    if client_ip and client_ip not in ["localhost"]:
+        one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+        recent_count = await db.newsletter_subscribers.count_documents({
+            "ip_address": client_ip,
+            "created_at": {"$gte": one_minute_ago}
+        })
+        if recent_count >= 10:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many subscription attempts. Please wait a moment before trying again."
+            )
+
+    # Check if already subscribed
+    existing = await db.newsletter_subscribers.find_one({"email": email})
+    if existing:
+        if existing.get("status") == "active":
+            return {
+                "success": True,
+                "already_subscribed": True,
+                "message": "You are already subscribed to our newsletter."
+            }
+        else:
+            # Reactivate previously unsubscribed
+            await db.newsletter_subscribers.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "status": "active",
+                    "consent": True,
+                    "consent_updated_at": datetime.utcnow(),
+                    "ip_address": client_ip,
+                    "source": (data.source or "blog")[:50]
+                }}
+            )
+            return {
+                "success": True,
+                "message": "Welcome back! Your newsletter subscription has been reactivated."
+            }
+
+    new_sub = {
+        "email": email,
+        "source": (data.source or "blog")[:50],
+        "consent": True,
+        "status": "active",
+        "created_at": datetime.utcnow(),
+        "ip_address": client_ip,
+        "user_agent": request.headers.get("user-agent")
+    }
+    await db.newsletter_subscribers.insert_one(new_sub)
+
+    return {
+        "success": True,
+        "message": "Thank you for subscribing to our newsletter! You will receive our latest e-signature insights and guides."
+    }
+
+@router.post("/api/newsletter/unsubscribe")
+@router.post("/newsletter/unsubscribe")
+async def unsubscribe_newsletter(data: NewsletterUnsubscribe, request: Request):
+    """
+    Allow users to easily unsubscribe from blog newsletter.
+    """
+    email = (data.email or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required to unsubscribe.")
+
+    existing = await db.newsletter_subscribers.find_one({"email": email})
+    if existing:
+        await db.newsletter_subscribers.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {
+                "status": "unsubscribed",
+                "unsubscribed_at": datetime.utcnow(),
+                "unsubscribe_reason": data.reason or "user_request"
+            }}
+        )
+    return {
+        "success": True,
+        "message": "You have been successfully unsubscribed from our newsletter. You can re-subscribe anytime."
+    }

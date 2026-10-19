@@ -15,6 +15,10 @@ export default function DocumentThumbnail({
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
+    setImageError(false);
+  }, [thumbnailUrl, url]);
+
+  useEffect(() => {
     // If we have a direct thumbnail URL (image), we don't need to fetch the PDF blob
     if (thumbnailUrl && !imageError) {
       setLoading(false);

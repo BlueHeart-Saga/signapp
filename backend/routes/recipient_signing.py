@@ -133,15 +133,47 @@ def serialize_recipient(recipient):
     
     return result
 
+import fitz
+
 async def serialize_document(document):
-    """Serialize document data for response."""
+    """Serialize document data for response with multi-file envelope awareness."""
+    doc_id = document["_id"]
+    files = await db.document_files.find(
+        {"document_id": doc_id}
+    ).sort("order", 1).to_list(length=100)
+
+    file_list = []
+    current_page = 1
+    for f in files:
+        start_p = f.get("start_page", current_page)
+        end_p = f.get("end_page", current_page + max(f.get("page_count", 1), 1) - 1)
+        file_list.append({
+            "id": str(f["_id"]),
+            "filename": f.get("filename"),
+            "pages": f.get("page_count", 1),
+            "order": f.get("order", 1),
+            "start_page": start_p,
+            "end_page": end_p,
+            "page_range": (
+                f"Page {start_p}"
+                if start_p == end_p
+                else f"Pages {start_p}–{end_p}"
+            ),
+            "thumbnail_url": f"/documents/{doc_id}/files/{f['_id']}/thumbnail"
+        })
+        current_page = end_p + 1
+
     return {
         "id": str(document["_id"]),
         "filename": document.get("filename", "Unknown"),
         "uploaded_at": document.get("uploaded_at", datetime.utcnow()).isoformat() + "Z",
         "size": document.get("size", 0),
         "mime_type": document.get("mime_type", "application/octet-stream"),
-        "status": document.get("status", "draft")
+        "status": document.get("status", "draft"),
+        "page_count": document.get("page_count", 1),
+        "envelope_id": document.get("envelope_id"),
+        "files": file_list,
+        "files_count": len(file_list)
     }
 
 async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
@@ -179,9 +211,9 @@ async def can_sign_now(recipient_id: str, document_id: ObjectId) -> bool:
     doc = await db.documents.find_one({"_id": document_id})
     signing_order_enabled = doc.get("signing_order_enabled", False) if doc else False
     
-    all_recipients = list(db.recipients.find(
+    all_recipients = await db.recipients.find(
         {"document_id": document_id}
-    ).sort("signing_order", 1))
+    ).sort("signing_order", 1).to_list(1000)
     
     current_recipient = None
     for rec in all_recipients:
@@ -254,36 +286,13 @@ async def update_document_statistics(document_id: ObjectId):
     
 async def _get_voided_document_preview(document, recipient, request):
     """Handle voided document preview."""
-    # Check for multi-file voided document
-    files = list(
-        db.document_files
-        .find({"document_id": document["_id"]})
-        .sort("order", 1)
-    )
-    
-    pdf_bytes = None
-    
-    if files and len(files) > 0:
-        # Multi-file voided document
-        if len(files) == 1:
-            single_file = files[0]
-            try:
-                pdf_bytes = storage.download(single_file["file_path"])
-            except Exception:
-                pass
-        else:
-            # Merge multiple files for voided document
-            try:
-                pdf_bytes = get_merged_pdf(str(document["_id"]))
-            except Exception as e:
-                print(f"Error merging voided files: {e}")
-                # Fallback to first file
-                try:
-                    pdf_bytes = storage.download(files[0]["file_path"])
-                except:
-                    pass
-    else:
-        # Legacy voided document
+    try:
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+    except Exception as e:
+        print(f"Error loading voided document PDF: {e}")
+        pdf_bytes = None
+
+    if not pdf_bytes:
         base_pdf_path = document.get("pdf_file_path")
         if base_pdf_path:
             try:
@@ -861,18 +870,23 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
             raise HTTPException(404, "Document not found")
         
         # Get files for this document
-        files = list(db.document_files.find({
+        files = await db.document_files.find({
             "document_id": recipient["document_id"]
-        }).sort("order", 1))
+        }).sort("order", 1).to_list(1000)
         
         # Check if document is voided
         if document.get("status") == "voided":
             # For voided documents, show with VOIDED watermark
-            base_pdf_path = document.get("pdf_file_path")
-            if not base_pdf_path:
+            pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+            if not pdf_bytes:
+                base_pdf_path = document.get("pdf_file_path")
+                if base_pdf_path:
+                    try:
+                        pdf_bytes = storage.download(base_pdf_path)
+                    except Exception:
+                        pass
+            if not pdf_bytes:
                 raise HTTPException(404, "Base PDF not found")
-            
-            pdf_bytes = storage.download(base_pdf_path)
             
             # Apply prominent VOIDED watermark
             pdf_bytes = PDFEngine.apply_watermark(
@@ -917,7 +931,7 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
             raise HTTPException(400, f"Document is not available for viewing (status: {document.get('status')})")
         
         # Use the existing load_document_pdf function from documents.py
-        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
         
         if not pdf_bytes:
             raise HTTPException(404, "No PDF content available")
@@ -1069,7 +1083,7 @@ async def view_voided_document(
         # NO OTP VERIFICATION REQUIRED FOR VOIDED DOCUMENTS
         
         # Use the existing load_document_pdf function
-        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
         
         if not pdf_bytes:
             raise HTTPException(404, "Base PDF not found")
@@ -1229,17 +1243,21 @@ async def download_document_for_recipient(recipient_id: str, request: Request):
         # Determine which PDF to serve
         pdf_path = (
             document.get("signed_pdf_path") or
-            document.get("intermediate_pdf_path") or
-            document.get("pdf_file_path")
+            document.get("intermediate_pdf_path")
         )
         
-        if not pdf_path:
+        pdf_bytes = None
+        if pdf_path:
+            try:
+                pdf_bytes = storage.download(pdf_path)
+            except Exception:
+                pdf_bytes = None
+
+        if not pdf_bytes:
+            pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+
+        if not pdf_bytes:
             raise HTTPException(404, "PDF not generated yet")
-        
-        try:
-            pdf_bytes = storage.download(pdf_path)
-        except Exception as e:
-            raise HTTPException(404, f"PDF file not found in storage: {str(e)}")
         
         filename = document.get("filename", "document")
         if document.get("status") == "completed":
@@ -1457,11 +1475,16 @@ async def get_recipient_signed_preview(
         
         if not completed_fields and not fields_data:
             # For viewer role or no fields, return the original document
-            pdf_path = doc.get("pdf_file_path")
-            if not pdf_path:
+            pdf_bytes = await load_document_pdf(doc, str(doc["_id"]))
+            if not pdf_bytes:
+                pdf_path = doc.get("pdf_file_path")
+                if pdf_path:
+                    try:
+                        pdf_bytes = storage.download(pdf_path)
+                    except Exception:
+                        pass
+            if not pdf_bytes:
                 raise HTTPException(500, "Base PDF missing")
-            
-            pdf_bytes = storage.download(pdf_path)
             
             # Apply envelope header if envelope ID exists
             envelope_id = doc.get("envelope_id")
@@ -1500,13 +1523,15 @@ async def get_recipient_signed_preview(
                 enriched_fields.append(enriched)
         
         # Load base PDF
-        pdf_path = doc.get("pdf_file_path")
-        if not pdf_path:
-            raise HTTPException(500, "Base PDF missing")
-        
-        try:
-            pdf_bytes = storage.download(pdf_path)
-        except Exception:
+        pdf_bytes = await load_document_pdf(doc, str(doc["_id"]))
+        if not pdf_bytes:
+            pdf_path = doc.get("pdf_file_path")
+            if pdf_path:
+                try:
+                    pdf_bytes = storage.download(pdf_path)
+                except Exception:
+                    pass
+        if not pdf_bytes:
             raise HTTPException(500, "Cannot read base PDF")
         
         # Apply envelope header if envelope ID exists
@@ -1565,6 +1590,10 @@ async def get_recipient_signed_preview(
                         "height": field.get("height", 30),
                         "pdf_x": field.get("pdf_x"),
                         "pdf_y": field.get("pdf_y"),
+                        "pdf_width": field.get("pdf_width", field.get("width", 100)),
+                        "pdf_height": field.get("pdf_height", field.get("height", 30)),
+                        "canvas_width": field.get("canvas_width"),
+                        "canvas_height": field.get("canvas_height"),
                         "font_size": field.get("font_size", 12)
                     })
 
@@ -1991,6 +2020,150 @@ async def save_field_draft(
 #     }
 
 
+@router.post("/recipient/{recipient_id}/fields/{field_id}/resize")
+async def resize_field_as_recipient(
+    recipient_id: str,
+    field_id: str,
+    payload: Dict,
+    request: Request
+):
+    """Update field dimensions/coordinates during recipient signing session."""
+    try:
+        rid = ObjectId(recipient_id)
+        fid = ObjectId(field_id)
+    except Exception:
+        raise HTTPException(400, "Invalid ID")
+
+    recipient = await db.recipients.find_one({"_id": rid})
+    if not recipient:
+        raise HTTPException(404, "Recipient not found")
+
+    if recipient.get("role") == "viewer":
+        raise HTTPException(403, "Viewer cannot modify fields")
+
+    field = await db.signature_fields.find_one({
+        "_id": fid,
+        "recipient_id": rid
+    })
+    if not field:
+        raise HTTPException(403, "Not your field")
+
+    document = await db.documents.find_one({"_id": recipient["document_id"]})
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    if document.get("status") == "completed":
+        raise HTTPException(400, "Document is already completed. Fields cannot be modified.")
+
+    x = payload.get("x") if payload.get("x") is not None else payload.get("canvas_x")
+    y = payload.get("y") if payload.get("y") is not None else payload.get("canvas_y")
+    width = payload.get("width")
+    height = payload.get("height")
+    canvas_width = payload.get("canvas_width")
+    canvas_height = payload.get("canvas_height")
+    page_width = payload.get("page_width")
+    page_height = payload.get("page_height")
+
+    field_type = field.get("type")
+    if field_type in ["textbox", "mail"]:
+        val = field.get("value")
+        text_val = ""
+        if isinstance(val, dict):
+            text_val = val.get("value") or val.get("text") or val.get("email") or ""
+        elif isinstance(val, str):
+            text_val = val
+        text_val = str(text_val).strip()
+
+        # Content/text-length based minimum size to prevent squishing or clipping
+        measured = text_val if text_val else ("ENTER EMAIL" if field_type == "mail" else "ENTER TEXT")
+        lines = measured.splitlines()
+        max_line_len = max([len(l) for l in lines] + [0])
+        min_w = max(90.0, float(max_line_len * 8.5 + 22.0))
+        max_w = 420.0 if field_type == "mail" else 550.0
+
+        if width is not None:
+            width = max(min_w, min(float(width), max_w))
+        if height is not None:
+            min_h = 26.0
+            max_h = 45.0 if field_type == "mail" else (200.0 if len(lines) > 1 else 60.0)
+            height = max(min_h, min(float(height), max_h))
+
+    if all(v is not None for v in [x, y, width, height, canvas_width, canvas_height, page_width, page_height]):
+        try:
+            pdf_coords = convert_canvas_to_pdf_points(
+                canvas_x=float(x),
+                canvas_y=float(y),
+                canvas_width=float(canvas_width),
+                canvas_height=float(canvas_height),
+                page_width_pt=float(page_width),
+                page_height_pt=float(page_height),
+                field_width_px=float(width),
+                field_height_px=float(height),
+                page_number=field.get("page", 0)
+            )
+            update_data.update({
+                "canvas_x": float(x),
+                "canvas_y": float(y),
+                "width": float(width),
+                "height": float(height),
+                "canvas_width": float(canvas_width),
+                "canvas_height": float(canvas_height),
+                "pdf_x": pdf_coords["x"],
+                "pdf_y": pdf_coords["y"],
+                "pdf_width": pdf_coords["width"],
+                "pdf_height": pdf_coords["height"]
+            })
+            print(f"[RESIZE-FIELD] Success for {field_id}: canvas={x},{y},{width},{height} -> pdf={pdf_coords}")
+        except Exception as e:
+            print(f"❌ Error converting coordinates during resize: {str(e)}")
+            if payload.get("pdf_width") is not None:
+                update_data["pdf_width"] = float(payload["pdf_width"])
+            if payload.get("pdf_height") is not None:
+                update_data["pdf_height"] = float(payload["pdf_height"])
+            if width is not None:
+                update_data["width"] = float(width)
+            if height is not None:
+                update_data["height"] = float(height)
+    else:
+        if width is not None:
+            update_data["width"] = float(width)
+        if height is not None:
+            update_data["height"] = float(height)
+        if payload.get("pdf_width") is not None:
+            update_data["pdf_width"] = float(payload["pdf_width"])
+        if payload.get("pdf_height") is not None:
+            update_data["pdf_height"] = float(payload["pdf_height"])
+
+    await db.signature_fields.update_one(
+        {"_id": fid},
+        {"$set": update_data}
+    )
+
+    # Immediately regenerate intermediate PDF if field was already completed so document matches instantly
+    if field.get("completed_at") or field.get("is_completed"):
+        try:
+            doc_id = recipient["document_id"] if isinstance(recipient["document_id"], ObjectId) else ObjectId(recipient["document_id"])
+            await update_intermediate_pdf(doc_id, rid)
+            print(f"[RESIZE-FIELD] Synchronously updated intermediate PDF for doc {doc_id}")
+        except Exception as e:
+            print(f"[RESIZE-FIELD] Warning: could not update intermediate PDF: {e}")
+
+    updated_field = await db.signature_fields.find_one({"_id": fid})
+    from bson import json_util
+    import json
+    updated_field_json = json.loads(json_util.dumps(updated_field))
+    for key in ["_id", "document_id", "recipient_id"]:
+        if key in updated_field_json and isinstance(updated_field_json[key], dict) and "$oid" in updated_field_json[key]:
+            updated_field_json[key] = updated_field_json[key]["$oid"]
+    updated_field_json["id"] = str(fid)
+
+    return {
+        "status": "success",
+        "message": "Field resized successfully",
+        "field": updated_field_json
+    }
+
+
 @router.post("/recipient/{recipient_id}/fields/{field_id}/complete")
 async def complete_field_as_recipient(
     recipient_id: str,
@@ -2120,15 +2293,23 @@ async def complete_field_as_recipient(
         
         # Additional validation for specific field types
         if field_type == "mail" and text_value:
+            if len(str(text_value)) > 35:
+                raise HTTPException(400, "Email exceeds maximum 35 characters limit")
             # Simple email validation
             if "@" not in text_value or "." not in text_value:
                 raise HTTPException(400, "Invalid email format")
+        
+        elif field_type == "textbox" and text_value:
+            if len(str(text_value)) > 60:
+                raise HTTPException(400, "Text exceeds maximum 60 characters limit")
         
         elif field_type == "date" and text_value:
             if not isinstance(text_value, str):
                 raise HTTPException(400, "Date value must be string YYYY-MM-DD")
             try:
-                datetime.strptime(text_value, "%Y-%m-%d")
+                parsed_d = datetime.strptime(text_value, "%Y-%m-%d").date()
+                if parsed_d < datetime.utcnow().date():
+                    raise HTTPException(400, "Past date cannot be selected. Please select today or a future date.")
             except ValueError:
                 raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD")
     
@@ -2227,7 +2408,7 @@ async def complete_field_as_recipient(
                 update_data["canvas_height"] = new_height * ratio
     
     # Recalculate PDF coordinates if position/resize coordinates are provided in the payload
-    if field_type in IMAGE_FIELDS:
+    if field_type in IMAGE_FIELDS or field_type in ["textbox", "mail"]:
         x = payload.get("x") if payload.get("x") is not None else payload.get("canvas_x")
         y = payload.get("y") if payload.get("y") is not None else payload.get("canvas_y")
         width = payload.get("width")
@@ -2336,6 +2517,14 @@ async def complete_field_as_recipient(
         request
     )
 
+    # Update intermediate PDF immediately so document preview & downloads are fresh!
+    try:
+        doc_id = recipient["document_id"] if isinstance(recipient["document_id"], ObjectId) else ObjectId(recipient["document_id"])
+        await update_intermediate_pdf(doc_id, rid)
+        print(f"[COMPLETE-FIELD] Synchronously updated intermediate PDF for doc {doc_id}")
+    except Exception as e:
+        print(f"[COMPLETE-FIELD] Warning: could not update intermediate PDF: {e}")
+
     # Fetch updated field to return its adjusted coordinates
     updated_field = await db.signature_fields.find_one({"_id": fid})
     
@@ -2346,6 +2535,7 @@ async def complete_field_as_recipient(
     for key in ["_id", "document_id", "recipient_id"]:
         if key in updated_field_json and isinstance(updated_field_json[key], dict) and "$oid" in updated_field_json[key]:
             updated_field_json[key] = updated_field_json[key]["$oid"]
+    updated_field_json["id"] = str(fid)
 
     return {
         "message": "Field completed successfully",
@@ -2375,17 +2565,21 @@ async def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId)
         return
     
     # Get current PDF - Always prefer original PDF as base for clean application
-    pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
-    if not pdf_path:
-        return
+    pdf_bytes = await load_document_pdf(document, str(document_id))
+    if not pdf_bytes:
+        pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
+        if pdf_path:
+            try:
+                pdf_bytes = storage.download(pdf_path)
+            except Exception:
+                return
+        else:
+            return
     
-    pdf_bytes = storage.download(pdf_path)
-    
-    # Get all completed fields (signatures and attachments for link preview)
+    # Get all completed fields (signatures, initials, form fields, and attachments)
     fields = await db.signature_fields.find({
         "document_id": {"$in": [document_id, str(document_id)]},
-        "type": {"$in": ["signature", "initials", "witness_signature", "attachment"]},
-        "completed_at": {"$exists": True}
+        "completed_at": {"$exists": True, "$ne": None}
     }).to_list(length=1000)
     
     if not fields:
@@ -2402,9 +2596,30 @@ async def update_intermediate_pdf(document_id: ObjectId, recipient_id: ObjectId)
         folder=f"documents/{document_id}"
     )
     
+    inter_thumb_path = None
+    try:
+        from routes.documents import generate_file_thumbnail
+        first_thumb_bytes = generate_file_thumbnail(updated_pdf, 0)
+        owner_id = str(document.get("owner_id", "default"))
+        inter_thumb_path = storage.upload(
+            first_thumb_bytes,
+            f"intermediate_preview_{document_id}.png",
+            folder=f"users/{owner_id}/thumbnails/{document_id}"
+        )
+    except Exception as e:
+        print(f"[update_intermediate_pdf] Error generating intermediate thumbnail: {e}")
+
+    inter_update = {
+        "intermediate_pdf_path": new_intermediate_path,
+        "updated_at": datetime.utcnow()
+    }
+    if inter_thumb_path:
+        inter_update["preview_thumbnail_path"] = inter_thumb_path
+        inter_update["intermediate_thumbnail_path"] = inter_thumb_path
+
     await db.documents.update_one(
         {"_id": document_id},
-        {"$set": {"intermediate_pdf_path": new_intermediate_path}}
+        {"$set": inter_update}
     )
 
 async def finalize_document(document_id: ObjectId, request: Request = None, background_tasks: BackgroundTasks = None):
@@ -2418,10 +2633,16 @@ async def finalize_document(document_id: ObjectId, request: Request = None, back
     # Get latest PDF
     # IMPORTANT: Always start from ORIGINAL PDF to avoid doubling fields
     # If we use intermediate_pdf_path, it might already have some fields burned in
-    pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
-    if not pdf_path:
+    pdf_bytes = await load_document_pdf(document, str(document_id))
+    if not pdf_bytes:
+        pdf_path = document.get("pdf_file_path") or document.get("intermediate_pdf_path")
+        if pdf_path:
+            try:
+                pdf_bytes = storage.download(pdf_path)
+            except Exception:
+                pass
+    if not pdf_bytes:
         raise HTTPException(404, "Base PDF not found for finalization")
-    pdf_bytes = storage.download(pdf_path)
     
     # Get all completed fields
     fields = await db.signature_fields.find({
@@ -2496,20 +2717,48 @@ async def finalize_document(document_id: ObjectId, request: Request = None, back
         f"signed_{document_id}.pdf",
         folder=f"documents/{document_id}"
     )
+
+    # Generate signed thumbnails so document thumbnails reflect the actual signed PDF
+    owner_id = str(document.get("owner_id", "default"))
+    signed_preview_thumb_path = None
+    signed_page_thumbs = []
+    try:
+        from routes.documents import generate_file_thumbnail, generate_and_store_page_thumbnails
+        first_thumb_bytes = generate_file_thumbnail(final_pdf, 0)
+        signed_preview_thumb_path = storage.upload(
+            first_thumb_bytes,
+            f"signed_preview_{document_id}.png",
+            folder=f"users/{owner_id}/thumbnails/{document_id}"
+        )
+        signed_page_thumbs = generate_and_store_page_thumbnails(
+            final_pdf,
+            str(document_id),
+            f"signed_{document.get('filename', 'doc')}",
+            owner_id
+        )
+    except Exception as e:
+        print(f"[finalize_document] Error generating signed thumbnails: {e}")
     
     # Update document
     all_recipients = await db.recipients.find({"document_id": document_id}).to_list(length=1000)
     completed_count = len([r for r in all_recipients if r.get("status") == "completed"])
     
+    doc_update_payload = {
+        "status": "completed",
+        "signed_pdf_path": signed_pdf_path,
+        "signed_count": completed_count,
+        "finalized_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "completed_email_sent": False  # Add this flag
+    }
+    if signed_preview_thumb_path:
+        doc_update_payload["preview_thumbnail_path"] = signed_preview_thumb_path
+    if signed_page_thumbs:
+        doc_update_payload["page_thumbnails"] = signed_page_thumbs
+
     await db.documents.update_one(
         {"_id": document_id},
-        {"$set": {
-            "status": "completed",
-            "signed_pdf_path": signed_pdf_path,
-            "signed_count": completed_count,
-            "finalized_at": datetime.utcnow(),
-            "completed_email_sent": False  # Add this flag
-        }}
+        {"$set": doc_update_payload}
     )
     
     # Log the finalization
@@ -2596,8 +2845,11 @@ async def preview_with_signatures(
             enriched_fields.append(enriched)
         
         # Load PDF
-        pdf_path = doc.get("pdf_file_path")
-        pdf_bytes = storage.download(pdf_path)
+        pdf_bytes = await load_document_pdf(doc, str(doc["_id"]))
+        if not pdf_bytes:
+            pdf_path = doc.get("pdf_file_path")
+            if pdf_path:
+                pdf_bytes = storage.download(pdf_path)
         
         # Apply completed signatures
         completed_fields = [f for f in enriched_fields if f.get("is_completed")]
@@ -2889,6 +3141,142 @@ async def assign_document_to_others(
         "new_email": assign_request.new_email
     }
 
+# ============================================================
+# ADVANCE RECIPIENT WORKFLOW (Sequential & Parallel Orchestration)
+# ============================================================
+
+async def advance_recipient_workflow(
+    doc_id: ObjectId,
+    recipient: dict,
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    """
+    Handle post-recipient-completion logic:
+    1. Send progress notification email to document owner with direct Document Summary link.
+    2. Check if all recipients finished -> finalize document if so.
+    3. If sequential flow enabled -> trigger next sequential order invitations.
+    """
+    if isinstance(doc_id, str):
+        try:
+            doc_id = ObjectId(doc_id)
+        except Exception:
+            pass
+
+    document = await db.documents.find_one({"_id": doc_id})
+    if not document:
+        return {"document_finalized": False}
+
+    # Update document statistics
+    await update_document_statistics(doc_id)
+
+    # Always notify owner of recipient's completion
+    from .email_service import send_recipient_activity_notification_to_owner
+    if background_tasks:
+        background_tasks.add_task(
+            send_recipient_activity_notification_to_owner,
+            recipient=recipient,
+            document=document,
+            status="completed"
+        )
+
+    # Query all recipients for this document
+    all_recipients = await db.recipients.find({
+        "document_id": {"$in": [doc_id, str(doc_id)]}
+    }).to_list(length=1000)
+
+    none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
+    any_completed = any(r.get("status") == "completed" for r in all_recipients)
+
+    if none_pending and any_completed:
+        # All recipients completed (or declined). Finalize document!
+        await finalize_document(
+            doc_id,
+            request=request,
+            background_tasks=background_tasks
+        )
+        return {"document_finalized": True}
+
+    # Sequential Flow: Check if current order is finished, and trigger next order
+    if document.get("signing_order_enabled"):
+        current_order = int(recipient.get("signing_order") or 1)
+        
+        # Check if anyone else in current order is still pending
+        same_order_pending = [
+            r for r in all_recipients
+            if int(r.get("signing_order") or 1) == current_order
+            and r.get("status") not in ["completed", "declined"]
+        ]
+
+        if not same_order_pending:
+            # Everyone at current level finished! Find next higher order
+            remaining_higher = [
+                r for r in all_recipients
+                if int(r.get("signing_order") or 1) > current_order
+                and r.get("status") not in ["completed", "declined"]
+            ]
+
+            if remaining_higher:
+                remaining_higher.sort(key=lambda r: int(r.get("signing_order") or 1))
+                next_order = int(remaining_higher[0].get("signing_order") or 1)
+                to_invite = [
+                    r for r in remaining_higher
+                    if int(r.get("signing_order") or 1) == next_order
+                ]
+
+                if to_invite:
+                    invite_ids = [r["_id"] for r in to_invite]
+                    await db.recipients.update_many(
+                        {"_id": {"$in": invite_ids}},
+                        {"$set": {"status": "invited", "sent_at": datetime.utcnow()}}
+                    )
+
+                    owner_id = document.get("owner_id")
+                    owner = None
+                    if owner_id:
+                        try:
+                            owner = await db.users.find_one({"_id": ObjectId(owner_id)})
+                        except Exception:
+                            pass
+                        if not owner:
+                            try:
+                                owner = await db.users.find_one({"_id": str(owner_id)})
+                            except Exception:
+                                pass
+
+                    sender_email = (
+                        (owner.get("email") if owner else None)
+                        or document.get("owner_email")
+                        or recipient.get("sender_info", {}).get("email")
+                        or "system@esigniva.ai"
+                    )
+
+                    from .email_service import send_bulk_invites
+                    if background_tasks:
+                        background_tasks.add_task(
+                            send_bulk_invites,
+                            str(doc_id),
+                            to_invite,
+                            document.get("common_message", ""),
+                            {},
+                            sender_email
+                        )
+
+                    await _log_event(
+                        str(doc_id),
+                        None,
+                        "sequential_next_signers_triggered",
+                        {
+                            "completed_order": current_order,
+                            "next_order": next_order,
+                            "recipient_emails": [r.get("email") for r in to_invite]
+                        },
+                        request
+                    )
+
+    return {"document_finalized": False}
+
+
 # ======================
 # VIEWER COMPLETION
 # ======================
@@ -2911,29 +3299,24 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
     if not recipient.get("otp_verified"):
         raise HTTPException(403, "OTP verification required")
     
-    document = await db.documents.find_one({"_id": recipient["document_id"]})
-
     # Mark viewer completed
+    update_data = {
+        "status": "completed",
+        "viewer_at": datetime.utcnow()
+    }
     await db.recipients.update_one(
         {"_id": rid},
-        {"$set": {
-            "status": "completed",
-            "viewer_at": datetime.utcnow()
-        }}
+        {"$set": update_data}
     )
+    recipient.update(update_data)
     
-    # NEW: Notify owner about viewer completion
-    from .email_service import send_recipient_activity_notification_to_owner
-    background_tasks.add_task(
-        send_recipient_activity_notification_to_owner,
+    # Progress workflow (Owner alert, sequential triggers, document finalization)
+    flow_result = await advance_recipient_workflow(
+        doc_id=recipient["document_id"],
         recipient=recipient,
-        document=document,
-        status="completed"
+        request=request,
+        background_tasks=background_tasks
     )
-    
-    # Update document statistics
-    doc_id = recipient["document_id"]
-    await update_document_statistics(doc_id)
     
     await _log_event(
         str(recipient["document_id"]),
@@ -2942,9 +3325,13 @@ async def complete_viewer(recipient_id: str, request: Request, background_tasks:
         {},
         request
     )
-
     
-    return {"message": "Viewer completed review"}
+    return {
+        "message": "Viewer completed review",
+        "completed": True,
+        "document_finalized": flow_result.get("document_finalized", False),
+        "recipient_status": "completed"
+    }
 
 
 # ======================
@@ -3009,7 +3396,7 @@ async def email_signed_document(
 
         # USE DYNAMIC RENDERING (Matches download route)
         # This ensures all fields and HEADERS are applied accurately
-        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
         if not pdf_bytes:
             raise HTTPException(404, "Base PDF not found")
 
@@ -3125,7 +3512,7 @@ async def download_signed_document(
         #     )
         
         # Always start from base PDF (unified loader handles multiple files and fallbacks)
-        pdf_bytes = load_document_pdf(document, str(document["_id"]))
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
         if not pdf_bytes:
             raise HTTPException(404, "No PDF content available for this document")
         
@@ -3234,6 +3621,85 @@ async def download_signed_document(
         import traceback
         traceback.print_exc()
         raise HTTPException(500, "Internal server error while downloading document")
+
+
+@router.get("/recipient/{recipient_id}/files/{file_id}/download-signed")
+async def download_recipient_signed_subfile(
+    recipient_id: str,
+    file_id: str,
+    request: Request,
+    disposition: str = Query("attachment")
+):
+    """
+    Download a single signed sub-file from a multi-file envelope for a recipient.
+    """
+    try:
+        rid = ObjectId(recipient_id)
+        fid = ObjectId(file_id)
+        recipient = await db.recipients.find_one({"_id": rid})
+        if not recipient:
+            raise HTTPException(404, "Recipient not found")
+
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
+        if not document:
+            raise HTTPException(404, "Document not found")
+
+        sub_file = await db.document_files.find_one({"_id": fid, "document_id": document["_id"]})
+        if not sub_file:
+            raise HTTPException(404, "Sub-document file not found in envelope")
+
+        # Load complete signed PDF
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+        if not pdf_bytes:
+            raise HTTPException(404, "Base PDF not found")
+        pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(document["_id"]), document)
+
+        # Slice sub-file pages
+        start_p = max(0, sub_file.get("start_page", 1) - 1)
+        end_p = sub_file.get("end_page", sub_file.get("page_count", 1)) - 1
+
+        full_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        end_p = min(end_p, len(full_doc) - 1)
+        sub_doc = fitz.open()
+        if end_p >= start_p:
+            sub_doc.insert_pdf(full_doc, from_page=start_p, to_page=end_p)
+        sub_bytes = sub_doc.tobytes(clean=True)
+        sub_doc.close()
+        full_doc.close()
+
+        # Apply minimal watermark
+        try:
+            sub_bytes = PDFEngine.apply_watermark(
+                sub_bytes,
+                "SIGNED DOCUMENT",
+                color="#4CAF50",
+                opacity=0.1,
+                font_size=42,
+                angle=45
+            )
+        except Exception:
+            pass
+
+        safe_name = sub_file.get("filename", "subdocument.pdf")
+        if not safe_name.lower().endswith(".pdf"):
+            safe_name += ".pdf"
+        out_name = f"signed_{safe_name}"
+
+        return StreamingResponse(
+            io.BytesIO(sub_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'{disposition}; filename="{out_name}"',
+                "Content-Length": str(len(sub_bytes)),
+                "X-Filename": out_name
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error downloading signed subfile: {e}")
+        raise HTTPException(500, f"Error generating subfile: {str(e)}")
+
 
 @router.get("/recipient/{recipient_id}/download/package")
 async def download_recipient_package(
@@ -3351,17 +3817,24 @@ async def download_signed_document_with_passkey(
         
         if not signed_pdf_path:
             # Fallback (rare for completed docs)
-            signed_pdf_path = document.get("intermediate_pdf_path") or document.get("pdf_file_path")
+            signed_pdf_path = document.get("intermediate_pdf_path")
             should_reapply_fields = True
             if not signed_pdf_path:
+                pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+            else:
+                try:
+                    pdf_bytes = storage.download(signed_pdf_path)
+                except Exception:
+                    pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+            if not pdf_bytes:
                 raise HTTPException(404, "Signed PDF not available")
-        
-        # Get PDF from Azure
-        try:
-            pdf_bytes = storage.download(signed_pdf_path)
-        except Exception as e:
-            print(f"Error reading PDF from Azure: {str(e)}")
-            raise HTTPException(404, "PDF file not found in storage")
+        else:
+            # Get PDF from Azure
+            try:
+                pdf_bytes = storage.download(signed_pdf_path)
+            except Exception as e:
+                print(f"Error reading PDF from Azure: {str(e)}")
+                raise HTTPException(404, "PDF file not found in storage")
         
         # ============================================
         # APPLY COMPLETED FIELDS (UNIFIED LOGIC)
@@ -3494,17 +3967,17 @@ async def download_original_document(
         if not document:
             raise HTTPException(404, "Document not found")
         
-        # Get original PDF path
-        base_pdf_path = document.get("pdf_file_path")
-        if not base_pdf_path:
+        # Get original PDF
+        pdf_bytes = await load_document_pdf(document, str(document["_id"]))
+        if not pdf_bytes:
+            base_pdf_path = document.get("pdf_file_path")
+            if base_pdf_path:
+                try:
+                    pdf_bytes = storage.download(base_pdf_path)
+                except Exception as e:
+                    print(f"Error reading PDF from Azure: {str(e)}")
+        if not pdf_bytes:
             raise HTTPException(404, "Original PDF not found")
-        
-        # Get PDF from Azure
-        try:
-            pdf_bytes = storage.download(base_pdf_path)
-        except Exception as e:
-            print(f"Error reading PDF from Azure: {str(e)}")
-            raise HTTPException(404, "PDF file not found in storage")
         
         # Apply "ORIGINAL" watermark
         try:
@@ -3636,23 +4109,79 @@ async def download_professional_summary(
         
         # ========== GATHER COMPLETE DOCUMENT DATA ==========
         
-        # Get all recipients
+        doc_id_val = recipient["document_id"]
+        
+        # Get all recipients (CosmosDB safe with ObjectId and str fallback)
         all_recipients = await db.recipients.find({
-            "document_id": recipient["document_id"]
+            "document_id": doc_id_val
         }).sort("signing_order", 1).to_list(length=1000)
+        if not all_recipients:
+            all_recipients = await db.recipients.find({
+                "document_id": str(doc_id_val)
+            }).sort("signing_order", 1).to_list(length=1000)
         
         # Get all fields for this document
         all_fields = await db.signature_fields.find({
-            "document_id": recipient["document_id"]
+            "document_id": doc_id_val
         }).to_list(length=1000)
+        if not all_fields:
+            all_fields = await db.signature_fields.find({
+                "document_id": str(doc_id_val)
+            }).to_list(length=1000)
         
         # Get fields assigned to current recipient
         recipient_fields = [f for f in all_fields if str(f.get("recipient_id")) == recipient_id]
         
-        # Get document timeline/activity
-        timeline = await db.document_timeline.find({
-            "document_id": recipient["document_id"]
-        }).sort("timestamp", -1).limit(20).to_list(length=1000)
+        # Get document timeline/activity (CosmosDB safe with audit_logs fallback)
+        timeline_raw = await db.document_timeline.find({
+            "document_id": doc_id_val
+        }).sort("timestamp", -1).limit(50).to_list(50)
+        if not timeline_raw:
+            timeline_raw = await db.document_timeline.find({
+                "document_id": str(doc_id_val)
+            }).sort("timestamp", -1).limit(50).to_list(50)
+            
+        audit_raw = await db.audit_logs.find({
+            "document_id": doc_id_val
+        }).sort("timestamp", -1).limit(50).to_list(50)
+        if not audit_raw:
+            audit_raw = await db.audit_logs.find({
+                "document_id": str(doc_id_val)
+            }).sort("timestamp", -1).limit(50).to_list(50)
+            
+        combined_timeline = []
+        for event in timeline_raw:
+            actor = event.get("actor", {})
+            p_name = actor.get("name") or actor.get("email") or "System"
+            e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
+            details = event.get("description", "")
+            if not details:
+                details = event.get("title", event.get("type", "Activity").replace("_", " ").title())
+            combined_timeline.append({
+                "timestamp": event.get("timestamp"),
+                "date": e_date,
+                "event": event.get("title", event.get("type", "Activity").replace("_", " ").title()),
+                "participant": p_name,
+                "details": details
+            })
+            
+        for event in audit_raw:
+            meta = event.get("details") or event.get("metadata") or {}
+            p_name = event.get("performed_by_name") or event.get("email") or (meta.get("actor_name") if isinstance(meta, dict) else None) or "System"
+            ts = event.get("timestamp") or event.get("created_at")
+            e_date = ts.strftime("%Y-%m-%d %H:%M:%S") if ts else ""
+            action_name = str(event.get("action", "Activity")).replace("_", " ").title()
+            details = str(meta) if isinstance(meta, str) else (meta.get("description") if isinstance(meta, dict) and meta.get("description") else f"{action_name} recorded")
+            combined_timeline.append({
+                "timestamp": ts,
+                "date": e_date,
+                "event": action_name,
+                "participant": p_name,
+                "details": details
+            })
+            
+        combined_timeline.sort(key=lambda x: x.get("timestamp") or datetime.min, reverse=True)
+        recent_activity = combined_timeline[:25]
         
         # ========== PREPARE SUMMARY DATA ==========
         
@@ -3661,6 +4190,12 @@ async def download_professional_summary(
         created_date_str = created_date.strftime("%B %d, %Y") if created_date else "Unknown"
         
         completed_date = document.get("completed_at") or document.get("finalized_at")
+        if not completed_date and document.get("status") == "completed":
+            recip_times = [r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at") for r in all_recipients if (r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at"))]
+            if recip_times:
+                completed_date = max(recip_times)
+            else:
+                completed_date = document.get("updated_at")
         completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M %p") if completed_date else "Not completed"
         
         # Calculate statistics
@@ -3724,56 +4259,30 @@ async def download_professional_summary(
                 completion_time = r["approved_at"].strftime("%Y-%m-%d")
             elif r.get("form_completed_at"):
                 completion_time = r["form_completed_at"].strftime("%Y-%m-%d")
+            elif r.get("witnessed_at"):
+                completion_time = r["witnessed_at"].strftime("%Y-%m-%d")
             elif r.get("viewer_at"):
                 completion_time = r["viewer_at"].strftime("%Y-%m-%d")
+            elif r.get("completed_at"):
+                completion_time = r["completed_at"].strftime("%Y-%m-%d")
             
             # Count fields for this recipient
             r_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(r["_id"])]
             r_completed = len([f for f in r_fields if f.get("completed_at")])
             
+            p_done = bool(completion_time or r.get("status") == "completed" or (r_fields and r_completed >= len(r_fields)))
+            
             participants.append({
                 "name": r.get("name", "Unknown"),
                 "email": r.get("email", ""),
                 "role": r.get("role", "signer"),
-                "status": r.get("status", "pending"),
+                "status": "completed" if p_done else r.get("status", "pending"),
                 "completed_at": completion_time,
                 "signing_order": r.get("signing_order", 1),
                 "fields_assigned": len(r_fields),
                 "fields_completed": r_completed,
                 "otp_verified": r.get("otp_verified", False),
                 "terms_accepted": r.get("terms_accepted", False)
-            })
-        
-        # Prepare recent activity - High information density
-        recent_activity = []
-        for event in timeline[:15]:
-            actor = event.get("actor", {})
-            participant_name = actor.get("name") or actor.get("email") or "System"
-            
-            event_date = event.get("timestamp")
-            if event_date:
-                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # Improve details if description is empty
-            details = event.get("description", "")
-            if not details:
-                # Build detail from metadata if description missing
-                meta = event.get("metadata", {})
-                action = event.get("type", event.get("action", ""))
-                if action == "recipient_viewed":
-                    details = f"Viewed by {participant_name}"
-                elif action == "document_downloaded":
-                    details = f"Downloaded {meta.get('filename', 'document')}"
-                elif action == "otp_verified":
-                    details = "Security verification completed"
-                else:
-                    details = event.get("title", action.replace("_", " ").title())
-            
-            recent_activity.append({
-                "date": event_date,
-                "event": event.get("title", event.get("action", "Activity")),
-                "participant": participant_name,
-                "details": details
             })
         
         # Get envelope ID
@@ -3787,8 +4296,15 @@ async def download_professional_summary(
             current_recipient_completed = recipient["approved_at"].isoformat()
         elif recipient.get("form_completed_at"):
             current_recipient_completed = recipient["form_completed_at"].isoformat()
+        elif recipient.get("witnessed_at"):
+            current_recipient_completed = recipient["witnessed_at"].isoformat()
         elif recipient.get("viewer_at"):
             current_recipient_completed = recipient["viewer_at"].isoformat()
+        elif recipient.get("completed_at"):
+            current_recipient_completed = recipient["completed_at"].isoformat()
+        
+        cur_fields_done = len([f for f in recipient_fields if f.get("completed_at")])
+        cur_done = bool(current_recipient_completed or recipient.get("status") == "completed" or (recipient_fields and cur_fields_done >= len(recipient_fields)))
         
         # Prepare complete summary data with signature and initials
         summary_data = {
@@ -3806,7 +4322,7 @@ async def download_professional_summary(
                 "name": recipient.get("name", "Unknown"),
                 "email": recipient.get("email", ""),
                 "role": recipient.get("role", "signer"),
-                "status": recipient.get("status", "pending"),
+                "status": "completed" if cur_done else recipient.get("status", "pending"),
                 "completed_at": current_recipient_completed,
                 "ip_address": recipient.get("signed_ip") or recipient.get("completed_ip") or recipient.get("viewed_ip", "Unknown"),
                 "otp_verified": recipient.get("otp_verified", False),
@@ -3958,59 +4474,101 @@ async def download_professional_certificate(
         owner = await db.users.find_one({"_id": document.get("owner_id")}) if document.get("owner_id") else None
         owner_name = owner.get("full_name") or owner.get("name") or document.get("owner_email", "") if owner else document.get("owner_email", "")
         
-        # Get all recipients
+        doc_id_val = recipient["document_id"]
+        
+        # Get all recipients (CosmosDB safe with ObjectId and str fallback)
         all_recipients = await db.recipients.find({
-            "document_id": recipient["document_id"]
+            "document_id": doc_id_val
         }).sort("signing_order", 1).to_list(length=1000)
+        if not all_recipients:
+            all_recipients = await db.recipients.find({
+                "document_id": str(doc_id_val)
+            }).sort("signing_order", 1).to_list(length=1000)
         
         # Get all fields
         all_fields = await db.signature_fields.find({
-            "document_id": recipient["document_id"]
+            "document_id": doc_id_val
         }).to_list(length=1000)
+        if not all_fields:
+            all_fields = await db.signature_fields.find({
+                "document_id": str(doc_id_val)
+            }).to_list(length=1000)
         
         # Get completed fields
         completed_fields = [f for f in all_fields if f.get("completed_at")]
         
         # Get document timeline (Full for certificate)
         sent_log = await db.document_timeline.find_one({
-            "document_id": recipient["document_id"],
+            "document_id": doc_id_val,
             "action": "upload_document"
         })
+        if not sent_log:
+            sent_log = await db.document_timeline.find_one({
+                "document_id": str(doc_id_val),
+                "action": "upload_document"
+            })
+        if not sent_log:
+            sent_log = await db.audit_logs.find_one({"document_id": doc_id_val}) or await db.audit_logs.find_one({"document_id": str(doc_id_val)})
         
-        timeline = list(db.document_timeline.find({
-            "document_id": recipient["document_id"]
-        }).sort("timestamp", -1).limit(50))
+        timeline_raw = await db.document_timeline.find({
+            "document_id": doc_id_val
+        }).sort("timestamp", -1).limit(50).to_list(50)
+        if not timeline_raw:
+            timeline_raw = await db.document_timeline.find({
+                "document_id": str(doc_id_val)
+            }).sort("timestamp", -1).limit(50).to_list(50)
+            
+        audit_raw = await db.audit_logs.find({
+            "document_id": doc_id_val
+        }).sort("timestamp", -1).limit(50).to_list(50)
+        if not audit_raw:
+            audit_raw = await db.audit_logs.find({
+                "document_id": str(doc_id_val)
+            }).sort("timestamp", -1).limit(50).to_list(50)
         
         # Prepare recent activity - High information density
-        recent_activity_list = []
-        for event in timeline:
+        combined_timeline = []
+        for event in timeline_raw:
             actor = event.get("actor", {})
-            participant_name = actor.get("name") or actor.get("email") or "System"
-            
-            event_date = event.get("timestamp")
-            if event_date:
-                event_date = event_date.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # Improve details if description is empty
+            p_name = actor.get("name") or actor.get("email") or "System"
+            e_date = event.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if event.get("timestamp") else ""
             details = event.get("description", "")
             if not details:
                 meta = event.get("metadata", {})
                 action = event.get("type", event.get("action", ""))
                 if action == "recipient_viewed":
-                    details = f"Viewed by {participant_name}"
+                    details = f"Viewed by {p_name}"
                 elif action == "document_downloaded":
                     details = f"Downloaded {meta.get('filename', 'document')}"
                 elif action == "otp_verified":
                     details = "Security verification completed"
                 else:
                     details = event.get("title", action.replace("_", " ").title())
-            
-            recent_activity_list.append({
-                "date": event_date,
+            combined_timeline.append({
+                "timestamp": event.get("timestamp"),
+                "date": e_date,
                 "event": event.get("title", event.get("action", "Activity")),
-                "participant": participant_name,
+                "participant": p_name,
                 "details": details
             })
+            
+        for event in audit_raw:
+            meta = event.get("details") or event.get("metadata") or {}
+            p_name = event.get("performed_by_name") or event.get("email") or (meta.get("actor_name") if isinstance(meta, dict) else None) or "System"
+            ts = event.get("timestamp") or event.get("created_at")
+            e_date = ts.strftime("%Y-%m-%d %H:%M:%S") if ts else ""
+            action_name = str(event.get("action", "Activity")).replace("_", " ").title()
+            details = str(meta) if isinstance(meta, str) else (meta.get("description") if isinstance(meta, dict) and meta.get("description") else f"{action_name} recorded")
+            combined_timeline.append({
+                "timestamp": ts,
+                "date": e_date,
+                "event": action_name,
+                "participant": p_name,
+                "details": details
+            })
+            
+        combined_timeline.sort(key=lambda x: x.get("timestamp") or datetime.min, reverse=True)
+        recent_activity_list = combined_timeline[:30]
         
         # Calculate statistics
         total_signatures = len([f for f in all_fields if f.get("type") in ["signature", "witness_signature"]])
@@ -4046,6 +4604,10 @@ async def download_professional_certificate(
                 completion_timestamp = r.get("viewer_at")
                 completion_ip = r.get("viewed_ip", r.get("completed_ip", "Unknown"))
             
+            r_fields = [f for f in all_fields if str(f.get("recipient_id")) == str(r.get("_id"))]
+            r_fields_done = len([f for f in r_fields if f.get("completed_at")])
+            is_r_done = bool(completion_timestamp or r.get("status") == "completed" or (r_fields and r_fields_done >= len(r_fields)))
+            
             # Get terms acceptance date
             terms_accepted_date = None
             if r.get("terms_accepted_at"):
@@ -4055,8 +4617,8 @@ async def download_professional_certificate(
                 "name": r.get("name", "Unknown"),
                 "email": r.get("email", "No email"),
                 "role": role,
-                "status": r.get("status", "pending"),
-                "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else None,
+                "status": "completed" if is_r_done else r.get("status", "pending"),
+                "completed_at": completion_timestamp.strftime("%Y-%m-%d %H:%M:%S") if completion_timestamp else (r.get("completed_at").strftime("%Y-%m-%d %H:%M:%S") if r.get("completed_at") else None),
                 "ip_address": completion_ip,
                 "signing_order": r.get("signing_order", 0),
                 "otp_verified": r.get("otp_verified", False),
@@ -4092,6 +4654,12 @@ async def download_professional_certificate(
         created_date_str = created_date.strftime("%B %d, %Y at %I:%M:%S %p") if created_date else "Unknown"
         
         completed_date = document.get("completed_at") or document.get("finalized_at")
+        if not completed_date and document.get("status") == "completed":
+            recip_times = [r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at") for r in all_recipients if (r.get("completed_at") or r.get("witnessed_at") or r.get("signed_at") or r.get("approved_at"))]
+            if recip_times:
+                completed_date = max(recip_times)
+            else:
+                completed_date = document.get("updated_at")
         completed_date_str = completed_date.strftime("%B %d, %Y at %I:%M:%S %p") if completed_date else "Unknown"
         
         sent_date_str = created_date_str
@@ -4107,6 +4675,7 @@ async def download_professional_certificate(
             "document_name": document.get("filename", "Unknown Document"),
             "document_id": str(document["_id"]),
             "page_count": document.get("page_count", 0),
+            "status": document.get("status", "completed"),
             
             # Dates
             "created_date": created_date_str,
@@ -4121,7 +4690,7 @@ async def download_professional_certificate(
             # Statistics
             "statistics": {
                 "total_recipients": len(all_recipients),
-                "completed_recipients": len([r for r in all_recipients if r.get("status") == "completed"]),
+                "completed_recipients": len([r for r in recipients_data if r.get("status") == "completed"]),
                 "total_fields": len(all_fields),
                 "completed_fields": len(completed_fields),
                 "completion_percentage": round((len(completed_fields) / len(all_fields) * 100), 1) if all_fields else 0,
@@ -4233,9 +4802,9 @@ async def get_recipient_document_thumbnails(
             raise HTTPException(404, "Document not found")
         
         # Get all files
-        files = list(db.document_files.find({
+        files = await db.document_files.find({
             "document_id": recipient["document_id"]
-        }).sort("order", 1))
+        }).sort("order", 1).to_list(1000)
         
         # If no files found, use the main PDF
         if not files:
@@ -4324,51 +4893,68 @@ async def get_recipient_page_thumbnail(
         if page_number < 1 or page_number > total_pages:
             raise HTTPException(400, f"Invalid page number. Must be between 1 and {total_pages}")
         
-        # Find which file contains this page
-        files = list(db.document_files.find({
-            "document_id": recipient["document_id"]
-        }).sort("order", 1))
-        
-        # If no files found, use the main PDF
-        if not files:
-            # Get the main PDF
-            pdf_path = document.get("pdf_file_path")
-            if not pdf_path:
-                raise HTTPException(404, "PDF not found")
-            
+        # Prioritize signed PDF or intermediate PDF so thumbnail shows actual signatures
+        pdf_bytes = None
+        is_completed = (document.get("status") == "completed" or bool(document.get("signed_pdf_path")))
+        if is_completed and document.get("signed_pdf_path"):
             try:
-                pdf_bytes = storage.download(pdf_path)
+                pdf_bytes = storage.download(document["signed_pdf_path"])
+                page_in_file = page_number
             except Exception as e:
-                print(f"Error reading PDF file: {e}")
-                raise HTTPException(404, "PDF file not found in storage")
-            
-            page_in_file = page_number
-            
-        else:
-            # Find the correct file for this page
-            current_page = 1
-            target_file = None
-            page_in_file = 1
-            
-            for file in files:
-                end_page = current_page + file["page_count"] - 1
-                
-                if current_page <= page_number <= end_page:
-                    target_file = file
-                    page_in_file = page_number - current_page + 1
-                    break
-                
-                current_page = end_page + 1
-            
-            if not target_file:
-                raise HTTPException(404, "Page not found")
-            
-            # Get the file's PDF from Azure
+                print(f"Error reading signed PDF file: {e}")
+        elif document.get("intermediate_pdf_path"):
             try:
-                pdf_bytes = storage.download(target_file["file_path"])
+                pdf_bytes = storage.download(document["intermediate_pdf_path"])
+                page_in_file = page_number
             except Exception as e:
-                print(f"Error reading PDF file: {e}")
-                raise HTTPException(404, "PDF file not found in storage")
+                print(f"Error reading intermediate PDF file: {e}")
+
+        if not pdf_bytes:
+            # Find which file contains this page
+            files = await db.document_files.find({
+                "document_id": recipient["document_id"]
+            }).sort("order", 1).to_list(1000)
+            
+            # If no files found, use the main PDF
+            if not files:
+                # Get the main PDF
+                pdf_path = document.get("pdf_file_path")
+                if not pdf_path:
+                    raise HTTPException(404, "PDF not found")
+                
+                try:
+                    pdf_bytes = storage.download(pdf_path)
+                except Exception as e:
+                    print(f"Error reading PDF file: {e}")
+                    raise HTTPException(404, "PDF file not found in storage")
+                
+                page_in_file = page_number
+                
+            else:
+                # Find the correct file for this page
+                current_page = 1
+                target_file = None
+                page_in_file = 1
+                
+                for file in files:
+                    end_page = current_page + file["page_count"] - 1
+                    
+                    if current_page <= page_number <= end_page:
+                        target_file = file
+                        page_in_file = page_number - current_page + 1
+                        break
+                    
+                    current_page = end_page + 1
+                
+                if not target_file:
+                    raise HTTPException(404, "Page not found")
+                
+                # Get the file's PDF from Azure
+                try:
+                    pdf_bytes = storage.download(target_file["file_path"])
+                except Exception as e:
+                    print(f"Error reading PDF file: {e}")
+                    raise HTTPException(404, "PDF file not found in storage")
         
         # Open PDF and get specific page - GENERATE ACTUAL THUMBNAIL
         try:
@@ -4417,7 +5003,8 @@ async def get_recipient_page_thumbnail(
                 io.BytesIO(buf.getvalue()),
                 media_type="image/png",
                 headers={
-                    "Cache-Control": "public, max-age=3600",
+                    "Cache-Control": "no-cache, must-revalidate",
+                    "Pragma": "no-cache",
                     "Content-Disposition": f'inline; filename="page_{page_number}_thumbnail.png"',
                     "X-Page-Number": str(page_number),
                     "X-Total-Pages": str(total_pages),
@@ -4465,8 +5052,12 @@ async def get_recipient_file_thumbnail(
         if not file:
             raise HTTPException(404, "File not found")
         
-        # Check if thumbnail exists
-        thumbnail_path = file.get("thumbnail_path")
+        # Check if document is completed or signed
+        document = await db.documents.find_one({"_id": recipient["document_id"]})
+        is_completed = document and (document.get("status") == "completed" or bool(document.get("signed_pdf_path")))
+
+        # Check if thumbnail exists (only use stored file thumbnail if document is not completed/signed)
+        thumbnail_path = file.get("thumbnail_path") if not is_completed else None
         if thumbnail_path:
             try:
                 # Try to get stored thumbnail from Azure
@@ -4477,7 +5068,8 @@ async def get_recipient_file_thumbnail(
                     io.BytesIO(thumb_bytes),
                     media_type="image/png",
                     headers={
-                        "Cache-Control": "private, max-age=86400",
+                        "Cache-Control": "no-cache, must-revalidate",
+                        "Pragma": "no-cache",
                         "Content-Disposition": f'inline; filename="{file.get("filename", "thumbnail")}_thumb.png"',
                         "X-Filename": file.get("filename", "thumbnail"),
                         "X-File-ID": file_id,
@@ -4490,9 +5082,9 @@ async def get_recipient_file_thumbnail(
         
         # No stored thumbnail or error reading it - generate from first page
         # Calculate the global page number for this file's first page
-        files = list(db.document_files.find({
+        files = await db.document_files.find({
             "document_id": recipient["document_id"]
-        }).sort("order", 1))
+        }).sort("order", 1).to_list(1000)
         
         current_page = 1
         start_page = 1
@@ -4665,74 +5257,15 @@ async def manually_complete_recipient(
         raise HTTPException(404, "Document not found")
         
     await db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
+    recipient.update(update_recipient_data)
     
-    # NEW: Notify owner about recipient completion
-    from .email_service import send_recipient_activity_notification_to_owner
-    background_tasks.add_task(
-        send_recipient_activity_notification_to_owner,
+    # Progress workflow (Owner alert, sequential triggers, document finalization)
+    flow_result = await advance_recipient_workflow(
+        doc_id=doc_id,
         recipient=recipient,
-        document=document,
-        status="completed"
+        request=request,
+        background_tasks=background_tasks
     )
-    await update_document_statistics(doc_id)
-    
-    # Check if all recipients have finished (either completed or declined)
-    all_recipients = await db.recipients.find({"document_id": doc_id}).to_list(length=1000)
-    none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
-    any_completed = any(r.get("status") == "completed" for r in all_recipients)
-    
-    if none_pending and any_completed:
-        # Finalize the document if at least one person signed and no one is pending
-        await finalize_document(
-            doc_id,
-            request=request,
-            background_tasks=background_tasks
-        )
-        return {
-            "message": "Recipient completed — document finalized",
-            "completed": True,
-            "document_finalized": True,
-            "recipient_status": "completed"
-        }
-
-    # SEQUENTIAL FLOW: TRIGGER NEXT SIGNER
-    # Re-use the existing 'document' variable already fetched above
-    if document.get("signing_order_enabled"):
-        # Find current recipient's order
-        current_order = recipient.get("signing_order", 0)
-        
-        # Find if anyone else in current order is still pending
-        current_level_pending = await db.recipients.count_documents({
-            "document_id": doc_id,
-            "signing_order": current_order,
-            "status": {"$nin": ["completed", "declined"]}
-        })
-        
-        if current_level_pending == 0:
-            # Everyone at current level finished, find next order
-            next_recipients = list(db.recipients.find({
-                "document_id": doc_id,
-                "signing_order": {"$gt": current_order},
-                "status": "awaiting_previous"
-            }).sort("signing_order", 1))
-            
-            if next_recipients:
-                # Group by order and take the lowest one
-                next_order = next_recipients[0]["signing_order"]
-                to_invite = [r for r in next_recipients if r["signing_order"] == next_order]
-                
-                # Send invites to the next level
-                from .email_service import send_bulk_invites
-                sender_email = recipient.get("sender_info", {}).get("email") or document.get("owner_email") or "system@esigniva.ai"
-                
-                background_tasks.add_task(
-                    send_bulk_invites,
-                    str(doc_id),
-                    to_invite,
-                    document.get("common_message", ""),
-                    {}, # Personal messages already stored in recipient doc
-                    sender_email
-                )
     
     # Log the manual completion
     await _log_event(
@@ -4747,11 +5280,10 @@ async def manually_complete_recipient(
         request
     )
     
-    
     return {
-        "message": "Recipient marked as completed",
+        "message": "Recipient completed — document finalized" if flow_result.get("document_finalized") else "Recipient marked as completed",
         "completed": True,
-        "document_finalized": False,
+        "document_finalized": flow_result.get("document_finalized", False),
         "recipient_status": "completed"
     }
     
