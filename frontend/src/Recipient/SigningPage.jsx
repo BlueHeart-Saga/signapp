@@ -1209,41 +1209,18 @@ const PageSkeleton = React.memo(({ width, height, pageNum, totalPages }) => {
             </Box>
 
             {/* Simulated Paragraph 3 */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
                 <Skeleton variant="text" width="99%" height={18} animation="wave" />
                 <Skeleton variant="text" width="91%" height={18} animation="wave" />
                 <Skeleton variant="text" width="88%" height={18} animation="wave" />
                 <Skeleton variant="text" width="50%" height={18} animation="wave" />
             </Box>
 
-            {/* Center Loading Badge */}
-            <Box
-                sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(8px)',
-                    px: 3.5,
-                    py: 2.5,
-                    borderRadius: 3,
-                    border: '1px solid rgba(13, 148, 136, 0.25)',
-                    boxShadow: '0 8px 32px rgba(13, 148, 136, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04)',
-                    zIndex: 2
-                }}
-            >
-                <CircularProgress size={30} thickness={4} sx={{ color: 'rgb(13, 148, 136)' }} />
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b', letterSpacing: '0.01em' }}>
-                    Loading Page {pageNum}{totalPages ? ` of ${totalPages}` : ''}...
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                    Rendering document page
-                </Typography>
+            {/* Simulated Paragraph 4 */}
+            <Box sx={{ mb: 3 }}>
+                <Skeleton variant="text" width="96%" height={18} animation="wave" />
+                <Skeleton variant="text" width="93%" height={18} animation="wave" />
+                <Skeleton variant="text" width="65%" height={18} animation="wave" />
             </Box>
 
             {/* Bottom Footer Skeleton */}

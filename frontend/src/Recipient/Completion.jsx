@@ -574,66 +574,6 @@ const Completion = () => {
             </Alert>
           )}
 
-          {/* Files in this Envelope (Separated Documents) */}
-          {documentInfo?.files && documentInfo.files.length > 1 && (
-            <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e2e8f0' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DocumentIcon fontSize="small" sx={{ color: '#0f766e' }} />
-                Documents in this Envelope ({documentInfo.files.length})
-              </Typography>
-              <Stack spacing={1}>
-                {documentInfo.files.map((file, idx) => (
-                  <Paper
-                    key={file.id || idx}
-                    variant="outlined"
-                    sx={{
-                      p: 1.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 2,
-                      borderRadius: 1.5,
-                      bgcolor: '#f8fafc',
-                      borderColor: '#e2e8f0'
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <DocumentIcon sx={{ color: '#0f766e', fontSize: 24, flexShrink: 0 }} />
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {file.filename}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
-                          {file.page_range} ({file.pages} {file.pages === 1 ? 'page' : 'pages'})
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
-                      onClick={() => handleSubfileDownload(file)}
-                      sx={{
-                        color: '#0f766e',
-                        borderColor: '#0f766e',
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                        '&:hover': {
-                          borderColor: '#0d9488',
-                          bgcolor: 'rgba(15, 118, 110, 0.04)'
-                        }
-                      }}
-                    >
-                      Download File
-                    </Button>
-                  </Paper>
-                ))}
-              </Stack>
-            </Box>
-          )}
         </Paper>
 
         {/* Action Buttons Section */}

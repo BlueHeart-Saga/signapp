@@ -923,8 +923,8 @@ const Settings = () => {
               {/* Signature Row */}
               <div className="form-row">
                 <label className="row-label">Signature and initial</label>
-                <div className="row-input signature-container" style={{ flexDirection: 'column', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
+                <div className="row-input signature-container">
+                  <div className="signature-preview-row">
                     <div className="signature-preview-box handwriting">
                       {profileForm.signature_text || getSignatureText()}
                     </div>
@@ -932,9 +932,9 @@ const Settings = () => {
                       {profileForm.initials_text || getInitialText()}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', width: '100%', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '4px', display: 'block' }}>Signature Name</label>
+                  <div className="signature-inputs-row">
+                    <div className="signature-name-field">
+                      <label>Signature Name</label>
                       <input
                         type="text"
                         value={profileForm.signature_text}
@@ -943,8 +943,8 @@ const Settings = () => {
                         className="styled-input"
                       />
                     </div>
-                    <div style={{ width: '100px' }}>
-                      <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '4px', display: 'block' }}>Initials</label>
+                    <div className="initials-field">
+                      <label>Initials</label>
                       <input
                         type="text"
                         value={profileForm.initials_text}
@@ -968,7 +968,7 @@ const Settings = () => {
                       <DefaultStamp />
                     )}
                   </div>
-                  <div className="stamp-buttons-wrapper" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="stamp-buttons-wrapper">
                     <button
                       type="button"
                       className="stamp-upload-btn"
@@ -999,6 +999,10 @@ const Settings = () => {
                         <FaTrash /> Remove
                       </button>
                     )}
+
+                    <span className="stamp-hint-text">
+                      PNG or JPG with transparent background (Max 5MB)
+                    </span>
                   </div>
                   <input
                     type="file"
@@ -1166,7 +1170,7 @@ const Settings = () => {
               <div className="form-row">
                 <label className="row-label">New Password</label>
                 <div className="row-input" style={{ position: "relative", flexDirection: "column", alignItems: "flex-start" }}>
-                  <div style={{ position: "relative", width: "100%", maxWidth: "450px" }}>
+                  <div style={{ position: "relative", width: "100%", maxWidth: "480px" }}>
                     <input
                       type={showNewPassword ? "text" : "password"}
                       value={passwordForm.newPassword}
@@ -1232,7 +1236,7 @@ const Settings = () => {
               <div className="form-row">
                 <label className="row-label">Confirm Password</label>
                 <div className="row-input" style={{ position: "relative", flexDirection: "column", alignItems: "flex-start" }}>
-                  <div style={{ position: "relative", width: "100%", maxWidth: "450px" }}>
+                  <div style={{ position: "relative", width: "100%", maxWidth: "480px" }}>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       value={passwordForm.confirmPassword}
@@ -1866,7 +1870,8 @@ const Settings = () => {
 
         .styled-input, .styled-select {
           width: 100%;
-          max-width: 450px;
+          max-width: 480px;
+          box-sizing: border-box;
           padding: 10px 14px;
           border: 1px solid #dcdde1;
           border-radius: 6px;
@@ -1900,15 +1905,25 @@ const Settings = () => {
         /* Signature and Stamp Previews */
         .signature-container, .stamp-container {
           display: flex;
-          align-items: center;
-          gap: 15px;
-          flex-wrap: wrap;
+          flex-direction: column;
+          gap: 12px;
+          width: 100%;
+          max-width: 480px;
+          box-sizing: border-box;
+        }
+
+        .signature-preview-row, .signature-inputs-row {
+          display: flex;
+          gap: 14px;
+          align-items: flex-start;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .signature-preview-box {
-          width: 100%;
-          max-width: 350px;
-          height: 80px;
+          flex: 1;
+          min-width: 0;
+          height: 84px;
           border: 1px solid #e2e8f0;
           border-radius: 8px;
           display: flex;
@@ -1918,11 +1933,14 @@ const Settings = () => {
           white-space: nowrap;
           overflow: hidden;
           background: #fff;
+          box-sizing: border-box;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
 
         .initial-preview-box {
-          width: 80px;
-          height: 80px;
+          width: 86px;
+          height: 84px;
+          flex-shrink: 0;
           border: 1px solid #e2e8f0;
           border-radius: 8px;
           display: flex;
@@ -1930,6 +1948,39 @@ const Settings = () => {
           justify-content: center;
           font-size: 32px;
           background: #fff;
+          box-sizing: border-box;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+
+        .signature-name-field {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .signature-name-field label, .initials-field label {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 600;
+          margin-bottom: 5px;
+          display: block;
+        }
+
+        .signature-name-field .styled-input {
+          max-width: 100%;
+        }
+
+        .initials-field {
+          width: 86px;
+          flex-shrink: 0;
+        }
+
+        .initials-field label {
+          text-align: center;
+        }
+
+        .initials-field .styled-input {
+          max-width: 100%;
+          text-align: center;
         }
 
         .handwriting {
@@ -1939,7 +1990,7 @@ const Settings = () => {
 
         .stamp-preview-box {
           width: 100%;
-          max-width: 350px;
+          max-width: 480px;
           height: 120px;
           border: 1px solid #e2e8f0;
           border-radius: 8px;
@@ -1948,6 +1999,8 @@ const Settings = () => {
           display: flex;
           align-items: center;
           justify-content: center;
+          box-sizing: border-box;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
 
         .stamp-preview-img {
@@ -1979,7 +2032,16 @@ const Settings = () => {
           display: flex;
           align-items: center;
           gap: 10px;
+          width: 100%;
+          max-width: 480px;
           flex-wrap: wrap;
+          box-sizing: border-box;
+        }
+
+        .stamp-hint-text {
+          font-size: 12px;
+          color: #64748b;
+          margin-left: auto;
         }
 
         .stamp-download-btn {
@@ -2402,7 +2464,7 @@ const Settings = () => {
 
         .password-strength-container {
           width: 100%;
-          max-width: 450px;
+          max-width: 480px;
           margin-top: 8px;
           display: flex;
           flex-direction: column;

@@ -48,6 +48,22 @@ const BASE_HEIGHT = 1123;
 const PAGE_GAP = 20;
 const PAGE_HEADER_HEIGHT = 30; // Height of the per-page header in base units
 
+const truncateHeaderFilename = (name, maxLength = 35) => {
+  if (!name) return 'Untitled Document';
+  if (name.length <= maxLength) return name;
+  const lastDot = name.lastIndexOf('.');
+  const hasExt = lastDot > 0 && (name.length - lastDot) <= 8;
+  if (hasExt) {
+    const ext = name.slice(lastDot);
+    const base = name.slice(0, lastDot);
+    const available = maxLength - ext.length - 3;
+    if (available > 2) {
+      return `${base.slice(0, available)}...${ext}`;
+    }
+  }
+  return `${name.slice(0, maxLength - 3)}...`;
+};
+
 const DocumentWorkArea = ({
   documentId,
   documentName,
@@ -435,10 +451,24 @@ const DocumentWorkArea = ({
                   pb: 1,
                   bgcolor: 'transparent'
                 }}>
-                  <Typography variant="caption" sx={{ color: '#070707ff', fontWeight: 500, fontSize: `${11 * zoomLevel}px` }}>
-                    {documentName || 'Untitled Document'}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#191a1bff', fontWeight: 600, fontSize: `${11 * zoomLevel}px`, letterSpacing: '0.5px' }}>
+                  <Tooltip title={documentName || 'Untitled Document'} arrow placement="top">
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: '#070707ff',
+                        fontWeight: 500,
+                        fontSize: `${11 * zoomLevel}px`,
+                        maxWidth: `${Math.min(scaledWidth * 0.7, 360 * zoomLevel)}px`,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block'
+                      }}
+                    >
+                      {truncateHeaderFilename(documentName, 35)}
+                    </Typography>
+                  </Tooltip>
+                  <Typography variant="caption" sx={{ color: '#191a1bff', fontWeight: 600, fontSize: `${11 * zoomLevel}px`, letterSpacing: '0.5px', flexShrink: 0, ml: 1 }}>
                     PAGE {pdfPageNumber} OF {numPages}
                   </Typography>
                 </Box>

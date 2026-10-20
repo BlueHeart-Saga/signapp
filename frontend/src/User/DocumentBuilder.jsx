@@ -5631,13 +5631,13 @@ const DocumentBuilder = () => {
       });
 
       // Show success message
-      showSnackbar('Invites sent successfully!', 'success');
+      showSnackbar('Invites sent successfully! Redirecting to dashboard...', 'success');
       setFinishDialogOpen(false);
 
-      // Show success dialog after a short delay
+      // Auto reload and navigate to dashboard
       setTimeout(() => {
-        setSuccessDialogOpen(true);
-      }, 500);
+        window.location.href = '/user/documents?status=all';
+      }, 1500);
 
     } catch (error) {
       console.error('Error sending invites:', error);

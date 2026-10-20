@@ -936,7 +936,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         signing_order_enabled: document?.signing_order_enabled || false
       });
 
-      showSnackbar('Invites sent successfully!', 'success');
+      showSnackbar('Invites sent successfully! Redirecting to dashboard...', 'success');
       setFinishDialogOpen(false);
 
       setTimeout(() => {
@@ -1207,6 +1207,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
               <Box sx={{ minWidth: 0, maxWidth: { xs: 160, sm: 260, md: 400, lg: 600 } }}>
                 <FilenameDisplay
                   filename={document.filename || 'Untitled Document'}
+                  maxLength={35}
                   tooltipPlacement="bottom-start"
                   sx={{
                     fontSize: '1.25rem',
@@ -1485,7 +1486,14 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       </AppBar>
 
       {/* Main Content - Three Column Layout */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', p: 2, position: 'relative' }}>
+      <Box sx={{
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        overflow: 'hidden',
+        p: { xs: 1, sm: 1.5, md: 2 },
+        position: 'relative'
+      }}>
         {/* Left Sidebar */}
         <DocumentLeftBar
           onAddField={handleAddField}
@@ -1640,10 +1648,15 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
       <SuccessDialog
         open={successDialogOpen}
         onClose={() => setSuccessDialogOpen(false)}
-        onNavigateToDashboard={() => navigate('/user/dashboard')}
-        onNavigateToDocuments={() => navigate('/user/documents')}
+        onNavigateToDashboard={() => {
+          window.location.href = '/user/dashboard';
+        }}
+        onNavigateToDocuments={() => {
+          window.location.href = '/user/documents';
+        }}
         documentName={document?.filename}
         recipientCount={recipients.length}
+        autoRedirectSeconds={2}
       />
 
       <RenameDialog

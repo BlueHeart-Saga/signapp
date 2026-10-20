@@ -38,7 +38,7 @@ const RenameDialog = ({
   }, [open, documentName]);
 
   const handleChange = (e) => {
-    const value = e.target.value;
+    const value = (e.target.value || '').replace(/\.pdf$/i, '').slice(0, 60);
     setLocalName(value);
     
     if (onDocumentNameChange) {
@@ -54,8 +54,8 @@ const RenameDialog = ({
       return;
     }
 
-    if (localName.length > 255) {
-      setError('Document name is too long (max 255 characters)');
+    if (localName.length > 60) {
+      setError('Document name cannot exceed 60 characters');
       return;
     }
 
@@ -123,10 +123,11 @@ const RenameDialog = ({
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           error={!!error}
-          helperText={error || "Enter a descriptive name for your document"}
+          helperText={error || `${localName.length}/60 characters`}
           placeholder="Enter document name"
           disabled={renaming}
           size="medium"
+          inputProps={{ maxLength: 60 }}
           InputProps={{
             endAdornment: localName && (
               <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>

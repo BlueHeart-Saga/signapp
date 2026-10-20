@@ -8,7 +8,10 @@ import {
   Card,
   Tooltip,
   Button,
-  Divider
+  Divider,
+  Collapse,
+  IconButton,
+  Chip
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -31,9 +34,36 @@ import {
   Image as ImageIcon,
   TaskAlt as ApprovalIcon,
   Group as WitnessIcon,
-  People as ManageIcon
+  People as ManageIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon
 } from '@mui/icons-material';
 import { FIELD_TYPES, FIELD_ROLES, getRecipientColor, ROLE_FIELD_RULES } from '../../config/fieldConfig';
+
+// Reusable custom scroll kit styling for responsive, visible scrollbars
+const scrollKitStyle = {
+  '&::-webkit-scrollbar': {
+    width: '6px',
+    height: '6px'
+  },
+  '&::-webkit-scrollbar-track': {
+    background: '#f8fafc',
+    borderRadius: '8px'
+  },
+  '&::-webkit-scrollbar-thumb': {
+    backgroundColor: '#94a3b8',
+    borderRadius: '8px',
+    border: '1px solid #f1f5f9',
+    '&:hover': {
+      backgroundColor: '#64748b'
+    },
+    '&:active': {
+      backgroundColor: '#0f766e'
+    }
+  },
+  scrollbarWidth: 'thin',
+  scrollbarColor: '#94a3b8 #f8fafc'
+};
 
 // Field icon mapping for Zoho-like look
 const FIELD_ICONS = {
@@ -89,6 +119,7 @@ const DocumentLeftBar = ({
 }) => {
   const navigate = useNavigate();
   const { documentId } = useParams();
+  const [recipientsExpanded, setRecipientsExpanded] = useState(true);
   const handleDragStart = (e, fieldType, fieldLabel, fieldColor) => {
     e.dataTransfer.setData('text/plain', fieldType);
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -200,34 +231,68 @@ const DocumentLeftBar = ({
 
   return (
     <Paper sx={{
-      width: 300,
+      width: { xs: 260, sm: 280, md: 300 },
+      maxWidth: '100%',
       height: '100%',
+      maxHeight: '100%',
       display: 'flex',
       flexDirection: 'column',
       bgcolor: '#ffffff',
       borderRight: '1px solid #e0e0e0',
-      boxShadow: 'none'
+      boxShadow: 'none',
+      overflow: 'hidden',
+      flexShrink: 0
     }}>
       {/* Recipients Header */}
-      <Box sx={{ p: 2, pb: 1 }}>
-        <Typography variant="subtitle1" fontWeight={600} color="#444">
-          Recipients
-        </Typography>
+      <Box
+        onClick={() => setRecipientsExpanded(prev => !prev)}
+        sx={{
+          px: 2,
+          py: 1.25,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          cursor: 'pointer',
+          userSelect: 'none',
+          bgcolor: '#ffffff',
+          borderBottom: recipientsExpanded ? '1px solid #f1f5f9' : 'none',
+          '&:hover': { bgcolor: '#f8fafc' },
+          transition: 'background-color 0.15s ease'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700} color="#334155" sx={{ fontSize: '0.85rem' }}>
+            Recipients
+          </Typography>
+          <Box sx={{
+            px: 0.8,
+            py: 0.1,
+            borderRadius: '10px',
+            fontSize: '0.68rem',
+            fontWeight: 700,
+            bgcolor: '#e2e8f0',
+            color: '#475569'
+          }}>
+            {recipients.length}
+          </Box>
+        </Box>
+        <IconButton size="small" sx={{ p: 0.25, color: '#64748b' }}>
+          {recipientsExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+        </IconButton>
       </Box>
 
       {/* Recipients Content */}
-      <Box
-        id="joyride-recipient-list"
-        sx={{
-          height: '40%',
-          minHeight: 220,
-          maxHeight: 260,
-          overflowY: 'auto',
-          borderBottom: '1px solid #f1f5f9',
-          '&::-webkit-scrollbar': { width: '5px' },
-          '&::-webkit-scrollbar-thumb': { background: 'transparent', borderRadius: '10px' },
-          '&:hover::-webkit-scrollbar-thumb': { background: '#cbd5e1' }
-        }}>
+      <Collapse in={recipientsExpanded} timeout="auto" unmountOnExit={false}>
+        <Box
+          id="joyride-recipient-list"
+          sx={{
+            maxHeight: { xs: 120, sm: 150, md: 190 },
+            minHeight: 0,
+            overflowY: 'auto',
+            borderBottom: '1px solid #f1f5f9',
+            ...scrollKitStyle
+          }}>
         {[...recipients].sort((a, b) => (a.signing_order || 0) - (b.signing_order || 0)).map((recipient, index) => {
           const isSelected = selectedRecipientId === recipient.id;
           const recipientColor = getRecipientColor(recipient);
@@ -358,25 +423,41 @@ const DocumentLeftBar = ({
           </Button>
         </Box>
       </Box>
+      </Collapse>
 
       {/* Divider with label */}
-      <Box sx={{ py: 1.5, px: 2, textAlign: 'center', bgcolor: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-        <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: 1.5, fontSize: '0.65rem' }}>
+      <Box sx={{
+        py: 1,
+        px: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        bgcolor: '#f8fafc',
+        borderBottom: '1px solid #f1f5f9',
+        borderTop: recipientsExpanded ? 'none' : '1px solid #f1f5f9',
+        flexShrink: 0
+      }}>
+        <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: 1.2, fontSize: '0.65rem' }}>
           Standard fields
+        </Typography>
+        <Typography variant="caption" sx={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>
+          {availableFieldsList.length} fields
         </Typography>
       </Box>
 
-      {/* Fields Grid */}
+      {/* Fields Grid & Scroll Kit Container */}
       <Box sx={{
         flex: 1,
-        minHeight: 300,
+        minHeight: 0,
         overflowY: 'auto',
-        px: 2,
-        py: 2,
+        overflowX: 'hidden',
+        px: { xs: 1.25, sm: 1.5, md: 2 },
+        py: 1.5,
+        pb: 3,
         bgcolor: '#ffffff',
-        '&::-webkit-scrollbar': { width: '5px' },
-        '&::-webkit-scrollbar-thumb': { background: 'transparent', borderRadius: '10px' },
-        '&:hover::-webkit-scrollbar-thumb': { background: '#cbd5e1' }
+        display: 'flex',
+        flexDirection: 'column',
+        ...scrollKitStyle
       }}>
         {!selectedRecipient && (
           <Box sx={{
@@ -384,14 +465,15 @@ const DocumentLeftBar = ({
             bgcolor: '#fffef0',
             border: '1px solid #ffe082',
             borderRadius: '8px',
-            mb: 2.5,
+            mb: 1.5,
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
-            boxShadow: '0 2px 4px rgba(255, 224, 130, 0.2)'
+            boxShadow: '0 2px 4px rgba(255, 224, 130, 0.2)',
+            flexShrink: 0
           }}>
-            <InfoIcon sx={{ fontSize: 18, color: '#f57c00' }} />
-            <Typography variant="caption" color="#e65100" fontWeight={500}>
+            <InfoIcon sx={{ fontSize: 18, color: '#f57c00', flexShrink: 0 }} />
+            <Typography variant="caption" color="#e65100" fontWeight={500} sx={{ lineHeight: 1.3 }}>
               Select a recipient to enable fields
             </Typography>
           </Box>
@@ -400,8 +482,9 @@ const DocumentLeftBar = ({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 1
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 1,
+            width: '100%'
           }}>
           {availableFieldsList.map((field, index) => {
             const recipientColor = selectedRecipient ? getRecipientColor(selectedRecipient) : '#cbd5e1';
@@ -410,8 +493,8 @@ const DocumentLeftBar = ({
             return (
               <Tooltip
                 key={field.type}
-                title={!canDrag ? "Select a recipient first" : ""}
-                placement="right"
+                title={canDrag ? field.label : `${field.label} (Select a recipient first)`}
+                placement="top"
                 arrow
               >
                 <Box
@@ -431,6 +514,7 @@ const DocumentLeftBar = ({
                     opacity: canDrag ? 1 : 0.5,
                     boxShadow: canDrag ? '0 1px 2px rgba(0,0,0,0.03)' : 'none',
                     position: 'relative',
+                    minWidth: 0,
                     '&:hover': canDrag ? {
                       borderColor: recipientColor,
                       boxShadow: `0 4px 10px ${recipientColor}15`,
@@ -463,7 +547,8 @@ const DocumentLeftBar = ({
                     alignItems: 'center',
                     px: 0.5,
                     color: '#94a3b8',
-                    borderRight: '1px solid #f1f5f9'
+                    borderRight: '1px solid #f1f5f9',
+                    flexShrink: 0
                   }}>
                     <DragIndicatorIcon sx={{ fontSize: 13 }} />
                   </Box>
@@ -479,7 +564,7 @@ const DocumentLeftBar = ({
                     <Typography
                       variant="caption"
                       sx={{
-                        fontSize: '0.75rem',
+                        fontSize: '0.72rem',
                         fontWeight: 600,
                         color: '#334155',
                         whiteSpace: 'nowrap',
@@ -493,16 +578,18 @@ const DocumentLeftBar = ({
 
                   {/* Icon Box */}
                   <Box sx={{
-                    width: 30,
+                    width: 28,
+                    minWidth: 28,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     bgcolor: canDrag ? recipientColor : '#f1f5f9',
                     color: '#ffffff',
-                    boxShadow: 'inset 0 0 8px rgba(0,0,0,0.05)'
+                    boxShadow: 'inset 0 0 8px rgba(0,0,0,0.05)',
+                    flexShrink: 0
                   }}>
                     {/* Size icons down slightly to fit */}
-                    {React.cloneElement(FIELD_ICONS[field.type] || <SignatureIcon />, { sx: { fontSize: 15 } })}
+                    {React.cloneElement(FIELD_ICONS[field.type] || <SignatureIcon />, { sx: { fontSize: 14 } })}
                   </Box>
                 </Box>
               </Tooltip>

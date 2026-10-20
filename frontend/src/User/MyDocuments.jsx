@@ -3559,9 +3559,10 @@ export default function MyDocuments() {
             <input
               type="text"
               value={newFilename}
+              maxLength={60}
               onChange={(e) =>
                 setNewFilename(
-                  (e.target.value || "").replace(/\.pdf$/i, "")
+                  (e.target.value || "").replace(/\.pdf$/i, "").slice(0, 60)
                 )
               }
               placeholder="Enter document name"
@@ -3570,6 +3571,14 @@ export default function MyDocuments() {
             />
             <span className="bg-slate-100 text-slate-500 font-medium px-3 py-2 text-sm border-l border-slate-200 select-none shrink-0">
               .pdf
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-xs text-slate-400 mt-1 px-1">
+            <span className="truncate max-w-[220px]" title={newFilename ? `${newFilename}.pdf` : ""}>
+              {newFilename.length > 35 ? `${newFilename.slice(0, 32)}...` : newFilename}
+            </span>
+            <span className={newFilename.length >= 60 ? "text-amber-600 font-semibold" : ""}>
+              {newFilename.length}/60
             </span>
           </div>
         </DialogContent>

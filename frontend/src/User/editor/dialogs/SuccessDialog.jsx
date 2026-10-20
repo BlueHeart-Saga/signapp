@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,7 +12,8 @@ import {
   Alert,
   Chip,
   Avatar,
-  Divider
+  Divider,
+  LinearProgress
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -30,9 +31,41 @@ const SuccessDialog = ({
   onNavigateToDashboard,
   onNavigateToDocuments,
   documentName = '',
-  recipientCount = 0
+  recipientCount = 0,
+  autoRedirectSeconds = 2
 }) => {
   const navigate = useNavigate();
+  const [countdown, setCountdown] = useState(autoRedirectSeconds);
+
+  useEffect(() => {
+    if (!open) return;
+    setCountdown(autoRedirectSeconds);
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (onNavigateToDashboard) {
+            onNavigateToDashboard();
+          } else {
+            window.location.href = '/user/dashboard';
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [open, autoRedirectSeconds, onNavigateToDashboard]);
+
+  const handleGoToDashboard = () => {
+    if (onNavigateToDashboard) {
+      onNavigateToDashboard();
+    } else {
+      window.location.href = '/user/dashboard';
+    }
+  };
 
   return (
     <Dialog 
@@ -82,7 +115,7 @@ const SuccessDialog = ({
         </Typography>
 
         {documentName && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <Box sx={{ display: 'flex', border: 'none', justifyContent: 'center', mb: 3 }}>
             <Chip 
               label={documentName}
               variant="outlined"
@@ -176,11 +209,34 @@ const SuccessDialog = ({
           </Typography>
         </Alert>
 
-        {/* Track Progress Link */}
-        <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Track signing progress in real-time from your dashboard
+        {/* Auto Redirect Progress Banner */}
+        <Box 
+          sx={{ 
+            mt: 2,
+            p: 2,
+            bgcolor: '#f0fdf4',
+            borderRadius: 2,
+            border: '1px solid #bbf7d0',
+            textAlign: 'center'
+          }}
+        >
+          <Typography variant="body2" sx={{ color: '#15803d', fontWeight: 600, mb: 1 }}>
+            Automatically redirecting to Dashboard in {countdown} second{countdown !== 1 ? 's' : ''}...
           </Typography>
+          <LinearProgress 
+            variant="determinate" 
+            value={autoRedirectSeconds > 0 ? Math.min(100, Math.max(0, ((autoRedirectSeconds - countdown) / autoRedirectSeconds) * 100)) : 100}
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              bgcolor: '#dcfce7',
+              '& .MuiLinearProgress-bar': {
+                bgcolor: '#16a34a',
+                borderRadius: 3,
+                transition: 'transform 0.9s linear'
+              }
+            }}
+          />
         </Box>
       </DialogContent>
 
@@ -210,17 +266,17 @@ const SuccessDialog = ({
         
         <Button
           variant="contained"
-          onClick={onNavigateToDashboard}
+          onClick={handleGoToDashboard}
           startIcon={<DashboardIcon />}
           sx={{ 
-            minWidth: 150,
+            minWidth: 170,
             bgcolor: '#0f766e',
             '&:hover': {
-              bgcolor: '#0f766e'
+              bgcolor: '#0d655e'
             }
           }}
         >
-          Go to Dashboard
+          Go to Dashboard ({countdown}s)
         </Button>
         
         <Button
