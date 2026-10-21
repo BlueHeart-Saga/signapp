@@ -28,6 +28,7 @@ import {
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import FilenameDisplay from '../../../components/FilenameDisplay';
 
 // Set PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -360,9 +361,8 @@ const PreviewDialog = ({ open, onClose, documentId, documentName }) => {
         color: "#555"
       }}
     >
-      <Typography variant="caption" fontWeight={600}>
-         {documentName || "Document"}
-        
+      <Typography variant="caption" fontWeight={600} sx={{ minWidth: 0, maxWidth: '70%' }}>
+        <FilenameDisplay filename={documentName || "Document"} maxLength={35} as="span" />
       </Typography>
 
       <Typography variant="caption">

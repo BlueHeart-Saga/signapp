@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   Search,
   Book,
@@ -34,6 +35,14 @@ import {
 
 const Documentation = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle(
+      "Developer Documentation & API Reference",
+      "Complete API documentation, REST endpoints, SDKs, and integration tutorials for Esigniva e-signatures."
+    );
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('getting-started');
   const [expandedSections, setExpandedSections] = useState({});

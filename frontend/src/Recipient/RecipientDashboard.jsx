@@ -58,6 +58,8 @@ import { useNavigate } from 'react-router-dom';
 import { format, formatDistance } from 'date-fns';
 import api from '../services/api';
 
+import FilenameDisplay from '../components/FilenameDisplay';
+
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 
@@ -281,9 +283,11 @@ const DocumentCard = ({ document, recipient, onMenuOpen, onView, onDownload, tok
             <PdfIcon />
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }} noWrap>
-              {document.name}
-            </Typography>
+            <FilenameDisplay
+              filename={document.name}
+              maxLength={28}
+              sx={{ fontWeight: 600, mb: 0.5, fontSize: '1rem', display: 'block' }}
+            />
             <Stack direction="row" spacing={1} alignItems="center">
               <Avatar sx={{ width: 20, height: 20, bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
                 <Typography variant="caption" sx={{ color: 'rgb(46, 125, 50)' }}>

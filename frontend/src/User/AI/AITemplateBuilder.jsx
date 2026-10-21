@@ -73,6 +73,7 @@ import AITemplatePromptForm from './AITemplatePromptForm';
 import AITemplatePreview from './AITemplatePreview';
 import AITemplateAnalyzer from './AITemplateAnalyzer';
 import api from '../../services/api';
+import FilenameDisplay from '../../components/FilenameDisplay';
 
 const AITemplateBuilder = () => {
   const navigate = useNavigate();
@@ -453,7 +454,7 @@ const AITemplateBuilder = () => {
                             </Box>
                             
                             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                              {template.title}
+                              <FilenameDisplay filename={template.title} maxLength={28} as="span" />
                             </Typography>
                             
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -561,7 +562,7 @@ const AITemplateBuilder = () => {
       >
         <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="h6" component="div">
-            {selectedTemplate?.title || 'Template Preview'}
+            <FilenameDisplay filename={selectedTemplate?.title || 'Template Preview'} maxLength={36} as="span" />
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>

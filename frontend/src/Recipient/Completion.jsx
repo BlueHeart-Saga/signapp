@@ -744,7 +744,7 @@ const Completion = () => {
                     <DocumentIcon fontSize="small" sx={{ color: '#0f766e' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={file.filename}
+                    primary={<FilenameDisplay filename={file.filename} maxLength={28} />}
                     secondary={file.page_range}
                     primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
                   />

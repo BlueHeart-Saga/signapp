@@ -84,6 +84,7 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 
@@ -205,9 +206,13 @@ const DocumentRow = ({ doc }) => (
             doc.status === 'pending' ? <PendingIcon sx={{ fontSize: 18 }} /> :
               <DocumentIcon sx={{ fontSize: 18 }} />}
         </Avatar>
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {doc.name || 'Untitled Document'}
+            <FilenameDisplay
+              filename={doc.name || 'Untitled Document'}
+              maxLength={28}
+              as="span"
+            />
           </Typography>
           <Typography variant="caption" color="text.secondary">
             ID: {doc.id?.slice(-8)}

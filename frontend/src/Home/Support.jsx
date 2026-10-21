@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   HelpCircle,
   MessageSquare,
@@ -47,6 +48,14 @@ import {
 
 const Support = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle(
+      "Customer Support & Help Desk",
+      "Get 24/7 technical and enterprise assistance for your Esigniva electronic signature account."
+    );
+  }, []);
+
   const [activeTab, setActiveTab] = useState('contact');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFaq, setExpandedFaq] = useState(null);

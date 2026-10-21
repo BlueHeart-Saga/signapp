@@ -16,6 +16,7 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import '../style/TemplateBrowser.css';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -34,6 +35,7 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   const token = localStorage.getItem("token");
 
@@ -135,6 +137,7 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
       return;
     }
 
+    setIsPdfLoading(true);
     try {
       const res = await fetch(
         `${API_BASE}/admin/templates/user/download/${templateId}?format=pdf`,
@@ -155,7 +158,9 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
       setShowPdfViewer(true);
     } catch (err) {
       console.error(err);
-      alert("Unable to open PDF");
+      alert("Unable to open PDF preview. Please check your connection or try again.");
+    } finally {
+      setIsPdfLoading(false);
     }
   };
 
@@ -496,15 +501,21 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
                     {popularTemplates.map(template => (
                       <div
                         key={template.id}
-                        className="tempbrowser-popular-item"
+                        className={`tempbrowser-popular-item ${selectedTemplate?.id === template.id && previewModalOpen ? 'tempbrowser-popular-item-active' : ''}`}
                         onClick={() => !isSelecting && handlePreview(template)}
                         style={{ cursor: isSelecting ? 'not-allowed' : 'pointer' }}
+                        title={`Click to preview ${template.name}`}
                       >
+                        <div className="tempbrowser-popular-icon">
+                          {getFileIcon(template.fileType)}
+                        </div>
                         <div className="tempbrowser-popular-info">
-                          <strong>{template.name}</strong>
+                          <strong>
+                            <FilenameDisplay filename={template.name} maxLength={22} as="span" />
+                          </strong>
                           <small>{template.category_name || template.category}</small>
                         </div>
-                        <span className="tempbrowser-download-count">
+                        <span className="tempbrowser-download-count" title={`${template.download_count || 0} downloads`}>
                           <FaDownload /> {template.download_count || 0}
                         </span>
                       </div>
@@ -629,7 +640,9 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
 
                           {/* Card Content */}
                           <div className="tempbrowser-card-content">
-                            <h4 className="tempbrowser-template-title">{template.name}</h4>
+                            <h4 className="tempbrowser-template-title">
+                              <FilenameDisplay filename={template.name} maxLength={26} as="span" />
+                            </h4>
                             <p className="tempbrowser-template-description">{template.description}</p>
 
                             <div className="tempbrowser-template-meta">
@@ -713,7 +726,9 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
                                     {getFileIcon(template.fileType)}
                                   </div>
                                   <div>
-                                    <strong>{template.name}</strong>
+                                    <strong>
+                                      <FilenameDisplay filename={template.name} maxLength={28} as="span" />
+                                    </strong>
                                     <p className="tempbrowser-table-description">{template.description}</p>
                                   </div>
                                 </div>
@@ -776,90 +791,183 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
 
       {/* Preview Modal */}
       {previewModalOpen && selectedTemplate && (
-        <div className="tempbrowser-preview-overlay">
-          <div className="tempbrowser-preview-modal">
+        <div
+          className="tempbrowser-preview-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSelecting) {
+              setPreviewModalOpen(false);
+            }
+          }}
+        >
+          <div className="tempbrowser-preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+            {/* Header */}
             <div className="tempbrowser-preview-header">
-              <h3>{selectedTemplate.name}</h3>
+              <div className="tempbrowser-preview-header-info">
+                <div className="tempbrowser-preview-icon-wrapper">
+                  {getFileIcon(selectedTemplate.fileType)}
+                </div>
+                <div className="tempbrowser-preview-title-group">
+                  <h3 id="preview-modal-title">
+                    <FilenameDisplay filename={selectedTemplate.name} maxLength={36} as="span" />
+                  </h3>
+                  <div className="tempbrowser-preview-header-meta">
+                    <span className="tempbrowser-preview-category-badge">
+                      <FaFolderOpen className="tempbrowser-inline-icon" /> {selectedTemplate.category}
+                    </span>
+                    <span className={`tempbrowser-preview-badge ${selectedTemplate.is_free ? 'tempbrowser-badge-free' : 'tempbrowser-badge-premium'}`}>
+                      {selectedTemplate.is_free ? 'Free Template' : 'Premium'}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <button
                 className="tempbrowser-close-btn"
                 onClick={() => !isSelecting && setPreviewModalOpen(false)}
                 disabled={isSelecting}
+                title="Close preview"
+                aria-label="Close"
               >
                 {isSelecting ? <FaSpinner className="tempbrowser-spinner" /> : <FaTimes />}
               </button>
             </div>
 
+            {/* Scrollable Content Area */}
             <div className="tempbrowser-preview-content">
-              <div className="tempbrowser-preview-info">
-                <div className="tempbrowser-preview-row">
-                  <span className="tempbrowser-preview-label">Category:</span>
-                  <span className="tempbrowser-preview-value">{selectedTemplate.category}</span>
-                </div>
-                <div className="tempbrowser-preview-row">
-                  <span className="tempbrowser-preview-label">Type:</span>
-                  <span className={`tempbrowser-preview-badge ${selectedTemplate.is_free ? 'tempbrowser-badge-free' : 'tempbrowser-badge-premium'}`}>
-                    {selectedTemplate.is_free ? 'Free Template' : 'Premium Template'}
-                  </span>
-                </div>
-                <div className="tempbrowser-preview-row">
-                  <span className="tempbrowser-preview-label">File Size:</span>
-                  <span className="tempbrowser-preview-value">{formatFileSize(selectedTemplate.fileSize)}</span>
-                </div>
-                <div className="tempbrowser-preview-row">
-                  <span className="tempbrowser-preview-label">Downloads:</span>
-                  <span className="tempbrowser-preview-value">{selectedTemplate.download_count || 0}</span>
-                </div>
-                <div className="tempbrowser-preview-row tempbrowser-preview-row-full">
-                  <span className="tempbrowser-preview-label">Description:</span>
-                  <p className="tempbrowser-preview-description">{selectedTemplate.description}</p>
-                </div>
-                {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
-                  <div className="tempbrowser-preview-row tempbrowser-preview-row-full">
-                    <span className="tempbrowser-preview-label">Tags:</span>
-                    <div className="tempbrowser-preview-tags">
-                      {selectedTemplate.tags.map((tag, index) => (
-                        <span key={index} className="tempbrowser-tag-item">#{tag}</span>
-                      ))}
-                    </div>
+              {/* Stats Grid */}
+              <div className="tempbrowser-preview-stats-grid">
+                <div className="tempbrowser-preview-stat-card">
+                  <span className="tempbrowser-preview-stat-label">File Format</span>
+                  <div className="tempbrowser-preview-stat-value">
+                    <FaFileAlt className="tempbrowser-stat-icon" />
+                    <span>{(selectedTemplate.fileType || 'PDF').toUpperCase()} Document</span>
                   </div>
-                )}
+                </div>
+
+                <div className="tempbrowser-preview-stat-card">
+                  <span className="tempbrowser-preview-stat-label">File Size</span>
+                  <div className="tempbrowser-preview-stat-value">
+                    <span>{formatFileSize(selectedTemplate.fileSize)}</span>
+                  </div>
+                </div>
+
+                <div className="tempbrowser-preview-stat-card">
+                  <span className="tempbrowser-preview-stat-label">Downloads</span>
+                  <div className="tempbrowser-preview-stat-value">
+                    <FaDownload className="tempbrowser-stat-icon" />
+                    <span>{selectedTemplate.download_count || 0} times</span>
+                  </div>
+                </div>
+
+                <div className="tempbrowser-preview-stat-card">
+                  <span className="tempbrowser-preview-stat-label">Last Updated</span>
+                  <div className="tempbrowser-preview-stat-value">
+                    <FaClock className="tempbrowser-stat-icon" />
+                    <span>{formatDate(selectedTemplate.lastModified)}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Description Section */}
+              <div className="tempbrowser-preview-section">
+                <span className="tempbrowser-preview-section-title">Description</span>
+                <div className="tempbrowser-preview-description-box">
+                  <p>{selectedTemplate.description || 'No description available for this template.'}</p>
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              {selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
+                <div className="tempbrowser-preview-section">
+                  <span className="tempbrowser-preview-section-title">
+                    <FaTags className="tempbrowser-inline-icon" /> Tags
+                  </span>
+                  <div className="tempbrowser-preview-tags">
+                    {selectedTemplate.tags.map((tag, index) => (
+                      <span key={index} className="tempbrowser-tag-item">#{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Modal Actions Footer */}
             <div className="tempbrowser-preview-actions">
-              <button
-                className="tempbrowser-btn tempbrowser-btn-secondary"
-                onClick={() => !isSelecting && setPreviewModalOpen(false)}
-                disabled={isSelecting}
-              >
-                Close
-              </button>
-              <button
-                className="tempbrowser-btn tempbrowser-btn-primary"
-                onClick={() => !isSelecting && handleTemplateSelect(selectedTemplate)}
-                disabled={isSelecting}
-              >
-                {isSelecting ? (
-                  <>
-                    <FaSpinner className="tempbrowser-spinner" /> Selecting...
-                  </>
-                ) : (
-                  <>
-                    <FaPlus /> Use This Template
-                  </>
-                )}
-              </button>
+              <div className="tempbrowser-preview-actions-left">
+                <button
+                  type="button"
+                  className="tempbrowser-btn tempbrowser-btn-outline"
+                  onClick={() => handleViewTemplatePdf(selectedTemplate)}
+                  disabled={isSelecting || isPdfLoading}
+                  title="Preview the actual document PDF"
+                >
+                  {isPdfLoading ? (
+                    <>
+                      <FaSpinner className="tempbrowser-spinner" /> Loading PDF...
+                    </>
+                  ) : (
+                    <>
+                      <FaEye /> View PDF
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="tempbrowser-preview-actions-right">
+                <button
+                  type="button"
+                  className="tempbrowser-btn tempbrowser-btn-secondary"
+                  onClick={() => !isSelecting && setPreviewModalOpen(false)}
+                  disabled={isSelecting}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="tempbrowser-btn tempbrowser-btn-primary"
+                  onClick={() => !isSelecting && handleTemplateSelect(selectedTemplate)}
+                  disabled={isSelecting}
+                >
+                  {isSelecting ? (
+                    <>
+                      <FaSpinner className="tempbrowser-spinner" /> Selecting...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus /> Use This Template
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-
+      {/* Full Document PDF Viewer Modal */}
       {showPdfViewer && (
-        <div className="tempbrowser-preview-overlay">
-          <div className="tempbrowser-preview-modal" style={{ width: "80%", height: "85%" }}>
+        <div
+          className="tempbrowser-preview-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPdfViewer(false);
+              URL.revokeObjectURL(pdfUrl);
+              setPdfUrl("");
+            }
+          }}
+        >
+          <div className="tempbrowser-preview-modal tempbrowser-pdf-viewer-modal">
             <div className="tempbrowser-preview-header">
-              <h3>Template PDF Preview</h3>
+              <div className="tempbrowser-preview-header-info">
+                <div className="tempbrowser-preview-icon-wrapper">
+                  <FaFilePdf className="tempbrowser-file-icon tempbrowser-icon-pdf" />
+                </div>
+                <div className="tempbrowser-preview-title-group">
+                  <h3>Template Document Preview</h3>
+                  <span className="tempbrowser-preview-subtitle">
+                    {selectedTemplate ? <FilenameDisplay filename={selectedTemplate.name} maxLength={36} as="span" /> : "Document Preview"}
+                  </span>
+                </div>
+              </div>
               <button
                 className="tempbrowser-close-btn"
                 onClick={() => {
@@ -867,12 +975,14 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
                   URL.revokeObjectURL(pdfUrl);
                   setPdfUrl("");
                 }}
+                title="Close PDF preview"
+                aria-label="Close PDF preview"
               >
                 <FaTimes />
               </button>
             </div>
 
-            <div className="tempbrowser-preview-content" style={{ height: "100%" }}>
+            <div className="tempbrowser-pdf-content">
               <iframe
                 src={pdfUrl}
                 title="Template PDF"
@@ -880,6 +990,46 @@ const TemplateBrowser = ({ isOpen, onClose, onTemplateSelect }) => {
                 height="100%"
                 style={{ border: "none" }}
               />
+            </div>
+
+            <div className="tempbrowser-preview-actions">
+              <div className="tempbrowser-preview-actions-left"></div>
+              <div className="tempbrowser-preview-actions-right">
+                <button
+                  type="button"
+                  className="tempbrowser-btn tempbrowser-btn-secondary"
+                  onClick={() => {
+                    setShowPdfViewer(false);
+                    URL.revokeObjectURL(pdfUrl);
+                    setPdfUrl("");
+                  }}
+                >
+                  Back to Template
+                </button>
+                {selectedTemplate && (
+                  <button
+                    type="button"
+                    className="tempbrowser-btn tempbrowser-btn-primary"
+                    onClick={() => {
+                      setShowPdfViewer(false);
+                      URL.revokeObjectURL(pdfUrl);
+                      setPdfUrl("");
+                      handleTemplateSelect(selectedTemplate);
+                    }}
+                    disabled={isSelecting}
+                  >
+                    {isSelecting ? (
+                      <>
+                        <FaSpinner className="tempbrowser-spinner" /> Selecting...
+                      </>
+                    ) : (
+                      <>
+                        <FaPlus /> Use This Template
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -63,6 +63,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '../services/api';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
@@ -410,9 +411,14 @@ const DocumentDetails = () => {
             >
               <BackIcon />
             </IconButton>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
-                {doc.name}
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center' }}>
+                <FilenameDisplay
+                  filename={doc.name}
+                  maxLength={40}
+                  sx={{ color: 'white', fontWeight: 600 }}
+                  as="span"
+                />
               </Typography>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Chip

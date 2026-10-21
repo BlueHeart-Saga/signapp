@@ -1662,7 +1662,9 @@ export default function DocumentsAndTemplates() {
                           onClick={() => handleSearchChange(template.title)}
                         >
                           <div className="dt-popular-info">
-                            <strong>{template.title}</strong>
+                            <strong>
+                              <FilenameDisplay filename={template.title} maxLength={22} as="span" />
+                            </strong>
                             <small>{template.category_name}</small>
                           </div>
                           <span className="dt-download-badge">
@@ -1792,7 +1794,9 @@ export default function DocumentsAndTemplates() {
                           </div>
 
                           <div className="dt-card-body">
-                            <h3 className="dt-template-title">{template.title}</h3>
+                            <h3 className="dt-template-title">
+                              <FilenameDisplay filename={template.title} maxLength={26} as="span" />
+                            </h3>
                             <p className="dt-template-description">
                               {template.description || "No description"}
                             </p>
@@ -1866,7 +1870,9 @@ export default function DocumentsAndTemplates() {
                           return (
                             <tr key={templateId}>
                               <td>
-                                <strong>{template.title}</strong>
+                                <strong>
+                                  <FilenameDisplay filename={template.title} maxLength={28} as="span" />
+                                </strong>
                                 <p className="dt-table-description">{template.description}</p>
                               </td>
                               <td>{template.category_name}</td>
@@ -2193,7 +2199,9 @@ export default function DocumentsAndTemplates() {
           <div className="dt-preview-overlay" onClick={closePreviewModal} />
           <div className="dt-preview-content">
             <div className="dt-preview-header">
-              <h2>{selectedTemplate.title}</h2>
+              <h2>
+                <FilenameDisplay filename={selectedTemplate.title} maxLength={38} as="span" />
+              </h2>
               <button className="dt-close-btn" onClick={closePreviewModal}>
                 ×
               </button>

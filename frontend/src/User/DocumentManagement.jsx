@@ -17,6 +17,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const DocumentManagement = () => {
   const [documents, setDocuments] = useState([]);
@@ -126,7 +127,9 @@ const DocumentManagement = () => {
                     {documents.map((doc) => (
                       <tr key={doc.id}>
                         <td>
-                          <strong>{doc.filename}</strong>
+                          <strong>
+                            <FilenameDisplay filename={doc.filename} maxLength={28} as="span" />
+                          </strong>
                           <br />
                           <small className="text-muted">
                             {doc.source === 'local' ? 'Local Upload' : 'External Document'}
@@ -175,8 +178,9 @@ const DocumentManagement = () => {
       {/* Signing Status Modal */}
       <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)} size="xl">
         <Modal.Header closeButton>
-          <Modal.Title>
-            Signing Status - {signingStatus?.document.filename}
+          <Modal.Title style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>Signing Status -</span>
+            <FilenameDisplay filename={signingStatus?.document.filename} maxLength={32} as="span" />
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>

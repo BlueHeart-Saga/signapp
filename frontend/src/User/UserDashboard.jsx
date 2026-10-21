@@ -1539,7 +1539,14 @@ const UserDashboard = () => {
         <div className="modal-backdrop">
           <div className="modal recipient-manager-modal">
             <div className="modal-header">
-              <h3>Manage Recipients - {selectedDocument.title}</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '85%' }}>
+                <span>Manage Recipients -</span>
+                <FilenameDisplay
+                  filename={selectedDocument.title || selectedDocument.filename}
+                  maxLength={30}
+                  as="span"
+                />
+              </h3>
               <button
                 className="close-btn"
                 onClick={() => setShowRecipientManager(false)}

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   Scale,
   AlertCircle,
@@ -27,6 +28,13 @@ import {
 } from 'lucide-react';
 
 const TermsOfService = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Terms of Service",
+      "Read Esigniva's Terms of Service governing the use of electronic signatures, document automation, and legal binding agreements."
+    );
+  }, []);
+
   const [expandedSections, setExpandedSections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated] = useState('January 15, 2025');

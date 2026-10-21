@@ -445,7 +445,9 @@ const TemplateManagement = () => {
                   {templates.map(t => (
                     <TableRow key={t.id} hover sx={{ '&:last-child td': { border: 0 }, borderBottom: '1px solid #f3f4f6' }}>
                       <TableCell sx={{ py: 1.5, maxWidth: 260, minWidth: 160 }}>
-                        <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: 13.5 }} noWrap title={t.title}>{t.title}</Typography>
+                        <Typography sx={{ fontWeight: 600, color: '#111827', fontSize: 13.5 }}>
+                          <FilenameDisplay filename={t.title} maxLength={28} as="span" />
+                        </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3, minWidth: 0 }}>
                           <FilenameDisplay filename={t.filename} sx={{ fontSize: 11.5, color: '#9ca3af', minWidth: 0, maxWidth: 160 }} />
                           <Typography sx={{ fontSize: 11.5, color: '#9ca3af', flexShrink: 0 }}>· {formatDate(t.created_at)}</Typography>
@@ -524,7 +526,7 @@ const TemplateManagement = () => {
                         fontWeight: 700, fontSize: 13.5, color: '#111827', mb: 0.5,
                         overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, lineClamp: 2
                       }}>
-                        {t.title}
+                        <FilenameDisplay filename={t.title} maxLength={28} as="span" />
                       </Typography>
                       <Typography sx={{
                         fontSize: 12, color: '#9ca3af', mb: 1.5,
@@ -856,7 +858,9 @@ const TemplateManagement = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: 1 }}>
             <Avatar sx={{ bgcolor: TEAL_LIGHT, color: TEAL, width: 36, height: 36, flexShrink: 0 }}><FileIcon fontSize="small" /></Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.2 }} noWrap title={selectedTemplate?.title}>{selectedTemplate?.title}</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.2 }}>
+                <FilenameDisplay filename={selectedTemplate?.title} maxLength={38} as="span" />
+              </Typography>
               <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }} noWrap>{selectedTemplate?.category_name}</Typography>
             </Box>
           </Box>

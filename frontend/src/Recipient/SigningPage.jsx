@@ -3438,7 +3438,7 @@ const SigningPage = () => {
                                             <MenuItem key={file.id} onClick={() => { setDownloadMenuAnchor(null); handleDownloadSubfile(file); }}>
                                                 <ListItemIcon><DescriptionIcon fontSize="small" sx={{ color: 'rgb(13, 148, 136)' }} /></ListItemIcon>
                                                 <ListItemText
-                                                    primary={file.filename}
+                                                    primary={<FilenameDisplay filename={file.filename} maxLength={28} />}
                                                     secondary={file.page_range}
                                                     primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
                                                 />

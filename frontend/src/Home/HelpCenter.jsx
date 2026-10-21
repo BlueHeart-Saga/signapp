@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import { 
   Search, 
   HelpCircle, 
@@ -39,6 +40,14 @@ import {
 
 const HelpCenter = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle(
+      "Help Center & Knowledge Base",
+      "Find guides, troubleshooting steps, FAQs, and support articles for Esigniva e-signatures and workflows."
+    );
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('getting-started');
   const [expandedFaqs, setExpandedFaqs] = useState({});

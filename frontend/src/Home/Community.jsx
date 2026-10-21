@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   Users,
   MessageSquare,
@@ -44,6 +45,13 @@ import {
 } from 'lucide-react';
 
 const Community = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Community Forums & Discussions",
+      "Connect with developers, document administrators, and legal technology experts in the Esigniva Community."
+    );
+  }, []);
+
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);

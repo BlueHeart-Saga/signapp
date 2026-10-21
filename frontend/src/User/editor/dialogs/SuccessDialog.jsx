@@ -24,6 +24,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import FilenameDisplay from '../../../components/FilenameDisplay';
 
 const SuccessDialog = ({ 
   open, 
@@ -117,7 +118,7 @@ const SuccessDialog = ({
         {documentName && (
           <Box sx={{ display: 'flex', border: 'none', justifyContent: 'center', mb: 3 }}>
             <Chip 
-              label={documentName}
+              label={<FilenameDisplay filename={documentName} maxLength={32} as="span" />}
               variant="outlined"
               color="success"
               icon={<DescriptionIcon />}

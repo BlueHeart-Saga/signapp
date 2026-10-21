@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   TrendingUp,
   Users,
@@ -36,6 +37,13 @@ const CaseStudies = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCaseStudy, setSelectedCaseStudy] = useState(null);
+
+  useEffect(() => {
+    setPageTitle(
+      "Customer Case Studies & Enterprise Stories",
+      "Explore how enterprise organizations accelerate document execution, save hours, and reduce costs with Esigniva."
+    );
+  }, []);
 
   const getIndustrySlug = (industry) => {
     const map = {

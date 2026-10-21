@@ -8,14 +8,17 @@ Disallow: /sign/
 Disallow: /complete/
 Disallow: /auth/
 Disallow: /unauthorized
-Crawl-delay: 10
 
-# Allow search engines to index public assets
+# Allow search engine crawlers to access public assets for accurate mobile rendering
 Allow: /static/
 Allow: /images/
+Allow: /assets/
 Allow: /logo192.png
 Allow: /logo512.png
 Allow: /favicon.ico
+Allow: /favicon.png
+Allow: /manifest.json
 
-# Sitemap location
+# Canonical Host & Sitemap
+Host: https://esigniva.com
 Sitemap: https://esigniva.com/sitemap.xml

@@ -67,6 +67,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 
 import { HistoryService } from '../services/historyService';
 import { AutosaveService } from '../services/autosaveService';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 import { setPageTitle } from "../utils/pageTitle";
 
@@ -6090,9 +6091,11 @@ const DocumentBuilder = () => {
                           size="small"
                           sx={{ bgcolor: '#0f766e', color: '#ffffff', fontWeight: 700, fontSize: '11px' }}
                         />
-                        <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {fileHeader.filename}
-                        </Typography>
+                        <FilenameDisplay
+                          filename={fileHeader.filename}
+                          maxLength={32}
+                          sx={{ fontWeight: 600, fontSize: '0.9rem' }}
+                        />
                       </Box>
                       <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8', flexShrink: 0 }}>
                         {fileHeader.page_range} ({fileHeader.pages} {fileHeader.pages === 1 ? 'page' : 'pages'})
@@ -6489,9 +6492,13 @@ const DocumentBuilder = () => {
 
           <Box sx={{ flexGrow: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="h6" noWrap>
-                {document.filename || 'Untitled Document'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: { xs: 200, sm: 350, md: 500 } }}>
+                <FilenameDisplay
+                  filename={document.filename || 'Untitled Document'}
+                  maxLength={35}
+                  sx={{ fontSize: '1.25rem', fontWeight: 600 }}
+                />
+              </Box>
               {/* Save indicator */}
               {autoSaveStatus.isSaving && (
                 <CircularProgress size={16} sx={{ ml: 1 }} />
@@ -6752,7 +6759,12 @@ const DocumentBuilder = () => {
                   <Chip
                     key={file.id || idx}
                     icon={<FileText size={14} color="#ffffff" />}
-                    label={`${file.filename} (${file.page_range || `pp. ${file.start_page}–${file.end_page}`})`}
+                    label={(
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, maxWidth: 220 }}>
+                        <FilenameDisplay filename={file.filename} maxLength={18} as="span" />
+                        <span>({file.page_range || `pp. ${file.start_page}–${file.end_page}`})</span>
+                      </Box>
+                    )}
                     onClick={() => {
                       const targetPage = (file.start_page || 1) - 1;
                       setCurrentPage(targetPage);
@@ -7047,8 +7059,15 @@ const DocumentBuilder = () => {
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
               <FileText sx={{ color: 'text.secondary' }} />
-              <Typography variant="body2">
-                Current name: <strong>{document?.filename || 'Untitled Document'}</strong>
+              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>Current name:</span>
+                <strong>
+                  <FilenameDisplay
+                    filename={document?.filename || 'Untitled Document'}
+                    maxLength={28}
+                    as="span"
+                  />
+                </strong>
               </Typography>
             </Box>
 

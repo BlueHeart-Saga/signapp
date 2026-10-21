@@ -1,10 +1,18 @@
 // src/pages/ComplaintPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../style/ComplaintPage.css";
 import SpamComplaintsPage from "./SpamComplaintsPage";
 import AbuseHeroCard from "./AbuseHeroCard";
+import { setPageTitle } from "../utils/pageTitle";
 
 export default function ComplaintPage() {
+  useEffect(() => {
+    setPageTitle(
+      "File a Complaint & Abuse Report",
+      "Submit a formal complaint or abuse report regarding fraudulent, deceptive, or unauthorized e-signature activity."
+    );
+  }, []);
+
   const [form, setForm] = useState({
     name: "",
     email: "",

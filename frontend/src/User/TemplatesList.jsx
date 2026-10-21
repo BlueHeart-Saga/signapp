@@ -4,6 +4,7 @@ import "../style/TemplatesList.css";
 import { uploadDocument } from "../services/DocumentAPI";
 import showAlert from "../utils/swal";
 import PageLoadingAnimation from "../components/PageLoadingAnimation";
+import FilenameDisplay from "../components/FilenameDisplay";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -571,7 +572,9 @@ const UserTemplatesList = () => {
                 {popularTemplates.map((template) => (
                   <div key={template.id || template._id} className="popular-item">
                     <div className="popular-info">
-                      <strong>{template.title}</strong>
+                      <strong>
+                        <FilenameDisplay filename={template.title} maxLength={22} as="span" />
+                      </strong>
                       <small>{template.category_name}</small>
                     </div>
                     <span className="download-badge">
@@ -687,7 +690,9 @@ const UserTemplatesList = () => {
                         </div>
 
                         <div className="card-body">
-                          <h3>{template.title}</h3>
+                          <h3>
+                            <FilenameDisplay filename={template.title} maxLength={26} as="span" />
+                          </h3>
                           <p className="description">{template.description || "No description"}</p>
 
                           <div className="category">
@@ -760,7 +765,9 @@ const UserTemplatesList = () => {
                         return (
                           <tr key={templateId}>
                             <td>
-                              <strong>{template.title}</strong>
+                              <strong>
+                                <FilenameDisplay filename={template.title} maxLength={28} as="span" />
+                              </strong>
                               <p className="table-description">{template.description}</p>
                             </td>
                             <td>{template.category_name}</td>
@@ -863,7 +870,9 @@ const UserTemplatesList = () => {
 
             <div className="preview-content">
               <div className="preview-header">
-                <h2>{selectedTemplate.title}</h2>
+                <h2>
+                  <FilenameDisplay filename={selectedTemplate.title} maxLength={38} as="span" />
+                </h2>
                 <button
                   className="close-btn"
                   onClick={closePreviewModal}

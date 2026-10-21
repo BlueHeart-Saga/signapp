@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   Shield,
   Lock,
@@ -22,6 +23,14 @@ import {
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle(
+      "Privacy Policy",
+      "Read Esigniva's Privacy Policy to learn how we protect your personal information, audit trails, and document data under GDPR and CCPA."
+    );
+  }, []);
+
   const [expandedSections, setExpandedSections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated] = useState('January 15, 2025');

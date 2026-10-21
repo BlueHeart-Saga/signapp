@@ -30,6 +30,7 @@ import {
   downloadDocument,
   downloadSubDocument,
 } from "../services/DocumentAPI";
+import FilenameDisplay from "./FilenameDisplay";
 
 // PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -192,20 +193,16 @@ export default function DocumentViewerModal({
             </IconButton>
           </Tooltip>
 
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="subtitle1"
-              fontWeight={700}
+          <Box sx={{ minWidth: 0, maxWidth: { xs: 240, sm: 450, md: 700 } }}>
+            <FilenameDisplay
+              filename={documentName || title || "Document Preview"}
+              maxLength={40}
               sx={{
+                fontWeight: 700,
+                fontSize: "1rem",
                 color: "#0f172a",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: { xs: 240, sm: 450, md: 700 },
               }}
-            >
-              {documentName || title || "Document Preview"}
-            </Typography>
+            />
           </Box>
         </Box>
 
@@ -457,22 +454,17 @@ export default function DocumentViewerModal({
                             gap: 2,
                           }}
                         >
-                          <Typography
-                            variant="caption"
+                          <FilenameDisplay
+                            filename={currentFilename}
+                            maxLength={30}
                             sx={{
                               fontSize: "0.75rem",
                               fontWeight: 600,
                               color: "#64748b",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
                               flex: 1,
                               minWidth: 0,
                             }}
-                            title={currentFilename}
-                          >
-                            {currentFilename}
-                          </Typography>
+                          />
                           <Typography
                             variant="caption"
                             sx={{
@@ -644,19 +636,14 @@ export default function DocumentViewerModal({
                   sx={{ py: 1 }}
                 >
                   <Box sx={{ minWidth: 0, width: "100%" }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={500}
-                      sx={{
-                        color: "#334155",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={file.filename}
-                    >
-                      ⬇️ {file.filename}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                      <span>⬇️</span>
+                      <FilenameDisplay
+                        filename={file.filename}
+                        maxLength={28}
+                        sx={{ color: "#334155", fontWeight: 500, fontSize: "0.875rem" }}
+                      />
+                    </Box>
                     <Typography variant="caption" color="text.secondary">
                       {file.page_range} ({file.pages} {file.pages === 1 ? "page" : "pages"})
                     </Typography>

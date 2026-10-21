@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { recipientAPI } from "../services/RecipientAPI";
+import FilenameDisplay from "../components/FilenameDisplay";
 
 export default function RecipientDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -38,7 +39,7 @@ export default function RecipientDocuments() {
               }
             >
               <ListItemText
-                primary={doc.name || "Untitled Document"}
+                primary={<FilenameDisplay filename={doc.name || "Untitled Document"} maxLength={35} />}
                 secondary={`Status: ${doc.status}`}
               />
               <Chip

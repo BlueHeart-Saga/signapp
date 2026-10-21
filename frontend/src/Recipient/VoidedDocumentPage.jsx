@@ -14,6 +14,7 @@ import {
   VisibilityOutlined as ViewIcon
 } from "@mui/icons-material";
 import { useParams } from "react-router-dom";
+import FilenameDisplay from "../components/FilenameDisplay";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
@@ -114,8 +115,8 @@ const VoidedDocumentPage = () => {
 
         {/* Info */}
         <Box sx={{ textAlign: "left" }}>
-          <Typography sx={{ fontSize: 14, color: "#374151" }}>
-            <strong>Document:</strong> {document?.filename}
+          <Typography sx={{ fontSize: 14, color: "#374151", display: "flex", alignItems: "center", gap: 0.75 }}>
+            <strong>Document:</strong> <FilenameDisplay filename={document?.filename} maxLength={30} as="span" />
           </Typography>
 
           <Typography sx={{ fontSize: 14, color: "#374151", mt: 1 }}>

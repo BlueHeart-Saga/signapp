@@ -1294,7 +1294,7 @@ const OTPVerificationPage = () => {
               This Document Has Been Voided
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              The document "{documentInfo?.filename}" is no longer available for signing as it has been voided by the sender or administrator.
+              The document "<FilenameDisplay filename={documentInfo?.filename} maxLength={28} as="span" />" is no longer available for signing as it has been voided by the sender or administrator.
             </Typography>
 
             <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#fff5f5', borderRadius: 1 }}>
@@ -1377,7 +1377,7 @@ const OTPVerificationPage = () => {
               You Previously Declined Terms
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              You have previously declined the terms and conditions for signing "{documentInfo?.filename}". To proceed with signing, you must re-accept the terms.
+              You have previously declined the terms and conditions for signing "<FilenameDisplay filename={documentInfo?.filename} maxLength={28} as="span" />". To proceed with signing, you must re-accept the terms.
             </Typography>
 
             <Alert severity="warning" sx={{ mb: 3 }}>

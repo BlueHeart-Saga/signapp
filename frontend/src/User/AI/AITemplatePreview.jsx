@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import api from '../../services/api';
+import FilenameDisplay from '../../components/FilenameDisplay';
 
 const AITemplatePreview = ({ templateId, mode = 'preview', onClose }) => {
   const [activeTab, setActiveTab] = useState(mode === 'edit' ? 0 : 1);
@@ -189,8 +190,8 @@ const AITemplatePreview = ({ templateId, mode = 'preview', onClose }) => {
             </IconButton>
           </Grid>
           <Grid item xs>
-            <Typography variant="h6" noWrap>
-              {template?.title}
+            <Typography variant="h6">
+              <FilenameDisplay filename={template?.title} maxLength={38} as="span" />
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {template?.description || 'AI-generated template'}

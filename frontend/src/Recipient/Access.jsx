@@ -37,6 +37,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '../services/api';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
@@ -457,9 +458,11 @@ const Access = () => {
                                 <DocumentIcon />
                               </Avatar>
                             </Grid>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                              {item.document.name}
-                            </Typography>
+                            <FilenameDisplay
+                              filename={item.document.name}
+                              maxLength={32}
+                              sx={{ fontWeight: 600, mb: 0.5, fontSize: '1rem', display: 'block' }}
+                            />
 
                             <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
                               <Box sx={{ display: 'flex', alignItems: 'center' }}>

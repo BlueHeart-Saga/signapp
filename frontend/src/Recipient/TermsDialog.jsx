@@ -432,7 +432,7 @@ const TermsDialog = ({
         {/* Introduction */}
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: '#f5f5f5', borderRadius: 0.5 }}>
           <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.6, color: '#424242' }}>
-            Dear <strong>{recipientInfo?.name}</strong>, you are about to electronically sign <strong>{documentInfo?.filename}</strong>. This agreement outlines the terms governing the use of electronic signatures through our secure platform. Please carefully review each section below. Your acceptance of all sections is required to proceed with the signing process.
+            Dear <strong>{recipientInfo?.name}</strong>, you are about to electronically sign <strong><FilenameDisplay filename={documentInfo?.filename} maxLength={28} as="span" /></strong>. This agreement outlines the terms governing the use of electronic signatures through our secure platform. Please carefully review each section below. Your acceptance of all sections is required to proceed with the signing process.
           </Typography>
         </Paper>
 

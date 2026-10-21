@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { setPageTitle } from "../utils/pageTitle";
 import {
   Cookie,
   Shield,
@@ -24,6 +25,13 @@ import {
 } from 'lucide-react';
 
 const CookiePolicy = () => {
+  useEffect(() => {
+    setPageTitle(
+      "Cookie Policy",
+      "Understand how Esigniva uses cookies and tracking technologies to optimize your e-signature experience."
+    );
+  }, []);
+
   const [expandedSections, setExpandedSections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated] = useState('January 15, 2025');

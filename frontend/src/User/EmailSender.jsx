@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import { sendDocumentForSignature, sendReminder } from '../services/EmailAPI';
 import '../style/EmailSender.css';
+import FilenameDisplay from '../components/FilenameDisplay';
 
 export default function EmailSender({ document, onSent, existingRecipients = [] }) {
   const [showModal, setShowModal] = useState(false);
@@ -144,7 +145,10 @@ export default function EmailSender({ document, onSent, existingRecipients = [] 
             <div className="modal-content">
               {/* Document Info */}
               <div className="document-info-card">
-                <h4>Document: {document.filename}</h4>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Document:</span>
+                  <FilenameDisplay filename={document.filename} maxLength={32} as="span" />
+                </h4>
                 <p>Send this document to recipients for electronic signature</p>
               </div>
 
