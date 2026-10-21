@@ -194,8 +194,14 @@ async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
             # This allows the frontend to handle voided documents appropriately
             raise HTTPException(400, "Document has been voided. Please use /view-voided endpoint.")
             
-        # Allow viewing for sent, in_progress, completed, and voided (with allow_voided)
-        allowed_status = ["sent", "in_progress", "completed"]
+        # Auto-heal status if document was previously sent or recipient has activity
+        if document.get("status") == "draft" and (document.get("sent_at") or recipient.get("sent_at")):
+            repaired_status = "in_progress" if recipient.get("status") in ["viewed", "in_progress", "completed"] else "sent"
+            await db.documents.update_one({"_id": document["_id"]}, {"$set": {"status": repaired_status}})
+            document["status"] = repaired_status
+
+        # Allow viewing for sent, in_progress, completed, draft, and voided (with allow_voided)
+        allowed_status = ["sent", "in_progress", "completed", "draft"]
         if allow_voided:
             allowed_status.append("voided")
             
@@ -926,7 +932,13 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         if not recipient.get("otp_verified"):
             raise HTTPException(403, "OTP verification required before viewing document")
         
-        allowed_status = ["sent", "in_progress", "completed"]
+        # Auto-heal status if document was previously sent or recipient has activity
+        if document.get("status") == "draft" and (document.get("sent_at") or recipient.get("sent_at")):
+            repaired_status = "in_progress" if recipient.get("status") in ["viewed", "in_progress", "completed"] else "sent"
+            await db.documents.update_one({"_id": document["_id"]}, {"$set": {"status": repaired_status}})
+            document["status"] = repaired_status
+
+        allowed_status = ["sent", "in_progress", "completed", "draft"]
         if document.get("status") not in allowed_status:
             raise HTTPException(400, f"Document is not available for viewing (status: {document.get('status')})")
         
@@ -990,7 +1002,8 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         watermark_config = {
             "sent": ("LIVE PREVIEW - AWAITING SIGNATURES", "#1E88E5"),
             "in_progress": ("LIVE PREVIEW - IN PROGRESS", "#FF9800"),
-            "completed": ("SIGNED COPY", "#4CAF50")
+            "completed": ("SIGNED COPY", "#4CAF50"),
+            "draft": ("DRAFT PREVIEW", "#757575")
         }
         
         watermark_text, watermark_color = watermark_config.get(
@@ -1236,7 +1249,13 @@ async def download_document_for_recipient(recipient_id: str, request: Request):
         if not document:
             raise HTTPException(404, "Document not found")
         
-        allowed_status = ["sent", "in_progress", "completed"]
+        # Auto-heal status if document was previously sent or recipient has activity
+        if document.get("status") == "draft" and (document.get("sent_at") or recipient.get("sent_at")):
+            repaired_status = "in_progress" if recipient.get("status") in ["viewed", "in_progress", "completed"] else "sent"
+            await db.documents.update_one({"_id": document["_id"]}, {"$set": {"status": repaired_status}})
+            document["status"] = repaired_status
+
+        allowed_status = ["sent", "in_progress", "completed", "draft"]
         if document.get("status") not in allowed_status:
             raise HTTPException(400, "Document is not available for viewing")
         

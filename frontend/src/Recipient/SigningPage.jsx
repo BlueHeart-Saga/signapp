@@ -1947,6 +1947,9 @@ const SigningPage = () => {
 
             // Get token for authentication
             const token = localStorage.getItem('signing_token') ||
+                sessionStorage.getItem('signing_token') ||
+                localStorage.getItem('token') ||
+                sessionStorage.getItem('token') ||
                 new URLSearchParams(window.location.search).get('token');
 
             if (!token) {

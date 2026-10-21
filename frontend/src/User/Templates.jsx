@@ -457,8 +457,9 @@ export default function DocumentsAndTemplates() {
     try {
       setDocumentsLoading(true);
       setDocumentsError('');
-      const data = await documentsAPI.getDocuments();
-      setDocuments(Array.isArray(data) ? data : (data?.documents || []));
+      const data = await documentsAPI.getDocuments({ limit: 0, fetch_all: true });
+      const docList = Array.isArray(data) ? data : (data?.documents || data?.items || []);
+      setDocuments(docList);
     } catch (err) {
       console.error('Error loading documents:', err);
       setDocumentsError(err.message || 'Failed to load documents');
@@ -471,15 +472,15 @@ export default function DocumentsAndTemplates() {
   const loadTrashDocuments = useCallback(async () => {
     try {
       setTrashLoading(true);
-      // Fetch up to 100 items from trash via API service
-      const data = await getDocumentsPaged(1, 100, 'deleted');
+      // Fetch up to 1000 items from trash via API service
+      const data = await getDocumentsPaged(1, 1000, 'deleted');
       setTrashDocuments(data?.documents || []);
     } catch (err) {
       console.warn("getDocumentsPaged failed, attempting fallback fetch:", err);
       try {
         const authToken = localStorage.getItem("token") || token;
         const res = await fetch(
-          `${API_BASE}/documents/paged?status=deleted&page_size=100`,
+          `${API_BASE}/documents/paged?status=deleted&page_size=1000`,
           {
             headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
           }

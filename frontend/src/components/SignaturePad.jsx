@@ -674,27 +674,33 @@ const EnhancedSignaturePad = ({
     img.src = imageData;
   };
 
-  // Initialize canvas for drawing
+  // Initialize canvas for drawing or stamp preview
   useEffect(() => {
-    if (!['signature', 'witness_signature', 'initials'].includes(fieldType)) return;
+    if (!['signature', 'witness_signature', 'initials', 'stamp'].includes(fieldType)) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
     const scaleFactor = 4;
 
-    // Set canvas size scaled up by 4x for ultra-crisp output
-    canvas.width = width * scaleFactor;
-    canvas.height = (fieldType === 'initials' ? height * 1.2 : height) * scaleFactor;
+    // Set canvas internal pixel resolution scaled up by 4x for ultra-crisp output
+    canvas.width = (width || 700) * scaleFactor;
+    canvas.height = (fieldType === 'initials' ? height * 1.2 : (height || 300)) * scaleFactor;
 
-    // Set styles
-    ctx.strokeStyle = fontColor || '#000000';
-    ctx.lineWidth = 0.8 * scaleFactor;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (fieldType === 'stamp') {
+      drawStampPreview();
+      return;
+    }
 
+    // Set styles for drawing
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.strokeStyle = fontColor || '#000000';
+      ctx.lineWidth = 0.8 * scaleFactor;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   }, [width, height, fieldType]);
 
   // Validate email
@@ -1000,89 +1006,111 @@ const EnhancedSignaturePad = ({
     const canvas = canvasRef.current;
     if (!canvas || !stampText) return;
 
-    const scaleFactor = 4;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+      const scaleFactor = 4;
+      const targetW = Math.max((width || 700), 400) * scaleFactor;
+      const targetH = Math.max((height || 300), 200) * scaleFactor;
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const padding = 20 * scaleFactor;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    // Draw stamp shape
-    ctx.strokeStyle = stampColor;
-    ctx.lineWidth = 3 * scaleFactor;
-    ctx.fillStyle = `${stampColor}20`;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    switch (stampShape) {
-      case 'circle':
-        const radius = Math.min(canvas.width, canvas.height) / 2 - padding;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        break;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const minDim = Math.min(canvas.width, canvas.height);
+      const padding = Math.min(20 * scaleFactor, minDim * 0.2);
 
-      case 'square':
-        const squareSize = Math.min(canvas.width, canvas.height) - padding * 2;
-        const squareX = centerX - squareSize / 2;
-        const squareY = centerY - squareSize / 2;
-        ctx.fillRect(squareX, squareY, squareSize, squareSize);
-        ctx.strokeRect(squareX, squareY, squareSize, squareSize);
-        break;
+      // Draw stamp shape
+      ctx.strokeStyle = stampColor;
+      ctx.lineWidth = 3 * scaleFactor;
+      ctx.fillStyle = `${stampColor}20`;
 
-      case 'rectangular':
-        const rectWidth = canvas.width - padding * 2;
-        const rectHeight = canvas.height - padding * 2;
-        const rectX = padding;
-        const rectY = padding;
-        ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-        ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-        break;
-    }
+      switch (stampShape) {
+        case 'circle': {
+          const rawRadius = minDim / 2 - padding;
+          const radius = Math.max(10 * scaleFactor, rawRadius);
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          break;
+        }
 
-    // Draw stamp text
-    ctx.fillStyle = stampColor;
-    ctx.font = `bold ${24 * scaleFactor}px Arial`;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
+        case 'square': {
+          const squareSize = Math.max(20 * scaleFactor, minDim - padding * 2);
+          const squareX = centerX - squareSize / 2;
+          const squareY = centerY - squareSize / 2;
+          ctx.fillRect(squareX, squareY, squareSize, squareSize);
+          ctx.strokeRect(squareX, squareY, squareSize, squareSize);
+          break;
+        }
 
-    const lines = stampText.split('\n');
-    const lineHeight = 28 * scaleFactor;
-    const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
+        case 'rectangular': {
+          const rectWidth = Math.max(40 * scaleFactor, canvas.width - padding * 2);
+          const rectHeight = Math.max(20 * scaleFactor, canvas.height - padding * 2);
+          const rectX = centerX - rectWidth / 2;
+          const rectY = centerY - rectHeight / 2;
+          ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+          ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+          break;
+        }
+        default:
+          break;
+      }
 
-    lines.forEach((line, index) => {
-      ctx.fillText(line, centerX, startY + (index * lineHeight));
-    });
-
-    // Draw date if enabled
-    if (showDateOnStamp) {
-      const date = new Date().toLocaleDateString();
-      ctx.font = `${12 * scaleFactor}px Arial`;
-      ctx.fillText(date, centerX, centerY + (lines.length * lineHeight) / 2 + 20 * scaleFactor);
-    }
-
-    // Draw "APPROVED" text around the stamp
-    if (stampShape === 'circle') {
-      const radius = Math.min(canvas.width, canvas.height) / 2 - padding + 15 * scaleFactor;
-      const approvedText = "APPROVED";
-      const angleStep = (2 * Math.PI) / approvedText.length;
-
-      ctx.save();
-      ctx.translate(centerX, centerY);
-      ctx.font = `bold ${10 * scaleFactor}px Arial`;
-      ctx.textBaseline = 'alphabetic';
+      // Draw stamp text
+      ctx.fillStyle = stampColor;
+      ctx.font = `bold ${Math.max(14, Math.round(24 * scaleFactor))}px Arial`;
+      ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
 
-      for (let i = 0; i < approvedText.length; i++) {
-        const angle = i * angleStep;
+      const lines = stampText.split('\n');
+      const lineHeight = Math.max(16, Math.round(28 * scaleFactor));
+      const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
+
+      lines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startY + (index * lineHeight));
+      });
+
+      // Draw date if enabled
+      if (showDateOnStamp) {
+        const date = new Date().toLocaleDateString();
+        ctx.font = `${Math.max(10, Math.round(12 * scaleFactor))}px Arial`;
+        ctx.fillText(date, centerX, centerY + (lines.length * lineHeight) / 2 + 20 * scaleFactor);
+      }
+
+      // Draw "APPROVED" text around the stamp
+      if (stampShape === 'circle') {
+        const rawRadius = minDim / 2 - padding;
+        const baseRadius = Math.max(10 * scaleFactor, rawRadius);
+        const radius = Math.max(baseRadius + 5 * scaleFactor, Math.min(baseRadius + 15 * scaleFactor, minDim / 2 - 2 * scaleFactor));
+        const approvedText = "APPROVED";
+        const angleStep = (2 * Math.PI) / approvedText.length;
+
         ctx.save();
-        ctx.rotate(angle);
-        ctx.translate(0, -radius);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText(approvedText[i], 0, 0);
+        ctx.translate(centerX, centerY);
+        ctx.font = `bold ${Math.max(8, Math.round(10 * scaleFactor))}px Arial`;
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'center';
+
+        for (let i = 0; i < approvedText.length; i++) {
+          const angle = i * angleStep;
+          ctx.save();
+          ctx.rotate(angle);
+          ctx.translate(0, -radius);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(approvedText[i], 0, 0);
+          ctx.restore();
+        }
         ctx.restore();
       }
-      ctx.restore();
+    } catch (err) {
+      console.error('Failed to draw stamp preview:', err);
     }
   };
 
@@ -2106,6 +2134,8 @@ const EnhancedSignaturePad = ({
       >
         <canvas
           ref={canvasRef}
+          width={(width || 700) * 4}
+          height={(height || 300) * 4}
           style={{
             display: 'block',
             width: '100%',

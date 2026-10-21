@@ -170,8 +170,8 @@ export const renameDocument = (documentId, filename) =>
   api.put(`/documents/${documentId}/rename`, { filename });
 
 // Get user's documents
-export const getDocuments = async () => {
-  const res = await api.get("/documents");
+export const getDocuments = async (params = {}) => {
+  const res = await api.get("/documents", { params });
   return res.data;
 };
 

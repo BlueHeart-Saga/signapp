@@ -771,10 +771,22 @@ async def bulk_soft_delete(
     except:
         raise HTTPException(400, "Invalid document IDs")
     
-    result = await db.documents.update_many(
-        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": {"$ne": "deleted"}},
-        {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}}
-    )
+    docs_to_delete = await db.documents.find(
+        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": {"$ne": "deleted"}}
+    ).to_list(1000)
+    
+    modified_count = 0
+    now = datetime.utcnow()
+    for d in docs_to_delete:
+        await db.documents.update_one(
+            {"_id": d["_id"]},
+            {"$set": {
+                "status": "deleted",
+                "previous_status": d.get("status", "draft"),
+                "deleted_at": now
+            }}
+        )
+        modified_count += 1
     
     for doc_id in request_data.document_ids:
         try:
@@ -782,7 +794,7 @@ async def bulk_soft_delete(
         except:
             pass
         
-    return {"message": f"Moved {result.modified_count} documents to trash"}
+    return {"message": f"Moved {modified_count} documents to trash"}
 
 @router.post("/bulk/restore")
 async def bulk_restore(
@@ -796,10 +808,34 @@ async def bulk_restore(
     except:
         raise HTTPException(400, "Invalid document IDs")
     
-    result = await db.documents.update_many(
-        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": "deleted"},
-        {"$set": {"status": "draft", "restored_at": datetime.utcnow()}}
-    )
+    docs_to_restore = await db.documents.find(
+        {"_id": {"$in": doc_oids}, "owner_id": user_id, "status": "deleted"}
+    ).to_list(1000)
+    
+    restored_count = 0
+    now = datetime.utcnow()
+    for d in docs_to_restore:
+        prev = d.get("previous_status")
+        if not prev or prev in ["deleted", "voided"]:
+            if d.get("sent_at"):
+                recipients = await db.recipients.find({"document_id": d["_id"]}).to_list(1000)
+                if recipients and all(r.get("status") == "completed" for r in recipients):
+                    prev = "completed"
+                elif recipients and any(r.get("status") in ["completed", "in_progress", "viewed"] for r in recipients):
+                    prev = "in_progress"
+                else:
+                    prev = "sent"
+            else:
+                prev = "draft"
+        
+        await db.documents.update_one(
+            {"_id": d["_id"]},
+            {
+                "$set": {"status": prev, "restored_at": now},
+                "$unset": {"previous_status": "", "deleted_at": ""}
+            }
+        )
+        restored_count += 1
     
     for doc_id in request_data.document_ids:
         try:
@@ -807,7 +843,7 @@ async def bulk_restore(
         except:
             pass
         
-    return {"message": f"Restored {result.modified_count} documents"}
+    return {"message": f"Restored {restored_count} documents"}
 
 @router.post("/bulk/permanent-delete")
 async def bulk_permanent_delete(
@@ -3660,14 +3696,16 @@ DOCUMENT_LIST_PROJECTION = {
 async def list_documents(
     current_user: dict = Depends(get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(30, ge=1, le=100),
+    limit: int | None = Query(None, ge=0),
     cursor: str | None = Query(None),
     status: str | None = Query(None),
     include_deleted: bool = Query(False),
-    envelope_id: str | None = Query(None)
+    envelope_id: str | None = Query(None),
+    fetch_all: bool = Query(False)
 ):
     """
     List documents owned by current user with projections and cursor/keyset pagination.
+    If limit is None or 0 or fetch_all is True (and no cursor), returns all documents without capping at 30.
     """
     owner_id = ObjectId(current_user["id"])
     query = {"owner_id": owner_id}
@@ -3686,31 +3724,40 @@ async def list_documents(
         except Exception:
             pass
 
-    max_limit = min(max(limit, 1), 100)
+    # If fetch_all or limit is None or limit is 0 (and no cursor is passed), fetch all documents
+    if (limit is None or limit == 0 or fetch_all) and cursor is None:
+        docs = await db.documents.find(
+            query,
+            DOCUMENT_LIST_PROJECTION
+        ).sort([("updated_at", -1), ("uploaded_at", -1), ("_id", -1)]).skip(skip).to_list(length=10000)
+        serialized_items = [await serialize_document(d) for d in docs]
+        return serialized_items
+    else:
+        actual_limit = limit if (limit is not None and limit > 0) else 30
+        max_limit = min(actual_limit, 5000)
+        docs = await db.documents.find(
+            query,
+            DOCUMENT_LIST_PROJECTION
+        ).sort([("updated_at", -1), ("uploaded_at", -1), ("_id", -1)]).skip(skip).limit(max_limit + 1).to_list(length=max_limit + 1)
 
-    docs = await db.documents.find(
-        query,
-        DOCUMENT_LIST_PROJECTION
-    ).sort([("updated_at", -1), ("uploaded_at", -1), ("_id", -1)]).skip(skip).limit(max_limit + 1).to_list(length=max_limit + 1)
+        has_more = len(docs) > max_limit
+        items = docs[:max_limit]
+        next_cursor = str(items[-1]["_id"]) if items and has_more else None
 
-    has_more = len(docs) > max_limit
-    items = docs[:max_limit]
-    next_cursor = str(items[-1]["_id"]) if items and has_more else None
+        serialized_items = [await serialize_document(d) for d in items]
 
-    serialized_items = [await serialize_document(d) for d in items]
-
-    return {
-        "items": serialized_items,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "count": len(serialized_items)
-    } if cursor is not None else serialized_items
+        return {
+            "items": serialized_items,
+            "next_cursor": next_cursor,
+            "has_more": has_more,
+            "count": len(serialized_items)
+        } if cursor is not None else serialized_items
 
 @router.get("/paged")
 async def list_documents_paged(
     current_user: dict = Depends(get_current_user),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=5000),
     status: Optional[str] = Query(None),
     include_deleted: bool = Query(False),
     search: Optional[str] = Query(None),
@@ -4621,7 +4668,14 @@ async def soft_delete_document(document_id: str, current_user: dict = Depends(ge
     if doc.get("status") == "deleted":
         raise HTTPException(status_code=400, detail="Document already deleted")
 
-    await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "deleted", "deleted_at": datetime.utcnow()}})
+    await db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {
+            "status": "deleted",
+            "previous_status": doc.get("status", "draft"),
+            "deleted_at": datetime.utcnow()
+        }}
+    )
 
     await _log_event(document_id, current_user, "soft_delete", request=request)
     return {"message": "Document moved to trash"}
@@ -6014,9 +6068,31 @@ async def restore_document(document_id: str, current_user: dict = Depends(get_cu
     if doc.get("status") not in ["deleted", "voided"]:
         raise HTTPException(status_code=400, detail="Document cannot be restored")
 
-    await db.documents.update_one({"_id": ObjectId(document_id)}, {"$set": {"status": "draft", "restored_at": datetime.utcnow()}})
+    # Determine status to restore to
+    previous_status = doc.get("previous_status")
+    if not previous_status or previous_status in ["deleted", "voided"]:
+        if doc.get("sent_at"):
+            recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(1000)
+            if recipients and all(r.get("status") == "completed" for r in recipients):
+                restore_status = "completed"
+            elif recipients and any(r.get("status") in ["completed", "in_progress", "viewed"] for r in recipients):
+                restore_status = "in_progress"
+            else:
+                restore_status = "sent"
+        else:
+            restore_status = "draft"
+    else:
+        restore_status = previous_status
+
+    await db.documents.update_one(
+        {"_id": ObjectId(document_id)},
+        {
+            "$set": {"status": restore_status, "restored_at": datetime.utcnow()},
+            "$unset": {"previous_status": "", "deleted_at": ""}
+        }
+    )
     await _log_event(document_id, current_user, "restore_document", request=request)
-    return {"message": "Document restored successfully"}
+    return {"message": "Document restored successfully", "status": restore_status}
 
 
 

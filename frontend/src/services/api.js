@@ -289,7 +289,10 @@ export const apiRequest = async (endpoint, options = {}) => {
 
 // Documents API
 export const documentsAPI = {
-  getDocuments: () => apiRequest('/documents'),
+  getDocuments: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/documents${query ? `?${query}` : ''}`);
+  },
   getDocument: (id) => apiRequest(`/documents/${id}`),
   deleteDocument: (id) => apiRequest(`/documents/${id}`, { method: 'DELETE' }),
   downloadDocument: async (id, filename) => {

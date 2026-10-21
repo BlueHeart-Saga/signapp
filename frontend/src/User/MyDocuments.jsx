@@ -119,7 +119,7 @@ import DocumentViewerModal from "../components/DocumentViewerModal";
 import SignedPreviewModal from "../components/SignedPreviewModal";
 import TimelineDrawer from "../components/TimelineDrawer";
 import StatusChip from "../components/StatusChip";
-import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged, getDocumentStatus, touchDocument } from "../services/DocumentAPI";
+import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged, getDocumentStatus, touchDocument, getDocument } from "../services/DocumentAPI";
 import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
@@ -672,11 +672,31 @@ export default function MyDocuments() {
       setUploadProgress(100);
       setProcessingMsg(`Complete! Created envelope with ${totalFiles} documents.`);
 
-      // Fetch the final document info
-      const finalDocRes = await getDocumentsPaged(1, 10, filters.status);
-      const newDoc = finalDocRes.documents?.find(d => d.id === createdDocId);
+      // Fetch the final document info directly by ID
+      let newDoc = null;
+      try {
+        newDoc = await getDocument(createdDocId);
+      } catch (fetchErr) {
+        console.warn("Could not fetch batch document by ID, using local metadata:", fetchErr);
+      }
 
-      setUploadedDocument(newDoc || { id: createdDocId, filename: filesToUpload[0].name });
+      const totalBatchSize = filesToUpload.reduce((sum, f) => sum + (f.size || 0), 0);
+      const docPayload = {
+        id: createdDocId,
+        filename: newDoc?.filename || filesToUpload[0]?.name || "Untitled",
+        size: (newDoc?.size && Number(newDoc.size) > 0) ? Number(newDoc.size) : totalBatchSize,
+        mime_type: newDoc?.mime_type || filesToUpload[0]?.type || "application/pdf",
+        page_count: newDoc?.page_count || totalFiles,
+        file_count: totalFiles,
+        status: newDoc?.status || "draft",
+        ...(newDoc || {}),
+        id: createdDocId,
+        filename: newDoc?.filename || filesToUpload[0]?.name || "Untitled",
+        size: (newDoc?.size && Number(newDoc.size) > 0) ? Number(newDoc.size) : totalBatchSize,
+        mime_type: newDoc?.mime_type || filesToUpload[0]?.type || "application/pdf",
+      };
+
+      setUploadedDocument(docPayload);
       setShowSuccessDialog(true);
       setSnackbar({
         open: true,
@@ -791,11 +811,37 @@ export default function MyDocuments() {
       setUploadProgress(100);
       setProcessingMsg("Complete!");
 
-      // Fetch the final document data
-      const finalDocRes = await getDocumentsPaged(1, 10, filters.status);
-      const newDoc = finalDocRes.documents.find(d => d.id === docId);
+      // Fetch the final document data directly by ID with fallback to uploaded file metadata
+      let newDoc = null;
+      try {
+        newDoc = await getDocument(docId);
+      } catch (fetchErr) {
+        console.warn("Could not fetch document by ID, using local metadata:", fetchErr);
+      }
 
-      setUploadedDocument(newDoc || { id: docId });
+      const docPayload = {
+        id: docId,
+        filename: newDoc?.filename || res?.document?.filename || uploadFile?.name || "Untitled",
+        size: (newDoc?.size && Number(newDoc.size) > 0)
+          ? Number(newDoc.size)
+          : ((res?.document?.size && Number(res.document.size) > 0)
+            ? Number(res.document.size)
+            : (uploadFile?.size || 0)),
+        mime_type: newDoc?.mime_type || res?.document?.mime_type || uploadFile?.type || "application/pdf",
+        page_count: newDoc?.page_count || res?.document?.page_count || 1,
+        status: newDoc?.status || "draft",
+        ...(newDoc || {}),
+        id: docId,
+        filename: newDoc?.filename || res?.document?.filename || uploadFile?.name || "Untitled",
+        size: (newDoc?.size && Number(newDoc.size) > 0)
+          ? Number(newDoc.size)
+          : ((res?.document?.size && Number(res.document.size) > 0)
+            ? Number(res.document.size)
+            : (uploadFile?.size || 0)),
+        mime_type: newDoc?.mime_type || res?.document?.mime_type || uploadFile?.type || "application/pdf",
+      };
+
+      setUploadedDocument(docPayload);
       setShowSuccessDialog(true);
       setSnackbar({ open: true, message: "Document uploaded successfully", severity: "success" });
       loadDocs();
@@ -4539,7 +4585,8 @@ export default function MyDocuments() {
                 <span className="text-slate-400 mr-2 font-medium">:</span>
                 <div className="flex-1 min-w-0">
                   <FilenameDisplay
-                    filename={uploadedDocument?.filename || 'Untitled'}
+                    filename={uploadedDocument?.filename || uploadedDocument?.name || file?.name || 'Untitled'}
+                    maxLength={45}
                     sx={{ fontWeight: 600, color: '#0f172a' }}
                   />
                 </div>
@@ -4549,11 +4596,19 @@ export default function MyDocuments() {
                 <span className="text-slate-500 font-medium min-w-[120px] shrink-0">File Type</span>
                 <span className="text-slate-400 mr-2 font-medium">:</span>
                 <span className="text-slate-900 font-semibold flex-1">
-                  {uploadedDocument?.mime_type
-                    ? (uploadedDocument.mime_type.split('/').pop()?.toUpperCase() ||
-                      uploadedDocument.filename?.split('.').pop()?.toUpperCase() ||
-                      "FILE")
-                    : uploadedDocument?.filename?.split('.').pop()?.toUpperCase() || "FILE"}
+                  {(() => {
+                    const fname = uploadedDocument?.filename || uploadedDocument?.name || file?.name || "";
+                    const ext = fname.includes('.') ? fname.split('.').pop()?.toUpperCase() : "";
+                    if (ext && ext.length <= 5) return ext;
+                    const mime = (uploadedDocument?.mime_type || uploadedDocument?.type || file?.type || "").toLowerCase();
+                    if (mime.includes("pdf")) return "PDF";
+                    if (mime.includes("word") || mime.includes("officedocument.word")) return "DOCX";
+                    if (mime.includes("presentation") || mime.includes("powerpoint")) return "PPTX";
+                    if (mime.includes("sheet") || mime.includes("excel")) return "XLSX";
+                    if (mime.includes("image/png")) return "PNG";
+                    if (mime.includes("image/jpeg") || mime.includes("image/jpg")) return "JPG";
+                    return ext || "PDF";
+                  })()}
                 </span>
               </div>
 
@@ -4561,13 +4616,36 @@ export default function MyDocuments() {
                 <span className="text-slate-500 font-medium min-w-[120px] shrink-0">File Size</span>
                 <span className="text-slate-400 mr-2 font-medium">:</span>
                 <span className="text-slate-900 font-semibold flex-1">
-                  {uploadedDocument?.size
-                    ? uploadedDocument.size > 1024 * 1024
-                      ? `${(uploadedDocument.size / 1024 / 1024).toFixed(2)} MB`
-                      : `${Math.round(uploadedDocument.size / 1024)} KB`
-                    : "—"}
+                  {(() => {
+                    const rawSize = uploadedDocument?.size ?? file?.size;
+                    const num = Number(rawSize);
+                    if (!num || isNaN(num) || num <= 0) return "—";
+                    if (num < 1024) return `${num} B`;
+                    if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
+                    return `${(num / (1024 * 1024)).toFixed(2)} MB`;
+                  })()}
                 </span>
               </div>
+
+              {uploadedDocument?.page_count ? (
+                <div className="flex items-center py-2 text-sm border-t border-slate-200/70">
+                  <span className="text-slate-500 font-medium min-w-[120px] shrink-0">Total Pages</span>
+                  <span className="text-slate-400 mr-2 font-medium">:</span>
+                  <span className="text-slate-900 font-semibold flex-1">
+                    {uploadedDocument.page_count} {uploadedDocument.page_count === 1 ? 'page' : 'pages'}
+                  </span>
+                </div>
+              ) : null}
+
+              {uploadedDocument?.file_count && uploadedDocument.file_count > 1 ? (
+                <div className="flex items-center py-2 text-sm border-t border-slate-200/70">
+                  <span className="text-slate-500 font-medium min-w-[120px] shrink-0">Envelope Files</span>
+                  <span className="text-slate-400 mr-2 font-medium">:</span>
+                  <span className="text-slate-900 font-semibold flex-1">
+                    {uploadedDocument.file_count} documents merged
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
         </DialogContent>
@@ -4597,12 +4675,15 @@ export default function MyDocuments() {
           <Button
             variant="contained"
             onClick={() => {
-              navigate(`/user/prepare-send/${uploadedDocument.id}`, {
-                state: {
-                  document: uploadedDocument,
-                  fromUpload: true,
-                },
-              });
+              const targetDocId = uploadedDocument?.id || uploadedDocument?._id;
+              if (targetDocId) {
+                navigate(`/user/prepare-send/${targetDocId}`, {
+                  state: {
+                    document: uploadedDocument,
+                    fromUpload: true,
+                  },
+                });
+              }
               setShowSuccessDialog(false);
               setUploadedDocument(null);
             }}
