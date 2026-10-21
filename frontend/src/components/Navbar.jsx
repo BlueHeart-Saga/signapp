@@ -387,14 +387,28 @@ const formatRelativeDate = (dateString) => {
   }
 };
 
-// Resolve avatar image from user object (handling Google profile URLs, base64 data, etc.)
+// Resolve avatar image from user object (handling Google profile URLs, base64 data, blob URLs, etc.)
 const resolveAvatarSrc = (usr) => {
   if (!usr) return null;
   const pic = usr.profile_picture || usr.profile_image || usr.picture || usr.avatar_url || usr.photo_url || usr.avatar;
   if (!pic) return null;
-  if (typeof pic === "string") return pic;
+  if (typeof pic === "string") {
+    const trimmed = pic.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("data:") || trimmed.startsWith("http:") || trimmed.startsWith("https:") || trimmed.startsWith("blob:")) {
+      return trimmed;
+    }
+    // If raw base64 string
+    return `data:image/jpeg;base64,${trimmed}`;
+  }
   if (pic?.data) {
-    return `data:${pic.content_type || 'image/jpeg'};base64,${pic.data}`;
+    const b64 = typeof pic.data === "string" ? pic.data.trim() : "";
+    if (!b64) return null;
+    if (b64.startsWith("data:")) return b64;
+    return `data:${pic.content_type || 'image/jpeg'};base64,${b64}`;
+  }
+  if (typeof Blob !== "undefined" && pic instanceof Blob) {
+    return URL.createObjectURL(pic);
   }
   return null;
 };
@@ -752,7 +766,41 @@ const Navbar = ({ toggleSidebar }) => {
     };
   }, []);
 
-  const userRole = currentUser?.role || getUserRole();
+  // Listen to cross-tab / storage updates
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "user" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setCurrentUser(parsed);
+          setAvatarError(false);
+        } catch (err) {}
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // Merge live authUser and broadcast-driven currentUser to guarantee fresh profile attributes
+  const activeUser = useMemo(() => {
+    const base = authUser || {};
+    const live = currentUser || {};
+    const merged = { ...base, ...live };
+
+    // Support explicit photo removal
+    if (live.profile_picture === null || live.profile_picture === "") {
+      merged.profile_picture = null;
+      merged.profile_image = null;
+      merged.picture = null;
+      merged.avatar_url = null;
+      merged.photo_url = null;
+      merged.avatar = null;
+    }
+
+    return merged;
+  }, [authUser, currentUser]);
+
+  const userRole = activeUser?.role || currentUser?.role || getUserRole();
 
   // Live document search effect
   useEffect(() => {
@@ -857,7 +905,31 @@ const Navbar = ({ toggleSidebar }) => {
     inputRef.current?.focus();
   }, []);
 
-  const avatarSrc = resolveAvatarSrc(currentUser);
+  const avatarSrc = useMemo(() => resolveAvatarSrc(activeUser), [activeUser]);
+
+  // Reset avatar error whenever avatarSrc changes so new photo is immediately visible
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarSrc]);
+
+  // Comprehensive fallback name resolution
+  const displayName = useMemo(() => {
+    return (
+      activeUser?.full_name ||
+      `${activeUser?.first_name || ""} ${activeUser?.last_name || ""}`.trim() ||
+      activeUser?.name ||
+      activeUser?.username ||
+      activeUser?.email ||
+      "Esigniva User"
+    );
+  }, [activeUser]);
+
+  const displayInitial = useMemo(() => {
+    if (displayName && displayName !== "Esigniva User") {
+      return displayName.charAt(0).toUpperCase();
+    }
+    return (activeUser?.email || "U").charAt(0).toUpperCase();
+  }, [displayName, activeUser]);
 
   return (
     <header className="signapp-navbar">
@@ -966,30 +1038,23 @@ const Navbar = ({ toggleSidebar }) => {
           >
             {avatarSrc && !avatarError ? (
               <img
+                key={avatarSrc ? `${avatarSrc.slice(0, 50)}_${activeUser?.updated_at || ''}` : 'no-avatar'}
                 src={avatarSrc}
                 className="signapp-navbar-avatar"
-                alt="profile"
+                alt={displayName}
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarError(true)}
               />
             ) : (
               <div className="signapp-navbar-avatar-fallback">
-                {currentUser?.full_name ? (
-                  <span className="signapp-avatar-initial">
-                    {currentUser.full_name.charAt(0).toUpperCase()}
-                  </span>
-                ) : currentUser?.email ? (
-                  <span className="signapp-avatar-initial">
-                    {currentUser.email.charAt(0).toUpperCase()}
-                  </span>
-                ) : (
-                  <User size={18} />
-                )}
+                <span className="signapp-avatar-initial">
+                  {displayInitial}
+                </span>
               </div>
             )}
 
             <span className="signapp-navbar-username desktop-only">
-              {currentUser?.full_name || currentUser?.email || "Esigniva User"}
+              {displayName}
             </span>
           </div>
         </div>

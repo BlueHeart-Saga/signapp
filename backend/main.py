@@ -103,9 +103,18 @@ async def lifespan(app: FastAPI):
         await db.recipients.create_index([("signing_token_hash", 1)], unique=True)
         await db.audit_logs.create_index([("document_id", 1), ("created_at", 1)])
         await db.notifications.create_index([("user_id", 1), ("read", 1), ("created_at", -1)])
-        await db.jobs.create_index([("status", 1), ("scheduled_at", 1)])
-        await db.jobs.create_index("idempotency_key", unique=True, sparse=True)
-        print("[SERVER] Database indexes initialized successfully.")
+        await db.document_files.create_index([("document_id", 1), ("order", 1)])
+        await db.signature_fields.create_index([("document_id", 1), ("page", 1)])
+        await db.signature_fields.create_index([("document_id", 1), ("recipient_id", 1)])
+        await db.documents.create_index([("envelope_id", 1)], sparse=True)
+        await db.documents.create_index([("status", 1), ("created_at", -1)])
+        
+        # Populate updated_at for existing documents if missing
+        await db.documents.update_many(
+            {"updated_at": {"$exists": False}},
+            [{"$set": {"updated_at": {"$ifNull": ["$uploaded_at", "$created_at", datetime.utcnow()]}}}]
+        )
+        print("[SERVER] Database indexes and updated_at migration initialized successfully.")
     except Exception as index_err:
         print(f"[SERVER] Database index initialization notice: {index_err}")
 

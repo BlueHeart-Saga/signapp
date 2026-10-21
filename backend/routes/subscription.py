@@ -6,12 +6,14 @@ from datetime import datetime, timedelta
 from enum import Enum
 from bson import ObjectId
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, status, Request
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, status, Request, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict, ValidationInfo
 
 from database import db, get_collection
 from routes.auth import get_current_user
 from services.credit_service import CreditService
+from services.invoice_service import InvoiceService
 
 # Initialize Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -763,6 +765,30 @@ async def create_subscription(
                 stripe_payment_intent_id=request.payment_method_id,
                 metadata={"stripe_subscription_id": stripe_subscription_id}
             )
+
+            # Create official persistent invoice in database
+            try:
+                plan_name = PLAN_CONFIG[request.plan_type]["name"]
+                await InvoiceService.create_invoice(
+                    user_email=user_email,
+                    user_id=str(user.get("id") or user.get("_id") or ""),
+                    items=[{
+                        "description": f"ESigniva {plan_name} Subscription",
+                        "sub_description": f"{plan_credits} Monthly Signing Credits • Non-expiring cloud balance",
+                        "quantity": 1,
+                        "unit_price": f"${final_price:.2f}",
+                        "amount": f"${final_price:.2f}"
+                    }],
+                    subtotal=final_price,
+                    tax_amount=0.0,
+                    total_amount=final_price,
+                    payment_reference=transaction_id or subscription_id,
+                    payment_method="Stripe",
+                    status="PAID",
+                    metadata={"plan_type": request.plan_type.value, "subscription_id": subscription_id}
+                )
+            except Exception as inv_err:
+                logger.error(f"Failed to create subscription invoice: {inv_err}")
         
         # Update user document
         await update_user_subscription_status(
@@ -1623,9 +1649,9 @@ class BillingInfoModel(BaseModel):
 
 class SavedCardModel(BaseModel):
     brand: str = "Visa"
-    last4: str = "4242"
-    exp_month: str = "12"
-    exp_year: str = "2028"
+    last4: str
+    exp_month: str
+    exp_year: str
     is_default: bool = False
     cardholder_name: Optional[str] = ""
 
@@ -1642,10 +1668,10 @@ async def get_billing_info(current_user: dict = Depends(get_current_user)):
             "billing_email": user_email,
             "secondary_email": "",
             "phone": (user or {}).get("phone", ""),
-            "address": "100 Enterprise Way",
-            "city": "San Francisco",
-            "state": "CA",
-            "zip": "94107",
+            "address": "",
+            "city": "",
+            "state": "",
+            "zip": "",
             "country": "United States"
         }
     return billing
@@ -1666,13 +1692,11 @@ async def get_payment_methods(current_user: dict = Depends(get_current_user)):
     user_email = current_user.get("email")
     user = await db_find_one(users_collection, {"email": user_email})
     cards = (user or {}).get("saved_cards", [])
-    if not cards:
-        cards = [
-            {"id": "pm_1", "brand": "Visa", "last4": "4242", "expMonth": "12", "expYear": "2028", "isDefault": True, "cardholderName": (user or {}).get("full_name", "Primary Account")},
-            {"id": "pm_2", "brand": "Mastercard", "last4": "8821", "expMonth": "08", "expYear": "2027", "isDefault": False, "cardholderName": "Corporate Expense Card"}
-        ]
-        await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": cards}})
-    return cards
+    # Filter out dummy sample cards (pm_1, pm_2) if they were previously seeded
+    real_cards = [c for c in cards if c.get("id") not in ("pm_1", "pm_2")]
+    if len(real_cards) != len(cards):
+        await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": real_cards}})
+    return real_cards
 
 @router.post("/payment-methods")
 async def add_payment_method(card: SavedCardModel, current_user: dict = Depends(get_current_user)):
@@ -1720,4 +1744,58 @@ async def delete_payment_method(card_id: str, current_user: dict = Depends(get_c
         new_cards[0]["isDefault"] = True
 
     await db_update_one(users_collection, {"email": user_email}, {"$set": {"saved_cards": new_cards}})
-    return {"success": True, "message": "Payment method deleted successfully", "cards": new_cards}
+    return {"success": True, "message": "Payment method deleted successfully", "cards": new_cards}
+
+# ============================================
+# INVOICE MANAGEMENT ENDPOINTS
+# ============================================
+
+@router.get("/invoices")
+async def get_user_invoices_endpoint(current_user: dict = Depends(get_current_user)):
+    """Fetch all official invoices for the current user, auto-backfilling past transactions"""
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    invoices = await InvoiceService.get_user_invoices(user_email, auto_backfill=True)
+    return {"success": True, "invoices": invoices, "total": len(invoices)}
+
+@router.get("/invoices/{invoice_id}")
+async def get_single_invoice_endpoint(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Get full details of a specific invoice"""
+    user_email = current_user.get("email")
+    invoice = await InvoiceService.get_invoice_by_id(invoice_id, user_email=user_email)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"success": True, "invoice": invoice}
+
+@router.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf_endpoint(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate and stream official A4 PDF invoice directly from backend"""
+    user_email = current_user.get("email")
+    invoice = await InvoiceService.get_invoice_by_id(invoice_id, user_email=user_email)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    pdf_bytes = InvoiceService.generate_invoice_pdf(invoice)
+    inv_num = invoice.get("invoice_number", invoice_id)
+    filename = f"ESigniva_Invoice_{inv_num}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"",
+            "Cache-Control": "no-cache"
+        }
+    )
+
+@router.get("/invoices/{invoice_id}/html")
+async def view_invoice_html_endpoint(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Render responsive, printable HTML invoice matching Stripe/Adobe specifications"""
+    user_email = current_user.get("email")
+    invoice = await InvoiceService.get_invoice_by_id(invoice_id, user_email=user_email)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    html_content = InvoiceService.generate_invoice_html(invoice)
+    return HTMLResponse(content=html_content)

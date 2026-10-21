@@ -28,7 +28,8 @@ import {
   FaFilePdf,
   FaFileImage,
   FaFileWord,
-  FaPlus
+  FaPlus,
+  FaTrash
 } from "react-icons/fa";
 import { AiOutlineFileText } from "react-icons/ai";
 
@@ -97,7 +98,16 @@ import {
   NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
   Clear as ClearIcon,
-  InsertDriveFileOutlined as InsertDriveFileOutlinedIcon
+  CalendarToday as CalendarTodayIcon,
+  DateRange as DateRangeIcon,
+  Event as EventIcon,
+  InsertDriveFileOutlined as InsertDriveFileOutlinedIcon,
+  SwapVert as SwapVertIcon,
+  SortByAlpha as SortByAlphaIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
+  AccessTime as AccessTimeIcon,
+  Check as CheckIcon
 } from "@mui/icons-material";
 import { FaEdit } from "react-icons/fa";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
@@ -109,7 +119,7 @@ import DocumentViewerModal from "../components/DocumentViewerModal";
 import SignedPreviewModal from "../components/SignedPreviewModal";
 import TimelineDrawer from "../components/TimelineDrawer";
 import StatusChip from "../components/StatusChip";
-import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged, getDocumentStatus } from "../services/DocumentAPI";
+import { voidDocument, restoreDocument, softDeleteDocument, viewDocumentUrl, signedPreviewUrl, permanentDeleteDocument, addFileToDocument, getDocumentsPaged, getDocumentStatus, touchDocument } from "../services/DocumentAPI";
 import { setPageTitle } from "../utils/pageTitle";
 // import templatesAPI from "../services/api";
 import UploadPreviewModal from "../components/UploadPreviewModal";
@@ -167,6 +177,10 @@ export default function MyDocuments() {
   const [totalPages, setTotalPages] = useState(0);
   const [mergeDoc, setMergeDoc] = useState(null);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeFiles, setMergeFiles] = useState([]);
+  const [mergeDragOver, setMergeDragOver] = useState(false);
+  const [batchFiles, setBatchFiles] = useState([]);
+  const [batchCurrentIndex, setBatchCurrentIndex] = useState(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -204,7 +218,42 @@ export default function MyDocuments() {
     search: "",
     status: "",
     source: "",
+    startDate: "",
+    endDate: "",
+    sortBy: "last_used", // "name" | "last_used" | "uploaded_at" | "size"
+    sortOrder: "desc",   // "asc" | "desc"
   });
+
+  const getSortLabelShort = (sortBy, sortOrder) => {
+    if (sortBy === "name") return sortOrder === "asc" ? "Name (A-Z)" : "Name (Z-A)";
+    if (sortBy === "uploaded_at") return sortOrder === "asc" ? "Uploaded (Oldest)" : "Uploaded (Newest)";
+    if (sortBy === "size") return sortOrder === "asc" ? "Size (Smallest)" : "Size (Largest)";
+    return sortOrder === "asc" ? "Last Used (Oldest)" : "Last Used";
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes)) return null;
+    const num = Number(bytes);
+    if (num < 1024) return `${num} B`;
+    if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
+    return `${(num / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleTouchDoc = useCallback((docId) => {
+    if (!docId) return;
+    const nowIso = new Date().toISOString();
+    setDocuments((prevDocs) => {
+      const target = prevDocs.find((d) => d.id === docId);
+      if (!target) return prevDocs;
+      const updated = {
+        ...target,
+        updated_at: nowIso,
+        last_accessed_at: nowIso,
+      };
+      return [updated, ...prevDocs.filter((d) => d.id !== docId)];
+    });
+    touchDocument(docId);
+  }, []);
 
   const { user, subscription, logout } = useAuth();
   const [planRestrictionOpen, setPlanRestrictionOpen] = useState(false);
@@ -214,6 +263,7 @@ export default function MyDocuments() {
   const [actionMenuDoc, setActionMenuDoc] = useState(null);
   const [uploadAnchorEl, setUploadAnchorEl] = useState(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [orderAnchorEl, setOrderAnchorEl] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -255,15 +305,18 @@ export default function MyDocuments() {
     }
   }, [location.search]);
 
-  // REMOVED DUMMY INTERVAL for mergeProgress - now using real polling logic below
-
-
-
   // Load user's documents
   const loadDocs = async () => {
     setListLoading(true);
     try {
-      const res = await getDocumentsPaged(currentPage, pageSize, filters.status);
+      const res = await getDocumentsPaged(currentPage, pageSize, filters.status, {
+        search: filters.search,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        source: filters.source,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+      });
       setDocuments(res.documents || []);
       setTotalDocs(res.total || 0);
       setTotalPages(res.total_pages || 0);
@@ -275,8 +328,11 @@ export default function MyDocuments() {
   };
 
   useEffect(() => {
-    loadDocs();
-  }, [currentPage, pageSize, filters.status]);
+    const timer = setTimeout(() => {
+      loadDocs();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [currentPage, pageSize, filters.status, filters.startDate, filters.endDate, filters.source, filters.search, filters.sortBy, filters.sortOrder]);
 
   // =============================================
   // UPLOAD HANDLERS
@@ -292,47 +348,142 @@ export default function MyDocuments() {
   };
 
   const handleFileSelect = (event) => {
-    const selectedFile = event.target.files[0];
-    if (!selectedFile) return;
+    const selectedFiles = Array.from(event.target.files || []);
+    if (event.target) event.target.value = "";
+    if (!selectedFiles.length) return;
 
-    const isDocx = selectedFile.name.toLowerCase().endsWith('.docx');
-
-    if (isDocx) {
-      setFile(selectedFile);
-      handleUpload(selectedFile);
+    if (selectedFiles.length === 1) {
+      const selectedFile = selectedFiles[0];
+      if (selectedFile.size > 25 * 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: `"${selectedFile.name}" exceeds the maximum allowed 25 MB size.`,
+          severity: "error",
+        });
+        return;
+      }
+      const isDocx = selectedFile.name.toLowerCase().endsWith('.docx');
+      if (isDocx) {
+        setFile(selectedFile);
+        handleUpload(selectedFile);
+      } else {
+        setFile(selectedFile);
+        setPreviewFile(selectedFile);
+        setPreviewOpen(true);
+      }
     } else {
-      setFile(selectedFile);
-      setPreviewFile(selectedFile);
-      setPreviewOpen(true);
+      handleBatchUpload(selectedFiles);
     }
   };
 
 
-  const filteredDocuments = documents.filter((doc) => {
-    const search = filters.search.toLowerCase();
+  const filteredDocuments = React.useMemo(() => {
+    let list = [...documents];
 
-    const matchesSearch =
-      !filters.search ||
-      doc.filename?.toLowerCase().includes(search) ||
-      new Date(doc.uploaded_at)
-        .toLocaleDateString()
-        .toLowerCase()
-        .includes(search);
+    // Client-side instant search & date matching
+    if (filters.search) {
+      const s = filters.search.toLowerCase().trim();
+      list = list.filter((doc) => {
+        if (doc.filename?.toLowerCase().includes(s)) return true;
+        if (doc.title?.toLowerCase().includes(s)) return true;
+        if (doc.envelope_id?.toLowerCase().includes(s)) return true;
+        if (doc.owner_email?.toLowerCase().includes(s)) return true;
+        if (doc.status?.toLowerCase().includes(s)) return true;
 
-    const matchesStatus =
-      !filters.status || doc.status === filters.status;
+        // Date search across formatted representations
+        const datesToCheck = [
+          doc.last_accessed_at ? new Date(doc.last_accessed_at) : null,
+          doc.updated_at ? new Date(doc.updated_at) : null,
+          doc.uploaded_at ? new Date(doc.uploaded_at) : null,
+        ].filter(Boolean);
 
-    const matchesSource =
-      !filters.source ||
-      doc.source?.toLowerCase() === filters.source;
+        for (const d of datesToCheck) {
+          if (isNaN(d.getTime())) continue;
+          const localeStr = d.toLocaleDateString().toLowerCase();
+          const isoStr = d.toISOString().toLowerCase();
+          const fullStr = d.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }).toLowerCase();
+          const monthLong = d.toLocaleDateString(undefined, { month: "long" }).toLowerCase();
+          const yearStr = d.getFullYear().toString();
 
-    return matchesSearch && matchesStatus && matchesSource;
-  });
+          if (
+            localeStr.includes(s) ||
+            isoStr.includes(s) ||
+            fullStr.includes(s) ||
+            monthLong.includes(s) ||
+            yearStr.includes(s)
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+
+    if (filters.status && filters.status !== "all") {
+      list = list.filter((doc) => doc.status === filters.status);
+    }
+
+    if (filters.source && filters.source !== "all") {
+      list = list.filter((doc) => doc.source?.toLowerCase() === filters.source.toLowerCase());
+    }
+
+    if (filters.startDate) {
+      const start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      list = list.filter((doc) => {
+        const d = new Date(doc.updated_at || doc.uploaded_at || 0);
+        return !isNaN(d.getTime()) && d >= start;
+      });
+    }
+
+    if (filters.endDate) {
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      list = list.filter((doc) => {
+        const d = new Date(doc.updated_at || doc.uploaded_at || 0);
+        return !isNaN(d.getTime()) && d <= end;
+      });
+    }
+
+    // Dynamic Sorting based on filters.sortBy and filters.sortOrder
+    list.sort((a, b) => {
+      const orderMul = filters.sortOrder === "asc" ? 1 : -1;
+
+      if (filters.sortBy === "name") {
+        const nameA = (a.filename || a.title || "").toLowerCase();
+        const nameB = (b.filename || b.title || "").toLowerCase();
+        return nameA.localeCompare(nameB) * orderMul;
+      }
+
+      if (filters.sortBy === "uploaded_at") {
+        const tA = new Date(a.uploaded_at || 0).getTime();
+        const tB = new Date(b.uploaded_at || 0).getTime();
+        return (tA - tB) * orderMul;
+      }
+
+      if (filters.sortBy === "size") {
+        const sA = Number(a.size || 0);
+        const sB = Number(b.size || 0);
+        return (sA - sB) * orderMul;
+      }
+
+      // Default: "last_used" / "updated_at"
+      const tA = new Date(a.last_accessed_at || a.updated_at || a.uploaded_at || 0).getTime();
+      const tB = new Date(b.last_accessed_at || b.updated_at || b.uploaded_at || 0).getTime();
+      return (tA - tB) * orderMul;
+    });
+
+    return list;
+  }, [documents, filters]);
 
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.search, filters.status, filters.source]);
+  }, [filters.search, filters.status, filters.source, filters.startDate, filters.endDate, filters.sortBy, filters.sortOrder]);
 
 
   // const handleUpload = async (uploadFile = file) => {
@@ -367,11 +518,207 @@ export default function MyDocuments() {
     setLoading(false);
     setUploadProgress(0);
     setProcessingMsg("");
+    setBatchFiles([]);
+    setBatchCurrentIndex(0);
     setSnackbar({ open: true, message: "Upload cancelled by user", severity: "info" });
   }, []);
 
+  const handleBatchUpload = async (filesToUpload) => {
+    if (!filesToUpload || !filesToUpload.length) return;
+
+    if (filesToUpload.length === 1) {
+      handleUpload(filesToUpload[0]);
+      return;
+    }
+
+    for (const f of filesToUpload) {
+      if (f.size > 25 * 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: `"${f.name}" exceeds the maximum allowed 25 MB size.`,
+          severity: "error",
+        });
+        return;
+      }
+    }
+
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
+
+    setLoading(true);
+    setBatchFiles(filesToUpload);
+    setBatchCurrentIndex(0);
+    const totalFiles = filesToUpload.length;
+    let createdDocId = null;
+
+    try {
+      // 1. Upload initial file to create the single document / envelope
+      const firstFile = filesToUpload[0];
+      setFile(firstFile);
+      setUploadProgress(1);
+      setProcessingMsg(`Uploading primary document (1 of ${totalFiles}): ${firstFile.name}...`);
+
+      const res = await uploadDocument(
+        firstFile,
+        (percent) => {
+          if (controller.signal.aborted) return;
+          const mapped = Math.min(85, Math.max(1, Math.round((percent / totalFiles) * 0.85)));
+          setUploadProgress(mapped);
+          setProcessingMsg(`Uploading document 1 of ${totalFiles} (${percent}%): ${firstFile.name}`);
+        },
+        controller.signal
+      );
+
+      if (controller.signal.aborted) return;
+
+      createdDocId = res?.document_id || res?.document?.id;
+      if (!createdDocId) throw new Error("Upload did not return document ID");
+
+      // Wait for primary file initial processing on backend
+      setUploadProgress(Math.round(85 / totalFiles));
+      setProcessingMsg(`Processing primary document (1 of ${totalFiles})...`);
+
+      let isDone = false;
+      let pollCount = 0;
+      const MAX_POLLS = 100;
+
+      while (!isDone && pollCount < MAX_POLLS) {
+        if (controller.signal.aborted) break;
+        pollCount++;
+        await new Promise((r) => setTimeout(r, 600));
+        if (controller.signal.aborted) break;
+
+        try {
+          const statusRes = await getDocumentStatus(createdDocId);
+          if (controller.signal.aborted) break;
+
+          const backendProgress = statusRes.progress || 0;
+          const backendMsg = statusRes.processing_status || "Processing...";
+          const stepSpan = Math.round(100 / totalFiles);
+          const mappedProgress = Math.min(stepSpan, Math.round((backendProgress / 100) * stepSpan));
+          setUploadProgress(Math.max(1, mappedProgress));
+          setProcessingMsg(`Document 1 of ${totalFiles}: ${backendMsg}`);
+
+          if (statusRes.status !== "processing" || backendProgress >= 100) {
+            isDone = true;
+          }
+        } catch (pollErr) {
+          console.error("Primary file status poll err:", pollErr);
+          if (pollCount > 4) isDone = true;
+        }
+      }
+
+      if (controller.signal.aborted) return;
+
+      // 2. Add remaining files to this single document (ref: PrepareSendRecipients add document module)
+      for (let i = 1; i < totalFiles; i++) {
+        if (controller.signal.aborted) break;
+
+        const currentFile = filesToUpload[i];
+        setBatchCurrentIndex(i);
+        setFile(currentFile);
+        const fileStepBase = Math.round((i / totalFiles) * 90);
+        const fileStepSpan = Math.round((1 / totalFiles) * 90);
+
+        setUploadProgress(fileStepBase);
+        setProcessingMsg(`Adding document ${i + 1} of ${totalFiles}: ${currentFile.name}...`);
+
+        await addFileToDocument(
+          createdDocId,
+          currentFile,
+          (percent) => {
+            if (controller.signal.aborted) return;
+            const mapped = fileStepBase + Math.round((percent / 100) * (fileStepSpan * 0.7));
+            setUploadProgress(Math.min(95, mapped));
+            setProcessingMsg(`Uploading document ${i + 1} of ${totalFiles} (${percent}%): ${currentFile.name}`);
+          },
+          controller.signal
+        );
+
+        if (controller.signal.aborted) break;
+
+        // Poll for backend to finish processing and merging this added file
+        let addDone = false;
+        let addPollCount = 0;
+        while (!addDone && addPollCount < MAX_POLLS) {
+          if (controller.signal.aborted) break;
+          addPollCount++;
+          await new Promise((r) => setTimeout(r, 600));
+          if (controller.signal.aborted) break;
+
+          try {
+            const statusRes = await getDocumentStatus(createdDocId);
+            if (controller.signal.aborted) break;
+
+            const backendProgress = statusRes.progress || 0;
+            const backendMsg = statusRes.processing_status || "Merging file...";
+            const mapped = fileStepBase + Math.round((backendProgress / 100) * fileStepSpan);
+            setUploadProgress(Math.min(95, Math.max(fileStepBase, mapped)));
+            setProcessingMsg(`Document ${i + 1} of ${totalFiles}: ${backendMsg}`);
+
+            if (statusRes.status !== "processing" || backendProgress >= 100) {
+              addDone = true;
+            }
+          } catch (pollErr) {
+            console.error("Add file status poll err:", pollErr);
+            if (addPollCount > 4) addDone = true;
+          }
+        }
+      }
+
+      if (controller.signal.aborted) return;
+
+      // 3. Finalization - All files successfully added to the single document!
+      setUploadProgress(100);
+      setProcessingMsg(`Complete! Created envelope with ${totalFiles} documents.`);
+
+      // Fetch the final document info
+      const finalDocRes = await getDocumentsPaged(1, 10, filters.status);
+      const newDoc = finalDocRes.documents?.find(d => d.id === createdDocId);
+
+      setUploadedDocument(newDoc || { id: createdDocId, filename: filesToUpload[0].name });
+      setShowSuccessDialog(true);
+      setSnackbar({
+        open: true,
+        message: `Successfully created document with ${totalFiles} files!`,
+        severity: "success",
+      });
+      loadDocs();
+    } catch (err) {
+      if (err.name === "CanceledError" || err.name === "AbortError" || controller.signal.aborted) {
+        console.log("Upload aborted by user.");
+        return;
+      }
+      console.error("Multi-file document creation error:", err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.detail || err.message || "Failed to create document from files",
+        severity: "error",
+      });
+      loadDocs();
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setUploadProgress(0);
+        setProcessingMsg("");
+        setBatchFiles([]);
+        setBatchCurrentIndex(0);
+        uploadAbortControllerRef.current = null;
+      }
+    }
+  };
+
   const handleUpload = async (uploadFile) => {
     if (!uploadFile) return;
+
+    if (uploadFile.size > 25 * 1024 * 1024) {
+      setSnackbar({
+        open: true,
+        message: `"${uploadFile.name}" exceeds the maximum allowed 25 MB size.`,
+        severity: "error",
+      });
+      return;
+    }
 
     // Create fresh AbortController for this upload session
     const controller = new AbortController();
@@ -512,8 +859,19 @@ export default function MyDocuments() {
       return;
     }
 
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
+    const droppedFiles = Array.from(e.dataTransfer.files || []);
+    if (!droppedFiles.length) return;
+
+    if (droppedFiles.length === 1) {
+      const droppedFile = droppedFiles[0];
+      if (droppedFile.size > 25 * 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: `"${droppedFile.name}" exceeds the maximum allowed 25 MB size.`,
+          severity: "error",
+        });
+        return;
+      }
       const isDocx = droppedFile.name.toLowerCase().endsWith('.docx');
       if (isDocx) {
         setFile(droppedFile);
@@ -523,6 +881,8 @@ export default function MyDocuments() {
         setPreviewFile(droppedFile);
         setPreviewOpen(true);
       }
+    } else {
+      handleBatchUpload(droppedFiles);
     }
   };
 
@@ -921,11 +1281,13 @@ export default function MyDocuments() {
 
   const handleTemplateSelect = async (template) => {
     try {
-      if (!template?.templateId) {
+      const templateId = template?.id || template?.templateId;
+      if (!templateId) {
         throw new Error("templateId is missing");
       }
 
       setLoading(true);
+      const title = template.name || template.title || "Template";
 
       const res = await fetch(`${API_BASE_URL}/documents/from-template`, {
         method: "POST",
@@ -934,8 +1296,8 @@ export default function MyDocuments() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          template_id: template.templateId,
-          title: `Copy of ${template.name}`,
+          template_id: templateId,
+          title: `Copy of ${title}`,
         }),
       });
 
@@ -946,12 +1308,29 @@ export default function MyDocuments() {
         throw new Error(data.detail || "Backend failed");
       }
 
-      console.log("SUCCESS:", data);
       setShowTemplateBrowser(false);
-      loadDocs();
+
+      const newDocId = data.document_id || data.id;
+      if (newDocId) {
+        navigate(`/user/prepare-send/${newDocId}`, {
+          state: {
+            document: {
+              id: newDocId,
+              filename: `${title}.pdf`,
+              title: title,
+              page_count: 1,
+              source: "template"
+            },
+            fromTemplate: true,
+            templateName: title
+          }
+        });
+      } else {
+        loadDocs();
+      }
     } catch (err) {
       console.error("CREATE FROM TEMPLATE ERROR:", err);
-      alert(err.message);
+      alert(err.message || "Failed to create document from template");
     } finally {
       setLoading(false);
     }
@@ -1045,17 +1424,26 @@ export default function MyDocuments() {
 
       const result = await response.json();
 
-      if (result.document) {
-        // Success
-        showAlert.success("Document Created", `A new document copy was created from "${template.name}" successfully.`);
-
-        // Refresh documents
-        loadDocs();
-
-        // Close template browser
+      const newDocId = result.document_id || result.document?.id || result.document?._id;
+      if (newDocId) {
         setShowTemplateBrowser(false);
+        navigate(`/user/prepare-send/${newDocId}`, {
+          state: {
+            document: result.document || {
+              id: newDocId,
+              filename: `${template.name || 'Template'}.pdf`,
+              title: template.name || 'Template',
+              page_count: 1,
+              source: "template"
+            },
+            fromTemplate: true,
+            templateName: template.name
+          }
+        });
       } else {
-        throw new Error("No document created");
+        showAlert.success("Document Created", `A new document copy was created from "${template.name}" successfully.`);
+        loadDocs();
+        setShowTemplateBrowser(false);
       }
 
     } catch (err) {
@@ -1694,12 +2082,31 @@ export default function MyDocuments() {
             alt="Uploading"
             className="w-16 h-16 object-contain mb-3"
           />
+          {batchFiles.length > 1 && (
+            <Box
+              sx={{
+                mb: 1.5,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: "#F0FDFA",
+                border: "1px solid #CCFBF1",
+                borderRadius: "20px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.75,
+              }}
+            >
+              <Typography variant="caption" sx={{ color: "#0F766E", fontWeight: 700 }}>
+                Combining {batchFiles.length} files into 1 document
+              </Typography>
+            </Box>
+          )}
           <Typography
             variant="h6"
             sx={{
               fontWeight: 700,
               color: "#0F172A",
-              fontSize: "1.1rem",
+              fontSize: "1.05rem",
               mb: 0.5,
             }}
           >
@@ -1718,7 +2125,7 @@ export default function MyDocuments() {
             }}
             title={file?.name}
           >
-            {file?.name}
+            {batchFiles.length > 1 ? `File ${batchCurrentIndex + 1} of ${batchFiles.length}: ${file?.name}` : file?.name}
           </Typography>
           <Typography
             variant="h4"
@@ -1765,6 +2172,7 @@ export default function MyDocuments() {
           onChange={handleFileSelect}
           style={{ display: "none" }}
           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          multiple
         />
       </Paper>
 
@@ -2035,209 +2443,668 @@ export default function MyDocuments() {
           </Box>
 
           {/* Controls: Search & Filter */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
-            {/* Search Input */}
-            <TextField
-              size="small"
-              placeholder="Search by file name or date..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#94A3B8", fontSize: 19 }} />
-                  </InputAdornment>
-                ),
-                endAdornment: filters.search ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setFilters({ ...filters, search: "" })}>
-                      <ClearIcon sx={{ fontSize: 16, color: "#94A3B8" }} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-              sx={{
-                width: { xs: "100%", sm: 270 },
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "10px",
-                  bgcolor: "#FFFFFF",
-                  fontSize: "13.5px",
-                  "& fieldset": { borderColor: "#E2E8F0" },
-                  "&:hover fieldset": { borderColor: "#CBD5E1" },
-                  "&.Mui-focused fieldset": { borderColor: "#0F766E", borderWidth: "1.5px" },
-                },
-              }}
-            />
-
-            {/* Filter Popover Trigger */}
-            <Button
-              variant={Boolean(filterAnchorEl) || filters.status || filters.source ? "contained" : "outlined"}
-              size="small"
-              startIcon={<FilterListIcon sx={{ fontSize: 18 }} />}
-              onClick={(e) => setFilterAnchorEl(filterAnchorEl ? null : e.currentTarget)}
-              sx={{
-                borderRadius: "10px",
-                textTransform: "none",
-                fontWeight: 600,
-                fontSize: "13px",
-                px: 2,
-                py: 0.85,
-                whiteSpace: "nowrap",
-                ...(Boolean(filterAnchorEl) || filters.status || filters.source
-                  ? {
-                      bgcolor: "#0F766E",
-                      color: "#FFFFFF",
-                      "&:hover": { bgcolor: "#115E59" },
-                    }
-                  : {
-                      borderColor: "#E2E8F0",
-                      color: "#475569",
-                      bgcolor: "#FFFFFF",
-                      "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
-                    }),
-              }}
-            >
-              Filters
-              {(filters.status || filters.source) && (
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: { xs: "100%", md: "auto" } }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
+              {/* Search Input */}
+              <TextField
+                size="small"
+                placeholder="Search name, date (e.g. 2026, Oct, 10/20), envelope ID…"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: "#94A3B8", fontSize: 19 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: filters.search ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setFilters({ ...filters, search: "" })}>
+                        <ClearIcon sx={{ fontSize: 16, color: "#94A3B8" }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+                sx={{
+                  width: { xs: "100%", sm: 300 },
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "10px",
                     bgcolor: "#FFFFFF",
-                    ml: 1,
-                  }}
-                />
-              )}
-            </Button>
+                    fontSize: "13.5px",
+                    "& fieldset": { borderColor: "#E2E8F0" },
+                    "&:hover fieldset": { borderColor: "#CBD5E1" },
+                    "&.Mui-focused fieldset": { borderColor: "#0F766E", borderWidth: "1.5px" },
+                  },
+                }}
+              />
 
-            {/* Filter Popover Content */}
-            <Popover
-              open={Boolean(filterAnchorEl)}
-              anchorEl={filterAnchorEl}
-              onClose={() => setFilterAnchorEl(null)}
-              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-              transformOrigin={{ vertical: "top", horizontal: "right" }}
-              PaperProps={{
-                elevation: 4,
-                sx: {
-                  borderRadius: "16px",
-                  width: 300,
-                  p: 2.5,
-                  mt: 1,
-                  border: "1px solid #E2E8F0",
-                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                },
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, pb: 1.5, borderBottom: "1px solid #F1F5F9" }}>
-                <Typography sx={{ fontWeight: 700, fontSize: "14px", color: "#1E293B" }}>
-                  Filter Documents
+              {/* Filter Popover Trigger */}
+              <Button
+                variant={Boolean(filterAnchorEl) || filters.status || filters.source || filters.startDate || filters.endDate ? "contained" : "outlined"}
+                size="small"
+                startIcon={<FilterListIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setFilterAnchorEl(filterAnchorEl ? null : e.currentTarget)}
+                sx={{
+                  borderRadius: "10px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  px: 2,
+                  py: 0.85,
+                  whiteSpace: "nowrap",
+                  ...(Boolean(filterAnchorEl) || filters.status || filters.source || filters.startDate || filters.endDate
+                    ? {
+                        bgcolor: "#0F766E",
+                        color: "#FFFFFF",
+                        "&:hover": { bgcolor: "#115E59" },
+                      }
+                    : {
+                        borderColor: "#E2E8F0",
+                        color: "#475569",
+                        bgcolor: "#FFFFFF",
+                        "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
+                      }),
+                }}
+              >
+                Filters
+                {(filters.status || filters.source || filters.startDate || filters.endDate) && (
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      bgcolor: "#FFFFFF",
+                      ml: 1,
+                    }}
+                  />
+                )}
+              </Button>
+
+              {/* Order / Sort Menu Trigger */}
+              <Button
+                variant={filters.sortBy !== "last_used" || filters.sortOrder !== "desc" ? "contained" : "outlined"}
+                size="small"
+                startIcon={<SwapVertIcon sx={{ fontSize: 18 }} />}
+                endIcon={<KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
+                onClick={(e) => setOrderAnchorEl(orderAnchorEl ? null : e.currentTarget)}
+                sx={{
+                  borderRadius: "10px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  px: 1.75,
+                  py: 0.85,
+                  whiteSpace: "nowrap",
+                  ...(filters.sortBy !== "last_used" || filters.sortOrder !== "desc"
+                    ? {
+                        bgcolor: "#0F766E",
+                        color: "#FFFFFF",
+                        "&:hover": { bgcolor: "#115E59" },
+                      }
+                    : {
+                        borderColor: "#E2E8F0",
+                        color: "#475569",
+                        bgcolor: "#FFFFFF",
+                        "&:hover": { borderColor: "#CBD5E1", bgcolor: "#F8FAFC" },
+                      }),
+                }}
+              >
+                Order: {getSortLabelShort(filters.sortBy, filters.sortOrder)}
+              </Button>
+
+              {/* Order Menu Popover */}
+              <Menu
+                anchorEl={orderAnchorEl}
+                open={Boolean(orderAnchorEl)}
+                onClose={() => setOrderAnchorEl(null)}
+                PaperProps={{
+                  elevation: 4,
+                  sx: {
+                    borderRadius: "14px",
+                    minWidth: 250,
+                    py: 1,
+                    mt: 0.5,
+                    border: "1px solid #E2E8F0",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                  },
+                }}
+                transformOrigin={{ horizontal: "right", vertical: "top" }}
+                anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              >
+                <Typography sx={{ px: 2, py: 0.75, fontSize: "11px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Document Order
                 </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => setFilterAnchorEl(null)}
-                  sx={{ color: "#94A3B8", "&:hover": { color: "#1E293B" } }}
-                >
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Box>
 
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2.5 }}>
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                    Status
+                <MenuItem
+                  selected={filters.sortBy === "name" && filters.sortOrder === "asc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "name", sortOrder: "asc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <SortByAlphaIcon fontSize="small" sx={{ color: filters.sortBy === "name" && filters.sortOrder === "asc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Name: A to Z"
+                    secondary="Alphabetical order"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "name" && filters.sortOrder === "asc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "name" && filters.sortOrder === "asc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <MenuItem
+                  selected={filters.sortBy === "name" && filters.sortOrder === "desc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "name", sortOrder: "desc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <SortByAlphaIcon fontSize="small" sx={{ color: filters.sortBy === "name" && filters.sortOrder === "desc" ? "#0F766E" : "inherit", transform: "scaleY(-1)" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Name: Z to A"
+                    secondary="Reverse alphabetical"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "name" && filters.sortOrder === "desc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "name" && filters.sortOrder === "desc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  selected={filters.sortBy === "last_used" && filters.sortOrder === "desc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "last_used", sortOrder: "desc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <AccessTimeIcon fontSize="small" sx={{ color: filters.sortBy === "last_used" && filters.sortOrder === "desc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Last Used: Newest first"
+                    secondary="Recently active / updated"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "last_used" && filters.sortOrder === "desc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "last_used" && filters.sortOrder === "desc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <MenuItem
+                  selected={filters.sortBy === "last_used" && filters.sortOrder === "asc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "last_used", sortOrder: "asc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <AccessTimeIcon fontSize="small" sx={{ color: filters.sortBy === "last_used" && filters.sortOrder === "asc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Last Used: Oldest first"
+                    secondary="Least recently active"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "last_used" && filters.sortOrder === "asc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "last_used" && filters.sortOrder === "asc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  selected={filters.sortBy === "uploaded_at" && filters.sortOrder === "desc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "uploaded_at", sortOrder: "desc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <CalendarTodayIcon fontSize="small" sx={{ color: filters.sortBy === "uploaded_at" && filters.sortOrder === "desc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Uploaded Time: Newest first"
+                    secondary="Recently uploaded files"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "uploaded_at" && filters.sortOrder === "desc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "uploaded_at" && filters.sortOrder === "desc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <MenuItem
+                  selected={filters.sortBy === "uploaded_at" && filters.sortOrder === "asc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "uploaded_at", sortOrder: "asc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <CalendarTodayIcon fontSize="small" sx={{ color: filters.sortBy === "uploaded_at" && filters.sortOrder === "asc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Uploaded Time: Oldest first"
+                    secondary="Oldest upload date"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "uploaded_at" && filters.sortOrder === "asc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "uploaded_at" && filters.sortOrder === "asc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <Divider sx={{ my: 0.5 }} />
+
+                <MenuItem
+                  selected={filters.sortBy === "size" && filters.sortOrder === "desc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "size", sortOrder: "desc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <InsertDriveFileOutlinedIcon fontSize="small" sx={{ color: filters.sortBy === "size" && filters.sortOrder === "desc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="File Size: Largest first"
+                    secondary="Highest file byte size"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "size" && filters.sortOrder === "desc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "size" && filters.sortOrder === "desc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+
+                <MenuItem
+                  selected={filters.sortBy === "size" && filters.sortOrder === "asc"}
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, sortBy: "size", sortOrder: "asc" }));
+                    setOrderAnchorEl(null);
+                  }}
+                  sx={{ fontSize: "13px", py: 1 }}
+                >
+                  <ListItemIcon>
+                    <InsertDriveFileOutlinedIcon fontSize="small" sx={{ color: filters.sortBy === "size" && filters.sortOrder === "asc" ? "#0F766E" : "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="File Size: Smallest first"
+                    secondary="Lowest file byte size"
+                    primaryTypographyProps={{ fontSize: "13px", fontWeight: filters.sortBy === "size" && filters.sortOrder === "asc" ? 700 : 500 }}
+                    secondaryTypographyProps={{ fontSize: "11px" }}
+                  />
+                  {filters.sortBy === "size" && filters.sortOrder === "asc" && <CheckIcon sx={{ fontSize: 16, color: "#0F766E" }} />}
+                </MenuItem>
+              </Menu>
+
+              {/* Filter Popover Content */}
+              <Popover
+                open={Boolean(filterAnchorEl)}
+                anchorEl={filterAnchorEl}
+                onClose={() => setFilterAnchorEl(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                PaperProps={{
+                  elevation: 4,
+                  sx: {
+                    borderRadius: "16px",
+                    width: 330,
+                    p: 2.5,
+                    mt: 1,
+                    border: "1px solid #E2E8F0",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                  },
+                }}
+              >
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, pb: 1.5, borderBottom: "1px solid #F1F5F9" }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: "14px", color: "#1E293B" }}>
+                    Filter Documents
                   </Typography>
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #E2E8F0",
-                      backgroundColor: "#F8FAFC",
-                      fontSize: "13px",
-                      color: "#334155",
-                      outline: "none",
-                      fontWeight: 500,
-                    }}
+                  <IconButton
+                    size="small"
+                    onClick={() => setFilterAnchorEl(null)}
+                    sx={{ color: "#94A3B8", "&:hover": { color: "#1E293B" } }}
                   >
-                    <option value="">All Statuses</option>
-                    <option value="draft">Draft</option>
-                    <option value="sent">Sent</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="declined">Declined</option>
-                    <option value="voided">Voided</option>
-                    <option value="expired">Expired</option>
-                  </select>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
                 </Box>
 
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                    Source
-                  </Typography>
-                  <select
-                    value={filters.source}
-                    onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #E2E8F0",
-                      backgroundColor: "#F8FAFC",
-                      fontSize: "13px",
-                      color: "#334155",
-                      outline: "none",
-                      fontWeight: 500,
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2.5 }}>
+                  {/* Order / Sort Option inside Filter */}
+                  <Box>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
+                      <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                        Order / Sort By
+                      </Typography>
+                      {(filters.sortBy !== "last_used" || filters.sortOrder !== "desc") && (
+                        <Typography
+                          onClick={() => setFilters(prev => ({ ...prev, sortBy: "last_used", sortOrder: "desc" }))}
+                          sx={{ fontSize: "11px", fontWeight: 600, color: "#0F766E", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                        >
+                          Reset Order
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <select
+                      value={`${filters.sortBy || "last_used"}_${filters.sortOrder || "desc"}`}
+                      onChange={(e) => {
+                        const [sb, so] = e.target.value.split("_");
+                        setFilters(prev => ({ ...prev, sortBy: sb, sortOrder: so }));
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid #E2E8F0",
+                        backgroundColor: "#F8FAFC",
+                        fontSize: "13px",
+                        color: "#334155",
+                        outline: "none",
+                        fontWeight: 500,
+                      }}
+                    >
+                      <option value="last_used_desc">Last Used: Newest first (Recently Active)</option>
+                      <option value="last_used_asc">Last Used: Oldest first</option>
+                      <option value="name_asc">Name: A to Z (Alphabetical)</option>
+                      <option value="name_desc">Name: Z to A (Reverse Alphabetical)</option>
+                      <option value="uploaded_at_desc">Uploaded Time: Newest first</option>
+                      <option value="uploaded_at_asc">Uploaded Time: Oldest first</option>
+                      <option value="size_desc">File Size: Largest first</option>
+                      <option value="size_asc">File Size: Smallest first</option>
+                    </select>
+
+                    {/* Quick Sort Chips */}
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                      {[
+                        { label: "A-Z", sb: "name", so: "asc" },
+                        { label: "Z-A", sb: "name", so: "desc" },
+                        { label: "Last Used", sb: "last_used", so: "desc" },
+                        { label: "Uploaded Time", sb: "uploaded_at", so: "desc" },
+                        { label: "File Size", sb: "size", so: "desc" },
+                      ].map((preset, idx) => {
+                        const isSelected = filters.sortBy === preset.sb && filters.sortOrder === preset.so;
+                        return (
+                          <Chip
+                            key={idx}
+                            label={preset.label}
+                            size="small"
+                            onClick={() => setFilters(prev => ({ ...prev, sortBy: preset.sb, sortOrder: preset.so }))}
+                            sx={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              bgcolor: isSelected ? "#0F766E" : "#F1F5F9",
+                              color: isSelected ? "#FFFFFF" : "#475569",
+                              "&:hover": {
+                                bgcolor: isSelected ? "#115E59" : "#E2E8F0",
+                                color: isSelected ? "#FFFFFF" : "#0F766E",
+                              },
+                            }}
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Box>
+
+                  {/* Status Filter */}
+                  <Box>
+                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      Status
+                    </Typography>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid #E2E8F0",
+                        backgroundColor: "#F8FAFC",
+                        fontSize: "13px",
+                        color: "#334155",
+                        outline: "none",
+                        fontWeight: 500,
+                      }}
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="draft">Draft</option>
+                      <option value="sent">Sent</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="declined">Declined</option>
+                      <option value="voided">Voided</option>
+                      <option value="expired">Expired</option>
+                    </select>
+                  </Box>
+
+                  {/* Source Filter */}
+                  <Box>
+                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      Source
+                    </Typography>
+                    <select
+                      value={filters.source}
+                      onChange={(e) => setFilters({ ...filters, source: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid #E2E8F0",
+                        backgroundColor: "#F8FAFC",
+                        fontSize: "13px",
+                        color: "#334155",
+                        outline: "none",
+                        fontWeight: 500,
+                      }}
+                    >
+                      <option value="">All Sources</option>
+                      <option value="local">Local Upload</option>
+                      <option value="google">Google Drive</option>
+                      <option value="dropbox">Dropbox</option>
+                      <option value="onedrive">OneDrive</option>
+                      <option value="box">Box</option>
+                    </select>
+                  </Box>
+
+                  {/* Date Range Picker */}
+                  <Box>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
+                      <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                        Date Range
+                      </Typography>
+                      {(filters.startDate || filters.endDate) && (
+                        <Typography
+                          onClick={() => setFilters(prev => ({ ...prev, startDate: "", endDate: "" }))}
+                          sx={{ fontSize: "11px", fontWeight: 600, color: "#0F766E", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                        >
+                          Clear Date
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Quick Date Presets */}
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1.25 }}>
+                      {[
+                        { label: "Today", days: 0 },
+                        { label: "Last 7 Days", days: 7 },
+                        { label: "Last 30 Days", days: 30 },
+                        { label: "This Month", month: true },
+                      ].map((preset, idx) => {
+                        const handlePreset = () => {
+                          const today = new Date();
+                          const endStr = today.toISOString().split("T")[0];
+                          let startStr = "";
+                          if (preset.days === 0) {
+                            startStr = endStr;
+                          } else if (preset.days) {
+                            const past = new Date();
+                            past.setDate(past.getDate() - preset.days);
+                            startStr = past.toISOString().split("T")[0];
+                          } else if (preset.month) {
+                            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                            startStr = firstDay.toISOString().split("T")[0];
+                          }
+                          setFilters(prev => ({ ...prev, startDate: startStr, endDate: endStr }));
+                        };
+
+                        return (
+                          <Chip
+                            key={idx}
+                            label={preset.label}
+                            size="small"
+                            onClick={handlePreset}
+                            sx={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              bgcolor: "#F1F5F9",
+                              color: "#475569",
+                              "&:hover": { bgcolor: "#E2E8F0", color: "#0F766E" },
+                            }}
+                          />
+                        );
+                      })}
+                    </Box>
+
+                    {/* From & To Date Inputs */}
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: "11px", color: "#64748B", mb: 0.4, fontWeight: 500 }}>
+                          From Date
+                        </Typography>
+                        <input
+                          type="date"
+                          value={filters.startDate || ""}
+                          onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                          style={{
+                            width: "100%",
+                            padding: "6px 8px",
+                            borderRadius: "8px",
+                            border: "1px solid #E2E8F0",
+                            backgroundColor: "#F8FAFC",
+                            fontSize: "12px",
+                            color: "#334155",
+                            outline: "none",
+                            fontWeight: 500,
+                          }}
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: "11px", color: "#64748B", mb: 0.4, fontWeight: 500 }}>
+                          To Date
+                        </Typography>
+                        <input
+                          type="date"
+                          value={filters.endDate || ""}
+                          onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                          style={{
+                            width: "100%",
+                            padding: "6px 8px",
+                            borderRadius: "8px",
+                            border: "1px solid #E2E8F0",
+                            backgroundColor: "#F8FAFC",
+                            fontSize: "12px",
+                            color: "#334155",
+                            outline: "none",
+                            fontWeight: 500,
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
+                  <Button
+                    size="small"
+                    onClick={() => setFilters({ search: "", status: "", source: "", startDate: "", endDate: "", sortBy: "last_used", sortOrder: "desc" })}
+                    sx={{
+                      textTransform: "none",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "#64748B",
+                      "&:hover": { color: "#0F172A", bgcolor: "transparent" },
                     }}
                   >
-                    <option value="">All Sources</option>
-                    <option value="local">Local Upload</option>
-                    <option value="google">Google Drive</option>
-                    <option value="dropbox">Dropbox</option>
-                    <option value="onedrive">OneDrive</option>
-                    <option value="box">Box</option>
-                  </select>
+                    Clear All
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => setFilterAnchorEl(null)}
+                    sx={{
+                      textTransform: "none",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      borderRadius: "8px",
+                      bgcolor: "#0F766E",
+                      "&:hover": { bgcolor: "#115E59" },
+                      px: 2,
+                      py: 0.6,
+                    }}
+                  >
+                    Apply Filters
+                  </Button>
                 </Box>
-              </Box>
+              </Popover>
+            </Box>
 
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
+            {/* Active Filter Badges */}
+            {(filters.status || filters.source || filters.startDate || filters.endDate || filters.sortBy !== "last_used" || filters.sortOrder !== "desc") && (
+              <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mt: 0.5 }}>
+                <Typography sx={{ fontSize: "11.5px", fontWeight: 600, color: "#64748B" }}>
+                  Active:
+                </Typography>
+                {(filters.sortBy !== "last_used" || filters.sortOrder !== "desc") && (
+                  <Chip
+                    icon={<SwapVertIcon sx={{ fontSize: "14px !important", color: "#0F766E !important" }} />}
+                    label={`Order: ${getSortLabelShort(filters.sortBy, filters.sortOrder)}`}
+                    size="small"
+                    onDelete={() => setFilters(prev => ({ ...prev, sortBy: "last_used", sortOrder: "desc" }))}
+                    sx={{ bgcolor: "#CCFBF1", color: "#0F766E", fontWeight: 600, fontSize: "11px", height: "22px" }}
+                  />
+                )}
+                {filters.status && (
+                  <Chip
+                    label={`Status: ${filters.status}`}
+                    size="small"
+                    onDelete={() => setFilters(prev => ({ ...prev, status: "" }))}
+                    sx={{ bgcolor: "#E0F2FE", color: "#0369A1", fontWeight: 600, fontSize: "11px", height: "22px" }}
+                  />
+                )}
+                {filters.source && (
+                  <Chip
+                    label={`Source: ${filters.source}`}
+                    size="small"
+                    onDelete={() => setFilters(prev => ({ ...prev, source: "" }))}
+                    sx={{ bgcolor: "#F3E8FF", color: "#7E22CE", fontWeight: 600, fontSize: "11px", height: "22px" }}
+                  />
+                )}
+                {(filters.startDate || filters.endDate) && (
+                  <Chip
+                    label={`Date: ${filters.startDate || "Start"} → ${filters.endDate || "Present"}`}
+                    size="small"
+                    onDelete={() => setFilters(prev => ({ ...prev, startDate: "", endDate: "" }))}
+                    sx={{ bgcolor: "#CCFBF1", color: "#0F766E", fontWeight: 600, fontSize: "11px", height: "22px" }}
+                  />
+                )}
                 <Button
                   size="small"
-                  onClick={() => setFilters({ search: "", status: "", source: "" })}
-                  sx={{
-                    textTransform: "none",
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                    color: "#64748B",
-                    "&:hover": { color: "#0F172A", bgcolor: "transparent" },
-                  }}
+                  onClick={() => setFilters(prev => ({ ...prev, status: "", source: "", startDate: "", endDate: "", sortBy: "last_used", sortOrder: "desc" }))}
+                  sx={{ textTransform: "none", fontSize: "11px", color: "#94A3B8", p: 0, minWidth: 0, "&:hover": { color: "#EF4444" } }}
                 >
-                  Clear All
-                </Button>
-
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => setFilterAnchorEl(null)}
-                  sx={{
-                    textTransform: "none",
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                    borderRadius: "8px",
-                    bgcolor: "#0F766E",
-                    "&:hover": { bgcolor: "#115E59" },
-                    px: 2,
-                    py: 0.6,
-                  }}
-                >
-                  Apply Filters
+                  Clear filters
                 </Button>
               </Box>
-            </Popover>
+            )}
           </Box>
         </Box>
 
@@ -2372,11 +3239,76 @@ export default function MyDocuments() {
                   <TableCell sx={{ py: 1.75, px: 2.5, width: 60, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
                     S.No
                   </TableCell>
-                  <TableCell sx={{ py: 1.75, px: 3, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
-                    Document Name
+                  <TableCell
+                    onClick={() => {
+                      setFilters(prev => ({
+                        ...prev,
+                        sortBy: "name",
+                        sortOrder: prev.sortBy === "name" && prev.sortOrder === "asc" ? "desc" : "asc"
+                      }));
+                    }}
+                    sx={{
+                      py: 1.75,
+                      px: 3,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: filters.sortBy === "name" ? "#0F766E" : "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      "&:hover": { color: "#0F766E" },
+                    }}
+                  >
+                    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+                      <span>Document Name</span>
+                      {filters.sortBy === "name" ? (
+                        filters.sortOrder === "asc" ? (
+                          <ArrowUpwardIcon sx={{ fontSize: 14 }} />
+                        ) : (
+                          <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                        )
+                      ) : (
+                        <SortByAlphaIcon sx={{ fontSize: 14, opacity: 0.4 }} />
+                      )}
+                    </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
-                    Uploaded On
+                  <TableCell
+                    onClick={() => {
+                      setFilters(prev => {
+                        if (prev.sortBy === "last_used") {
+                          return { ...prev, sortOrder: prev.sortOrder === "desc" ? "asc" : "desc" };
+                        }
+                        return { ...prev, sortBy: "last_used", sortOrder: "desc" };
+                      });
+                    }}
+                    sx={{
+                      py: 1.75,
+                      px: 2.5,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: filters.sortBy === "last_used" || filters.sortBy === "uploaded_at" ? "#0F766E" : "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      "&:hover": { color: "#0F766E" },
+                    }}
+                  >
+                    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+                      <span>Last Active / Uploaded</span>
+                      {filters.sortBy === "last_used" || filters.sortBy === "uploaded_at" ? (
+                        filters.sortOrder === "asc" ? (
+                          <ArrowUpwardIcon sx={{ fontSize: 14 }} />
+                        ) : (
+                          <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                        )
+                      ) : (
+                        <SwapVertIcon sx={{ fontSize: 14, opacity: 0.4 }} />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
                     Source
@@ -2430,6 +3362,7 @@ export default function MyDocuments() {
                               middleTruncate={true}
                               tooltipPlacement="top-start"
                               onClick={() => {
+                                handleTouchDoc(doc.id);
                                 setActiveDocId(doc.id);
                                 setActiveDocument(doc);
                                 setViewerOpen(true);
@@ -2453,27 +3386,39 @@ export default function MyDocuments() {
                               sx={{
                                 fontSize: "12px",
                                 color: "#94A3B8",
-                                textTransform: "uppercase",
                                 fontWeight: 500,
                                 mt: 0.3,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.75,
                               }}
                             >
-                              {doc.filename
-                                ? doc.filename.split(".").pop()
-                                : "DOCUMENT"}
+                              <span style={{ textTransform: "uppercase" }}>
+                                {doc.filename
+                                  ? doc.filename.split(".").pop()
+                                  : "DOCUMENT"}
+                              </span>
+                              {formatFileSize(doc.size) && (
+                                <>
+                                  <span style={{ opacity: 0.5 }}>•</span>
+                                  <span style={{ textTransform: "none" }}>{formatFileSize(doc.size)}</span>
+                                </>
+                              )}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
 
-                      {/* Uploaded On */}
+                      {/* Last Active / Uploaded */}
                       <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
                           <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#1E293B" }}>
-                            {formatted.date}
+                            {doc.updated_at ? formatDate(doc.updated_at).date : formatted.date}
                           </Typography>
-                          <Typography sx={{ fontSize: "11.5px", color: "#94A3B8" }}>
-                            {formatted.time}
+                          <Typography sx={{ fontSize: "11px", color: "#94A3B8" }}>
+                            {doc.updated_at && doc.updated_at !== doc.uploaded_at
+                              ? `Active ${formatDate(doc.updated_at).time}`
+                              : `Uploaded ${formatted.time}`}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -2496,7 +3441,10 @@ export default function MyDocuments() {
                               variant="contained"
                               size="small"
                               endIcon={<SendIcon sx={{ fontSize: 13 }} />}
-                              onClick={() => navigate(`/user/prepare-send/${doc.id}`, { state: { document: doc } })}
+                              onClick={() => {
+                                handleTouchDoc(doc.id);
+                                navigate(`/user/prepare-send/${doc.id}`, { state: { document: doc } });
+                              }}
                               sx={{
                                 bgcolor: "#0F766E",
                                 color: "#FFFFFF",
@@ -2518,6 +3466,7 @@ export default function MyDocuments() {
                               size="small"
                               endIcon={<VisibilityIcon sx={{ fontSize: 13 }} />}
                               onClick={() => {
+                                handleTouchDoc(doc.id);
                                 setActiveDocId(doc.id);
                                 setActiveDocument(doc);
                                 setViewerOpen(true);
@@ -2545,6 +3494,7 @@ export default function MyDocuments() {
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                handleTouchDoc(doc.id);
                                 setActionMenuAnchorEl(e.currentTarget);
                                 setActionMenuDoc(doc);
                               }}
@@ -3109,6 +4059,8 @@ export default function MyDocuments() {
                   const doc = actionMenuDoc;
                   setActionMenuAnchorEl(null);
                   setMergeDoc(doc);
+                  setMergeFiles([]);
+                  setFile(null);
                   setMergeOpen(true);
                 }}
                 sx={{
@@ -3234,29 +4186,31 @@ export default function MyDocuments() {
 
 
 
-      {/* Add or merge file dialog */}
+      {/* Add or merge file dialog (multi-file support matching PrepareSendRecipients add document module) */}
       <Dialog
         open={Boolean(mergeOpen)}
         onClose={() => {
           if (!mergeLoading) {
             setMergeOpen(false);
             setFile(null);
+            setMergeFiles([]);
           }
         }}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: "16px", p: 1 }
+          sx: { borderRadius: "18px", p: 1, maxWidth: { xs: "95vw", sm: 520 } }
         }}
       >
         <DialogTitle sx={{ fontWeight: 700, fontSize: "1.15rem", color: "#1e293b", pb: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Add or merge file</span>
+          <span>Add Documents to Envelope</span>
           <IconButton
             size="small"
             disabled={mergeLoading}
             onClick={() => {
               setMergeOpen(false);
               setFile(null);
+              setMergeFiles([]);
             }}
             sx={{ color: "#64748b" }}
           >
@@ -3266,47 +4220,175 @@ export default function MyDocuments() {
 
         <DialogContent dividers sx={{ borderColor: "#f1f5f9" }}>
           <Typography variant="body2" sx={{ color: "#64748b", mb: 2, display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 0.5, minWidth: 0 }}>
-            <span>The selected file will be appended to</span>
+            <span>Files will be added to:</span>
             <FilenameDisplay filename={mergeDoc?.filename} sx={{ fontWeight: 600, color: "#1e293b" }} />
           </Typography>
 
-          <label className="block border-2 border-dashed border-slate-200 hover:border-[#0f766e] hover:bg-[#f0fdfa] rounded-xl p-6 text-center cursor-pointer transition-all">
+          {/* Multi-file dropzone / selector */}
+          <Box
+            onDragOver={(e) => {
+              e.preventDefault();
+              setMergeDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setMergeDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setMergeDragOver(false);
+              const dropped = Array.from(e.dataTransfer.files || []);
+              if (dropped.length) {
+                setMergeFiles(prev => [...prev, ...dropped]);
+                setFile(dropped[0]);
+              }
+            }}
+            sx={{
+              border: "2px dashed",
+              borderColor: mergeDragOver ? "#0f766e" : "#cbd5e1",
+              bgcolor: mergeDragOver ? "#f0fdfa" : "#f8fafc",
+              borderRadius: "14px",
+              p: 2.5,
+              textAlign: "center",
+              cursor: "pointer",
+              transition: "all 0.2s ease-in-out",
+            }}
+            onClick={() => document.getElementById("merge-multi-file-input")?.click()}
+          >
             <input
+              id="merge-multi-file-input"
               type="file"
               className="hidden"
-              accept=".pdf,.doc,.docx,.png,.jpg"
-              onChange={(e) => setFile(e.target.files[0])}
+              style={{ display: "none" }}
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              multiple
+              onChange={(e) => {
+                const selected = Array.from(e.target.files || []);
+                if (selected.length > 0) {
+                  setMergeFiles(prev => [...prev, ...selected]);
+                  setFile(selected[0]);
+                }
+                e.target.value = "";
+              }}
             />
-            <div className="flex flex-col items-center w-full min-w-0 px-2">
-              <span className="text-sm font-semibold text-slate-700 max-w-full min-w-0">
-                {file ? (
-                  <FilenameDisplay
-                    filename={file.name}
-                    sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155" }}
-                  />
-                ) : (
-                  "Choose a file"
-                )}
-              </span>
-              <span className="text-xs text-slate-400 mt-1">
-                PDF, Word, JPG, PNG
-              </span>
-            </div>
-          </label>
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  bgcolor: "#e0f2fe",
+                  color: "#0284c7",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 20
+                }}
+              >
+                <FiUploadCloud />
+              </Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f172a" }}>
+                Click or drag documents here
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748b" }}>
+                Supports PDF, Word, and Images (Multi-file support, Max 25MB each)
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* List of selected files */}
+          {mergeFiles.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, px: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: "#1e293b" }}>
+                  {mergeFiles.length} file{mergeFiles.length > 1 ? "s" : ""} selected
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                  Total: {(mergeFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB
+                </Typography>
+              </Box>
+
+              <Box sx={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, pr: 0.5 }}>
+                {mergeFiles.map((f, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      p: 1.25,
+                      bgcolor: "#ffffff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "8px",
+                        bgcolor: f.name.toLowerCase().endsWith(".pdf") ? "#fee2e2" : "#f1f5f9",
+                        color: f.name.toLowerCase().endsWith(".pdf") ? "#dc2626" : "#475569",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 16,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {f.name.toLowerCase().endsWith(".pdf") ? <FaFilePdf /> : <FaFileAlt />}
+                    </Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <FilenameDisplay
+                        filename={f.name}
+                        sx={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", display: "block" }}
+                      />
+                      <Typography variant="caption" sx={{ color: "#64748b" }}>
+                        {(f.size / 1024 / 1024).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                    {!mergeLoading && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updated = mergeFiles.filter((_, i) => i !== idx);
+                          setMergeFiles(updated);
+                          setFile(updated[0] || null);
+                        }}
+                        sx={{ color: "#94a3b8", "&:hover": { color: "#ef4444" } }}
+                        title="Remove file"
+                      >
+                        <FaTrash size={13} />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
 
           {mergeLoading && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="caption" sx={{ color: "#64748b", display: "block", mb: 0.5 }}>
-                {processingMsg || "Processing file..."}
-              </Typography>
+            <Box sx={{ mt: 2.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                <Typography variant="caption" sx={{ color: "#0f766e", fontWeight: 600 }}>
+                  {processingMsg || "Processing documents..."}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#0f766e", fontWeight: 700 }}>
+                  {mergeProgress}%
+                </Typography>
+              </Box>
               <LinearProgress
                 variant="determinate"
                 value={mergeProgress}
                 sx={{
-                  height: 6,
-                  borderRadius: 3,
+                  height: 7,
+                  borderRadius: 3.5,
                   backgroundColor: "#e2e8f0",
-                  "& .MuiLinearProgress-bar": { backgroundColor: "#0f766e" }
+                  "& .MuiLinearProgress-bar": {
+                    background: "linear-gradient(90deg, #34d399, #0f766e)",
+                    borderRadius: 3.5,
+                  }
                 }}
               />
             </Box>
@@ -3319,6 +4401,7 @@ export default function MyDocuments() {
             onClick={() => {
               setMergeOpen(false);
               setFile(null);
+              setMergeFiles([]);
             }}
             disabled={mergeLoading}
             sx={{ textTransform: "none", borderRadius: "8px", color: "#475569", borderColor: "#cbd5e1" }}
@@ -3328,68 +4411,71 @@ export default function MyDocuments() {
 
           <Button
             variant="contained"
-            disabled={!file || mergeLoading}
+            disabled={mergeFiles.length === 0 || mergeLoading}
             onClick={async () => {
-              if (!file) return;
+              if (!mergeDoc || mergeFiles.length === 0) return;
               try {
                 setMergeLoading(true);
                 setMergeProgress(0);
-                setProcessingMsg("Uploading file to server...");
+                const total = mergeFiles.length;
 
-                // 1. Initial Upload (scaled to 0-50%)
-                const res = await addFileToDocument(
-                  mergeDoc.id,
-                  file,
-                  (p) => {
-                    setMergeProgress(p);
-                    if (p >= 50) setProcessingMsg("Transfer complete! Processing merge...");
-                  }
-                );
+                for (let i = 0; i < total; i++) {
+                  const currentF = mergeFiles[i];
+                  setProcessingMsg(`Uploading file ${i + 1} of ${total}: ${currentF.name}...`);
 
-                // 2. Poll for Status (50-100%)
-                let isDone = false;
-                let pollCount = 0;
-                while (!isDone && pollCount < 60) {
-                  pollCount++;
-                  await new Promise(r => setTimeout(r, 1000));
-                  try {
-                    const statusRes = await getDocumentStatus(mergeDoc.id);
-                    const backendProgress = statusRes.progress || 0;
-                    const backendMsg = statusRes.processing_status || "Merging...";
-
-                    // Map backend 25-100 to 50-100
-                    let mappedProgress = 50;
-                    if (backendProgress > 25) {
-                      mappedProgress = 50 + Math.round((backendProgress - 25) * (50 / 75));
+                  await addFileToDocument(
+                    mergeDoc.id,
+                    currentF,
+                    (p) => {
+                      const overall = Math.round(((i + (p / 100)) / total) * 60);
+                      setMergeProgress(overall);
+                      if (p >= 50) setProcessingMsg(`Processing file ${i + 1} of ${total} on server...`);
                     }
+                  );
 
-                    setMergeProgress(Math.min(mappedProgress, 99));
-                    setProcessingMsg(backendMsg);
-
-                    if (statusRes.status !== "processing" || backendProgress >= 100) {
-                      isDone = true;
+                  // Poll backend processing for this file
+                  let attempts = 0;
+                  while (attempts < 40) {
+                    try {
+                      const statusRes = await getDocumentStatus(mergeDoc.id);
+                      if (statusRes.progress) {
+                        const fileProgress = Math.max(60, statusRes.progress);
+                        const mapped = Math.round(((i * 100) + fileProgress) / total);
+                        setMergeProgress(mapped);
+                        if (statusRes.processing_status) {
+                          setProcessingMsg(`File ${i + 1}/${total}: ${statusRes.processing_status}`);
+                        }
+                      }
+                      if (statusRes.progress >= 100 || statusRes.status === "draft") {
+                        break;
+                      }
+                    } catch (e) {
+                      console.warn("Poll err", e);
                     }
-                  } catch (e) {
-                    console.warn("Merge status poll failed", e);
+                    await new Promise(r => setTimeout(r, 600));
+                    attempts++;
                   }
                 }
 
                 setMergeProgress(100);
-                setProcessingMsg("Complete");
+                setProcessingMsg("Complete!");
 
                 setSnackbar({
                   open: true,
-                  message: "File merged successfully",
+                  message: total > 1
+                    ? `Successfully added ${total} documents to envelope!`
+                    : "File added successfully to envelope!",
                   severity: "success",
                 });
 
                 setMergeOpen(false);
                 setFile(null);
+                setMergeFiles([]);
                 loadDocs();
               } catch (err) {
                 setSnackbar({
                   open: true,
-                  message: err.response?.data?.detail || "Merge failed",
+                  message: err.response?.data?.detail || err.message || "Failed to add files",
                   severity: "error",
                 });
               } finally {
@@ -3401,11 +4487,12 @@ export default function MyDocuments() {
             sx={{
               textTransform: "none",
               borderRadius: "8px",
-              backgroundColor: "#0f766e",
-              "&:hover": { backgroundColor: "#115e59" }
+              bgcolor: "#0f766e",
+              fontWeight: 600,
+              "&:hover": { bgcolor: "#115e59" }
             }}
           >
-            {mergeLoading ? "Merging…" : "Merge file"}
+            {mergeFiles.length > 1 ? `Add ${mergeFiles.length} Documents` : "Add Document"}
           </Button>
         </DialogActions>
       </Dialog>

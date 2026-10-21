@@ -1343,6 +1343,17 @@
   background: #f3f4f6;
 }
 
+.doc-header-action:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.doc-header-action:disabled:hover {
+  background: transparent;
+  color: #9ca3af;
+}
+
 /* Icon-only buttons */
 .doc-header-icon-btn {
   display: flex;
@@ -1358,6 +1369,17 @@
 
 .doc-header-icon-btn:hover {
   background: #f3f4f6;
+}
+
+.doc-header-icon-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.doc-header-icon-btn:disabled:hover {
+  background: transparent;
+  color: #9ca3af;
 }
 
 /* Mobile – hide text */

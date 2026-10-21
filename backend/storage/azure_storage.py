@@ -3,6 +3,7 @@ import os
 import uuid
 from typing import Union, BinaryIO
 from .base import StorageProvider
+from .cache import blob_cache
 
 class AzureBlobStorage(StorageProvider):
     def __init__(self):
@@ -12,7 +13,11 @@ class AzureBlobStorage(StorageProvider):
         if not connection_string:
             raise ValueError("AZURE_STORAGE_CONNECTION_STRING not set")
         
-        self.blob_service = BlobServiceClient.from_connection_string(connection_string)
+        self.blob_service = BlobServiceClient.from_connection_string(
+            connection_string,
+            max_single_put_size=4 * 1024 * 1024,
+            max_single_get_size=4 * 1024 * 1024
+        )
         self.container_name = container_name
         
         # Create container if it doesn't exist
@@ -34,25 +39,38 @@ class AzureBlobStorage(StorageProvider):
         content_type = self._get_content_type(filename)
         
         if isinstance(file_data, bytes):
-            blob_client.upload_blob(
-                file_data, 
-                overwrite=True,
-                content_settings=ContentSettings(content_type=content_type)
-            )
+            data_bytes = file_data
         else:
-            blob_client.upload_blob(
-                file_data.read(), 
-                overwrite=True,
-                content_settings=ContentSettings(content_type=content_type)
-            )
+            data_bytes = file_data.read()
+
+        blob_client.upload_blob(
+            data_bytes, 
+            overwrite=True,
+            max_concurrency=4,
+            content_settings=ContentSettings(content_type=content_type)
+        )
+        
+        # Immediately cache uploaded bytes locally for instant subsequent reads
+        blob_cache.put(blob_name, data_bytes)
         
         return blob_name
     
     def download(self, file_identifier: str) -> bytes:
+        # 1. Fast local cache lookup (0ms)
+        cached_data = blob_cache.get(file_identifier)
+        if cached_data is not None:
+            return cached_data
+
+        # 2. Azure high-speed multi-part download
         blob_client = self.container_client.get_blob_client(file_identifier)
-        return blob_client.download_blob().readall()
+        data = blob_client.download_blob(max_concurrency=4).readall()
+        
+        # 3. Cache for instant future reuse
+        blob_cache.put(file_identifier, data)
+        return data
     
     def delete(self, file_identifier: str) -> bool:
+        blob_cache.delete(file_identifier)
         try:
             blob_client = self.container_client.get_blob_client(file_identifier)
             blob_client.delete_blob()

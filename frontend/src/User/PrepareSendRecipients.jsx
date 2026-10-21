@@ -146,26 +146,35 @@ function ZohoFileCard({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(
-    file.filename.replace(/\.pdf$/i, "")
-  );
+  const rawFilename = file?.filename || file?.name || "Document.pdf";
+  const [name, setName] = useState(rawFilename.replace(/\.pdf$/i, ""));
+  const [thumbLoaded, setThumbLoaded] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
+
+  useEffect(() => {
+    setName((file?.filename || file?.name || "Document.pdf").replace(/\.pdf$/i, ""));
+  }, [file?.filename, file?.name]);
 
   const saveRename = async () => {
     if (!name.trim()) return setRenaming(false);
 
-    await fetch(
-      `${API_BASE_URL}/documents/${documentId}/files/${file.id}/rename`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          filename: `${name}.pdf`,
-        }),
-      }
-    );
+    try {
+      await fetch(
+        `${API_BASE_URL}/documents/${documentId}/files/${file.id}/rename`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            filename: `${name}.pdf`,
+          }),
+        }
+      );
+    } catch (err) {
+      console.warn("Rename file error:", err);
+    }
     setRenaming(false);
     onReload();
   };
@@ -174,7 +183,7 @@ function ZohoFileCard({
     setConfirmDialog({
       open: true,
       title: "Delete File?",
-      message: `Are you sure you want to remove "${file.filename}"? This action cannot be undone.`,
+      message: `Are you sure you want to remove "${rawFilename}"? This action cannot be undone.`,
       danger: true,
       confirmText: "Delete",
       onConfirm: async () => {
@@ -205,10 +214,16 @@ function ZohoFileCard({
     return () => window.removeEventListener("click", close);
   }, []);
 
+  const cacheKey = file.updated_at
+    ? new Date(file.updated_at).getTime()
+    : (file.id || file._id || "v1");
+  const thumbUrl = file.thumbnail_url
+    ? `${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}&v=${cacheKey}`
+    : `${API_BASE_URL}/documents/${documentId}/files/${file.id}/thumbnail?token=${localStorage.getItem("token")}&v=${cacheKey}`;
 
   return (
     <div
-      className="zoho-doc-card"
+      className={`zoho-doc-card ${selectedFiles.includes(file.id) ? "selected" : ""}`}
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
@@ -273,19 +288,35 @@ function ZohoFileCard({
         )}
       </div>
 
-
       {/* Thumbnail */}
       <div
         className="zoho-doc-preview"
         onClick={() => onPreview(file.start_page || 1)}
+        title="Click to view document"
       >
+        {!thumbLoaded && !thumbError && (
+          <div className="zoho-doc-thumb-placeholder">
+            <CircularProgress size={24} sx={{ color: "#0d9488" }} />
+          </div>
+        )}
 
-        <img
-          src={`${API_BASE_URL}${file.thumbnail_url}?token=${localStorage.getItem("token")}&v=${file.updated_at ? new Date(file.updated_at).getTime() : (file.id || Date.now())}`}
-          alt={file.filename}
-        />
+        {thumbError ? (
+          <div className="zoho-doc-thumb-fallback">
+            <FaFilePdf className="zoho-doc-fallback-icon" />
+            <span className="zoho-doc-fallback-badge">
+              {file.pages || 1} {(file.pages || 1) === 1 ? "Page" : "Pages"}
+            </span>
+          </div>
+        ) : (
+          <img
+            src={thumbUrl}
+            alt={rawFilename}
+            onLoad={() => setThumbLoaded(true)}
+            onError={() => setThumbError(true)}
+            style={{ display: thumbLoaded ? "block" : "none" }}
+          />
+        )}
       </div>
-
 
       {/* Filename (INLINE RENAME) */}
       <div className="zoho-doc-footer">
@@ -300,7 +331,7 @@ function ZohoFileCard({
         ) : (
           <div onDoubleClick={() => setRenaming(true)} style={{ width: "100%", minWidth: 0 }}>
             <FilenameDisplay
-              filename={file.filename}
+              filename={rawFilename}
               sx={{ fontWeight: 500, fontSize: "13px", color: "#1e293b" }}
             />
           </div>
@@ -320,7 +351,7 @@ function ZohoFileCard({
           setConfirmDialog({
             open: true,
             title: "Replace Document?",
-            message: `Are you sure you want to replace "${file.filename}" with "${selectedFile.name}"? Existing signature fields on this file will be maintained.`,
+            message: `Are you sure you want to replace "${rawFilename}" with "${selectedFile.name}"? Existing signature fields on this file will be maintained.`,
             confirmText: "Replace Now",
             danger: false,
             onConfirm: () => {
@@ -461,10 +492,36 @@ export default function PrepareSendRecipients() {
   const [processingMsg, setProcessingMsg] = useState(""); // Added status message
 
   const [mergeFile, setMergeFile] = useState(null);
+  const [mergeFiles, setMergeFiles] = useState([]);
   const [mergeDoc, setMergeDoc] = useState(null); // Added missing state
   const [activePage, setActivePage] = useState(null);
 
-  const [files, setFiles] = useState([]);
+  const initialFiles = React.useMemo(() => {
+    const locDoc = location.state?.document;
+    if (locDoc?.files && Array.isArray(locDoc.files) && locDoc.files.length > 0) {
+      return locDoc.files;
+    }
+    if (locDoc) {
+      const name = locDoc.filename || locDoc.title || locDoc.name || "Document.pdf";
+      const validFilename = name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
+      const docId = locDoc.id || locDoc._id || documentId;
+      return [{
+        id: docId,
+        filename: validFilename,
+        pages: locDoc.page_count || 1,
+        order: 1,
+        start_page: 1,
+        end_page: locDoc.page_count || 1,
+        page_range: (locDoc.page_count || 1) > 1 ? `Pages 1–${locDoc.page_count || 1}` : "Page 1",
+        thumbnail_url: `/documents/${documentId}/files/${docId}/thumbnail`,
+        isOptimistic: true
+      }];
+    }
+    return [];
+  }, [documentId, location.state]);
+
+  const [files, setFiles] = useState(initialFiles);
+  const [filesLoading, setFilesLoading] = useState(initialFiles.length === 0);
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
@@ -486,6 +543,24 @@ export default function PrepareSendRecipients() {
   const [isCustomReminder, setIsCustomReminder] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const handleExpiryChange = (val) => {
+    const parsed = Math.max(0, parseInt(val) || 0);
+    setExpiryDays(parsed);
+    // If expiry days is set, clamp reminderPeriod to be strictly less than expiryDays
+    if (parsed > 0 && reminderPeriod >= parsed) {
+      setReminderPeriod(Math.max(0, parsed - 1));
+    }
+  };
+
+  const handleReminderChange = (val) => {
+    const parsed = Math.max(0, parseInt(val) || 0);
+    if (expiryDays > 0 && parsed >= expiryDays) {
+      setReminderPeriod(Math.max(0, expiryDays - 1));
+    } else {
+      setReminderPeriod(parsed);
+    }
+  };
 
   const [replaceLoading, setReplaceLoading] = useState(false);
   const [replaceProgress, setReplaceProgress] = useState(0);
@@ -609,9 +684,14 @@ export default function PrepareSendRecipients() {
         ? document.expiry_days
         : (currentUser.expiry_days || 0);
 
-      const finalReminder = (document.reminder_period !== null && document.reminder_period !== undefined)
+      let finalReminder = (document.reminder_period !== null && document.reminder_period !== undefined)
         ? document.reminder_period
         : (currentUser.reminder_days || 0);
+
+      // Clamp reminder to be less than expiry
+      if (finalExpiry > 0 && finalReminder >= finalExpiry) {
+        finalReminder = Math.max(0, finalExpiry - 1);
+      }
 
       setExpiryDays(finalExpiry);
       setReminderPeriod(finalReminder);
@@ -635,19 +715,45 @@ export default function PrepareSendRecipients() {
     return () => window.removeEventListener("click", close);
   }, []);
 
+  const fetchDocFiles = React.useCallback(async (targetId) => {
+    const docIdToUse = targetId || document?.id || documentId;
+    if (!docIdToUse) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/documents/${docIdToUse}/files`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const serverFiles = Array.isArray(data) ? data : data.files || [];
+        if (serverFiles.length > 0) {
+          setFiles(serverFiles);
+        } else if (document?.filename || document?.title) {
+          const name = document?.filename || document?.title || "Document.pdf";
+          setFiles([{
+            id: docIdToUse,
+            filename: name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`,
+            pages: document?.page_count || 1,
+            order: 1,
+            start_page: 1,
+            end_page: document?.page_count || 1,
+            page_range: "Page 1",
+            thumbnail_url: `/documents/${docIdToUse}/files/${docIdToUse}/thumbnail`
+          }]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load document files:", err);
+    } finally {
+      setFilesLoading(false);
+    }
+  }, [document?.id, document?.filename, document?.title, document?.page_count, documentId]);
+
   useEffect(() => {
-    if (!document?.id) return;
-
-    fetch(`${API_BASE_URL}/documents/${document.id}/files`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        setFiles(Array.isArray(data) ? data : data.files || []);
-      })
-      .catch(console.error);
-
-  }, [document?.id]);      // ⭐ FIXED
+    if (documentId) {
+      fetchDocFiles(documentId);
+    }
+  }, [documentId, fetchDocFiles]);
 
 
 
@@ -744,6 +850,7 @@ export default function PrepareSendRecipients() {
     }
 
     // 👉 Option A: open merge dialog with first file
+    setMergeFiles(valid);
     setMergeFile(valid[0]);
     setMergeOpen(true);
   };
@@ -765,12 +872,16 @@ export default function PrepareSendRecipients() {
     e.stopPropagation();
     setMergeDragActive(false);
 
-    const droppedFiles = Array.from(e.dataTransfer.files);
+    const droppedFiles = Array.from(e.dataTransfer.files || []);
     if (!droppedFiles.length) return;
 
-    const file = droppedFiles[0];
-    if (/\.(pdf|doc|docx|png|jpg|jpeg)$/i.test(file.name)) {
-      setMergeFile(file);
+    const valid = droppedFiles.filter(f =>
+      /\.(pdf|doc|docx|png|jpg|jpeg)$/i.test(f.name)
+    );
+
+    if (valid.length > 0) {
+      setMergeFiles(valid);
+      setMergeFile(valid[0]);
     } else {
       setSnackbar({
         open: true,
@@ -875,13 +986,7 @@ export default function PrepareSendRecipients() {
   };
 
   const reloadFiles = async () => {
-    const res = await fetch(
-      `${API_BASE_URL}/documents/${document.id}/files`,
-      { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-    );
-
-    const data = await res.json();
-    setFiles(Array.isArray(data) ? data : data.files || []);
+    await fetchDocFiles(document?.id || documentId);
   };
 
   const refreshDocument = async () => {
@@ -1584,9 +1689,19 @@ export default function PrepareSendRecipients() {
 
   const saveDocumentSettings = async () => {
     if (!document?.id) return;
+
+    if (expiryDays > 0 && reminderPeriod >= expiryDays) {
+      setSnackbar({
+        open: true,
+        message: `Reminder interval (${reminderPeriod} days) must be less than expiration period (${expiryDays} days).`,
+        severity: "warning",
+      });
+      return;
+    }
+
     setIsSavingSettings(true);
     try {
-      await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
+      const res = await fetch(`${API_BASE_URL}/documents/${document.id}/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -1598,6 +1713,12 @@ export default function PrepareSendRecipients() {
           signing_order_enabled: signingOrderEnabled, // Added for persistence
         }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to update settings");
+      }
+
       setDocument(prev => ({
         ...prev,
         expiry_days: expiryDays,
@@ -1605,8 +1726,18 @@ export default function PrepareSendRecipients() {
         signing_order_enabled: signingOrderEnabled
       }));
       setIsEditingSettings(false);
+      setSnackbar({
+        open: true,
+        message: "Settings updated successfully",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Save settings failed", error);
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to update settings",
+        severity: "error",
+      });
     } finally {
       setIsSavingSettings(false);
     }
@@ -1614,6 +1745,15 @@ export default function PrepareSendRecipients() {
 
   const handleSaveAndContinue = async () => {
     if (!document?.id) return;
+
+    if (document?.status && document.status !== "draft") {
+      setSnackbar({
+        open: true,
+        message: `Editing is disabled: Document has already been ${document.status}.`,
+        severity: "error",
+      });
+      return;
+    }
 
     const rows = getFilledRecipients();
 
@@ -1753,17 +1893,17 @@ export default function PrepareSendRecipients() {
           <div className="docusign-document-details">
             <div className="docusign-doc-title">
               <FaFilePdf />
-              <FilenameDisplay filename={document.filename} maxLength={45} />
+              <FilenameDisplay filename={document?.filename || document?.title || document?.name || files[0]?.filename || "Document"} maxLength={45} />
             </div>
            
 
             
             <div className="docusign-doc-meta">
               <span className="docusign-doc-status">
-                {getStatusBadge(document.status)}
+                {getStatusBadge(document?.status)}
               </span>
               <span className="docusign-doc-date">
-                <FaCalendarAlt /> Uploaded: {formatDate(document.uploaded_at)}
+                <FaCalendarAlt /> Uploaded: {formatDate(document?.uploaded_at)}
               </span>
             </div>
           </div>
@@ -1857,14 +1997,68 @@ export default function PrepareSendRecipients() {
         {/* ===== Add documents (Zoho style) ===== */}
 
 
+        {/* Notice if document is not in draft state */}
+        {document?.status && document.status !== "draft" && (
+          <div style={{
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            color: "#92400e",
+            padding: "14px 20px",
+            borderRadius: "10px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <FaExclamationCircle size={20} color="#d97706" />
+              <div>
+                <strong style={{ display: "block", fontSize: "14px" }}>
+                  Document is {document.status.replace("_", " ").toUpperCase()} (Read-Only)
+                </strong>
+                <span style={{ fontSize: "13px", color: "#b45309" }}>
+                  Editing recipients, files, and settings is disabled for documents that are already sent, completed, or expired.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate(`/user/documents/${document.id}/summary`)}
+              style={{
+                background: "#d97706",
+                color: "#fff",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: "600",
+                fontSize: "13px",
+                whiteSpace: "nowrap"
+              }}
+            >
+              View Document Summary
+            </button>
+          </div>
+        )}
+
         <div className="zoho-add-documents">
           <h3 className="zoho-section-title">Add documents</h3>
 
-          {(!files || files.length === 0) ? (
+          {filesLoading && files.length === 0 ? (
+            <div className="zoho-files-skeleton-container">
+              <div className="zoho-skeleton-card">
+                <div className="zoho-skeleton-preview">
+                  <CircularProgress size={26} sx={{ color: "#0d9488" }} />
+                  <span style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>Loading document...</span>
+                </div>
+                <div className="zoho-skeleton-footer"></div>
+              </div>
+            </div>
+          ) : (!files || files.length === 0) ? (
             <div
               className="zoho-empty-upload-box"
               onClick={() => {
-                if (document.status === "draft") {
+                if (!document?.status || document.status === "draft") {
                   setMergeOpen(true);
                 }
               }}
@@ -1874,7 +2068,7 @@ export default function PrepareSendRecipients() {
                 padding: "36px 24px",
                 textAlign: "center",
                 backgroundColor: "#f8fafc",
-                cursor: document.status === "draft" ? "pointer" : "default",
+                cursor: (!document?.status || document.status === "draft") ? "pointer" : "default",
                 transition: "all 0.2s ease-in-out",
                 marginTop: "16px",
                 display: "flex",
@@ -1908,7 +2102,7 @@ export default function PrepareSendRecipients() {
                   Upload PDF or Word files to include them in this signature request envelope.
                 </p>
               </div>
-              {document.status === "draft" && (
+              {(!document?.status || document.status === "draft") && (
                 <button
                   type="button"
                   className="ds-add-doc-btn"
@@ -1977,12 +2171,12 @@ export default function PrepareSendRecipients() {
                           key={file.id}
                           draggableId={file.id}
                           index={index}
-                          isDragDisabled={document.status !== "draft"}
+                          isDragDisabled={document?.status && document.status !== "draft"}
                         >
                           {(provided) => (
                             <ZohoFileCard
                               file={file}
-                              documentId={document.id}
+                              documentId={document?.id || documentId}
                               provided={provided}
                               onReload={reloadFiles}
                               selectedFiles={selectedFiles}
@@ -2000,7 +2194,7 @@ export default function PrepareSendRecipients() {
 
                       {provided.placeholder}
 
-                      {document.status === "draft" && (
+                      {(!document?.status || document.status === "draft") && (
                         <AddFileCard onClick={() => setMergeOpen(true)} />
                       )}
                     </div>
@@ -2034,17 +2228,22 @@ export default function PrepareSendRecipients() {
         <label>Document Name :</label>
 
         <div style={{ position: "relative", display: "flex", alignItems: "center", maxWidth: "100%", minWidth: 0 }}>
-          <input
-            type="text"
-            value={document.filename.replace(/\.pdf$/i, "")}
-            readOnly
-            title={document.filename}
-            onClick={() => {
-              setNewFilename(document.filename.replace(/\.pdf$/i, ""));
-              setRenameOpen(true);
-            }}
-            style={{ cursor: "pointer", textOverflow: "ellipsis" }}
-          />
+          {(() => {
+            const docDisplayName = (document?.filename || document?.title || document?.name || files[0]?.filename || "Document").replace(/\.pdf$/i, "");
+            return (
+              <input
+                type="text"
+                value={docDisplayName}
+                readOnly
+                title={document?.filename || docDisplayName}
+                onClick={() => {
+                  setNewFilename(docDisplayName);
+                  setRenameOpen(true);
+                }}
+                style={{ cursor: "pointer", textOverflow: "ellipsis" }}
+              />
+            );
+          })()}
         </div>
 
         {/* <button
@@ -2916,7 +3115,7 @@ export default function PrepareSendRecipients() {
                 {!isCustomExpiry ? (
                   <select
                     value={expiryDays}
-                    onChange={(e) => setExpiryDays(Number(e.target.value))}
+                    onChange={(e) => handleExpiryChange(e.target.value)}
                     className="settings-minimal-select"
                   >
                     <option value={0}>Never</option>
@@ -2934,7 +3133,7 @@ export default function PrepareSendRecipients() {
                       min="0"
                       max="365"
                       value={expiryDays}
-                      onChange={(e) => setExpiryDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      onChange={(e) => handleExpiryChange(e.target.value)}
                       className="settings-minimal-input"
                     />
                     <span className="settings-minimal-unit">days</span>
@@ -2955,26 +3154,39 @@ export default function PrepareSendRecipients() {
                 {!isCustomReminder ? (
                   <select
                     value={reminderPeriod}
-                    onChange={(e) => setReminderPeriod(Number(e.target.value))}
+                    onChange={(e) => handleReminderChange(e.target.value)}
                     className="settings-minimal-select"
                   >
-                    <option value={0}>No Reminders</option>
-                    <option value={1}>Daily</option>
-                    <option value={2}>2 Days</option>
-                    <option value={5}>5 Days</option>
-                    <option value={7}>Weekly</option>
-                    <option value={10}>10 Days</option>
-                    <option value={14}>Bi-Weekly</option>
-                    <option value={30}>Monthly</option>
+                    {[
+                      { val: 0, label: "No Reminders" },
+                      { val: 1, label: "Daily (1 Day)" },
+                      { val: 2, label: "2 Days" },
+                      { val: 5, label: "5 Days" },
+                      { val: 7, label: "Weekly (7 Days)" },
+                      { val: 10, label: "10 Days" },
+                      { val: 14, label: "Bi-Weekly (14 Days)" },
+                      { val: 30, label: "Monthly (30 Days)" }
+                    ].map(opt => {
+                      const isDisabled = expiryDays > 0 && opt.val >= expiryDays;
+                      return (
+                        <option
+                          key={opt.val}
+                          value={opt.val}
+                          disabled={isDisabled}
+                        >
+                          {opt.label}{isDisabled ? ` (Disabled: Expiry is ${expiryDays}d)` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 ) : (
                   <div className="settings-minimal-input-container">
                     <input
                       type="number"
                       min="0"
-                      max="90"
+                      max={expiryDays > 0 ? Math.max(0, expiryDays - 1) : 90}
                       value={reminderPeriod}
-                      onChange={(e) => setReminderPeriod(Math.max(0, parseInt(e.target.value) || 0))}
+                      onChange={(e) => handleReminderChange(e.target.value)}
                       className="settings-minimal-input"
                     />
                     <span className="settings-minimal-unit">days</span>
@@ -2988,6 +3200,11 @@ export default function PrepareSendRecipients() {
                   />
                   <span>Set manually</span>
                 </label>
+                {expiryDays > 0 && (
+                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                    * Max reminder interval: {Math.max(0, expiryDays - 1)} {Math.max(0, expiryDays - 1) === 1 ? 'day' : 'days'} (must be less than expiry period)
+                  </span>
+                )}
               </div>
 
               {/* Set signing order removed from here */}
@@ -3052,7 +3269,8 @@ export default function PrepareSendRecipients() {
           <button
             onClick={handleSaveAndContinue}
             className="docusign-btn docusign-btn-primary docusign-btn-large"
-            disabled={!hasTypedRecipients && recipients.length === 0}
+            disabled={(!hasTypedRecipients && recipients.length === 0) || (document?.status && document.status !== "draft")}
+            title={document?.status && document.status !== "draft" ? "Editing is disabled for sent, completed, or expired documents" : ""}
           >
             <FaChevronRight /> Save & Continue
             {/* {recipients.length > 0 && (
@@ -3079,6 +3297,7 @@ export default function PrepareSendRecipients() {
                   onClick={() => {
                     setMergeOpen(false);
                     setMergeFile(null);
+                    setMergeFiles([]);
                     setMergeDoc(null);
                   }}
                 >
@@ -3087,7 +3306,7 @@ export default function PrepareSendRecipients() {
               </div>
 
               <div className="za-add-content">
-                {!mergeFile ? (
+                {(!mergeFile && mergeFiles.length === 0) ? (
                   <label
                     className={`za-dropzone ${mergeDragActive ? "drag-active" : ""}`}
                     onDragOver={handleMergeDragOver}
@@ -3096,8 +3315,15 @@ export default function PrepareSendRecipients() {
                   >
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx,.png,.jpg"
-                      onChange={(e) => setMergeFile(e.target.files[0])}
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      multiple
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.files || []);
+                        if (selected.length > 0) {
+                          setMergeFiles(selected);
+                          setMergeFile(selected[0]);
+                        }
+                      }}
                       hidden
                     />
                     <div className="za-dropzone-inner">
@@ -3106,10 +3332,67 @@ export default function PrepareSendRecipients() {
                         <div className="za-hero-glow"></div>
                       </div>
                       <span className="za-upload-main">Click or drag document here</span>
-                      <p className="za-upload-sub">Supports PDF, Word, and Images (Max 20MB)</p>
+                      <p className="za-upload-sub">Supports PDF, Word, and Images (Multi-file support, Max 25MB)</p>
                       <button className="za-upload-btn">Browse Files</button>
                     </div>
                   </label>
+                ) : mergeFiles.length > 1 ? (
+                  <div className="za-multi-files-selected" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px" }}>
+                      <span style={{ fontWeight: 600, fontSize: "14px", color: "#1e293b" }}>
+                        {mergeFiles.length} files selected
+                      </span>
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>
+                        Total: {(mergeFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
+
+                    <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingRight: "4px" }}>
+                      {mergeFiles.map((f, idx) => (
+                        <div key={idx} className="za-file-selected" style={{ padding: "10px 14px", margin: 0 }}>
+                          <div className="za-selected-info" style={{ width: "100%" }}>
+                            <div className="za-file-icon-box" style={{ width: "32px", height: "32px", fontSize: "15px" }}>
+                              <FaFileAlt />
+                            </div>
+                            <div className="za-file-details" style={{ minWidth: 0, flex: 1 }}>
+                              <FilenameDisplay
+                                filename={f.name}
+                                sx={{ fontWeight: 600, color: "#1e293b", fontSize: "13.5px" }}
+                              />
+                              <span className="za-filesize">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                            {!mergeLoading && (
+                              <button
+                                className="za-remove-selection"
+                                onClick={() => {
+                                  const updated = mergeFiles.filter((_, i) => i !== idx);
+                                  setMergeFiles(updated);
+                                  setMergeFile(updated[0] || null);
+                                }}
+                              >
+                                <FaTrash />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {mergeLoading && (
+                      <div className="za-upload-progress-box" style={{ marginTop: "6px" }}>
+                        <div className="za-progress-label">
+                          <span>{processingMsg || "Processing documents..."}</span>
+                          <span>{mergeProgress}%</span>
+                        </div>
+                        <div className="za-progress-track">
+                          <div
+                            className="za-progress-fill"
+                            style={{ width: `${mergeProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="za-file-selected">
                     <div className="za-selected-info">
@@ -3118,12 +3401,18 @@ export default function PrepareSendRecipients() {
                       </div>
                       <div className="za-file-details" style={{ minWidth: 0, flex: 1 }}>
                         <FilenameDisplay
-                          filename={mergeFile.name}
+                          filename={mergeFile?.name || mergeFiles[0]?.name}
                           sx={{ fontWeight: 600, color: "#1e293b", fontSize: "15px" }}
                         />
-                        <span className="za-filesize">{(mergeFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                        <span className="za-filesize">{(((mergeFile?.size || mergeFiles[0]?.size || 0)) / 1024 / 1024).toFixed(2)} MB</span>
                       </div>
-                      <button className="za-remove-selection" onClick={() => setMergeFile(null)}>
+                      <button
+                        className="za-remove-selection"
+                        onClick={() => {
+                          setMergeFile(null);
+                          setMergeFiles([]);
+                        }}
+                      >
                         <FaTrash />
                       </button>
                     </div>
@@ -3152,6 +3441,7 @@ export default function PrepareSendRecipients() {
                   onClick={() => {
                     setMergeOpen(false);
                     setMergeFile(null);
+                    setMergeFiles([]);
                     setMergeDoc(null);
                   }}
                   disabled={mergeLoading}
@@ -3161,7 +3451,7 @@ export default function PrepareSendRecipients() {
 
                 <button
                   className="za-btn-primary"
-                  disabled={!mergeFile || mergeLoading}
+                  disabled={(!mergeFile && mergeFiles.length === 0) || mergeLoading}
                   onClick={async () => {
                     try {
                       setMergeLoading(true);
@@ -3169,10 +3459,11 @@ export default function PrepareSendRecipients() {
                       setProcessingMsg("Initializing...");
 
                       const docId = documentId;
+                      const filesToProcess = mergeFiles.length > 0 ? mergeFiles : (mergeFile ? [mergeFile] : []);
 
-                      if (mergeDoc) {
+                      if (mergeDoc && filesToProcess.length > 0) {
                         const form = new FormData();
-                        form.append("file", mergeFile);
+                        form.append("file", filesToProcess[0]);
                         const replaceRes = await fetch(
                           `${API_BASE_URL}/documents/${documentId}/files/${mergeDoc.id}/replace`,
                           {
@@ -3188,32 +3479,43 @@ export default function PrepareSendRecipients() {
                           throw new Error(errData.detail || "Replace failed");
                         }
                       } else {
-                        await addFileToDocument(documentId, mergeFile, (p) => {
-                          setMergeProgress(Math.round(p * 0.6));
-                          if (p >= 50) setProcessingMsg("Processing on server...");
-                        });
-                      }
+                        const total = filesToProcess.length;
+                        for (let i = 0; i < total; i++) {
+                          const currentF = filesToProcess[i];
+                          setProcessingMsg(`Uploading file ${i + 1} of ${total}: ${currentF.name}...`);
 
-                      // Wait for backend processing task to finish
-                      let attempts = 0;
-                      while (attempts < 30) {
-                        try {
-                          const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
-                            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-                          }).then(r => r.json());
+                          await addFileToDocument(documentId, currentF, (p) => {
+                            const overall = Math.round(((i + (p / 100)) / total) * 60);
+                            setMergeProgress(overall);
+                            if (p >= 50) setProcessingMsg(`Processing file ${i + 1} of ${total} on server...`);
+                          });
 
-                          if (statusRes.progress) {
-                            setMergeProgress(Math.max(60, statusRes.progress));
-                            if (statusRes.processing_status) setProcessingMsg(statusRes.processing_status);
+                          // Wait for backend processing task to finish for each file
+                          let attempts = 0;
+                          while (attempts < 30) {
+                            try {
+                              const statusRes = await fetch(`${API_BASE_URL}/documents/${docId}/status`, {
+                                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+                              }).then(r => r.json());
+
+                              if (statusRes.progress) {
+                                const fileProgress = Math.max(60, statusRes.progress);
+                                const mapped = Math.round(((i * 100) + fileProgress) / total);
+                                setMergeProgress(mapped);
+                                if (statusRes.processing_status) {
+                                  setProcessingMsg(`File ${i + 1}/${total}: ${statusRes.processing_status}`);
+                                }
+                              }
+                              if (statusRes.progress >= 100 || statusRes.status === "draft") {
+                                break;
+                              }
+                            } catch (e) {
+                              console.warn("Poll err", e);
+                            }
+                            await new Promise(r => setTimeout(r, 600));
+                            attempts++;
                           }
-                          if (statusRes.progress >= 100 || statusRes.status === "draft") {
-                            break;
-                          }
-                        } catch (e) {
-                          console.warn("Poll err", e);
                         }
-                        await new Promise(r => setTimeout(r, 800));
-                        attempts++;
                       }
 
                       setMergeProgress(100);
@@ -3221,7 +3523,11 @@ export default function PrepareSendRecipients() {
 
                       setSnackbar({
                         open: true,
-                        message: mergeDoc ? "File replaced successfully" : "File added successfully",
+                        message: mergeDoc
+                          ? "File replaced successfully"
+                          : (filesToProcess.length > 1
+                              ? `Successfully added and merged ${filesToProcess.length} documents`
+                              : "File added successfully"),
                         severity: "success",
                       });
 
@@ -3229,6 +3535,7 @@ export default function PrepareSendRecipients() {
                       await refreshDocument();
                       setMergeOpen(false);
                       setMergeFile(null);
+                      setMergeFiles([]);
                       setMergeDoc(null);
 
                     } catch (err) {

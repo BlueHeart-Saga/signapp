@@ -19,7 +19,8 @@ import {
   softDeleteDocument,
   permanentDeleteDocument,
   viewDocumentUrl,
-  signedPreviewUrl
+  signedPreviewUrl,
+  getCompleteAnalytics
 } from '../services/DocumentAPI';
 
 // Import MUI components
@@ -58,10 +59,12 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:900
 const token = localStorage.getItem("token");
 
 const UserDashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUser, refreshCredits } = useAuth();
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const [stats, setStats] = useState([]);
   const [activities, setActivities] = useState([]);
   const navigate = useNavigate();
@@ -107,6 +110,10 @@ const UserDashboard = () => {
     contacts: {}
   });
   const [timeRange, setTimeRange] = useState('30');
+  const activeFilterRef = useRef(activeFilter);
+  activeFilterRef.current = activeFilter;
+  const timeRangeRef = useRef(timeRange);
+  timeRangeRef.current = timeRange;
 
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -173,34 +180,57 @@ const UserDashboard = () => {
   const fetchAnalyticsData = useCallback(async (range = timeRange) => {
     setAnalyticsLoading(true);
     try {
-      const { getCompleteAnalytics } = await import('../services/DocumentAPI');
       const daysParam = range === 'all' ? 0 : parseInt(range);
       const completeData = await getCompleteAnalytics(daysParam);
-      setAnalyticsData(completeData);
+      if (completeData) {
+        setAnalyticsData(completeData);
+      }
+      return completeData;
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      return null;
     } finally {
       setAnalyticsLoading(false);
     }
   }, [timeRange]);
 
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
+  const loadDashboardData = useCallback(async (options = {}) => {
+    const isManual = options?.isManual ?? false;
+    const filter = options?.filter ?? activeFilterRef.current;
+    const range = options?.range ?? timeRangeRef.current;
+
+    if (isManual) {
+      setIsRefreshing(true);
+    } else if (stats.length === 0) {
+      setLoading(true);
+    }
+
     try {
-      const [statsData, recentActivities] = await Promise.all([
+      const daysParam = range === 'all' ? 0 : parseInt(range);
+
+      // Fetch stats, recent activities, and analytics in parallel
+      const [statsData, recentActivities, completeAnalytics] = await Promise.all([
         getDocumentStats(),
-        getRecentActivities()
+        getRecentActivities(100, filter && filter !== 'all' ? filter : null),
+        getCompleteAnalytics(daysParam).catch(err => {
+          console.error("Analytics fetch error during dashboard load:", err);
+          return null;
+        })
       ]);
 
+      if (completeAnalytics) {
+        setAnalyticsData(completeAnalytics);
+      }
+
       // Process stats
-      const draft = statsData.draft || 0;
-      const sent = statsData.sent || 0;
-      const inProgress = statsData.in_progress || 0;
-      const completed = statsData.completed || 0;
-      const declined = statsData.declined || 0;
-      const expired = statsData.expired || 0;
-      const voided = statsData.voided || 0;
-      const deletedDocs = statsData.deleted || 0;
+      const draft = statsData?.draft || 0;
+      const sent = statsData?.sent || 0;
+      const inProgress = statsData?.in_progress || 0;
+      const completed = statsData?.completed || 0;
+      const declined = statsData?.declined || 0;
+      const expired = statsData?.expired || 0;
+      const voided = statsData?.voided || 0;
+      const deletedDocs = statsData?.deleted || 0;
 
       // Update stats
       setStats([
@@ -287,7 +317,7 @@ const UserDashboard = () => {
       ]);
 
       // Process activities from real data
-      const processedActivities = recentActivities.map(a => ({
+      const processedActivities = (recentActivities || []).map(a => ({
         id: a.id || a._id,
         title: a.document_name || a.filename || 'Untitled',
         status: a.status,
@@ -302,9 +332,33 @@ const UserDashboard = () => {
 
       setActivities(processedActivities);
 
-      // Fetch analytics data
-      await fetchAnalyticsData();
+      // Refresh user profile & credits in parallel
+      if (typeof refreshUser === 'function') {
+        try {
+          await refreshUser();
+        } catch (uErr) {
+          console.warn("Could not refresh user session during reload:", uErr);
+        }
+      } else if (typeof refreshCredits === 'function') {
+        try {
+          await refreshCredits();
+        } catch (cErr) {
+          console.warn("Could not refresh credits:", cErr);
+        }
+      }
 
+      window.dispatchEvent(new Event("refresh_credits"));
+      window.dispatchEvent(new Event("documents_updated"));
+
+      setLastRefreshedAt(new Date());
+
+      if (isManual) {
+        setSnackbar({
+          open: true,
+          message: 'Dashboard data refreshed successfully',
+          severity: 'success'
+        });
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setSnackbar({
@@ -314,8 +368,14 @@ const UserDashboard = () => {
       });
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [navigate, fetchAnalyticsData]);
+  }, [navigate, refreshUser, refreshCredits]);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    await loadDashboardData({ isManual: true });
+  }, [isRefreshing, loadDashboardData]);
 
   // Helper functions
   const getChangeDisplay = (statusKey, count, statsData) => {
@@ -444,9 +504,10 @@ const UserDashboard = () => {
 
   // Prepare & Send - navigate with document data
   const handlePrepareSend = (documentId, title) => {
+    const filename = (title && title.endsWith('.pdf')) ? title : `${title || 'Document'}.pdf`;
     navigate(`/user/prepare-send/${documentId}`, {
       state: {
-        document: { id: documentId, title }
+        document: { id: documentId, title, filename }
       }
     });
   };
@@ -571,26 +632,58 @@ const UserDashboard = () => {
   const handleTemplateSelect = async (template) => {
     try {
       setLoading(true);
+      const templateId = template?.id || template?.templateId || template?.originalData?.id;
+      const title = template?.name || template?.title || "Template";
 
-      await templatesAPI.createFromTemplate(
-        template.originalData.id,
-        `Copy of ${template.name}`
-      );
+      const res = await fetch(`${API_BASE_URL}/documents/from-template`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          template_id: templateId,
+          title: `Copy of ${title}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to create document from template");
+      }
 
       setSnackbar({
         open: true,
-        message: `Document created successfully from "${template.name}" template!`,
+        message: `Document created successfully from "${title}" template!`,
         severity: "success",
       });
 
-      loadDashboardData();
       setShowTemplateBrowser(false);
+
+      const newDocId = data.document_id || data.id;
+      if (newDocId) {
+        navigate(`/user/prepare-send/${newDocId}`, {
+          state: {
+            document: {
+              id: newDocId,
+              filename: `${title}.pdf`,
+              title: title,
+              page_count: 1,
+              source: "template"
+            },
+            fromTemplate: true,
+            templateName: title
+          }
+        });
+      } else {
+        loadDashboardData();
+      }
 
     } catch (error) {
       console.error('Error creating from template:', error);
       setSnackbar({
         open: true,
-        message: 'Failed to create document from template',
+        message: error.message || 'Failed to create document from template',
         severity: "error",
       });
     } finally {
@@ -703,9 +796,8 @@ const UserDashboard = () => {
 
   // Load real data
   useEffect(() => {
-    loadDashboardData();
-    fetchAnalyticsData(timeRange);
-  }, [timeRange, loadDashboardData, fetchAnalyticsData]);
+    loadDashboardData({ range: timeRange });
+  }, [timeRange, loadDashboardData]);
 
   if (loading && stats.length === 0) {
     return <PageLoadingAnimation message="Loading your dashboard..." size={120} />;
@@ -723,20 +815,27 @@ const UserDashboard = () => {
               </h2>
               <p className="signapp-welcome-subtitle">Here's what's happening with your documents today.</p>
             </div>
-            <div className="signapp-welcome-header">
+            <div className="signapp-welcome-header-actions" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              {lastRefreshedAt && (
+                <span className="ss-last-refreshed-text" title={`Last synced: ${lastRefreshedAt.toLocaleTimeString()}`}>
+                  Updated {lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
 
               <button
-                onClick={loadDashboardData}
-                className="ss-refresh-dashboard-btn"
+                onClick={handleManualRefresh}
+                className={`ss-refresh-dashboard-btn ${isRefreshing ? "refreshing" : ""}`}
+                disabled={isRefreshing}
                 title="Refresh dashboard"
               >
-                <RefreshCw size={16} className="ss-refresh-icon-animate" />
-                Refresh
+                <RefreshCw size={16} className={`ss-refresh-icon-animate ${isRefreshing ? "ss-refreshing-spin" : ""}`} />
+                <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
               </button>
 
               <button
                 onClick={() => setAnalyticsOpen(!analyticsOpen)}
                 className="ss-analytics-toggle-btn"
+                style={{ marginLeft: 0 }}
               >
                 <TrendingUp size={16} />
                 Analytics
@@ -1122,11 +1221,13 @@ const UserDashboard = () => {
                 </div>
                 <div className="ss-ra-header-actions">
                   <button
-                    className="ss-ra-refresh-btn"
-                    onClick={() => loadDashboardData()}
+                    className={`ss-ra-refresh-btn ${isRefreshing ? "refreshing" : ""}`}
+                    onClick={handleManualRefresh}
+                    disabled={isRefreshing}
+                    title="Refresh activities and stats"
                   >
-                    <RefreshCw size={14} />
-                    <span>Refresh</span>
+                    <RefreshCw size={14} className={isRefreshing ? "ss-refreshing-spin" : ""} />
+                    <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
                   </button>
                 </div>
               </div>

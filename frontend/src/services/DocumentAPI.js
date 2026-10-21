@@ -175,16 +175,32 @@ export const getDocuments = async () => {
   return res.data;
 };
 
-export const getDocumentsPaged = async (page = 1, pageSize = 10, status = null) => {
+export const getDocumentsPaged = async (page = 1, pageSize = 10, status = null, options = {}) => {
   const params = new URLSearchParams({
     page,
     page_size: pageSize
   });
 
-  if (status) params.append("status", status);
+  if (status && status !== "all") params.append("status", status);
+  if (options.search) params.append("search", options.search);
+  if (options.startDate) params.append("start_date", options.startDate);
+  if (options.endDate) params.append("end_date", options.endDate);
+  if (options.source && options.source !== "all") params.append("source", options.source);
+  if (options.sortBy) params.append("sort_by", options.sortBy);
+  if (options.sortOrder) params.append("sort_order", options.sortOrder);
 
   const res = await api.get(`/documents/paged?${params.toString()}`);
   return res.data;
+};
+
+// Touch document to bring it to the top of the last used list
+export const touchDocument = async (docId) => {
+  try {
+    const res = await api.post(`/documents/${docId}/touch`);
+    return res.data;
+  } catch (e) {
+    console.warn("touchDocument notice:", e);
+  }
 };
 
 // Get specific document

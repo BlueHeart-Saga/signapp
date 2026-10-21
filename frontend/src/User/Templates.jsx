@@ -372,7 +372,7 @@ import {
   FaFire
 } from 'react-icons/fa';
 import { FaFolder } from "react-icons/fa";
-import { restoreDocument, permanentDeleteDocument, bulkSoftDeleteDocuments, bulkRestoreDocuments, bulkPermanentDeleteDocuments, emptyTrash } from "../services/DocumentAPI";
+import { restoreDocument, permanentDeleteDocument, bulkSoftDeleteDocuments, bulkRestoreDocuments, bulkPermanentDeleteDocuments, emptyTrash, getDocumentsPaged } from "../services/DocumentAPI";
 
 import { documentsAPI } from '../services/api';
 // import { uploadDocument } from '../services/DocumentAPI';
@@ -392,7 +392,6 @@ export default function DocumentsAndTemplates() {
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [documentsError, setDocumentsError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // ============ TEMPLATES STATE ============
   const [templates, setTemplates] = useState([]);
@@ -421,15 +420,6 @@ export default function DocumentsAndTemplates() {
   const [trashDocuments, setTrashDocuments] = useState([]);
   const [trashLoading, setTrashLoading] = useState(false);
 
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    title: "",
-    message: "",
-    confirmText: "",
-    danger: false,
-    onConfirm: null,
-  });
-
   const [selectedDocs, setSelectedDocs] = useState([]);
 
   const [snackbar, setSnackbar] = useState({
@@ -447,13 +437,18 @@ export default function DocumentsAndTemplates() {
 
 
 
-  // Sync activeTab with URL query parameter
+  // Sync activeTab with URL query parameter & load tab data
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     if (tabParam && ['templates', 'documents', 'trash'].includes(tabParam)) {
       setActiveTab(tabParam);
       setSelectedDocs([]); // Clear selection when tab changes
+      if (tabParam === 'trash') {
+        loadTrashDocuments();
+      } else if (tabParam === 'documents') {
+        loadDocuments();
+      }
     }
   }, [location.search]);
 
@@ -463,7 +458,7 @@ export default function DocumentsAndTemplates() {
       setDocumentsLoading(true);
       setDocumentsError('');
       const data = await documentsAPI.getDocuments();
-      setDocuments(data);
+      setDocuments(Array.isArray(data) ? data : (data?.documents || []));
     } catch (err) {
       console.error('Error loading documents:', err);
       setDocumentsError(err.message || 'Failed to load documents');
@@ -473,23 +468,29 @@ export default function DocumentsAndTemplates() {
     }
   }, []);
 
-
   const loadTrashDocuments = useCallback(async () => {
     try {
       setTrashLoading(true);
-      const res = await fetch(
-        `${API_BASE}/documents/paged?status=deleted`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to load trash");
-
-      const data = await res.json();
-      setTrashDocuments(data.documents || []);
+      // Fetch up to 100 items from trash via API service
+      const data = await getDocumentsPaged(1, 100, 'deleted');
+      setTrashDocuments(data?.documents || []);
     } catch (err) {
-      console.error(err);
+      console.warn("getDocumentsPaged failed, attempting fallback fetch:", err);
+      try {
+        const authToken = localStorage.getItem("token") || token;
+        const res = await fetch(
+          `${API_BASE}/documents/paged?status=deleted&page_size=100`,
+          {
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          }
+        );
+        if (res.ok) {
+          const fallbackData = await res.json();
+          setTrashDocuments(fallbackData?.documents || []);
+        }
+      } catch (fallbackErr) {
+        console.error("Trash load fallback error:", fallbackErr);
+      }
     } finally {
       setTrashLoading(false);
     }
@@ -516,101 +517,156 @@ export default function DocumentsAndTemplates() {
   const handleBulkDelete = async () => {
     if (selectedDocs.length === 0) return;
 
-    setConfirmDialog({
-      open: true,
-      title: activeTab === 'trash' ? "Permanently delete selected?" : "Move selected to trash?",
-      message: activeTab === 'trash'
-        ? `Are you sure you want to permanently delete ${selectedDocs.length} documents? This cannot be undone.`
-        : `Are you sure you want to move ${selectedDocs.length} documents to trash?`,
-      confirmText: activeTab === 'trash' ? "Delete Forever" : "Move to Trash",
-      danger: true,
-      onConfirm: async () => {
-        try {
-          if (activeTab === 'trash') {
-            await bulkPermanentDeleteDocuments(selectedDocs);
-            setSnackbar({ open: true, message: "Documents deleted permanently", severity: "success" });
-            loadTrashDocuments();
-          } else {
-            await bulkSoftDeleteDocuments(selectedDocs);
-            setSnackbar({ open: true, message: "Documents moved to trash", severity: "success" });
-            loadDocuments();
-          }
-          setSelectedDocs([]);
-        } catch (err) {
-          setSnackbar({ open: true, message: "Bulk action failed", severity: "error" });
-        }
+    const isTrash = activeTab === 'trash';
+    const count = selectedDocs.length;
+    const result = await showAlert.confirm(
+      isTrash ? "Permanently Delete Selected?" : "Move Selected to Trash?",
+      isTrash
+        ? `Are you sure you want to permanently delete ${count} document(s)? All files, history, and signatures will be erased forever.`
+        : `Are you sure you want to move ${count} document(s) to trash?`,
+      isTrash ? "Yes, Delete Forever" : "Yes, Move to Trash",
+      "Cancel"
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      if (isTrash) {
+        await bulkPermanentDeleteDocuments(selectedDocs);
+        showAlert.toast("success", `${count} document(s) permanently deleted`);
+        setTrashDocuments(prev => prev.filter(d => !selectedDocs.includes(d.id || d._id)));
+        loadTrashDocuments();
+      } else {
+        await bulkSoftDeleteDocuments(selectedDocs);
+        showAlert.toast("success", `${count} document(s) moved to trash`);
+        setDocuments(prev => prev.filter(d => !selectedDocs.includes(d.id || d._id)));
+        loadDocuments();
+        loadTrashDocuments();
       }
-    });
+      setSelectedDocs([]);
+    } catch (err) {
+      showAlert.error("Bulk Action Failed", showAlert.extractMessage(err, "Bulk action failed"));
+    }
   };
 
   const handleBulkRestore = async () => {
     if (selectedDocs.length === 0) return;
+    const count = selectedDocs.length;
+
+    const result = await showAlert.confirm(
+      "Restore Selected Documents?",
+      `Restore ${count} selected document(s) back to your active documents list?`,
+      "Yes, Restore All",
+      "Cancel"
+    );
+
+    if (!result.isConfirmed) return;
 
     try {
       await bulkRestoreDocuments(selectedDocs);
-      setSnackbar({ open: true, message: "Documents restored successfully", severity: "success" });
+      showAlert.toast("success", `${count} document(s) restored successfully!`);
+      setTrashDocuments(prev => prev.filter(d => !selectedDocs.includes(d.id || d._id)));
+      setSelectedDocs([]);
       loadTrashDocuments();
       loadDocuments();
-      setSelectedDocs([]);
     } catch (err) {
-      setSnackbar({ open: true, message: "Restore failed", severity: "error" });
+      showAlert.error("Restore Failed", showAlert.extractMessage(err, "Failed to restore documents"));
     }
   };
 
   const handleEmptyTrash = async () => {
-    setConfirmDialog({
-      open: true,
-      title: "Empty Trash?",
-      message: "Are you sure you want to permanently delete ALL documents in trash? This action cannot be undone.",
-      confirmText: "Empty Trash",
-      danger: true,
-      onConfirm: async () => {
-        try {
-          await emptyTrash();
-          setSnackbar({ open: true, message: "Trash emptied", severity: "success" });
-          loadTrashDocuments();
-          setSelectedDocs([]);
-        } catch (err) {
-          setSnackbar({ open: true, message: "Failed to empty trash", severity: "error" });
-        }
-      }
-    });
+    if (!trashDocuments || trashDocuments.length === 0) {
+      showAlert.info("Trash is Empty", "There are no documents in trash to delete.");
+      return;
+    }
+
+    const result = await showAlert.confirm(
+      "Empty Trash?",
+      "Are you sure you want to permanently delete ALL documents in the trash? All files and audit logs will be permanently erased. This action CANNOT be undone!",
+      "Yes, Empty Trash",
+      "Keep Files"
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await emptyTrash();
+      showAlert.toast("success", "Trash has been completely emptied");
+      setTrashDocuments([]);
+      setSelectedDocs([]);
+      loadTrashDocuments();
+    } catch (err) {
+      showAlert.error("Failed to Empty Trash", showAlert.extractMessage(err, "Failed to empty trash"));
+    }
   };
 
-  const getDeletedDate = (doc) => {
-    const date =
-      doc.deleted_at ||
-      doc.deletedAt ||
-      doc.updated_at ||
-      doc.updatedAt ||
-      doc.created_at ||
-      doc.createdAt;
+  const handleDelete = async (documentId, documentName = "this document") => {
+    const result = await showAlert.confirm(
+      "Move to Trash?",
+      `Are you sure you want to move "${documentName}" to trash? You can restore it anytime from the Trash tab.`,
+      "Yes, Move to Trash",
+      "Keep Document"
+    );
 
-    if (!date) return "—";
+    if (!result.isConfirmed) return;
 
-    const parsed = new Date(date);
-    return isNaN(parsed.getTime())
-      ? "—"
-      : parsed.toLocaleString();
-  };
-
-
-  useEffect(() => {
-    loadTrashDocuments();
-  }, [loadTrashDocuments]);
-
-
-  const handleDelete = async (documentId) => {
     try {
       setDocumentsError('');
       await documentsAPI.deleteDocument(documentId);
-      setDocuments(documents.filter(d => d.id !== documentId));
+      setDocuments(prev => prev.filter(d => (d.id || d._id) !== documentId));
+      setSelectedDocs(prev => prev.filter(id => id !== documentId));
+      showAlert.toast("success", `"${documentName}" moved to trash`);
       loadTrashDocuments();
-      setDeleteConfirm(null);
-      setSnackbar({ open: true, message: "Document moved to trash successfully", severity: "success" });
+      loadDocuments();
     } catch (err) {
-      setDocumentsError(err.message || 'Failed to delete document');
-      setSnackbar({ open: true, message: err.message || "Failed to move document to trash", severity: "error" });
+      const msg = showAlert.extractMessage(err, "Failed to delete document");
+      setDocumentsError(msg);
+      showAlert.error("Delete Failed", msg);
+    }
+  };
+
+  const handleRestoreDocument = async (documentId, documentName = "document") => {
+    const result = await showAlert.confirm(
+      "Restore Document?",
+      `Do you want to restore "${documentName}" back to your documents list?`,
+      "Yes, Restore Document",
+      "Cancel"
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await restoreDocument(documentId);
+      showAlert.toast("success", `"${documentName}" restored successfully`);
+      setTrashDocuments(prev => prev.filter(d => (d.id || d._id) !== documentId));
+      setSelectedDocs(prev => prev.filter(id => id !== documentId));
+      loadTrashDocuments();
+      loadDocuments();
+    } catch (err) {
+      const msg = showAlert.extractMessage(err, "Failed to restore document");
+      showAlert.error("Restore Failed", msg);
+    }
+  };
+
+  const handlePermanentDelete = async (documentId, documentName = "document") => {
+    const result = await showAlert.confirm(
+      "Permanently Delete Document?",
+      `Are you sure you want to permanently delete "${documentName}"? All signatures, audit history, and files will be erased forever. This action cannot be undone!`,
+      "Yes, Delete Forever",
+      "Cancel"
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await permanentDeleteDocument(documentId);
+      showAlert.toast("success", `"${documentName}" deleted permanently`);
+      setTrashDocuments(prev => prev.filter(d => (d.id || d._id) !== documentId));
+      setSelectedDocs(prev => prev.filter(id => id !== documentId));
+      loadTrashDocuments();
+    } catch (err) {
+      const msg = showAlert.extractMessage(err, "Failed to permanently delete document");
+      showAlert.error("Delete Failed", msg);
     }
   };
 
@@ -697,18 +753,38 @@ export default function DocumentsAndTemplates() {
 
 
   const filteredDocuments = documents.filter(document =>
-    document.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    document.source?.toLowerCase().includes(searchTerm.toLowerCase())
+    (document.filename || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (document.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (document.source || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTrashDocuments = trashDocuments.filter(doc =>
+    (doc.filename || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doc.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doc.source || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'Recently';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return 'Recently';
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  const getDeletedDate = (doc) => {
+    if (!doc) return 'Recently';
+    const dateVal = doc.deleted_at || doc.deletedAt || doc.updated_at || doc.uploaded_at || doc.created_at;
+    return formatDate(dateVal);
   };
 
   const formatFileSize = (bytes) => {
@@ -849,8 +925,18 @@ export default function DocumentsAndTemplates() {
         return;
       }
 
+      const confirm = await showAlert.confirm(
+        "Use Template?",
+        `Create a new document from "${templateTitle}" and proceed to prepare recipients and signature fields?`,
+        "Yes, Use Template",
+        "Cancel"
+      );
+
+      if (!confirm.isConfirmed) return;
+
       setIsUploading(true);
       setUploadProgress(0);
+      showAlert.toast("info", `Preparing "${templateTitle}"...`);
 
       // Step 1: Download template
       const downloadRes = await fetch(
@@ -1044,10 +1130,22 @@ export default function DocumentsAndTemplates() {
     }
   };
 
-  const handleUseDocument = (document) => {
+  const handleUseDocument = async (document) => {
     try {
       const docId = document?.id || document?._id;
       if (!docId) throw new Error("Document ID missing");
+
+      const docName = document?.filename || "this document";
+      const confirm = await showAlert.confirm(
+        "Use Document?",
+        `Do you want to prepare and send "${docName}" for signing?`,
+        "Yes, Use Document",
+        "Cancel"
+      );
+
+      if (!confirm.isConfirmed) return;
+
+      showAlert.toast("info", `Opening "${docName}" in Prepare & Send...`);
 
       // Navigate directly to prepare-send for instant document opening
       navigate(`/user/prepare-send/${docId}`, {
@@ -1057,11 +1155,7 @@ export default function DocumentsAndTemplates() {
         },
       });
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: err.message || "Failed to use document",
-        severity: "error",
-      });
+      showAlert.error("Cannot Use Document", showAlert.extractMessage(err, "Failed to use document"));
     }
   };
 
@@ -1069,10 +1163,11 @@ export default function DocumentsAndTemplates() {
   // ============ EFFECTS ============
   useEffect(() => {
     loadDocuments();
+    loadTrashDocuments();
     fetchCategories();
     fetchPopularTemplates();
     fetchTemplates();
-  }, [loadDocuments, fetchCategories, fetchPopularTemplates, fetchTemplates]);
+  }, [loadDocuments, loadTrashDocuments, fetchCategories, fetchPopularTemplates, fetchTemplates]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -1357,7 +1452,7 @@ export default function DocumentsAndTemplates() {
                             </button>
                             <button
                               className="dt-btn-icon dt-danger"
-                              onClick={() => setDeleteConfirm(docId)}
+                              onClick={() => handleDelete(docId, document.filename)}
                               title="Delete"
                             >
                               <FaTrash />
@@ -1397,7 +1492,7 @@ export default function DocumentsAndTemplates() {
                           </button>
                           <button
                             className="dt-btn-icon dt-danger"
-                            onClick={() => setDeleteConfirm(docId)}
+                            onClick={() => handleDelete(docId, document.filename)}
                             title="Delete Document"
                           >
                             <FaTrash />
@@ -1887,10 +1982,10 @@ export default function DocumentsAndTemplates() {
             {selectedDocs.length > 0 && (
               <div className="dt-bulk-actions-bar">
                 <div className="dt-bulk-info">
-                  <button className="dt-checkbox-wrapper" onClick={() => handleSelectAll(trashDocuments)}>
+                  <button className="dt-checkbox-wrapper" onClick={() => handleSelectAll(filteredTrashDocuments)}>
                     <input
                       type="checkbox"
-                      checked={trashDocuments.length > 0 && trashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                      checked={filteredTrashDocuments.length > 0 && filteredTrashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
                       readOnly
                     />
                   </button>
@@ -1919,7 +2014,13 @@ export default function DocumentsAndTemplates() {
               <div className="dt-empty-state">
                 <FaTrash className="dt-empty-icon" />
                 <h3>Trash is empty</h3>
-                <p>Deleted documents will appear here</p>
+                <p>Deleted documents will appear here. You can restore them anytime.</p>
+              </div>
+            ) : filteredTrashDocuments.length === 0 ? (
+              <div className="dt-empty-state">
+                <FaFilter className="dt-empty-icon" />
+                <h3>No matching documents</h3>
+                <p>No deleted documents matched "{searchTerm}".</p>
               </div>
             ) : viewMode === "list" ? (
               <div className="dt-documents-list-container">
@@ -1929,8 +2030,8 @@ export default function DocumentsAndTemplates() {
                       <th className="dt-col-selection">
                         <input
                           type="checkbox"
-                          checked={trashDocuments.length > 0 && trashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
-                          onChange={() => handleSelectAll(trashDocuments)}
+                          checked={filteredTrashDocuments.length > 0 && filteredTrashDocuments.every(d => selectedDocs.includes(d.id || d._id))}
+                          onChange={() => handleSelectAll(filteredTrashDocuments)}
                         />
                       </th>
                       <th className="dt-col-name">Document Name</th>
@@ -1941,7 +2042,7 @@ export default function DocumentsAndTemplates() {
                     </tr>
                   </thead>
                   <tbody>
-                    {trashDocuments.map((doc) => {
+                    {filteredTrashDocuments.map((doc) => {
                       const docId = doc.id || doc._id;
                       return (
                         <tr key={docId} className={selectedDocs.includes(docId) ? 'selected' : ''}>
@@ -1979,46 +2080,16 @@ export default function DocumentsAndTemplates() {
                             </button>
                             <button
                               className="dt-btn-icon"
-                              title="Restore"
-                              style={{ color: '#059669' }}
-                              onClick={() =>
-                                setConfirmDialog({
-                                  open: true,
-                                  title: "Restore document?",
-                                  message: "This document will be restored to your documents list.",
-                                  confirmText: "Restore Document",
-                                  danger: false,
-                                  onConfirm: async () => {
-                                    await restoreDocument(docId);
-                                    loadTrashDocuments();
-                                    loadDocuments();
-                                  },
-                                })
-                              }
+                              title="Restore Document"
+                              style={{ color: '#059669', fontSize: 16 }}
+                              onClick={() => handleRestoreDocument(docId, doc.filename)}
                             >
                               ♻️
                             </button>
                             <button
                               className="dt-btn-icon dt-danger"
                               title="Delete Permanently"
-                              onClick={() =>
-                                setConfirmDialog({
-                                  open: true,
-                                  title: "Permanently delete document?",
-                                  message: (
-                                    <>
-                                      <p>This action <strong>cannot be undone</strong>.</p>
-                                      <p>The document and its history will be removed forever.</p>
-                                    </>
-                                  ),
-                                  confirmText: "Delete Permanently",
-                                  danger: true,
-                                  onConfirm: async () => {
-                                    await permanentDeleteDocument(docId);
-                                    loadTrashDocuments();
-                                  },
-                                })
-                              }
+                              onClick={() => handlePermanentDelete(docId, doc.filename)}
                             >
                               <FaTrash />
                             </button>
@@ -2031,7 +2102,7 @@ export default function DocumentsAndTemplates() {
               </div>
             ) : (
               <div className="dt-documents-grid">
-                {trashDocuments.map((doc) => {
+                {filteredTrashDocuments.map((doc) => {
                   const docId = doc.id || doc._id;
                   return (
                     <div key={docId} className={`dt-document-card ${selectedDocs.includes(docId) ? 'selected' : ''}`}>
@@ -2080,119 +2151,40 @@ export default function DocumentsAndTemplates() {
                         </div>
                       </div>
 
-
                       <div className="dt-document-card-footer">
-
-                        {/* 👁 View PDF – always allowed */}
                         <button
                           className="dt-btn dt-btn-outline dt-btn-sm"
                           onClick={() => handleViewDocumentPdf(doc)}
+                          title="View PDF"
                         >
-                          <FaEye />
-                          View PDF
+                          <FaEye /> View PDF
                         </button>
 
-                        {/* ♻️ Restore – ONLY if voided */}
-                        {doc.status === "deleted" && (
-                          <button
-                            className="dt-btn dt-btn-outline dt-btn-sm"
-                            onClick={() =>
-                              setConfirmDialog({
-                                open: true,
-                                title: "Restore document?",
-                                message:
-                                  "This document will be restored to your documents list.",
-                                confirmText: "Restore Document",
-                                danger: false,
-                                onConfirm: async () => {
-                                  await restoreDocument(docId);
-                                  loadTrashDocuments();
-                                  loadDocuments();
-                                },
-                              })
-                            }
-                          >
-                            ♻️ Restore
-                          </button>
-                        )}
+                        <button
+                          className="dt-btn dt-btn-outline dt-btn-sm"
+                          style={{ borderColor: '#10b981', color: '#059669' }}
+                          onClick={() => handleRestoreDocument(docId, doc.filename)}
+                          title="Restore to Active Documents"
+                        >
+                          ♻️ Restore
+                        </button>
 
-
-                        {/* 🔥 Permanent delete */}
                         <button
                           className="dt-btn dt-btn-danger dt-btn-sm"
-                          onClick={() =>
-                            setConfirmDialog({
-                              open: true,
-                              title: "Permanently delete document?",
-                              message: (
-                                <>
-                                  <p>
-                                    This action <strong>cannot be undone</strong>.
-                                  </p>
-                                  <p>
-                                    The document, signatures, recipients, and audit trail will be
-                                    permanently removed.
-                                  </p>
-                                </>
-                              ),
-                              confirmText: "Delete Permanently",
-                              danger: true,
-                              onConfirm: async () => {
-                                await permanentDeleteDocument(docId);
-                                loadTrashDocuments();
-                              },
-                            })
-                          }
+                          onClick={() => handlePermanentDelete(docId, doc.filename)}
+                          title="Delete Forever"
                         >
-                          Delete Forever
+                          <FaTrash style={{ marginRight: 4 }} /> Delete Forever
                         </button>
-
                       </div>
-
-
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
           </div>
         )}
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="dt-modal-backdrop">
-          <div className="dt-modal">
-            <div className="dt-modal-header">
-              <h3>Delete Document</h3>
-              <button
-                className="dt-close-btn"
-                onClick={() => setDeleteConfirm(null)}
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="dt-modal-content">
-              <p>Are you sure you want to delete this document? This action cannot be undone.</p>
-            </div>
-            <div className="dt-modal-footer">
-              <button
-                className="dt-btn dt-btn-secondary"
-                onClick={() => setDeleteConfirm(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="dt-btn dt-btn-danger"
-                onClick={() => handleDelete(deleteConfirm)}
-              >
-                <FaTrash className="dt-btn-icon" />
-                Delete Document
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Template Preview Modal */}
       {previewModalOpen && selectedTemplate && (
@@ -2372,54 +2364,6 @@ export default function DocumentsAndTemplates() {
         </div>
       )}
 
-      {confirmDialog.open && (
-        <div className="dt-modal-backdrop">
-          <div className={`dt-modal ${confirmDialog.danger ? "dt-modal-danger" : ""}`}>
-
-            <div className="dt-modal-header">
-              <h3>{confirmDialog.title}</h3>
-              <button
-                className="dt-close-btn"
-                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="dt-modal-content">
-              <p>{confirmDialog.message}</p>
-
-              {confirmDialog.danger && (
-                <div className="dt-danger-box">
-                  <FaExclamationTriangle />
-                  <span>This action cannot be undone</span>
-                </div>
-              )}
-            </div>
-
-            <div className="dt-modal-footer">
-              <button
-                className="dt-btn dt-btn-secondary"
-                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
-              >
-                Cancel
-              </button>
-
-              <button
-                className={`dt-btn ${confirmDialog.danger ? "dt-btn-danger" : "dt-btn-primary"
-                  }`}
-                onClick={async () => {
-                  await confirmDialog.onConfirm();
-                  setConfirmDialog({ ...confirmDialog, open: false });
-                }}
-              >
-                {confirmDialog.confirmText}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
 
 

@@ -85,7 +85,13 @@ import {
   Nfc as NfcIcon,
   Save as SaveIcon,
   ToggleOn as ToggleOnIcon,
-  Check as CheckIcon
+  Check as CheckIcon,
+  Print as PrintIcon,
+  Visibility as VisibilityIcon,
+  Layers as LayersIcon,
+  PhoneAndroid as PhoneAndroidIcon,
+  ContentCopy as ContentCopyIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -228,33 +234,33 @@ const StripePaymentForm = ({ pack, clientSecret, paymentIntentId, onSuccess, onC
   );
 };
 
-// Defined Plan List with Row 1 & Row 2 structure
-const PLAN_CARDS_ROW1 = [
+// 1st Row: Exactly 4 Cards (Free Trial, Starter, Standard, Professional)
+const PRIMARY_PLAN_CARDS = [
   {
     id: 'free_trial',
     name: 'Free Trial',
     price: 0,
     credits: 100,
     unitPrice: 'Free Bonus',
-    badge: null,
+    badge: 'FREE TRIAL',
     isFree: true,
-    usageEst: '~20 Doc Dispatches or 5 AI Contracts',
+    usageEst: '~20 Doc Sends or 5 AI Contracts',
     features: [
       '100 Free Bonus Credits',
       'Send ~20 Document Envelopes',
-      'Basic E-Signature Workflows',
+      'Full Access to E-Sign Features',
       'Audit Certificates Included',
       'No Credit Card Required'
     ]
   },
   {
     id: 'pack_500',
-    name: 'Starter',
+    name: 'Starter Pack',
     price: 5.00,
     credits: 500,
     unitPrice: '$0.010 / credit',
     badge: null,
-    usageEst: '~100 Doc Dispatches or 25 AI Contracts',
+    usageEst: '~100 Doc Sends or 25 AI Contracts',
     features: [
       '500 Included Credits',
       'Send ~100 Envelopes (5 cr/doc)',
@@ -266,12 +272,12 @@ const PLAN_CARDS_ROW1 = [
   },
   {
     id: 'pack_2000',
-    name: 'Standard',
+    name: 'Standard Pack',
     price: 15.00,
     credits: 2000,
     unitPrice: '$0.0075 / credit (Save 25%)',
     badge: 'MOST POPULAR',
-    usageEst: '~400 Doc Dispatches or 100 AI Contracts',
+    usageEst: '~400 Doc Sends or 100 AI Contracts',
     features: [
       '2,000 Included Credits',
       '25% Savings per Credit',
@@ -283,12 +289,12 @@ const PLAN_CARDS_ROW1 = [
   },
   {
     id: 'pack_10000',
-    name: 'Professional',
+    name: 'Professional Pack',
     price: 50.00,
     credits: 10000,
     unitPrice: '$0.0050 / credit (Save 50%)',
     badge: 'BEST VALUE',
-    usageEst: '~2,000 Doc Dispatches or 500 AI Contracts',
+    usageEst: '~2,000 Doc Sends or 500 AI Contracts',
     features: [
       '10,000 Included Credits',
       '50% Max Volume Savings',
@@ -300,15 +306,16 @@ const PLAN_CARDS_ROW1 = [
   }
 ];
 
-const PLAN_CARDS_ROW2 = [
+// Enterprise & Custom Plans (Hidden initially behind dropdown button)
+const ENTERPRISE_PLAN_CARDS = [
   {
     id: 'pack_50000',
-    name: 'Enterprise',
+    name: 'Enterprise Scale',
     price: 200.00,
     credits: 50000,
     unitPrice: '$0.0040 / credit (Save 60%)',
     badge: 'ENTERPRISE',
-    usageEst: '~10,000 Doc Dispatches or 2,500 AI Contracts',
+    usageEst: '~10,000 Doc Sends or 2,500 AI Contracts',
     features: [
       '50,000 Enterprise Credits',
       '60% Per-Credit Savings',
@@ -320,13 +327,13 @@ const PLAN_CARDS_ROW2 = [
   },
   {
     id: 'custom_price',
-    name: 'Custom Price',
+    name: 'Custom Enterprise',
     price: null,
     credits: null,
     unitPrice: 'Custom Volume Discount',
     badge: 'CUSTOM SOLUTION',
     isCustom: true,
-    usageEst: 'Tailored for high-volume enterprise & developers',
+    usageEst: 'Tailored for high-volume enterprise & API integrations',
     features: [
       'Unlimited Volume Top-Ups',
       'Custom API & Dedicated Server',
@@ -340,7 +347,7 @@ const PLAN_CARDS_ROW2 = [
 
 export default function Subscription() {
   const { user, credits, refreshCredits, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState(0); // 0: Usage, 1: Upgrade Plans, 2: Payment Methods, 3: Billing Info, 4: Invoices, 5: Ledger
+  const [activeTab, setActiveTab] = useState(0); // 0: Usage, 1: Upgrade Plans, 2: Invoices, 3: Ledger
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -351,6 +358,9 @@ export default function Subscription() {
   const [initializingPayment, setInitializingPayment] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [showEnterpriseRow, setShowEnterpriseRow] = useState(false);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   // Sales Contact Popup State
   const [salesModalOpen, setSalesModalOpen] = useState(false);
@@ -404,13 +414,13 @@ export default function Subscription() {
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
-      const [txRes, billingRes, cardsRes] = await Promise.all([
+      const [txRes, balanceRes, billingRes] = await Promise.all([
         api.get('/credits/transactions?limit=100').catch(() => ({ data: { transactions: [] } })),
-        api.get('/subscription/billing-info').catch(() => ({ data: null })),
-        api.get('/subscription/payment-methods').catch(() => ({ data: [] }))
+        api.get('/credits/balance').catch(() => ({ data: null })),
+        api.get('/subscription/billing-info').catch(() => ({ data: null }))
       ]);
 
-      const txList = txRes.data?.transactions || [];
+      const txList = txRes.data?.transactions || txRes.data?.items || [];
       setTransactions(txList);
 
       if (billingRes.data) {
@@ -430,35 +440,25 @@ export default function Subscription() {
         });
       }
 
-      if (cardsRes.data && cardsRes.data.length > 0) {
-        setSavedCards(cardsRes.data);
-      } else {
-        setSavedCards([
-          { id: 'pm_1', brand: 'Visa', last4: '4242', expMonth: '12', expYear: '2028', isDefault: true, cardholderName: user?.full_name || 'Primary Account' },
-          { id: 'pm_2', brand: 'Mastercard', last4: '8821', expMonth: '08', expYear: '2027', isDefault: false, cardholderName: 'Corporate Expense Card' }
-        ]);
-      }
-
-      // Generate real invoices list from purchase transactions
-      const purchaseTxs = txList.filter(t => t.amount > 0 || t.type === 'purchase' || t.type === 'allocation');
-      const invoiceItems = purchaseTxs.map((t, idx) => ({
-        id: `INV-${new Date(t.created_at || Date.now()).getFullYear()}-${1000 + idx}`,
-        date: format(new Date(t.created_at || Date.now()), 'MMM dd, yyyy'),
-        description: t.description || `Credit Top-Up (${t.amount} Credits)`,
-        amount: t.description?.includes('$') ? t.description.match(/\$\d+(\.\d+)?/)?.[0] || '$15.00' : '$15.00',
-        credits: t.amount,
-        status: 'PAID',
-        rawDate: t.created_at
-      }));
-
-      if (invoiceItems.length === 0) {
-        setInvoices([
-          { id: 'INV-2026-0891', date: 'Sep 15, 2026', description: 'Standard Credit Pack (2,000 Credits)', amount: '$15.00', credits: 2000, status: 'PAID' },
-          { id: 'INV-2026-0412', date: 'Aug 20, 2026', description: 'Starter Credit Pack (500 Credits)', amount: '$5.00', credits: 500, status: 'PAID' },
-          { id: 'INV-2026-0105', date: 'Jul 10, 2026', description: 'Free Trial Registration Bonus', amount: '$0.00', credits: 100, status: 'COMPLETED' }
-        ]);
-      } else {
-        setInvoices(invoiceItems);
+      // Fetch official enterprise invoices directly from backend (real persistence & sequential IDs)
+      try {
+        const invoicesRes = await api.get('/subscription/invoices');
+        if (invoicesRes.data && Array.isArray(invoicesRes.data.invoices)) {
+          const normalized = invoicesRes.data.invoices.map(inv => ({
+            ...inv,
+            id: inv.invoice_number || inv.id,
+            date: inv.issue_date_str || inv.date || (inv.issue_date ? format(new Date(inv.issue_date), 'dd MMM yyyy') : 'Recent'),
+            description: inv.description || (inv.items && inv.items[0]?.description) || 'ESigniva Plan Subscription',
+            amount: inv.total_str || inv.amount || `$${(inv.total_amount || 0).toFixed(2)}`,
+            status: inv.status || 'PAID'
+          }));
+          setInvoices(normalized);
+        } else {
+          setInvoices([]);
+        }
+      } catch (invErr) {
+        console.warn('Backend invoices endpoint notice:', invErr);
+        setInvoices([]);
       }
 
     } catch (err) {
@@ -645,125 +645,583 @@ export default function Subscription() {
     setSnackbar({ open: true, message: 'Payment card saved successfully!', severity: 'success' });
   };
 
-  // Printable PDF Invoice Download Generator
-  const handleDownloadPdfReceipt = (inv) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      setSnackbar({ open: true, message: 'Pop-up blocked. Please allow pop-ups to download PDF.', severity: 'warning' });
-      return;
-    }
+  // Professional Enterprise SaaS Invoice & Receipt HTML Generator
+  const generateReceiptHtml = (inv) => {
+    const invNum = inv.invoice_number || inv.id || 'ESI-2026-000001';
+    const issuer = inv.issuer || {};
+    const issuerLegal = issuer.legal_name || 'ESigniva Technologies';
+    const issuerAddr1 = issuer.address_line1 || 'Tech Innovation Hub, Cyber Gateway';
+    const issuerAddr2 = issuer.address_line2 || 'OMR IT Expressway';
+    const issuerCity = issuer.city || 'Chennai';
+    const issuerState = issuer.state || 'Tamil Nadu';
+    const issuerZip = issuer.postal_code || '600096';
+    const issuerCountry = issuer.country || 'India';
+    const issuerTax = issuer.tax_id || 'GSTIN33AAACE1234F1Z5';
+    const issuerBillingEmail = issuer.billing_email || 'billing@esigniva.com';
 
-    const htmlContent = `
+    const customer = inv.customer || {};
+    const customerName = customer.name || billingInfo.companyName || user?.company || user?.full_name || 'Valued Customer';
+    const customerEmail = customer.email || billingInfo.billingEmail || user?.email || 'N/A';
+    const customerAddress = customer.address || `${billingInfo.address || '100 Enterprise Way'}, ${billingInfo.city || 'San Francisco'}, ${billingInfo.state || 'CA'} ${billingInfo.zip || '94107'}`;
+    const customerTax = customer.tax_id || billingInfo.vatId || 'N/A';
+
+    const issueDate = inv.issue_date_str || inv.date || format(new Date(), 'dd MMM yyyy');
+    const paymentDate = inv.payment_date_str || inv.date || format(new Date(), 'dd MMM yyyy');
+    const paymentMethod = inv.payment_method || 'Stripe';
+    const currency = inv.currency || 'USD';
+    const subtotal = inv.subtotal_str || inv.amount || '$5.00';
+    const tax = inv.tax_str || '$0.00';
+    const totalPaid = inv.total_paid_str || inv.total_str || inv.amount || '$5.00';
+    const balanceDue = inv.balance_str || inv.balance_due_str || '$0.00';
+    const shortRef = inv.short_reference || inv.payment_reference || `STRIPE-TX-${invNum.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+    const items = (inv.items && inv.items.length > 0) ? inv.items : [{
+      description: inv.description || '500 ESigniva Credits',
+      sub_description: 'One-time credit top-up • Non-expiring cloud credits',
+      quantity: 1,
+      unit_price: inv.amount || '$5.00',
+      amount: inv.amount || '$5.00'
+    }];
+
+    const itemsRowsHtml = items.map(item => `
+      <tr>
+        <td>
+          <div class="item-title">${item.description}</div>
+          <div class="item-sub">${item.sub_description || item.details || 'Official ESigniva digital cloud services'}</div>
+        </td>
+        <td style="text-align: center; font-weight: 600;">${item.quantity || 1}</td>
+        <td style="text-align: right; color: #475569;">${item.unit_price || item.amount || subtotal}</td>
+        <td style="text-align: right; font-weight: 700; color: #101828;">${item.amount || subtotal}</td>
+      </tr>
+    `).join('');
+
+    return `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
-        <title>Receipt_${inv.id}</title>
+        <meta charset="UTF-8" />
+        <title>ESigniva_Invoice_${invNum}</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; padding: 40px; margin: 0; background: #fff; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f766e; padding-bottom: 20px; margin-bottom: 30px; }
-          .brand { font-size: 28px; font-weight: 900; color: #0f766e; letter-spacing: -0.5px; }
-          .invoice-title { font-size: 24px; font-weight: 800; text-align: right; color: #0f172a; }
-          .details-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
-          .box { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; width: 45%; }
-          .box h4 { margin: 0 0 10px 0; color: #0f766e; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
-          .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          .table th { background: #0f766e; color: #fff; text-align: left; padding: 12px; font-size: 14px; }
-          .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-          .total-row { display: flex; justify-content: flex-end; font-size: 18px; font-weight: 800; color: #0f172a; }
-          .footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          @page {
+            size: A4 portrait;
+            margin: 16mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #101828;
+            background: #ffffff;
+            margin: 0;
+            padding: 32px;
+            font-size: 13px;
+            line-height: 1.5;
+          }
+          .invoice-card {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #E4E7EC;
+            border-radius: 12px;
+            padding: 40px 44px;
+            background: #ffffff;
+          }
+          .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #E4E7EC;
+            margin-bottom: 24px;
+          }
+          .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+          }
+          .brand-name {
+            font-size: 24px;
+            font-weight: 900;
+            color: #101828;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+          }
+          .brand-tagline {
+            font-size: 10px;
+            font-weight: 700;
+            color: #086B70;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-top: 3px;
+          }
+          .invoice-header-meta {
+            text-align: right;
+          }
+          .doc-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 4px;
+          }
+          .doc-title {
+            font-size: 18px;
+            font-weight: 900;
+            color: #101828;
+            letter-spacing: 0.5px;
+          }
+          .badge-paid {
+            display: inline-block;
+            background: #F0FDFA;
+            color: #086B70;
+            border: 1px solid #086B70;
+            font-weight: 800;
+            font-size: 10.5px;
+            letter-spacing: 0.5px;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+          }
+          .inv-number {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 15px;
+            font-weight: 800;
+            color: #086B70;
+            margin-top: 2px;
+          }
+          .billing-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+          }
+          .billing-col {
+            flex: 1;
+            background: #F8FAFC;
+            border: 1px solid #E4E7EC;
+            border-radius: 8px;
+            padding: 16px 18px;
+          }
+          .billing-label {
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #086B70;
+            margin-bottom: 8px;
+          }
+          .billing-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #101828;
+            margin-bottom: 4px;
+          }
+          .billing-line {
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+          }
+          .meta-strip {
+            display: flex;
+            background: #F8FAFC;
+            border: 1px solid #E4E7EC;
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 24px;
+            justify-content: space-between;
+          }
+          .meta-item {
+            flex: 1;
+          }
+          .meta-item-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748B;
+            letter-spacing: 0.5px;
+          }
+          .meta-item-val {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #101828;
+            margin-top: 2px;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+          }
+          .items-table th {
+            background: #F8FAFC;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 10px 14px;
+            border-top: 1px solid #E4E7EC;
+            border-bottom: 1px solid #E4E7EC;
+          }
+          .items-table td {
+            padding: 14px;
+            border-bottom: 1px solid #E4E7EC;
+            font-size: 12.5px;
+          }
+          .item-title {
+            font-weight: 700;
+            color: #101828;
+            margin-bottom: 2px;
+          }
+          .item-sub {
+            font-size: 11px;
+            color: #64748B;
+          }
+          .summary-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            margin-bottom: 28px;
+          }
+          .payment-confirmation-box {
+            flex: 1.1;
+            background: #F8FAFC;
+            border: 1px solid #E4E7EC;
+            border-radius: 8px;
+            padding: 16px 18px;
+          }
+          .payment-conf-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #086B70;
+            margin-bottom: 6px;
+          }
+          .payment-conf-text {
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.6;
+          }
+          .totals-table {
+            flex: 0.9;
+            border-collapse: collapse;
+          }
+          .totals-table td {
+            padding: 6px 12px;
+            font-size: 12.5px;
+          }
+          .totals-table tr.total-paid-row td {
+            border-top: 1.5px solid #086B70;
+            border-bottom: 1.5px solid #086B70;
+            background: #F0FDFA;
+            font-size: 15px;
+            font-weight: 900;
+            color: #086B70;
+            padding: 10px 12px;
+          }
+          .footer-box {
+            border-top: 1px solid #E4E7EC;
+            padding-top: 20px;
+            text-align: center;
+            font-size: 11px;
+            color: #64748B;
+            line-height: 1.6;
+          }
+          .footer-links {
+            font-weight: 600;
+            color: #086B70;
+            margin-top: 4px;
+          }
           @media print {
-            body { padding: 20px; }
+            body { padding: 0; background: #fff; }
+            .invoice-card { border: none !important; padding: 0 !important; max-width: 100% !important; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <div class="brand">Esigniva</div>
-            <div style="font-size: 12px; color: #64748b; mt-1;">Enterprise E-Signatures & Document Workflow</div>
+        <div class="invoice-card">
+          <div class="header-row">
+            <div class="brand-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64" fill="none">
+                <defs>
+                  <linearGradient id="invBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#086B70" />
+                    <stop offset="100%" stop-color="#0F766E" />
+                  </linearGradient>
+                </defs>
+                <rect width="64" height="64" rx="14" fill="url(#invBrandGrad)"/>
+                <path d="M32 14C32 14 44 16 44 26C44 38 32 48 32 48C32 48 20 38 20 26C20 16 32 14 32 14Z" 
+                      stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <path d="M26 28L30 32L38 22" 
+                      stroke="#5EEAD4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+              <div>
+                <div class="brand-name">ESigniva</div>
+                <div class="brand-tagline">Digital Signature Platform</div>
+              </div>
+            </div>
+            <div class="invoice-header-meta">
+              <div class="doc-title-row">
+                <span class="doc-title">INVOICE</span>
+                <span class="badge-paid">PAID</span>
+              </div>
+              <div class="inv-number">${invNum}</div>
+            </div>
           </div>
-          <div>
-            <div class="invoice-title">OFFICIAL RECEIPT</div>
-            <div style="font-size: 13px; color: #64748b;">${inv.id}</div>
+
+          <div class="billing-grid">
+            <div class="billing-col">
+              <div class="billing-label">BILLED FROM</div>
+              <div class="billing-title">ESigniva</div>
+              <div class="billing-line"><strong>${issuerLegal}</strong></div>
+              <div class="billing-line">${issuerAddr1}</div>
+              <div class="billing-line">${issuerAddr2 ? issuerAddr2 + ', ' : ''}${issuerCity}, ${issuerState} ${issuerZip}, ${issuerCountry}</div>
+              <div class="billing-line">Tax ID: ${issuerTax}</div>
+              <div class="billing-line">${issuerBillingEmail}</div>
+            </div>
+
+            <div class="billing-col">
+              <div class="billing-label">BILLED TO</div>
+              <div class="billing-title">${customerName}</div>
+              <div class="billing-line">${customerAddress}</div>
+              <div class="billing-line">Tax ID: ${customerTax}</div>
+              <div class="billing-line">${customerEmail}</div>
+            </div>
+          </div>
+
+          <div class="meta-strip">
+            <div class="meta-item">
+              <div class="meta-item-label">Invoice Date</div>
+              <div class="meta-item-val">${issueDate}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Payment Date</div>
+              <div class="meta-item-val">${paymentDate}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Payment Method</div>
+              <div class="meta-item-val">${paymentMethod}</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Currency</div>
+              <div class="meta-item-val">${currency}</div>
+            </div>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 50%;">Description</th>
+                <th style="text-align: center; width: 12%;">Qty</th>
+                <th style="text-align: right; width: 18%;">Unit Price</th>
+                <th style="text-align: right; width: 20%;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="summary-layout">
+            <div class="payment-confirmation-box">
+              <div class="payment-conf-title">Payment Confirmation</div>
+              <div class="payment-conf-text">
+                Payment processed through <strong>${paymentMethod}</strong>. Keep this invoice for your records.<br/>
+                Reference: <strong>${shortRef}</strong><br/>
+                Settlement Status: <strong>Settled & Cleared to Organization Balance</strong>
+              </div>
+            </div>
+
+            <table class="totals-table">
+              <tr>
+                <td style="color: #64748B;">Subtotal</td>
+                <td style="text-align: right; font-weight: 600; color: #101828;">${subtotal}</td>
+              </tr>
+              <tr>
+                <td style="color: #64748B;">Tax (0%)</td>
+                <td style="text-align: right; font-weight: 600; color: #101828;">${tax}</td>
+              </tr>
+              <tr class="total-paid-row">
+                <td>Total Paid</td>
+                <td style="text-align: right;">${totalPaid}</td>
+              </tr>
+              <tr>
+                <td style="color: #64748B;">Balance Due</td>
+                <td style="text-align: right; font-weight: 700; color: #101828;">${balanceDue}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="footer-box">
+            Thank you for choosing ESigniva.<br/>
+            This is an electronically generated official invoice valid without physical signature.
+            <div class="footer-links">
+              esigniva.com • support@esigniva.com • billing@esigniva.com
+            </div>
           </div>
         </div>
-
-        <div class="details-grid">
-          <div class="box">
-            <h4>Billed To</h4>
-            <strong>${billingInfo.companyName || user?.full_name || 'Valued Customer'}</strong><br/>
-            Email: ${billingInfo.billingEmail || user?.email || 'N/A'}<br/>
-            Tax ID: ${billingInfo.vatId || 'N/A'}<br/>
-            ${billingInfo.address}, ${billingInfo.city}, ${billingInfo.state} ${billingInfo.zip}
-          </div>
-          <div class="box">
-            <h4>Payment Details</h4>
-            Date: <strong>${inv.date}</strong><br/>
-            Payment Status: <strong style="color: #10b981;">${inv.status}</strong><br/>
-            Payment Method: Credit Card (Stripe)<br/>
-            Credits Allocated: <strong>${inv.credits ? inv.credits.toLocaleString() : 'Included'}</strong>
-          </div>
-        </div>
-
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th style="text-align: right;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>${inv.description}</td>
-              <td>Credit Pack Top-Up</td>
-              <td>1</td>
-              <td style="text-align: right;"><strong>${inv.amount}</strong></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="total-row">
-          Total Paid: &nbsp; <span style="color: #0f766e;">${inv.amount}</span>
-        </div>
-
-        <div class="footer">
-          Thank you for choosing Esigniva! If you have billing inquiries, please contact info@esigniva.com.<br/>
-          © 2026 Esigniva Inc. All rights reserved.
-        </div>
-
-        <script>
-          window.onload = function() { window.print(); }
-        </script>
       </body>
       </html>
     `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    setSnackbar({ open: true, message: `PDF receipt for ${inv.id} generated!`, severity: 'success' });
   };
 
-  const currentBalance = credits ? credits.balance : user?.credit_balance || 0;
-  const totalAllocated = credits ? credits.total_allocated || (currentBalance + (credits.total_consumed || 0)) : 1000;
-  const totalConsumed = credits ? credits.total_consumed || 0 : 0;
+  // Download Official A4 Vector PDF directly from Backend
+  const handleDownloadPdfReceipt = async (inv) => {
+    const invoiceId = inv.invoice_number || inv.id;
+    setDownloadingInvoiceId(inv.id || invoiceId);
+    try {
+      const response = await api.get(`/subscription/invoices/${encodeURIComponent(invoiceId)}/pdf`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `ESigniva_Invoice_${inv.invoice_number || invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setSnackbar({
+        open: true,
+        message: `Official A4 PDF Invoice for ${inv.invoice_number || invoiceId} downloaded successfully!`,
+        severity: 'success'
+      });
+    } catch (err) {
+      console.warn('Backend PDF stream encountered an issue, falling back to print dialog:', err);
+      handlePrintReceipt(inv);
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  };
+
+  // Printable Invoice & Web View Dialog
+  const handlePrintReceipt = async (inv) => {
+    const invoiceId = inv.invoice_number || inv.id;
+    try {
+      const res = await api.get(`/subscription/invoices/${encodeURIComponent(invoiceId)}/html`);
+      const htmlContent = res.data;
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setSnackbar({ open: true, message: 'Pop-up blocked. Please allow pop-ups to print or view invoice.', severity: 'warning' });
+        return;
+      }
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 400);
+      setSnackbar({ open: true, message: `Invoice for ${inv.invoice_number || invoiceId} ready to print.`, severity: 'success' });
+    } catch (err) {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+      const htmlContent = generateReceiptHtml(inv);
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 400);
+    }
+  };
+
+  // Copy Invoice Number Helper
+  const [copiedInvId, setCopiedInvId] = useState(false);
+  const handleCopyInvoiceNumber = (invNum) => {
+    if (!invNum) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(invNum);
+      setCopiedInvId(true);
+      setTimeout(() => setCopiedInvId(false), 2000);
+      setSnackbar({ open: true, message: `Invoice number ${invNum} copied to clipboard!`, severity: 'success' });
+    }
+  };
+
+  // Open Invoice Preview Modal with immediate display & live hydration
+  const handleViewReceipt = async (inv) => {
+    if (!inv) return;
+    setSelectedReceipt(inv);
+    setReceiptModalOpen(true);
+
+    // Hydrate latest full invoice record from backend in case extra details exist
+    try {
+      const invoiceId = inv.invoice_number || inv.id;
+      const res = await api.get(`/subscription/invoices/${encodeURIComponent(invoiceId)}`);
+      if (res.data && res.data.invoice) {
+        setSelectedReceipt(prev => ({
+          ...prev,
+          ...res.data.invoice,
+          id: res.data.invoice.invoice_number || res.data.invoice.id,
+          date: res.data.invoice.issue_date_str || prev?.date,
+          amount: res.data.invoice.total_str || prev?.amount
+        }));
+      }
+    } catch (err) {
+      console.log('Using local invoice record for preview:', err);
+    }
+  };
+
+  const currentBalance = Number(credits?.balance ?? user?.credit_balance ?? 0);
+
+  // Real calculations derived strictly from real transactions
+  const realDebitTxs = transactions.filter(t => Number(t.amount) < 0 || t.type === 'debit');
+  const realDebitSum = realDebitTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+  const totalConsumed = Number(credits?.used ?? credits?.total_consumed ?? realDebitSum);
+
+  const realCreditTxs = transactions.filter(t => Number(t.amount) > 0 || t.type === 'credit' || t.type === 'allocation' || t.type === 'purchase');
+  const realCreditSum = realCreditTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalAllocated = realCreditSum > 0 ? realCreditSum : (currentBalance + totalConsumed > 0 ? currentBalance + totalConsumed : (currentBalance || 100));
+
   const usagePercentage = totalAllocated > 0 ? Math.min(Math.round((totalConsumed / totalAllocated) * 100), 100) : 0;
 
-  // Real metered action counts from transactions
-  const docDispatchCount = transactions.filter(t => t.amount < 0 && (t.description?.toLowerCase().includes('document') || t.source?.toLowerCase().includes('send'))).length || Math.floor(totalConsumed / 5);
-  const aiContractCount = transactions.filter(t => t.amount < 0 && (t.description?.toLowerCase().includes('ai') || t.source?.toLowerCase().includes('template'))).length || Math.floor(totalConsumed / 20);
+  // Real metered action counts and credit calculations strictly from real transactions
+  const docSendTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'document_send' || t.description?.toLowerCase().includes('document_send') || (t.description?.toLowerCase().includes('document') && t.description?.toLowerCase().includes('send')) || t.description?.toLowerCase().includes('envelope')));
+  const docSendCount = docSendTxs.length;
+  const docSendCredits = docSendTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (docSendCount * 5);
+
+  const recipientSignTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'recipient_sign' || t.description?.toLowerCase().includes('recipient_sign') || t.description?.toLowerCase().includes('signature submission')));
+  const recipientSignCount = recipientSignTxs.length;
+  const recipientSignCredits = recipientSignTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (recipientSignCount * 2);
+
+  const aiTemplateTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'ai_template' || t.description?.toLowerCase().includes('ai agreement') || t.description?.toLowerCase().includes('ai_template')));
+  const aiTemplateCount = aiTemplateTxs.length;
+  const aiTemplateCredits = aiTemplateTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (aiTemplateCount * 20);
+
+  const aiProcessingTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'ai_processing' || t.description?.toLowerCase().includes('ai_processing') || t.description?.toLowerCase().includes('extract fields') || t.description?.toLowerCase().includes('summarize')));
+  const aiProcessingCount = aiProcessingTxs.length;
+  const aiProcessingCredits = aiProcessingTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (aiProcessingCount * 10);
+
+  const templateUseTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'template_use' || t.description?.toLowerCase().includes('template_use') || (t.description?.toLowerCase().includes('template') && !t.description?.toLowerCase().includes('ai'))));
+  const templateUseCount = templateUseTxs.length;
+  const templateUseCredits = templateUseTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (templateUseCount * 3);
+
+  const smsTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'sms' || t.description?.toLowerCase().includes('sms')));
+  const smsCount = smsTxs.length;
+  const smsCredits = smsTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (smsCount * 2);
+
+  const emailTxs = transactions.filter(t => (Number(t.amount) < 0 || t.type === 'debit') && (t.source === 'email' || t.description?.toLowerCase().includes('email delivery')));
+  const emailCount = emailTxs.length;
+  const emailCredits = emailTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0) || (emailCount * 1);
+
+  const auditTxs = transactions.filter(t => t.source === 'audit' || t.description?.toLowerCase().includes('certificate') || t.description?.toLowerCase().includes('otp'));
+  const auditCount = auditTxs.length;
 
   const formatTxDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return { formatted: 'N/A', relative: '' };
     try {
       const dt = new Date(dateStr);
+      if (isNaN(dt.getTime())) return { formatted: String(dateStr), relative: '' };
       return {
         formatted: format(dt, 'MMM dd, yyyy · hh:mm a'),
         relative: formatDistanceToNow(dt, { addSuffix: true })
       };
     } catch (e) {
-      return { formatted: dateStr, relative: '' };
+      return { formatted: String(dateStr), relative: '' };
     }
   };
 
@@ -867,11 +1325,9 @@ export default function Subscription() {
             }
           }}
         >
-          <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Account Usage" />
-          <Tab icon={<ShoppingCartIcon />} iconPosition="start" label="Upgrade Plan" />
-          <Tab icon={<CreditCardIcon />} iconPosition="start" label="Payment Methods" />
-          <Tab icon={<BusinessIcon />} iconPosition="start" label="Billing Information" />
-          <Tab icon={<DescriptionIcon />} iconPosition="start" label="Invoices & Receipts" />
+          <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Credit Usage & Metering" />
+          <Tab icon={<ShoppingCartIcon />} iconPosition="start" label="Upgrade Plans & Top-Up" />
+          <Tab icon={<ReceiptIcon />} iconPosition="start" label="Invoices & Receipts" />
           <Tab icon={<HistoryIcon />} iconPosition="start" label="Transaction Ledger" />
         </Tabs>
       </Box>
@@ -958,112 +1414,253 @@ export default function Subscription() {
             </Grid>
           </Paper>
 
-          {/* FULL-WIDTH SECTION 2: METERED ACTION COST & REAL USAGE BREAKDOWN */}
-          <Paper elevation={0} variant="outlined" sx={{ p: 4, borderRadius: '20px', width: '100%', bgcolor: '#ffffff' }}>
-            <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 1 }}>
-              Action Cost & Real Usage Breakdown
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Transparent action rates. You only consume credits when actions are performed.
-            </Typography>
+          {/* HOW CREDIT CONSUMPTION WORKS (EXACT 8 CARDS - SAME WIDTH, SAME HEIGHT, CENTERED) */}
+          <Paper elevation={0} variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: '24px', bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a', mb: 1, letterSpacing: '-0.5px' }}>
+                How Credit Consumption Works
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650, mx: 'auto', fontSize: '0.95rem' }}>
+                Transparent action pricing. No mystery charges. You only consume credits when actions are performed.
+              </Typography>
+            </Box>
 
-            <List disablePadding sx={{ width: '100%' }}>
-              <ListItem
-                disableGutters
-                sx={{
-                  py: 2,
-                  px: 2,
-                  borderBottom: '1px solid #f1f5f9',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: '#e0f2fe', color: '#0284c7', width: 44, height: 44 }}>
-                    <DescriptionIcon />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a' }}>
-                      Document Dispatches
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      5 Credits per envelope sent to signers
-                    </Typography>
-                  </Box>
-                </Box>
-                <Chip
-                  label={`${docDispatchCount} Sent`}
-                  sx={{ bgcolor: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: '0.85rem', px: 1.5, py: 1 }}
-                />
-              </ListItem>
+            <Grid container spacing={2.5} justifyContent="center" alignItems="stretch">
+              {[
+                {
+                  title: 'Document Send & E-Signing',
+                  badge: '5 Credits',
+                  badgeBg: '#e0f2fe',
+                  badgeColor: '#0369a1',
+                  iconBg: '#e0f2fe',
+                  iconColor: '#0284c7',
+                  icon: <DescriptionIcon sx={{ fontSize: 22 }} />,
+                  description: 'Send envelope with signature fields to recipients',
+                  count: docSendCount,
+                  label: 'Sent',
+                  credits: docSendCredits,
+                  isFree: false
+                },
+                {
+                  title: 'Recipient Signing',
+                  badge: '2 Credits',
+                  badgeBg: '#ccfbf1',
+                  badgeColor: '#0f766e',
+                  iconBg: '#ccfbf1',
+                  iconColor: '#0f766e',
+                  icon: <CheckCircleOutlineIcon sx={{ fontSize: 22 }} />,
+                  description: 'Signer completes signature or input submission',
+                  count: recipientSignCount,
+                  label: 'Signed',
+                  credits: recipientSignCredits,
+                  isFree: false
+                },
+                {
+                  title: 'AI Agreement Generator',
+                  badge: '20 Credits',
+                  badgeBg: '#f3e8ff',
+                  badgeColor: '#7c3aed',
+                  iconBg: '#f3e8ff',
+                  iconColor: '#7c3aed',
+                  icon: <AutoAwesomeIcon sx={{ fontSize: 22 }} />,
+                  description: 'Generate custom legal agreement via AI prompt',
+                  count: aiTemplateCount,
+                  label: 'Created',
+                  credits: aiTemplateCredits,
+                  isFree: false
+                },
+                {
+                  title: 'AI Processing & Parsing',
+                  badge: '10 Credits',
+                  badgeBg: '#ffedd5',
+                  badgeColor: '#c2410c',
+                  iconBg: '#ffedd5',
+                  iconColor: '#ea580c',
+                  icon: <BoltIcon sx={{ fontSize: 22 }} />,
+                  description: 'Extract fields & summarize document text via AI',
+                  count: aiProcessingCount,
+                  label: 'Parsed',
+                  credits: aiProcessingCredits,
+                  isFree: false
+                },
+                {
+                  title: 'Template Usage',
+                  badge: '3 Credits',
+                  badgeBg: '#e0f2fe',
+                  badgeColor: '#0369a1',
+                  iconBg: '#e0f2fe',
+                  iconColor: '#0284c7',
+                  icon: <LayersIcon sx={{ fontSize: 22 }} />,
+                  description: 'Use pre-built reusable contract template',
+                  count: templateUseCount,
+                  label: 'Used',
+                  credits: templateUseCredits,
+                  isFree: false
+                },
+                {
+                  title: 'SMS Notifications',
+                  badge: '2 Credits',
+                  badgeBg: '#ffe4e6',
+                  badgeColor: '#e11d48',
+                  iconBg: '#ffe4e6',
+                  iconColor: '#e11d48',
+                  icon: <PhoneAndroidIcon sx={{ fontSize: 22 }} />,
+                  description: 'Send SMS alert or signing invitation link',
+                  count: smsCount,
+                  label: 'Sent',
+                  credits: smsCredits,
+                  isFree: false
+                },
+                {
+                  title: 'Email Delivery',
+                  badge: '1 Credit',
+                  badgeBg: '#f1f5f9',
+                  badgeColor: '#475569',
+                  iconBg: '#f1f5f9',
+                  iconColor: '#475569',
+                  icon: <EmailIcon sx={{ fontSize: 22 }} />,
+                  description: 'Automated email dispatch & status tracking',
+                  count: emailCount,
+                  label: 'Sent',
+                  credits: emailCredits,
+                  isFree: false
+                }
+                // {
+                //   title: 'Audit Trail & 2FA OTP',
+                //   badge: 'FREE (0 Credits)',
+                //   badgeBg: '#dcfce7',
+                //   badgeColor: '#16a34a',
+                //   iconBg: '#dcfce7',
+                //   iconColor: '#16a34a',
+                //   icon: <VerifiedUserIcon sx={{ fontSize: 22 }} />,
+                //   description: 'Tamper-evident legal certificate & OTP verification',
+                //   count: auditCount,
+                //   label: 'Generated',
+                //   credits: 0,
+                //   isFree: true
+                // }
+              ].map((rule, idx) => (
+                <Grid item xs={12} sm={6} md={3} key={idx} sx={{ display: 'flex' }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      width: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      borderRadius: '16px',
+                      border: '1px solid #e2e8f0',
+                      bgcolor: '#ffffff',
+                      boxSizing: 'border-box',
+                      transition: 'all 0.25s ease',
+                      '&:hover': {
+                        borderColor: '#0f766e',
+                        boxShadow: '0 6px 18px rgba(15, 118, 110, 0.1)',
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                      {/* Top Header: Icon & Badge */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: '10px',
+                            bgcolor: rule.iconBg,
+                            color: rule.iconColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {rule.icon}
+                        </Box>
+                        <Chip
+                          label={rule.badge}
+                          size="small"
+                          sx={{
+                            bgcolor: rule.badgeBg,
+                            color: rule.badgeColor,
+                            fontWeight: 800,
+                            fontSize: '0.74rem',
+                            borderRadius: '8px',
+                            height: '24px'
+                          }}
+                        />
+                      </Box>
 
-              <ListItem
-                disableGutters
-                sx={{
-                  py: 2,
-                  px: 2,
-                  borderBottom: '1px solid #f1f5f9',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: '#f3e8ff', color: '#7c3aed', width: 44, height: 44 }}>
-                    <AutoAwesomeIcon />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a' }}>
-                      AI Agreement Generations
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      20 Credits per AI agreement generated
-                    </Typography>
-                  </Box>
-                </Box>
-                <Chip
-                  label={`${aiContractCount} Created`}
-                  sx={{ bgcolor: '#f1f5f9', color: '#0f172a', fontWeight: 800, fontSize: '0.85rem', px: 1.5, py: 1 }}
-                />
-              </ListItem>
+                      {/* Title with standardized vertical baseline */}
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={800}
+                        sx={{
+                          color: '#0f172a',
+                          mb: 0.8,
+                          lineHeight: 1.3,
+                          fontSize: '0.96rem',
+                          minHeight: '44px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {rule.title}
+                      </Typography>
 
-              <ListItem
-                disableGutters
-                sx={{
-                  py: 2,
-                  px: 2,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: '#dcfce7', color: '#16a34a', width: 44, height: 44 }}>
-                    <CheckCircleIcon />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0f172a' }}>
-                      Audit Certificates & 2FA OTP
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Tamper-evident certificates & OTP email verifications
-                    </Typography>
-                  </Box>
-                </Box>
-                <Chip
-                  label="INCLUDED FREE"
-                  color="success"
-                  sx={{ fontWeight: 800, fontSize: '0.78rem', px: 1 }}
-                />
-              </ListItem>
-            </List>
+                      {/* Description with standardized vertical baseline */}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: '0.82rem',
+                          lineHeight: 1.45,
+                          minHeight: '40px',
+                          mb: 2,
+                          color: '#64748b'
+                        }}
+                      >
+                        {rule.description}
+                      </Typography>
+                    </Box>
+
+                    {/* Footer Usage Counter pinned to bottom */}
+                    <Box
+                      sx={{
+                        pt: 1.5,
+                        mt: 'auto',
+                        borderTop: '1px solid #f1f5f9',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                        Your Usage:
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: rule.isFree ? '#16a34a' : '#0f766e',
+                          fontWeight: 800,
+                          bgcolor: rule.isFree ? '#f0fdf4' : '#f0fdfa',
+                          px: 1,
+                          py: 0.35,
+                          borderRadius: '6px'
+                        }}
+                      >
+                        {rule.isFree
+                          ? (rule.count > 0 ? `${rule.count} Generated (0 cr)` : 'Included Free (0 cr)')
+                          : `${rule.count} ${rule.label} (${rule.credits} cr)`
+                        }
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
           </Paper>
 
           {/* FULL-WIDTH SECTION 3: CREDIT ROLLOVER GUARANTEE */}
@@ -1103,11 +1700,11 @@ export default function Subscription() {
             </Typography>
           </Box>
 
-          {/* ROW 1: 4 PLAN CARDS */}
-          <Grid container spacing={3} sx={{ pt: 1, mb: 3 }}>
-            {PLAN_CARDS_ROW1.map((pack) => (
-              <Grid item xs={12} sm={6} md={3} key={pack.id}>
-                <CreditCardWrapper badge={pack.badge} isfree={pack.isFree}>
+          {/* 1ST ROW: EXACTLY 4 CARDS (FREE TRIAL, STARTER, STANDARD, PROFESSIONAL) */}
+          <Grid container spacing={3} justifyContent="center" alignItems="stretch" sx={{ pt: 1, mb: 1 }}>
+            {PRIMARY_PLAN_CARDS.map((pack) => (
+              <Grid item xs={12} sm={6} md={3} key={pack.id} sx={{ display: 'flex' }}>
+                <CreditCardWrapper badge={pack.badge} isfree={pack.isFree} sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
                   {pack.badge && (
                     <BadgeRibbon badge={pack.badge}>
                       <StarIcon sx={{ fontSize: 13 }} /> {pack.badge}
@@ -1115,15 +1712,15 @@ export default function Subscription() {
                   )}
 
                   <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
+                    <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5, minHeight: '32px', display: 'flex', alignItems: 'center' }}>
                       {pack.name}
                     </Typography>
 
-                    <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 700, mb: 2 }}>
+                    <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 700, mb: 1.5, minHeight: '20px', display: 'block' }}>
                       {pack.unitPrice}
                     </Typography>
 
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2, minHeight: '44px' }}>
                       <Typography variant="h3" fontWeight={900} sx={{ color: '#0f172a' }}>
                         {pack.price === 0 ? 'Free' : `$${pack.price.toFixed(2)}`}
                       </Typography>
@@ -1134,7 +1731,7 @@ export default function Subscription() {
                       )}
                     </Box>
 
-                    <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2.5 }}>
+                    <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2, minHeight: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.5 }}>
                         ESTIMATED USAGE:
                       </Typography>
@@ -1168,10 +1765,10 @@ export default function Subscription() {
                     </List>
                   </CardContent>
 
-                  <CardActions sx={{ p: 3, pt: 0 }}>
+                  <CardActions sx={{ p: 3, pt: 0, mt: 'auto' }}>
                     <Button
                       fullWidth
-                      variant={pack.badge ? 'contained' : 'outlined'}
+                      variant={pack.badge ? 'contained' : (pack.isFree ? 'outlined' : 'outlined')}
                       size="large"
                       startIcon={pack.isFree ? <CheckCircleOutlineIcon /> : <ShoppingCartIcon />}
                       onClick={() => handleBuyPackClick(pack)}
@@ -1180,16 +1777,16 @@ export default function Subscription() {
                         textTransform: 'none',
                         fontWeight: 700,
                         py: 1.2,
-                        bgcolor: pack.badge ? '#0f766e' : pack.isFree ? '#10b981' : 'transparent',
+                        bgcolor: pack.badge ? '#0f766e' : (pack.isFree ? '#f0fdf4' : 'transparent'),
                         borderColor: pack.isFree ? '#10b981' : '#0f766e',
-                        color: pack.badge || pack.isFree ? '#ffffff' : '#0f766e',
+                        color: pack.badge ? '#ffffff' : (pack.isFree ? '#065f46' : '#0f766e'),
                         '&:hover': {
-                          bgcolor: pack.badge ? '#0d655e' : pack.isFree ? '#059669' : '#f0fdf4',
+                          bgcolor: pack.badge ? '#0d655e' : (pack.isFree ? '#dcfce7' : '#f0fdf4'),
                           borderColor: '#0d655e'
                         }
                       }}
                     >
-                      {pack.isFree ? 'Current Bonus Active' : 'Upgrade / Buy Pack'}
+                      {pack.isFree ? 'Current Plan Active' : 'Upgrade / Buy Pack'}
                     </Button>
                   </CardActions>
                 </CreditCardWrapper>
@@ -1197,7 +1794,7 @@ export default function Subscription() {
             ))}
           </Grid>
 
-          {/* TOGGLE EXPAND BUTTON FOR ROW 2 */}
+          {/* VIEW MORE / DROP DOWN BUTTON TO OPEN ENTERPRISE & CUSTOM PLANS */}
           <Box sx={{ textAlign: 'center', my: 4 }}>
             <Button
               variant="outlined"
@@ -1206,678 +1803,381 @@ export default function Subscription() {
               sx={{
                 borderRadius: '30px',
                 px: 4,
-                py: 1.2,
+                py: 1.3,
                 fontWeight: 800,
                 color: '#0f766e',
                 borderColor: '#0f766e',
+                fontSize: '0.92rem',
+                textTransform: 'none',
+                boxShadow: '0 2px 8px rgba(15, 118, 110, 0.08)',
+                bgcolor: showEnterpriseRow ? '#f0fdf4' : 'transparent',
                 '&:hover': {
                   borderColor: '#0d655e',
                   bgcolor: '#f0fdf4'
                 }
               }}
             >
-              {showEnterpriseRow ? 'Hide Enterprise & Custom Volume Plans' : 'View Enterprise & Custom Volume Plans'}
+              {showEnterpriseRow ? 'Hide Enterprise & Custom Plans' : 'View Enterprise & Custom Volume Plans'}
             </Button>
           </Box>
 
-          {/* ROW 2: ENTERPRISE & CUSTOM PRICE CARDS (COLLAPSIBLE) */}
+          {/* COLLAPSIBLE ENTERPRISE SCALE & CUSTOM ENTERPRISE PLANS (HIDDEN BY DEFAULT) */}
           <Collapse in={showEnterpriseRow} timeout="auto" unmountOnExit>
-            <Grid container spacing={3} justifyContent="center" sx={{ mb: 4 }}>
-              {PLAN_CARDS_ROW2.map((pack) => (
-                <Grid item xs={12} sm={6} md={3} key={pack.id}>
-                  <CreditCardWrapper badge={pack.badge}>
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a', textAlign: 'center', mb: 2.5 }}>
+                Enterprise Scale & Custom Volume Solutions
+              </Typography>
+              <Grid container spacing={3} justifyContent="center" alignItems="stretch">
+                {ENTERPRISE_PLAN_CARDS.map((pack) => (
+                  <Grid item xs={12} sm={6} md={4} key={pack.id} sx={{ display: 'flex' }}>
+                    <CreditCardWrapper badge={pack.badge} isfree={pack.isFree} sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+                      {pack.badge && (
+                        <BadgeRibbon badge={pack.badge}>
+                          <StarIcon sx={{ fontSize: 13 }} /> {pack.badge}
+                        </BadgeRibbon>
+                      )}
 
-                    {pack.badge && (
-                      <BadgeRibbon badge={pack.badge}>
-                        <StarIcon sx={{ fontSize: 13 }} /> {pack.badge}
-                      </BadgeRibbon>
-                    )}
-
-                    <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                      <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
-                        {pack.name}
-                      </Typography>
-
-                      <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 700, mb: 2 }}>
-                        {pack.unitPrice}
-                      </Typography>
-
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2 }}>
-                        <Typography variant="h3" fontWeight={900} sx={{ color: '#0f172a' }}>
-                          {pack.price !== null ? `$${pack.price.toFixed(2)}` : 'Custom'}
+                      <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5, minHeight: '32px', display: 'flex', alignItems: 'center' }}>
+                          {pack.name}
                         </Typography>
-                        {pack.price !== null && (
-                          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                            one-time
+
+                        <Typography variant="caption" sx={{ color: '#0f766e', fontWeight: 700, mb: 1.5, minHeight: '20px', display: 'block' }}>
+                          {pack.unitPrice}
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2, minHeight: '44px' }}>
+                          <Typography variant="h3" fontWeight={900} sx={{ color: '#0f172a' }}>
+                            {pack.price !== null ? `$${pack.price.toFixed(2)}` : 'Custom'}
                           </Typography>
-                        )}
-                      </Box>
+                          {pack.price !== null && (
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                              one-time
+                            </Typography>
+                          )}
+                        </Box>
 
-                      <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2.5 }}>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                          SUITED FOR:
+                        <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0', mb: 2, minHeight: '64px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                            SUITED FOR:
+                          </Typography>
+                          <Typography variant="body2" fontWeight={700} sx={{ color: '#0f766e', fontSize: '0.85rem' }}>
+                            {pack.usageEst}
+                          </Typography>
+                        </Box>
+
+                        <Divider sx={{ my: 1 }} />
+
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ mt: 1.5, mb: 1, color: '#334155', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Features Included
                         </Typography>
-                        <Typography variant="body2" fontWeight={700} sx={{ color: '#0f766e', fontSize: '0.85rem' }}>
-                          {pack.usageEst}
-                        </Typography>
-                      </Box>
 
-                      <Divider sx={{ my: 1 }} />
+                        <List size="small" disablePadding sx={{ mb: 2, flexGrow: 1 }}>
+                          {pack.features.map((feat, idx) => (
+                            <ListItem key={idx} disableGutters sx={{ py: 0.4 }}>
+                              <ListItemIcon sx={{ minWidth: 24, color: '#10b981' }}>
+                                <CheckCircleIcon sx={{ fontSize: 16 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={feat}
+                                primaryTypographyProps={{
+                                  fontSize: '0.82rem',
+                                  fontWeight: idx === 0 ? 700 : 500,
+                                  color: idx === 0 ? '#0f172a' : '#475569'
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </CardContent>
 
-                      <Typography variant="subtitle2" fontWeight={800} sx={{ mt: 1.5, mb: 1, color: '#334155', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Enterprise Features
-                      </Typography>
-
-                      <List size="small" disablePadding sx={{ mb: 2, flexGrow: 1 }}>
-                        {pack.features.map((feat, idx) => (
-                          <ListItem key={idx} disableGutters sx={{ py: 0.4 }}>
-                            <ListItemIcon sx={{ minWidth: 24, color: '#10b981' }}>
-                              <CheckCircleIcon sx={{ fontSize: 16 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={feat}
-                              primaryTypographyProps={{
-                                fontSize: '0.82rem',
-                                fontWeight: idx === 0 ? 700 : 500,
-                                color: idx === 0 ? '#0f172a' : '#475569'
-                              }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </CardContent>
-
-                    <CardActions sx={{ p: 3, pt: 0 }}>
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        size="large"
-                        startIcon={pack.isCustom ? <HeadsetMicIcon /> : <ShoppingCartIcon />}
-                        onClick={() => handleBuyPackClick(pack)}
-                        sx={{
-                          borderRadius: '12px',
-                          textTransform: 'none',
-                          fontWeight: 700,
-                          py: 1.2,
-                          bgcolor: pack.isCustom ? '#0284c7' : '#0f766e',
-                          '&:hover': {
-                            bgcolor: pack.isCustom ? '#0369a1' : '#0d655e'
-                          }
-                        }}
-                      >
-                        {pack.isCustom ? 'Talk to Sales' : 'Buy Enterprise Pack'}
-                      </Button>
-                    </CardActions>
-                  </CreditCardWrapper>
-                </Grid>
-              ))}
-            </Grid>
+                      <CardActions sx={{ p: 3, pt: 0, mt: 'auto' }}>
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          size="large"
+                          startIcon={pack.isCustom ? <HeadsetMicIcon /> : <ShoppingCartIcon />}
+                          onClick={() => handleBuyPackClick(pack)}
+                          sx={{
+                            borderRadius: '12px',
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            py: 1.2,
+                            bgcolor: pack.isCustom ? '#0284c7' : '#0f766e',
+                            color: '#ffffff',
+                            '&:hover': {
+                              bgcolor: pack.isCustom ? '#0369a1' : '#0d655e'
+                            }
+                          }}
+                        >
+                          {pack.isCustom ? 'Talk to Enterprise Sales' : 'Buy Enterprise Pack'}
+                        </Button>
+                      </CardActions>
+                    </CreditCardWrapper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           </Collapse>
         </Box>
       )}
 
       {/* ==================================================== */}
-      {/* ==================================================== */}
-      {/* TAB 2: PAYMENT METHODS (REALISTIC CREDIT CARDS & SETTINGS) */}
+      {/* TAB 2: INVOICES & RECEIPTS WITH REAL PDF GENERATOR */}
       {/* ==================================================== */}
       {activeTab === 2 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-          {/* HEADER & ACTION */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, mb: 3 }}>
             <Box>
-              <Typography variant="h5" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
-                Saved Payment Methods
+              <Typography variant="h5" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <ReceiptIcon sx={{ color: '#0f766e' }} />
+                Invoices & Transaction Receipts
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Manage your primary credit cards, backup payment methods, and automated credit balance top-up preferences.
+                Official tax invoices and printable transaction receipts for your accounting and tax records.
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddCardIcon />}
-              onClick={() => setAddCardModalOpen(true)}
+            <Chip
+              icon={<VerifiedUserIcon sx={{ color: '#0f766e !important', fontSize: '16px !important' }} />}
+              label="PCI-DSS & Stripe Verified Receipts"
+              size="small"
               sx={{
-                bgcolor: '#0f766e',
-                borderRadius: '12px',
-                textTransform: 'none',
+                bgcolor: '#f0fdfa',
+                color: '#0f766e',
+                border: '1px solid #99f6e4',
                 fontWeight: 700,
-                py: 1.3,
-                px: 3.5,
-                boxShadow: '0 4px 14px rgba(15, 118, 110, 0.3)',
-                '&:hover': { bgcolor: '#0d655e' }
+                fontSize: '0.75rem',
+                py: 0.5
               }}
-            >
-              Add Payment Method
-            </Button>
+            />
           </Box>
 
-          {/* REALISTIC CREDIT CARDS GRID */}
-          <Grid container spacing={3}>
-            {savedCards.map((card) => (
-              <Grid item xs={12} sm={6} md={4} key={card.id}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 3,
-                    borderRadius: '24px',
-                    background: card.isDefault
-                      ? 'linear-gradient(135deg, #0f766e 0%, #115e59 40%, #0d9488 100%)'
-                      : 'linear-gradient(135deg, #1e293b 0%, #334155 50%, #0f172a 100%)',
-                    color: '#ffffff',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    boxShadow: card.isDefault
-                      ? '0 16px 32px -8px rgba(15, 118, 110, 0.4)'
-                      : '0 10px 24px -5px rgba(15, 23, 42, 0.25)',
-                    transition: 'all 0.3s ease',
-                    border: card.isDefault ? '2px solid #5eead4' : '1px solid #475569',
-                    '&:hover': { transform: 'translateY(-6px)' }
-                  }}
-                >
-                  {/* WATERMARK BACKGROUND ICON */}
-                  <CreditCardIcon
-                    sx={{
-                      position: 'absolute',
-                      right: -20,
-                      bottom: -20,
-                      fontSize: 160,
-                      opacity: 0.08,
-                      color: '#ffffff'
-                    }}
-                  />
-
-                  {/* TOP ROW: BRAND & STATUS BADGE */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                      {card.brand}
-                    </Typography>
-                    {card.isDefault ? (
-                      <Chip
-                        label="DEFAULT METHOD"
-                        size="small"
-                        icon={<CheckIcon sx={{ fontSize: '14px !important', color: '#0f766e !important' }} />}
-                        sx={{ fontWeight: 600, fontSize: '0.68rem', bgcolor: '#ffffff', color: '#0f766e', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                      />
-                    ) : (
-                      <Chip
-                        label="SAVED CARD"
-                        size="small"
-                        sx={{ fontWeight: 600, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff' }}
-                      />
-                    )}
-                  </Box>
-
-                  {/* EMV CHIP & CONTACTLESS SYMBOL */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
-                    <Box
-                      sx={{
-                        width: 42,
-                        height: 30,
-                        borderRadius: '6px',
-                        bgcolor: '#fbbf24',
-                        border: '1px solid #d97706',
-                        position: 'relative',
-                        boxShadow: 'inset 0 0 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                    <NfcIcon sx={{ opacity: 0.8, fontSize: 24 }} />
-                  </Box>
-
-                  {/* CARD NUMBER */}
-                  <Typography
-                    variant="h5"
-                    fontWeight={800}
-                    letterSpacing="0.18em"
-                    sx={{ mb: 2.5, fontFamily: 'monospace', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
-                  >
-                    •••• •••• •••• {card.last4}
-                  </Typography>
-
-                  {/* BOTTOM ROW: HOLDER & EXPIRES */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ opacity: 0.75, display: 'block', fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        CARDHOLDER NAME
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        {card.cardholderName || user?.full_name || 'PRIMARY ACCOUNT'}
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="caption" sx={{ opacity: 0.75, display: 'block', fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        EXPIRES
-                      </Typography>
-                      <Typography variant="body2" fontWeight={800}>
-                        {card.expMonth || card.exp_month}/{card.expYear || card.exp_year}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* ACTION FOOTER */}
-                  <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.15)' }} />
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {!card.isDefault ? (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => handleSetDefaultCard(card.id)}
-                        sx={{
-                          color: '#ffffff',
-                          borderColor: 'rgba(255,255,255,0.4)',
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          textTransform: 'none',
-                          borderRadius: '8px',
-                          '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255,255,255,0.1)' }
-                        }}
-                      >
-                        Set Default
-                      </Button>
-                    ) : (
-                      <Typography variant="caption" sx={{ color: '#5eead4', fontWeight: 700 }}>
-                        ✓ Primary Top-up Card
-                      </Typography>
-                    )}
-
-                    <Tooltip title="Remove payment card">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteCardClick(card)}
-                        sx={{ color: '#f87171', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.2)' } }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-
-          {/* PAYMENT & AUTO-RECHARGE PREFERENCES */}
-          <Paper elevation={0} variant="outlined" sx={{ p: 3.5, borderRadius: '20px', bgcolor: '#ffffff' }}>
-            <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
-              Payment & Billing Preferences
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Configure automatic credit balance reloads and automated receipt email notifications.
-            </Typography>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#f8fafc', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ pr: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <BoltIcon sx={{ color: '#0f766e', fontSize: 20 }} />
-                      <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a' }}>
-                        Auto Credit Balance Recharge
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Automatically buy Starter Pack ($5.00 for 500 credits) whenever balance drops below 100 credits.
-                    </Typography>
-                  </Box>
-                  <Switch
-                    checked={autoRecharge}
-                    onChange={(e) => {
-                      setAutoRecharge(e.target.checked);
-                      setSnackbar({ open: true, message: e.target.checked ? 'Auto credit recharge enabled!' : 'Auto credit recharge disabled.', severity: 'info' });
-                    }}
-                    color="primary"
-                  />
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Box sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#f8fafc', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ pr: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <ReceiptIcon sx={{ color: '#0f766e', fontSize: 20 }} />
-                      <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a' }}>
-                        Automatic Email Tax Receipts
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Instantly email printable PDF tax invoices to primary billing contact after every completed purchase.
-                    </Typography>
-                  </Box>
-                  <Switch
-                    checked={emailReceipts}
-                    onChange={(e) => {
-                      setEmailReceipts(e.target.checked);
-                      setSnackbar({ open: true, message: e.target.checked ? 'Email receipts active.' : 'Email receipts turned off.', severity: 'info' });
-                    }}
-                    color="primary"
-                  />
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* SECURITY ASSURANCE BANNER */}
-          <Alert
-            severity="info"
-            icon={<SecurityIcon sx={{ color: '#0f766e' }} />}
-            sx={{ borderRadius: '16px', bgcolor: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0', '& .MuiAlert-message': { fontWeight: 600 } }}
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              overflowX: 'auto',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              bgcolor: '#ffffff'
+            }}
           >
-            <strong>256-Bit SSL Encrypted & PCI-DSS Level 1 Compliant:</strong> All card transactions are tokenized securely through Stripe. Esigniva never holds or stores raw credit card numbers.
-          </Alert>
-        </Box>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 3: BILLING INFORMATION (ORGANIZED 2-COLUMN PROFILE) */}
-      {/* ==================================================== */}
-      {activeTab === 3 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-          <Box>
-            <Typography variant="h5" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
-              Billing & Tax Profile
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Organize corporate legal entity names, VAT/Tax registration IDs, billing contacts, and official address for automated tax invoice generation.
-            </Typography>
-          </Box>
-
-          <form onSubmit={handleSaveBilling}>
-            <Grid container spacing={3.5}>
-              {/* LEFT COLUMN: COMPANY & TAX DETAILS */}
-              <Grid item xs={12} md={7}>
-                <Paper elevation={0} variant="outlined" sx={{ p: 4, borderRadius: '24px', bgcolor: '#ffffff', height: '100%' }}>
-                  <Typography variant="h6" fontWeight={800} sx={{ color: '#0f766e', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <BusinessIcon sx={{ fontSize: 22 }} /> Company & Tax Identification
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Appears on official PDF receipts, tax reports, and invoices.
-                  </Typography>
-
-                  <Grid container spacing={2.5}>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Company / Legal Entity Name"
-                        placeholder="e.g. Acme Enterprise Corporation LLC"
-                        value={billingInfo.companyName}
-                        onChange={(e) => setBillingInfo({ ...billingInfo, companyName: e.target.value })}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><BusinessIcon sx={{ color: '#64748b' }} /></InputAdornment> }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} sm={4}>
-                      <FormControl fullWidth>
-                        <InputLabel>Tax ID Type</InputLabel>
-                        <Select
-                          value={billingInfo.taxIdType || 'VAT/EIN'}
-                          label="Tax ID Type"
-                          onChange={(e) => setBillingInfo({ ...billingInfo, taxIdType: e.target.value })}
-                        >
-                          <MenuItem value="VAT/EIN">VAT / Tax ID</MenuItem>
-                          <MenuItem value="EIN / FEIN">EIN / FEIN (US)</MenuItem>
-                          <MenuItem value="VAT Registration">VAT (EU / UK)</MenuItem>
-                          <MenuItem value="GST Number">GST (IN / AU)</MenuItem>
-                          <MenuItem value="TIN Number">TIN Registration</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-
-                    <Grid item xs={12} sm={8}>
-                      <TextField
-                        fullWidth
-                        label="Tax ID / VAT Registration Number"
-                        placeholder="e.g. US123456789 or EU987654321"
-                        value={billingInfo.vatId}
-                        onChange={(e) => setBillingInfo({ ...billingInfo, vatId: e.target.value })}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        required
-                        label="Primary Billing Email (For Tax Invoices)"
-                        type="email"
-                        value={billingInfo.billingEmail}
-                        onChange={(e) => setBillingInfo({ ...billingInfo, billingEmail: e.target.value })}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#64748b' }} /></InputAdornment> }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Accounts Payable CC Email (Optional)"
-                        type="email"
-                        placeholder="billing@company.com"
-                        value={billingInfo.secondaryEmail}
-                        onChange={(e) => setBillingInfo({ ...billingInfo, secondaryEmail: e.target.value })}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><ContactMailIcon sx={{ color: '#64748b' }} /></InputAdornment> }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="Billing Support Phone"
-                        placeholder="+1 (555) 019-2834"
-                        value={billingInfo.phone}
-                        onChange={(e) => setBillingInfo({ ...billingInfo, phone: e.target.value })}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ color: '#64748b' }} /></InputAdornment> }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Box sx={{ p: 2, borderRadius: '14px', bgcolor: '#f0fdf4', border: '1px solid #a7f3d0' }}>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={billingInfo.isTaxExempt}
-                              onChange={(e) => setBillingInfo({ ...billingInfo, isTaxExempt: e.target.checked })}
-                              color="primary"
-                            />
-                          }
-                          label={
-                            <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#065f46' }}>
-                              B2B Business Tax Exemption / VAT Reverse Charge
-                            </Typography>
-                          }
-                        />
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 4, mt: -0.5 }}>
-                          Check this option if your business qualifies for zero-rated EU/UK VAT reverse charge or US sales tax exemption.
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-
-              {/* RIGHT COLUMN: BILLING ADDRESS & LIVE PDF PREVIEW */}
-              <Grid item xs={12} md={5}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <Paper elevation={0} variant="outlined" sx={{ p: 4, borderRadius: '24px', bgcolor: '#ffffff' }}>
-                    <Typography variant="h6" fontWeight={800} sx={{ color: '#0f766e', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <BusinessIcon sx={{ fontSize: 22 }} /> Official Billing Address
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-                      Registered physical headquarters or operating address.
-                    </Typography>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          label="Street Address"
-                          placeholder="100 Enterprise Way, Suite 400"
-                          value={billingInfo.address}
-                          onChange={(e) => setBillingInfo({ ...billingInfo, address: e.target.value })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="City"
-                          value={billingInfo.city}
-                          onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="State / Province"
-                          value={billingInfo.state}
-                          onChange={(e) => setBillingInfo({ ...billingInfo, state: e.target.value })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Postal / Zip Code"
-                          value={billingInfo.zip}
-                          onChange={(e) => setBillingInfo({ ...billingInfo, zip: e.target.value })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth>
-                          <InputLabel>Country</InputLabel>
-                          <Select
-                            value={billingInfo.country || 'United States'}
-                            label="Country"
-                            onChange={(e) => setBillingInfo({ ...billingInfo, country: e.target.value })}
-                          >
-                            <MenuItem value="United States">United States</MenuItem>
-                            <MenuItem value="United Kingdom">United Kingdom</MenuItem>
-                            <MenuItem value="Canada">Canada</MenuItem>
-                            <MenuItem value="Australia">Australia</MenuItem>
-                            <MenuItem value="Germany">Germany</MenuItem>
-                            <MenuItem value="France">France</MenuItem>
-                            <MenuItem value="India">India</MenuItem>
-                            <MenuItem value="Singapore">Singapore</MenuItem>
-                            <MenuItem value="Other">International / Other</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-
-                  {/* LIVE PDF INVOICE HEADER PREVIEW */}
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: '20px', bgcolor: '#f8fafc', border: '2px dashed #0f766e' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                      <PictureAsPdfIcon sx={{ color: '#0f766e', fontSize: 20 }} />
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: '#0f766e', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        Live Tax Invoice Header Preview
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ p: 2, bgcolor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
-                      <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#0f172a' }}>
-                        BILLED TO:
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: '#0f766e' }}>
-                        {billingInfo.companyName || user?.full_name || 'Valued Customer'}
-                      </Typography>
-
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                        <strong>{billingInfo.taxIdType || 'Tax ID'}:</strong> {billingInfo.vatId || 'Not Specified'}
-                      </Typography>
-
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        <strong>Address:</strong> {billingInfo.address}, {billingInfo.city}, {billingInfo.state} {billingInfo.zip}, {billingInfo.country}
-                      </Typography>
-
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        <strong>Billing Email:</strong> {billingInfo.billingEmail || user?.email}
-                      </Typography>
-
-                      <Chip
-                        size="small"
-                        label={billingInfo.isTaxExempt ? 'B2B Reverse Charge Exemption' : 'Standard Tax Compliance'}
-                        sx={{ mt: 1, height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: billingInfo.isTaxExempt ? '#dcfce7' : '#f1f5f9', color: billingInfo.isTaxExempt ? '#15803d' : '#475569' }}
-                      />
-                    </Box>
-                  </Paper>
-                </Box>
-              </Grid>
-
-              {/* SAVE ACTION BUTTON */}
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 1 }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    disabled={savingBilling}
-                    startIcon={savingBilling ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                    sx={{
-                      bgcolor: '#0f766e',
-                      borderRadius: '14px',
-                      textTransform: 'none',
-                      fontWeight: 800,
-                      py: 1.6,
-                      px: 6,
-                      fontSize: '1rem',
-                      boxShadow: '0 8px 20px rgba(15, 118, 110, 0.28)',
-                      '&:hover': { bgcolor: '#0d655e' }
-                    }}
-                  >
-                    {savingBilling ? 'Saving Billing Profile...' : 'Save Billing & Tax Profile'}
-                  </Button>
-                </Box>
-              </Grid>
-            </Grid>
-          </form>
-        </Box>
-      )}
-
-
-      {/* ==================================================== */}
-      {/* TAB 4: INVOICES & RECEIPTS WITH REAL PDF GENERATOR */}
-      {/* ==================================================== */}
-      {activeTab === 4 && (
-        <Box>
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h5" fontWeight={800} sx={{ color: '#0f172a', mb: 0.5 }}>
-              Invoices & Transaction Receipts
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Download official tax invoices and printable PDF receipts for your accounting records.
-            </Typography>
-          </Box>
-
-          <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ borderRadius: '16px', overflow: 'hidden' }}>
-            <Table>
-              <TableHead sx={{ bgcolor: '#f8fafc' }}>
+            <Table sx={{ minWidth: 720 }}>
+              <TableHead sx={{ bgcolor: '#F8FAFC', borderBottom: '1px solid #E4E7EC' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Invoice ID</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }} align="right">Action</TableCell>
+                  <TableCell align="left" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Invoice Number
+                  </TableCell>
+                  <TableCell align="left" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Date
+                  </TableCell>
+                  <TableCell align="left" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Description
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Amount
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Status
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', py: 1.8, borderColor: '#E4E7EC' }}>
+                    Invoice Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {invoices.map((inv) => (
-                  <TableRow key={inv.id} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
-                    <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{inv.id}</TableCell>
-                    <TableCell>{inv.date}</TableCell>
-                    <TableCell>{inv.description}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{inv.amount}</TableCell>
-                    <TableCell>
-                      <Chip label={inv.status} color="success" size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        startIcon={<PictureAsPdfIcon />}
-                        onClick={() => handleDownloadPdfReceipt(inv)}
-                        sx={{ textTransform: 'none', color: '#0f766e', fontWeight: 600 }}
-                      >
-                        PDF Receipt
-                      </Button>
+                {invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6, borderColor: '#E4E7EC' }}>
+                      <ReceiptIcon sx={{ fontSize: 44, color: '#94a3b8', mb: 1 }} />
+                      <Typography variant="body1" fontWeight={600} color="text.secondary">
+                        No receipts or invoices found
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        When you purchase credit packs or activate plans, official invoices will appear here.
+                      </Typography>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  invoices.map((inv) => {
+                    const invNumber = inv.invoice_number || inv.id;
+                    const isDownloading = downloadingInvoiceId === invNumber || downloadingInvoiceId === inv.id;
+                    return (
+                      <TableRow
+                        key={inv.id || invNumber}
+                        sx={{
+                          '&:hover': { bgcolor: '#F8FAFC' },
+                          transition: 'background-color 0.15s ease',
+                          borderBottom: '1px solid #E4E7EC'
+                        }}
+                      >
+                        {/* INVOICE NUMBER with Monospace font and direct preview click */}
+                        <TableCell align="left" sx={{ py: 2, borderColor: '#E4E7EC' }}>
+                          <Tooltip title="Click to view full invoice preview" arrow placement="top">
+                            <Box
+                              component="button"
+                              onClick={() => handleViewReceipt(inv)}
+                              sx={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                margin: 0,
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}
+                            >
+                              <Typography
+                                component="span"
+                                sx={{
+                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                  fontWeight: 800,
+                                  fontSize: '0.85rem',
+                                  color: '#086B70',
+                                  maxWidth: 160,
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'color 0.15s ease',
+                                  '&:hover': {
+                                    textDecoration: 'underline',
+                                    color: '#065054'
+                                  }
+                                }}
+                              >
+                                {invNumber}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+
+                        {/* DATE */}
+                        <TableCell align="left" sx={{ py: 2, color: '#475569', fontSize: '0.875rem', whiteSpace: 'nowrap', borderColor: '#E4E7EC' }}>
+                          {inv.issue_date_str || inv.date}
+                        </TableCell>
+
+                        {/* DESCRIPTION */}
+                        <TableCell align="left" sx={{ py: 2, borderColor: '#E4E7EC' }}>
+                          <Box sx={{ maxWidth: 300 }}>
+                            <Tooltip title={inv.description} arrow placement="top">
+                              <Typography
+                                sx={{
+                                  fontWeight: 700,
+                                  color: '#101828',
+                                  fontSize: '0.875rem',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {(inv.items && inv.items[0]?.description) || inv.description}
+                              </Typography>
+                            </Tooltip>
+                            <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 600 }}>
+                              {inv.credits ? `${inv.credits.toLocaleString()} Cloud Credits Top-Up` : 'ESigniva Subscription'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+
+                        {/* AMOUNT right aligned */}
+                        <TableCell align="right" sx={{ py: 2, borderColor: '#E4E7EC' }}>
+                          <Typography sx={{ fontWeight: 800, color: '#101828', fontSize: '0.95rem' }}>
+                            {inv.total_str || inv.amount}
+                          </Typography>
+                        </TableCell>
+
+                        {/* STATUS center aligned */}
+                        <TableCell align="center" sx={{ py: 2, borderColor: '#E4E7EC' }}>
+                          <Chip
+                            label={inv.status || 'PAID'}
+                            size="small"
+                            sx={{
+                              bgcolor: '#F0FDFA',
+                              color: '#086B70',
+                              border: '1px solid #086B70',
+                              fontWeight: 800,
+                              fontSize: '0.7rem',
+                              letterSpacing: '0.4px',
+                              height: 24,
+                              px: 0.5
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* ACTION BUTTONS right aligned */}
+                        <TableCell align="right" sx={{ py: 2, borderColor: '#E4E7EC' }}>
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                            {/* <Tooltip title="Open official SaaS invoice preview" arrow>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<VisibilityIcon sx={{ fontSize: '16px !important' }} />}
+                                onClick={() => handleViewReceipt(inv)}
+                                sx={{
+                                  textTransform: 'none',
+                                  color: '#086B70',
+                                  bgcolor: '#F0FDFA',
+                                  borderColor: '#99F6E4',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  borderRadius: '8px',
+                                  px: 1.8,
+                                  py: 0.5,
+                                  boxShadow: 'none',
+                                  transition: 'all 0.15s ease',
+                                  '&:hover': {
+                                    borderColor: '#086B70',
+                                    bgcolor: '#CCFBF1',
+                                    color: '#065054'
+                                  }
+                                }}
+                              >
+                                View Invoice
+                              </Button>
+                            </Tooltip> */}
+
+                            <Tooltip title="Download official A4 PDF invoice" arrow>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                disabled={isDownloading}
+                                startIcon={
+                                  isDownloading ? (
+                                    <CircularProgress size={14} color="inherit" />
+                                  ) : (
+                                    <DownloadIcon sx={{ fontSize: '16px !important' }} />
+                                  )
+                                }
+                                onClick={() => handleDownloadPdfReceipt(inv)}
+                                sx={{
+                                  textTransform: 'none',
+                                  bgcolor: '#086B70',
+                                  color: '#ffffff',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  borderRadius: '8px',
+                                  px: 1.8,
+                                  py: 0.5,
+                                  boxShadow: 'none',
+                                  '&:hover': {
+                                    bgcolor: '#065054',
+                                    boxShadow: '0 2px 4px rgba(8, 107, 112, 0.25)'
+                                  }
+                                }}
+                              >
+                                {isDownloading ? 'Generating...' : 'Download PDF'}
+                              </Button>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>
@@ -1885,9 +2185,9 @@ export default function Subscription() {
       )}
 
       {/* ==================================================== */}
-      {/* TAB 5: TRANSACTION LEDGER */}
+      {/* TAB 3: TRANSACTION LEDGER */}
       {/* ==================================================== */}
-      {activeTab === 5 && (
+      {activeTab === 3 && (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
@@ -2091,167 +2391,478 @@ export default function Subscription() {
         </form>
       </Dialog>
 
-      {/* ADD CARD MODAL */}
-      <Dialog open={addCardModalOpen} onClose={() => setAddCardModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AddCardIcon sx={{ color: '#0f766e' }} />
-            <Typography variant="h6" fontWeight={800}>
-              Add New Payment Card
-            </Typography>
-          </Box>
-          <IconButton onClick={() => setAddCardModalOpen(false)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers sx={{ py: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Add a new credit or debit card for purchasing credit top-up packs.
-          </Typography>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Cardholder Full Name"
-                placeholder="e.g. Johnathan Doe"
-                value={newCardData.cardholderName}
-                onChange={(e) => setNewCardData({ ...newCardData, cardholderName: e.target.value })}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Card Network Brand</InputLabel>
-                <Select
-                  value={newCardData.brand}
-                  label="Card Network Brand"
-                  onChange={(e) => setNewCardData({ ...newCardData, brand: e.target.value })}
-                >
-                  <MenuItem value="Visa">Visa</MenuItem>
-                  <MenuItem value="Mastercard">Mastercard</MenuItem>
-                  <MenuItem value="American Express">American Express</MenuItem>
-                  <MenuItem value="Discover">Discover</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={6} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Exp Month</InputLabel>
-                <Select
-                  value={newCardData.expMonth}
-                  label="Exp Month"
-                  onChange={(e) => setNewCardData({ ...newCardData, expMonth: e.target.value })}
-                >
-                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
-                    <MenuItem key={m} value={m}>{m}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={6} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Exp Year</InputLabel>
-                <Select
-                  value={newCardData.expYear}
-                  label="Exp Year"
-                  onChange={(e) => setNewCardData({ ...newCardData, expYear: e.target.value })}
-                >
-                  {['2025', '2026', '2027', '2028', '2029', '2030', '2031', '2032', '2033', '2034'].map(y => (
-                    <MenuItem key={y} value={y}>{y}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Box sx={{ p: 2, border: '1px solid #cbd5e1', borderRadius: '12px', bgcolor: '#f8fafc', mb: 2 }}>
-                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, mb: 1, display: 'block' }}>
-                  CARD DETAILS & CVC CODE:
+      {/* RECEIPT PREVIEW MODAL */}
+      {/* ==================================================== */}
+      <Dialog
+        open={receiptModalOpen}
+        onClose={() => setReceiptModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            border: '1px solid #E2E8F0',
+            overflow: 'hidden',
+            maxHeight: '92vh',
+            boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)'
+          }
+        }}
+      >
+        {/* TOP TOOLBAR: INVOICE HEADER & QUICK ACTION BUTTONS */}
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            bgcolor: '#ffffff',
+            borderBottom: '1px solid #E4E7EC',
+            py: 1.8,
+            px: { xs: 2, sm: 3 },
+            gap: 1.5
+          }}
+        >
+          {/* Left: Invoice Identity & Number */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #086B70 0%, #0F766E 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(8, 107, 112, 0.25)'
+              }}
+            >
+              <ReceiptIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="subtitle1" fontWeight={800} color="#101828" lineHeight={1.2}>
+                  Invoice Preview
                 </Typography>
-                <CardElement options={{ style: { base: { fontSize: '16px', color: '#1e293b' } } }} />
+                <Chip
+                  label={selectedReceipt?.status || 'PAID'}
+                  size="small"
+                  icon={<CheckIcon sx={{ fontSize: '13px !important', color: '#086B70 !important' }} />}
+                  sx={{
+                    bgcolor: '#F0FDFA',
+                    color: '#086B70',
+                    border: '1px solid #99F6E4',
+                    fontWeight: 800,
+                    fontSize: '0.68rem',
+                    height: 22,
+                    px: 0.5
+                  }}
+                />
               </Box>
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={newCardData.isDefault}
-                    onChange={(e) => setNewCardData({ ...newCardData, isDefault: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Typography variant="body2" fontWeight={700} sx={{ color: '#0f172a' }}>
-                    Set as Primary Default Payment Method
-                  </Typography>
-                }
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setAddCardModalOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleAddCardSubmit}
-            sx={{ bgcolor: '#0f766e', px: 4, fontWeight: 700, borderRadius: '10px', '&:hover': { bgcolor: '#0d655e' } }}
-          >
-            Save Card Method
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* DELETE CARD CONFIRMATION MODAL */}
-      <Dialog open={deleteCardModalOpen} onClose={() => setDeleteCardModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DeleteIcon sx={{ color: '#ef4444' }} />
-            <Typography variant="h6" fontWeight={800} color="error">
-              Remove Payment Card
-            </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.3 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontWeight: 700,
+                    color: '#086B70'
+                  }}
+                >
+                  {selectedReceipt?.invoice_number || selectedReceipt?.id}
+                </Typography>
+                <Tooltip title={copiedInvId ? "Copied!" : "Copy Invoice Number"} arrow>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopyInvoiceNumber(selectedReceipt?.invoice_number || selectedReceipt?.id)}
+                    sx={{ p: 0.3, color: '#64748B', '&:hover': { color: '#086B70', bgcolor: '#F0FDFA' } }}
+                  >
+                    <ContentCopyIcon sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="caption" color="text.secondary">
+                  • {selectedReceipt?.issue_date_str || selectedReceipt?.date}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
-          <IconButton onClick={() => setDeleteCardModalOpen(false)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body1" sx={{ mb: 2, color: '#0f172a' }}>
-            Are you sure you want to remove this payment method?
-          </Typography>
 
-          {cardToDelete && (
-            <Paper elevation={0} sx={{ p: 2, bgcolor: '#f1f5f9', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#0f172a' }}>
-                {cardToDelete.brand} ending in •••• {cardToDelete.last4}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Expires: {cardToDelete.expMonth || cardToDelete.exp_month}/{cardToDelete.expYear || cardToDelete.exp_year}
-              </Typography>
+          {/* Right: Top Action Buttons for Instant Access */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: { xs: 'stretch', sm: 'center' }, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
+            <Tooltip title="Print invoice or open browser print view" arrow>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<PrintIcon sx={{ fontSize: '16px !important' }} />}
+                onClick={() => handlePrintReceipt(selectedReceipt)}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#E4E7EC',
+                  color: '#101828',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  borderRadius: '8px',
+                  px: 1.5,
+                  py: 0.5,
+                  '&:hover': {
+                    borderColor: '#086B70',
+                    bgcolor: '#F0FDFA',
+                    color: '#086B70'
+                  }
+                }}
+              >
+                Print
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Download high-resolution official A4 PDF" arrow>
+              <Button
+                size="small"
+                variant="contained"
+                disabled={downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id)}
+                startIcon={
+                  downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id) ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <DownloadIcon sx={{ fontSize: '16px !important' }} />
+                  )
+                }
+                onClick={() => handleDownloadPdfReceipt(selectedReceipt)}
+                sx={{
+                  textTransform: 'none',
+                  bgcolor: '#086B70',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  borderRadius: '8px',
+                  px: 1.8,
+                  py: 0.5,
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: '#065054',
+                    boxShadow: '0 2px 4px rgba(8, 107, 112, 0.25)'
+                  }
+                }}
+              >
+                {downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id) ? 'Generating...' : 'Download PDF'}
+              </Button>
+            </Tooltip>
+
+            <IconButton
+              size="small"
+              onClick={() => setReceiptModalOpen(false)}
+              sx={{
+                color: '#64748B',
+                borderRadius: '8px',
+                '&:hover': { bgcolor: '#F1F5F9', color: '#101828' }
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        {/* DIALOG BODY: A4 PAPER SHEET CANVAS */}
+        <DialogContent sx={{ p: { xs: 2, sm: 3.5, md: 4 }, bgcolor: '#F1F5F9' }}>
+          {selectedReceipt && (
+            <Paper
+              elevation={0}
+              sx={{
+                maxWidth: '780px',
+                margin: '0 auto',
+                p: { xs: 2.5, sm: 4.5 },
+                bgcolor: '#ffffff',
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                boxShadow: '0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)'
+              }}
+            >
+              {/* Document Header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #E4E7EC', pb: 3, mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 64 64" fill="none">
+                    <defs>
+                      <linearGradient id="modalLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#086B70" />
+                        <stop offset="100%" stopColor="#0F766E" />
+                      </linearGradient>
+                    </defs>
+                    <rect width="64" height="64" rx="14" fill="url(#modalLogoGrad)"/>
+                    <path d="M32 14C32 14 44 16 44 26C44 38 32 48 32 48C32 48 20 38 20 26C20 16 32 14 32 14Z" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <path d="M26 28L30 32L38 22" stroke="#5EEAD4" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  </svg>
+                  <Box>
+                    <Typography variant="h5" fontWeight={900} sx={{ color: '#101828', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                      ESigniva
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', mt: 0.3 }}>
+                      Digital Signature Platform
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Typography variant="h6" fontWeight={900} color="#101828" sx={{ fontSize: '1.1rem', letterSpacing: '0.5px' }}>
+                      INVOICE
+                    </Typography>
+                    <Chip
+                      label={selectedReceipt.status || 'PAID'}
+                      size="small"
+                      sx={{
+                        bgcolor: '#F0FDFA',
+                        color: '#086B70',
+                        border: '1px solid #086B70',
+                        fontWeight: 800,
+                        fontSize: '0.65rem',
+                        height: 20
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="body1" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontWeight: 800, color: '#086B70' }}>
+                    {selectedReceipt.invoice_number || selectedReceipt.id}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Balanced Two-Column Billing Layout */}
+              <Grid container spacing={2.5} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 2.2, bgcolor: '#F8FAFC', border: '1px solid #E4E7EC', borderRadius: '8px', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 800, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', mb: 0.8 }}>
+                      BILLED FROM
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight={800} color="#101828">
+                      ESigniva
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', mt: 0.3, lineHeight: 1.5 }}>
+                      <strong>{selectedReceipt.issuer?.legal_name || 'ESigniva Technologies'}</strong><br />
+                      {selectedReceipt.issuer?.address_line1 || 'Tech Innovation Hub, Cyber Gateway'}<br />
+                      {selectedReceipt.issuer?.address_line2 ? `${selectedReceipt.issuer.address_line2}, ` : ''}{selectedReceipt.issuer?.city || 'Chennai'}, {selectedReceipt.issuer?.state || 'Tamil Nadu'} {selectedReceipt.issuer?.postal_code || '600096'}, {selectedReceipt.issuer?.country || 'India'}<br />
+                      Tax ID: {selectedReceipt.issuer?.tax_id || 'GSTIN33AAACE1234F1Z5'}<br />
+                      {selectedReceipt.issuer?.billing_email || 'billing@esigniva.com'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 2.2, bgcolor: '#F8FAFC', border: '1px solid #E4E7EC', borderRadius: '8px', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 800, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', mb: 0.8 }}>
+                      BILLED TO
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight={800} color="#101828" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedReceipt.customer?.name || billingInfo.companyName || user?.company || user?.full_name || 'Valued Customer'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', mt: 0.3, lineHeight: 1.5 }}>
+                      {selectedReceipt.customer?.address || `${billingInfo.address || '100 Enterprise Way'}, ${billingInfo.city || 'San Francisco'}, ${billingInfo.state || 'CA'} ${billingInfo.zip || '94107'}`}<br />
+                      {selectedReceipt.customer?.tax_id && selectedReceipt.customer.tax_id !== 'N/A' ? (
+                        <>Tax ID: {selectedReceipt.customer.tax_id}<br /></>
+                      ) : (
+                        billingInfo.vatId ? <>Tax ID: {billingInfo.vatId}<br /></> : null
+                      )}
+                      {selectedReceipt.customer?.email || billingInfo.billingEmail || user?.email || 'N/A'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Metadata Strip */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', bgcolor: '#F8FAFC', border: '1px solid #E4E7EC', borderRadius: '8px', p: 1.5, mb: 3 }}>
+                <Box sx={{ flex: 1, minWidth: 120, px: 1, py: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block' }}>
+                    Invoice Date
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} color="#101828">
+                    {selectedReceipt.issue_date_str || selectedReceipt.date || format(new Date(), 'dd MMM yyyy')}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 120, px: 1, py: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block' }}>
+                    Payment Date
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} color="#101828">
+                    {selectedReceipt.payment_date_str || selectedReceipt.date || format(new Date(), 'dd MMM yyyy')}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 120, px: 1, py: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block' }}>
+                    Payment Method
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} color="#101828">
+                    {selectedReceipt.payment_method || 'Stripe'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 120, px: 1, py: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block' }}>
+                    Currency
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} color="#101828">
+                    {selectedReceipt.currency || 'USD'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Line Items Table with Minimal Borders */}
+              <TableContainer sx={{ border: '1px solid #E4E7EC', borderRadius: '8px', mb: 3 }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+                    <TableRow>
+                      <TableCell sx={{ color: '#475569', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5, borderColor: '#E4E7EC' }}>
+                        Description
+                      </TableCell>
+                      <TableCell align="center" sx={{ color: '#475569', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5, borderColor: '#E4E7EC' }}>
+                        Qty
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: '#475569', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5, borderColor: '#E4E7EC' }}>
+                        Unit Price
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: '#475569', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', py: 1.5, borderColor: '#E4E7EC' }}>
+                        Amount
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(selectedReceipt.items && selectedReceipt.items.length > 0) ? (
+                      selectedReceipt.items.map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell sx={{ py: 1.5, borderColor: '#E4E7EC' }}>
+                            <Typography variant="body2" fontWeight={700} color="#101828">
+                              {item.description}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {item.sub_description || item.details || 'Official ESigniva digital cloud services'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center" sx={{ py: 1.5, fontWeight: 600, borderColor: '#E4E7EC' }}>
+                            {item.quantity || 1}
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: 1.5, color: '#475569', borderColor: '#E4E7EC' }}>
+                            {item.unit_price || item.amount || selectedReceipt.subtotal_str || selectedReceipt.amount}
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, color: '#101828', borderColor: '#E4E7EC' }}>
+                            {item.amount || selectedReceipt.total_str || selectedReceipt.amount}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell sx={{ py: 1.5, borderColor: '#E4E7EC' }}>
+                          <Typography variant="body2" fontWeight={700} color="#101828">
+                            {selectedReceipt.description || '500 ESigniva Credits'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            One-time credit top-up • Non-expiring cloud credits
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center" sx={{ py: 1.5, fontWeight: 600, borderColor: '#E4E7EC' }}>
+                          1
+                        </TableCell>
+                        <TableCell align="right" sx={{ py: 1.5, color: '#475569', borderColor: '#E4E7EC' }}>
+                          {selectedReceipt.amount}
+                        </TableCell>
+                        <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, color: '#101828', borderColor: '#E4E7EC' }}>
+                          {selectedReceipt.amount}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Totals & Compact Payment Details */}
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 3, mb: 3 }}>
+                <Box sx={{ flex: 1.1, p: 2, bgcolor: '#F8FAFC', border: '1px solid #E4E7EC', borderRadius: '8px' }}>
+                  <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 800, letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block', mb: 0.8 }}>
+                    Payment Confirmation
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.6 }}>
+                    Payment processed through <strong>{selectedReceipt.payment_method || 'Stripe'}</strong>. Keep this invoice for your records.<br />
+                    Reference: <strong>{selectedReceipt.short_reference || selectedReceipt.payment_reference || `STRIPE-TX-${(selectedReceipt.invoice_number || selectedReceipt.id).replace(/[^a-zA-Z0-9]/g, '')}`}</strong><br />
+                    Settlement Status: <strong>Settled & Cleared to Organization Balance</strong>
+                  </Typography>
+                </Box>
+
+                <Box sx={{ minWidth: 260 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.6 }}>
+                    <Typography variant="body2" color="#64748B">Subtotal</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#101828">{selectedReceipt.subtotal_str || selectedReceipt.amount}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.6 }}>
+                    <Typography variant="body2" color="#64748B">Tax (0%)</Typography>
+                    <Typography variant="body2" fontWeight={600} color="#101828">{selectedReceipt.tax_str || '$0.00'}</Typography>
+                  </Box>
+                  <Divider sx={{ my: 1, borderColor: '#E4E7EC' }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1.2, bgcolor: '#F0FDFA', border: '1.5px solid #086B70', borderRadius: '6px' }}>
+                    <Typography variant="subtitle2" fontWeight={800} color="#101828">Total Paid</Typography>
+                    <Typography variant="subtitle2" fontWeight={900} color="#086B70">{selectedReceipt.total_paid_str || selectedReceipt.total_str || selectedReceipt.amount}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.8, px: 0.5 }}>
+                    <Typography variant="body2" color="#64748B">Balance Due</Typography>
+                    <Typography variant="body2" fontWeight={700} color="#101828">{selectedReceipt.balance_str || selectedReceipt.balance_due_str || '$0.00'}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Clean Footer */}
+              <Box sx={{ pt: 2.5, borderTop: '1px solid #E4E7EC', textAlign: 'center' }}>
+                <Typography variant="body2" fontWeight={600} color="#101828">
+                  Thank you for choosing ESigniva.
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                  This is an electronically generated official invoice valid without physical signature.
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#086B70', fontWeight: 600, display: 'block', mt: 0.5 }}>
+                  esigniva.com • support@esigniva.com • billing@esigniva.com
+                </Typography>
+              </Box>
             </Paper>
           )}
-
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-            This card will be unlinked from your account. You can re-add it at any time.
-          </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setDeleteCardModalOpen(false)} disabled={deletingCard}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleConfirmDeleteCard}
-            disabled={deletingCard}
-            startIcon={deletingCard ? <CircularProgress size={18} color="inherit" /> : <DeleteIcon />}
-            sx={{ fontWeight: 700, px: 3, borderRadius: '10px' }}
-          >
-            {deletingCard ? 'Deleting...' : 'Remove Card'}
-          </Button>
+
+        {/* BOTTOM DIALOG ACTIONS */}
+        <DialogActions sx={{ p: 2, px: 3, bgcolor: '#ffffff', borderTop: '1px solid #E4E7EC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            Official A4 tax invoice • Electronically verified & settled via Stripe
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 'auto' }}>
+            <Button
+              onClick={() => setReceiptModalOpen(false)}
+              sx={{ textTransform: 'none', color: '#64748B', fontWeight: 600 }}
+            >
+              Close
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<PrintIcon />}
+              onClick={() => handlePrintReceipt(selectedReceipt)}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#086B70',
+                color: '#086B70',
+                fontWeight: 700,
+                '&:hover': { bgcolor: '#F0FDFA', borderColor: '#086B70' }
+              }}
+            >
+              Print / Web View
+            </Button>
+            <Button
+              variant="contained"
+              disabled={downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id)}
+              startIcon={
+                downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id) ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <DownloadIcon />
+                )
+              }
+              onClick={() => handleDownloadPdfReceipt(selectedReceipt)}
+              sx={{
+                textTransform: 'none',
+                bgcolor: '#086B70',
+                color: '#ffffff',
+                fontWeight: 700,
+                '&:hover': { bgcolor: '#065054' }
+              }}
+            >
+              {downloadingInvoiceId === (selectedReceipt?.invoice_number || selectedReceipt?.id) ? 'Downloading...' : 'Download Official PDF'}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
 

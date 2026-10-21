@@ -2625,27 +2625,50 @@ class PDFEngine:
         GRAY_BG = colors.HexColor("#F9FAFB")
         WHITE = colors.white
         
-        # 1. PREMIUM HEADER SECTION
-        c.setFillColor(TEAL)
-        c.rect(0, height - 90, width, 90, fill=1, stroke=0)
-        
-        # Site Brand
-        c.setFont("Helvetica-Bold", 26)
+        # 1. PREMIUM HEADER SECTION - White Brand Header with Logo
+        HEADER_BASE = height - 95
         c.setFillColor(WHITE)
-        c.drawString(40, height - 50, "Esigniva")
+        c.rect(0, HEADER_BASE, width, 95, fill=1, stroke=0)
         
-        c.setFont("Helvetica", 10)
-        c.setFillColor(WHITE)
-        c.drawString(40, height - 68, "Official Summary & Completion Certificate")
+        # Subtle teal divider - Bottom of header area
+        c.setStrokeColor(TEAL)
+        c.setLineWidth(1.25)
+        c.line(40, HEADER_BASE, width - 40, HEADER_BASE)
+        
+        # Dynamic Logo Positioning with local fallback
+        text_x_offset = 40
+        try:
+            from reportlab.lib.utils import ImageReader
+            import os
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+            if os.path.exists(local_logo_path):
+                logo_img = ImageReader(local_logo_path)
+                logo_size = 32
+                c.drawImage(logo_img, 40, HEADER_BASE + 40, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+                text_x_offset = 80
+        except Exception:
+            text_x_offset = 40
+        
+        # Site Brand & Tagline - Perfectly aligned with logo on the same lines
+        c.setFont("Helvetica-Bold", 18)
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.drawString(text_x_offset, HEADER_BASE + 58, "Esigniva")
+        
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.HexColor("#4A4A4A"))
+        c.drawString(text_x_offset, HEADER_BASE + 44, "Secure Digital Signatures")
         
         # Header Right Info
-        status = str(doc_status).upper()
-        c.setFont("Helvetica-Bold", 12)
-        c.drawRightString(width - 40, height - 48, f"STATUS: {status}")
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.drawRightString(width - 40, HEADER_BASE + 58, "DOCUMENT SUMMARY")
         
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-        c.setFont("Helvetica", 8)
-        c.drawRightString(width - 40, height - 64, f"Generated On: {timestamp}")
+        status = str(doc_status).upper()
+        right_sub = f"Envelope: {env_id}" if env_id and env_id != 'N/A' else f"STATUS: {status}"
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(colors.HexColor("#4A4A4A"))
+        c.drawRightString(width - 40, HEADER_BASE + 44, right_sub)
         
         # 2. ENVELOPE SUMMARY CARD
         card_y = height - 210
@@ -2821,7 +2844,7 @@ class PDFEngine:
     @staticmethod
     def create_certificate_pdf(certificate_data):
         """
-        Create a Certificate of Completion PDF.
+        Create a Certificate of Completion PDF with brand logo and brand name aligned on the same lines.
         
         Args:
             certificate_data: Dictionary containing certificate information
@@ -2830,7 +2853,13 @@ class PDFEngine:
             PDF bytes
         """
         try:
-            from reportlab.lib.pagesizes import letter, landscape
+            from .email_service import EsignivaCertificateEngine
+            return EsignivaCertificateEngine._create_fallback_pdf(certificate_data)
+        except Exception:
+            pass
+            
+        try:
+            from reportlab.lib.pagesizes import A4
             from reportlab.pdfgen import canvas
             from reportlab.lib.units import inch
             from reportlab.lib import colors
@@ -2840,125 +2869,173 @@ class PDFEngine:
             import io
             
             buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=110, bottomMargin=50, leftMargin=40, rightMargin=40)
             styles = getSampleStyleSheet()
             
             # Create custom styles
             title_style = ParagraphStyle(
                 'CustomTitle',
                 parent=styles['Heading1'],
-                fontSize=24,
-                textColor=colors.HexColor('#0d9488'),
+                fontSize=20,
+                textColor=colors.HexColor('#1A1A1A'),
                 alignment=TA_CENTER,
-                spaceAfter=20
+                spaceAfter=15,
+                fontName='Helvetica-Bold'
             )
             
             subheader_style = ParagraphStyle(
                 'Subheader',
                 parent=styles['Heading2'],
-                fontSize=14,
-                textColor=colors.HexColor('#666666'),
+                fontSize=13,
+                textColor=colors.HexColor('#4A4A4A'),
                 alignment=TA_CENTER,
-                spaceAfter=10
+                spaceAfter=10,
+                fontName='Helvetica'
             )
             
             normal_style = ParagraphStyle(
                 'NormalCenter',
                 parent=styles['Normal'],
                 alignment=TA_CENTER,
-                spaceAfter=10
+                spaceAfter=10,
+                fontSize=10,
+                leading=14
             )
             
-            # Build story
             story = []
             
             # Title
             story.append(Paragraph("CERTIFICATE OF COMPLETION", title_style))
-            story.append(Spacer(1, 20))
+            story.append(Spacer(1, 10))
             
             # Subtitle
-            story.append(Paragraph("Digital Document Signing", subheader_style))
-            story.append(Spacer(1, 30))
+            story.append(Paragraph("Digital Document Signing Verification", subheader_style))
+            story.append(Spacer(1, 20))
             
             # Main certificate text
             cert_text = f"This certifies that the document signing process for<br/>" \
-                    f"<b>{certificate_data['document_name']}</b><br/>" \
+                    f"<b>{certificate_data.get('document_name', 'Document')}</b><br/>" \
                     f"has been successfully completed."
             story.append(Paragraph(cert_text, normal_style))
-            story.append(Spacer(1, 30))
-            
-            # Envelope ID
-            env_text = f"Envelope ID: <b>{certificate_data['envelope_id']}</b>"
-            story.append(Paragraph(env_text, normal_style))
             story.append(Spacer(1, 20))
             
+            # Envelope ID
+            env_text = f"Envelope ID: <b>{certificate_data.get('envelope_id', 'N/A')}</b>"
+            story.append(Paragraph(env_text, normal_style))
+            story.append(Spacer(1, 10))
+            
             # Completion date
-            completed_at = certificate_data.get('completed_at', '').split('T')[0]
+            completed_at = certificate_data.get('completed_at', certificate_data.get('completed_date', '')).split('T')[0]
             date_text = f"Completed on: <b>{completed_at}</b>"
             story.append(Paragraph(date_text, normal_style))
-            story.append(Spacer(1, 40))
+            story.append(Spacer(1, 25))
             
             # Recipients table
-            if certificate_data.get('recipients'):
+            recipients = certificate_data.get('recipients', certificate_data.get('all_recipients', []))
+            if recipients:
                 story.append(Paragraph("Signing Participants", subheader_style))
-                story.append(Spacer(1, 10))
+                story.append(Spacer(1, 8))
                 
-                # Prepare table data
                 table_data = [['Name', 'Email', 'Role', 'Status', 'Completed']]
                 
-                for recipient in certificate_data['recipients']:
+                for recipient in recipients:
                     completed = '✓' if recipient.get('completed_at') else '—'
-                    status = recipient.get('status', 'pending').title()
+                    status = str(recipient.get('status', 'pending')).title()
                     table_data.append([
-                        recipient.get('name', ''),
-                        recipient.get('email', ''),
-                        recipient.get('role', '').replace('_', ' ').title(),
+                        str(recipient.get('name', ''))[:20],
+                        str(recipient.get('email', ''))[:30],
+                        str(recipient.get('role', '')).replace('_', ' ').title()[:15],
                         status,
                         completed
                     ])
                 
-                # Create table
-                table = Table(table_data, colWidths=[1.5*inch, 2.2*inch, 1.2*inch, 1*inch, 0.8*inch])
+                table = Table(table_data, colWidths=[1.4*inch, 2.4*inch, 1.2*inch, 1.1*inch, 0.9*inch])
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d9488')),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0D9488')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 8),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8.5),
                 ]))
                 
                 story.append(table)
-                story.append(Spacer(1, 40))
+                story.append(Spacer(1, 25))
             
-            # Footer
-            footer_text = f"Generated by {certificate_data.get('platform_name', 'Esigniva')} " \
-                        f"on {certificate_data.get('generated_at', '').split('T')[0]}"
-            story.append(Paragraph(footer_text, ParagraphStyle(
-                'Footer',
-                parent=styles['Normal'],
-                fontSize=8,
-                textColor=colors.grey,
-                alignment=TA_CENTER
-            )))
+            # Footer callback for header & footer
+            def draw_page_decorations(canvas, doc_obj):
+                canvas.saveState()
+                width, height = A4
+                HEADER_BASE = height - 95
+                
+                # Header box
+                canvas.setFillColor(colors.white)
+                canvas.rect(0, HEADER_BASE, width, 95, fill=1, stroke=0)
+                canvas.setStrokeColor(colors.HexColor('#0D9488'))
+                canvas.setLineWidth(1.25)
+                canvas.line(40, HEADER_BASE, width - 40, HEADER_BASE)
+                
+                # Logo
+                text_x = 40
+                try:
+                    from reportlab.lib.utils import ImageReader
+                    import os
+                    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    local_logo = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+                    if os.path.exists(local_logo):
+                        logo_img = ImageReader(local_logo)
+                        canvas.drawImage(logo_img, 40, HEADER_BASE + 40, width=32, height=32, preserveAspectRatio=True, mask='auto')
+                        text_x = 80
+                except Exception:
+                    pass
+                
+                # Brand and Tagline on the same lines
+                canvas.setFont("Helvetica-Bold", 18)
+                canvas.setFillColor(colors.HexColor("#1A1A1A"))
+                canvas.drawString(text_x, HEADER_BASE + 58, "Esigniva")
+                
+                canvas.setFont("Helvetica", 8)
+                canvas.setFillColor(colors.HexColor("#4A4A4A"))
+                canvas.drawString(text_x, HEADER_BASE + 44, "Secure Digital Signatures")
+                
+                canvas.setFont("Helvetica-Bold", 14)
+                canvas.setFillColor(colors.HexColor("#1A1A1A"))
+                canvas.drawRightString(width - 40, HEADER_BASE + 58, "CERTIFICATE OF COMPLETION")
+                
+                env = certificate_data.get('envelope_id')
+                if env:
+                    canvas.setFont("Helvetica", 7.5)
+                    canvas.setFillColor(colors.HexColor("#4A4A4A"))
+                    canvas.drawRightString(width - 40, HEADER_BASE + 44, f"Envelope: {env}")
+                
+                # Footer
+                canvas.setStrokeColor(colors.HexColor('#E0E0E0'))
+                canvas.setLineWidth(0.5)
+                canvas.line(40, 35, width - 40, 35)
+                
+                canvas.setFont("Helvetica", 8)
+                canvas.setFillColor(colors.HexColor("#616161"))
+                canvas.drawRightString(width - 40, 22, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                canvas.drawString(40, 22, "© Esigniva | Secure Digital Signatures")
+                canvas.restoreState()
             
             # Build PDF
-            doc.build(story)
+            doc.build(story, onFirstPage=draw_page_decorations, onLaterPages=draw_page_decorations)
             buffer.seek(0)
-            return buffer.read()
+            return buffer.getvalue()
             
         except Exception as e:
             print(f"Error creating certificate PDF: {str(e)}")
-            # Return a simple error PDF
             from reportlab.pdfgen import canvas
             import io
             buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=letter)
+            c = canvas.Canvas(buffer, pagesize=A4)
             c.drawString(100, 700, "Certificate Generation Failed")
             c.drawString(100, 680, str(e))
             c.save()
             buffer.seek(0)
-            return buffer.read()
+            return buffer.getvalue()

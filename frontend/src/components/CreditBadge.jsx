@@ -12,49 +12,75 @@ export default function CreditBadge() {
   const limit = credits && credits.limit ? credits.limit : 500;
   const percentage = limit > 0 ? Math.min(100, Math.round((balance / limit) * 100)) : 0;
 
-  const getChipColor = () => {
-    if (balance <= 10) return "error";
-    if (balance <= 50) return "warning";
-    return "primary";
-  };
-
   const tooltipContent = (
-    <Box sx={{ p: 0.5, minWidth: 160 }}>
-      <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#38bdf8" }}>
-        Credit Wallet
-      </Typography>
-      <Box sx={{ display: "flex", justifyContent: "space-between", my: 0.5 }}>
-        <Typography variant="caption">Available:</Typography>
-        <Typography variant="caption" fontWeight={700}>
+    <Box sx={{ p: 0.75, minWidth: 175 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
+        <BoltIcon sx={{ fontSize: "1rem", color: "#2dd4bf" }} />
+        <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#2dd4bf", letterSpacing: "0.01em" }}>
+          Credit Wallet
+        </Typography>
+      </Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", my: 0.5 }}>
+        <Typography variant="caption" sx={{ color: "#cbd5e1" }}>Available:</Typography>
+        <Typography variant="caption" fontWeight={700} sx={{ color: "#ffffff" }}>
           {balance.toLocaleString()} Credits
         </Typography>
       </Box>
       {limit > 0 && (
-        <Box sx={{ my: 0.5 }}>
+        <Box sx={{ my: 0.75 }}>
           <LinearProgress
             variant="determinate"
             value={percentage}
             sx={{
               height: 6,
               borderRadius: 3,
-              backgroundColor: "rgba(255,255,255,0.2)",
+              backgroundColor: "rgba(255,255,255,0.15)",
               "& .MuiLinearProgress-bar": {
-                backgroundColor: balance <= 10 ? "#ef4444" : balance <= 50 ? "#f59e0b" : "#3b82f6"
+                backgroundColor: balance <= 10 ? "#ef4444" : balance <= 50 ? "#f59e0b" : "#14b8a6",
+                borderRadius: 3
               }
             }}
           />
         </Box>
       )}
-      <Typography variant="caption" color="gray" display="block" sx={{ mt: 0.5 }}>
+      <Typography variant="caption" sx={{ color: "#94a3b8", display: "block", mt: 0.75, fontSize: "0.72rem", lineHeight: 1.3 }}>
         Click to buy top-up credits or view ledger
       </Typography>
     </Box>
   );
 
   return (
-    <Tooltip title={tooltipContent} arrow placement="bottom">
+    <Tooltip
+      title={tooltipContent}
+      arrow
+      placement="bottom"
+      componentsProps={{
+        tooltip: {
+          sx: {
+            bgcolor: "#0f172a",
+            color: "#ffffff",
+            borderRadius: "12px",
+            border: "1px solid rgba(45, 212, 191, 0.25)",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(20, 184, 166, 0.15)",
+            p: 1
+          }
+        },
+        arrow: {
+          sx: {
+            color: "#0f172a"
+          }
+        }
+      }}
+    >
       <Chip
-        icon={<BoltIcon sx={{ fontSize: "1.1rem !important", color: balance <= 10 ? "#ef4444" : "#f59e0b" }} />}
+        icon={
+          <BoltIcon
+            sx={{
+              fontSize: "1.1rem !important",
+              color: balance <= 10 ? "#ef4444" : balance <= 50 ? "#f59e0b" : "#0f766e"
+            }}
+          />
+        }
         label={`${balance.toLocaleString()} Credits`}
         clickable
         onClick={() => navigate("/user/subscription")}
@@ -63,15 +89,40 @@ export default function CreditBadge() {
           borderRadius: "10px",
           height: 32,
           px: 0.5,
-          backgroundColor: balance <= 10 ? "rgba(239, 68, 68, 0.1)" : "rgba(245, 158, 11, 0.08)",
-          color: balance <= 10 ? "#dc2626" : "#d97706",
+          backgroundColor:
+            balance <= 10
+              ? "rgba(239, 68, 68, 0.1)"
+              : balance <= 50
+              ? "rgba(245, 158, 11, 0.08)"
+              : "rgba(15, 118, 110, 0.08)",
+          color:
+            balance <= 10
+              ? "#dc2626"
+              : balance <= 50
+              ? "#d97706"
+              : "#0f766e",
           border: "1px solid",
-          borderColor: balance <= 10 ? "rgba(239, 68, 68, 0.3)" : "rgba(245, 158, 11, 0.3)",
+          borderColor:
+            balance <= 10
+              ? "rgba(239, 68, 68, 0.3)"
+              : balance <= 50
+              ? "rgba(245, 158, 11, 0.3)"
+              : "rgba(15, 118, 110, 0.25)",
           transition: "all 0.2s ease-in-out",
           "&:hover": {
             transform: "translateY(-1px)",
-            boxShadow: "0 4px 12px rgba(245, 158, 11, 0.25)",
-            backgroundColor: balance <= 10 ? "rgba(239, 68, 68, 0.15)" : "rgba(245, 158, 11, 0.15)"
+            boxShadow:
+              balance <= 10
+                ? "0 4px 12px rgba(239, 68, 68, 0.25)"
+                : balance <= 50
+                ? "0 4px 12px rgba(245, 158, 11, 0.25)"
+                : "0 4px 12px rgba(15, 118, 110, 0.25)",
+            backgroundColor:
+              balance <= 10
+                ? "rgba(239, 68, 68, 0.15)"
+                : balance <= 50
+                ? "rgba(245, 158, 11, 0.15)"
+                : "rgba(15, 118, 110, 0.14)"
           }
         }}
       />

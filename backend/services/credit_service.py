@@ -218,24 +218,25 @@ class CreditService:
         balance_after = balance_before - amount
 
         # Deduct from active buckets (oldest expiring first)
-        async def _update_buckets():
+        try:
             cursor = credit_buckets_collection.find({
                 "user_id": uid,
                 "remaining": {"$gt": 0}
-            }).sort("expires_at", 1) # Non-null / early expiry first
+            }).sort("expires_at", 1)  # Non-null / early expiry first
             
             remaining_to_deduct = amount
-            for bucket in cursor:
+            async for bucket in cursor:
                 if remaining_to_deduct <= 0:
                     break
-                deduct_from_this = min(bucket["remaining"], remaining_to_deduct)
-                await credit_buckets_collection.update_one(
-                    {"_id": bucket["_id"]},
-                    {"$inc": {"remaining": -deduct_from_this}}
-                )
-                remaining_to_deduct -= deduct_from_this
-
-        await asyncio.to_thread(_update_buckets)
+                deduct_from_this = min(bucket.get("remaining", 0), remaining_to_deduct)
+                if deduct_from_this > 0:
+                    await credit_buckets_collection.update_one(
+                        {"_id": bucket["_id"]},
+                        {"$inc": {"remaining": -deduct_from_this}}
+                    )
+                    remaining_to_deduct -= deduct_from_this
+        except Exception as bucket_err:
+            logger.warning(f"Error updating credit buckets for {uid}: {bucket_err}")
 
         # Record debit transaction
         now_str = datetime.utcnow().strftime('%Y%m%d%H%M%S')

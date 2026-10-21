@@ -2433,6 +2433,16 @@ async def convert_template_to_document_internal(template_id: str, user_id: str,
             # Insert document
             result = await db.documents.insert_one(doc_data)
             doc_id = result.inserted_id
+
+            await db.document_files.insert_one({
+                "document_id": doc_id,
+                "file_path": str(pdf_file_id),
+                "filename": filename.replace('.txt', '.pdf') if filename.endswith('.txt') else filename,
+                "page_count": 1,
+                "order": 1,
+                "uploaded_at": datetime.utcnow(),
+                "source": "ai_template"
+            })
             
             # Convert template fields to signature fields
             for field in template_fields:
@@ -2529,6 +2539,17 @@ async def generate_ai_template(
         
         if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+        # Consume credits for AI Agreement Generator (20 credits)
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        await CreditService.consume_credits(
+            user_id=str(user_id),
+            email=current_user.get("email", ""),
+            amount=CREDIT_COSTS.get("ai_template", 20),
+            action="ai_template",
+            description=f"AI Agreement Generator: {getattr(request.template_type, 'value', str(request.template_type))}"
+        )
         
         # Generate prompt
         prompt = await generate_template_prompt(request)
@@ -2771,6 +2792,21 @@ async def analyze_document_for_template(
     try:
         if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+        user_id = current_user.get("id") or current_user.get("_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        # Consume credits for AI Processing & Parsing (10 credits)
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        await CreditService.consume_credits(
+            user_id=str(user_id),
+            email=current_user.get("email", ""),
+            amount=CREDIT_COSTS.get("ai_processing", 10),
+            action="ai_processing",
+            description=f"AI Processing & Parsing: {file.filename or 'Document'}"
+        )
         
         # Extract text from document
         document_text, page_count = await extract_document_text(file)
@@ -3545,6 +3581,20 @@ async def suggest_smart_fields(
     try:
         if not cohere_client:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+        user_id = current_user.get("id") or current_user.get("_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        await CreditService.consume_credits(
+            user_id=str(user_id),
+            email=current_user.get("email", ""),
+            amount=CREDIT_COSTS.get("ai_processing", 10),
+            action="ai_processing",
+            description="AI Processing & Parsing: Smart field suggestions"
+        )
 
         prompt = f"""
 Analyze this document template and identify where form fields should be placed.

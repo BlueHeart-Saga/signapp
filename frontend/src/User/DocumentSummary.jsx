@@ -371,7 +371,11 @@ const DocumentSummary = () => {
             className="doc-header-action"
             onClick={() => navigate(`/user/prepare-send/${documentId}`)}
             disabled={!docData || docData.status !== "draft"}
-            title="Edit Draft"
+            title={
+              !docData || docData.status !== "draft"
+                ? "Editing is disabled for sent, completed, or expired documents"
+                : "Edit Draft"
+            }
           >
             <FiEdit size={16} />
             <span>Edit</span>
@@ -396,6 +400,15 @@ const DocumentSummary = () => {
               });
             }}
             disabled={!docData || !["sent", "in_progress"].includes(docData.status)}
+            title={
+              docData?.status === "completed"
+                ? "Cannot send reminders: Document is completed"
+                : docData?.status === "expired"
+                ? "Cannot send reminders: Document has expired"
+                : !["sent", "in_progress"].includes(docData?.status)
+                ? "Reminders can only be sent for active documents"
+                : "Send email reminders to all pending recipients"
+            }
           >
             <FiMail size={16} />
             <span>Remind all</span>
@@ -406,13 +419,13 @@ const DocumentSummary = () => {
             onClick={() => {
               showConfirm({
                 title: "Expire Document",
-                message: "Are you sure you want to immediately expire this document? This will prevent any further signing.",
+                message: "Are you sure you want to immediately expire this document? This will prevent further signing and automatically trigger expiration notification emails to all unsigned recipients.",
                 confirmText: "Expire Now",
                 danger: true,
                 onConfirm: async () => {
                   try {
-                    await api.post(`/documents/${documentId}/expire-now`);
-                    showAlert("Expired", "Document has been successfully expired.");
+                    const res = await api.post(`/documents/${documentId}/expire-now`);
+                    showAlert("Expired", res?.data?.message || "Document has been successfully expired.");
                     fetchDocumentSummary();
                   } catch (err) {
                     showAlert("Error", "Failed to expire document: " + (err.response?.data?.detail || err.message), "error");
@@ -421,6 +434,15 @@ const DocumentSummary = () => {
               });
             }}
             disabled={!docData || !["sent", "in_progress"].includes(docData.status)}
+            title={
+              docData?.status === "completed"
+                ? "Cannot expire: Document is completed"
+                : docData?.status === "expired"
+                ? "Document is already expired"
+                : !["sent", "in_progress"].includes(docData?.status)
+                ? "Only active documents can be expired"
+                : "Immediately expire document and notify unsigned recipients"
+            }
           >
             <FiXCircle size={16} />
             <span>Expire</span>
@@ -537,7 +559,14 @@ const DocumentSummary = () => {
                 }
               });
             }}
-            disabled={!docData || !["sent", "in_progress", "expired"].includes(docData.status)}
+            disabled={!docData || docData.status === "completed" || !["sent", "in_progress", "expired"].includes(docData.status)}
+            title={
+              docData?.status === "completed"
+                ? "Cannot extend expiry: Document is completed"
+                : !["sent", "in_progress", "expired"].includes(docData?.status)
+                ? "Extend expiry is only available for active or expired documents"
+                : "Extend document expiration date"
+            }
           >
             <FiCalendar size={16} />
             <span>Extend expiry</span>

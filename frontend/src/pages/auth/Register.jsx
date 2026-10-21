@@ -659,7 +659,11 @@ const Register = ({ onRegister }) => {
     [navigate, setToken, setUser]
   );
 
+  const googleInitializedRef = useRef(false);
+
   useEffect(() => {
+    if (googleInitializedRef.current) return;
+
     const initGoogleAuth = () => {
       if (window.google?.accounts?.id && GOOGLE_CLIENT_ID) {
         try {
@@ -669,6 +673,7 @@ const Register = ({ onRegister }) => {
             auto_select: false,
             cancel_on_tap_outside: true,
           });
+          googleInitializedRef.current = true;
           return true;
         } catch (e) {
           console.error("Google Auth Init Error:", e);
@@ -686,16 +691,28 @@ const Register = ({ onRegister }) => {
   }, [handleGoogleCredentialResponse]);
 
   const handleGoogleSignIn = () => {
-    if (window.google?.accounts?.id) {
+    const originParam = `?origin=${encodeURIComponent(window.location.origin)}`;
+    const redirectToOAuth = () => {
+      window.location.href = `${API_BASE_URL}/auth/google/login${originParam}`;
+    };
+
+    if (window.google?.accounts?.id && GOOGLE_CLIENT_ID) {
       try {
-        window.google.accounts.id.prompt();
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.warn(
+              "Google One Tap not displayed, falling back to OAuth redirect:",
+              notification.getNotDisplayedReason?.() || notification.getSkippedReason?.()
+            );
+            redirectToOAuth();
+          }
+        });
         return;
       } catch (err) {
         console.warn("Google prompt error:", err);
       }
     }
-    const originParam = `?origin=${encodeURIComponent(window.location.origin)}`;
-    window.location.href = `${API_BASE_URL}/auth/google/login${originParam}`;
+    redirectToOAuth();
   };
 
   const goToLogin = () => navigate("/login");

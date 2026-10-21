@@ -70,6 +70,7 @@ import {
   ListItemIcon,
   ListItemText
 } from "@mui/material";
+import { showAlert } from "../utils/swal";
 
 /* ----------------------------------
    Enhanced Helper Functions
@@ -613,23 +614,28 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
     setExportAnchorEl(null);
   };
 
-  const handleExportAction = (action) => {
+  const handleExportAction = async (action) => {
     handleExportClose();
-    switch (action) {
-      case 'recipients':
-        exportRecipientsCsv(documentId);
-        break;
-      case 'timeline':
-        exportTimelineCsv(documentId);
-        break;
-      case 'fields':
-        exportFieldsCsv(documentId);
-        break;
-      case 'report':
-        generateHtmlReport(documentId);
-        break;
-      default:
-        break;
+    const actionLabels = {
+      recipients: 'Recipients CSV',
+      timeline: 'Timeline CSV',
+      fields: 'Field Data CSV',
+      report: 'Audit Report (HTML)'
+    };
+    const label = actionLabels[action] || 'Export';
+
+    showAlert.toast('info', `Preparing ${label}...`);
+
+    try {
+      if (action === 'recipients') await exportRecipientsCsv(documentId);
+      else if (action === 'timeline') await exportTimelineCsv(documentId);
+      else if (action === 'fields') await exportFieldsCsv(documentId);
+      else if (action === 'report') await generateHtmlReport(documentId);
+
+      showAlert.toast('success', `${label} downloaded successfully.`);
+    } catch (err) {
+      console.error(`Export failed for ${action}:`, err);
+      showAlert.error('Export Failed', showAlert.extractMessage(err, `Failed to download ${label}. Please try again.`));
     }
   };
 

@@ -4983,29 +4983,16 @@ async def get_recipient_page_thumbnail(
             matrix = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=matrix, alpha=False)
             
-            # Convert to PIL Image
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            
-            # If the image doesn't exactly match requested dimensions, resize with LANCZOS
-            if pix.width != width or pix.height != height:
-                img = img.resize((width, height), Image.Resampling.LANCZOS)
-            
-            # Save as PNG with quality setting (PNG ignores quality, but we'll use optimize)
-            buf = io.BytesIO()
-            img.save(buf, format="PNG", optimize=(quality < 95))
-            
+            # Ultra-fast direct C-level JPEG compression (~2ms)
+            thumb_bytes = pix.tobytes("jpeg", jpg_quality=max(75, min(quality, 90)))
             doc_pdf.close()
             
-            # Log thumbnail generation (optional)
-            print(f"Generated REAL thumbnail for page {page_number}")
-            
             return StreamingResponse(
-                io.BytesIO(buf.getvalue()),
-                media_type="image/png",
+                io.BytesIO(thumb_bytes),
+                media_type="image/jpeg",
                 headers={
-                    "Cache-Control": "no-cache, must-revalidate",
-                    "Pragma": "no-cache",
-                    "Content-Disposition": f'inline; filename="page_{page_number}_thumbnail.png"',
+                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+                    "Content-Disposition": f'inline; filename="page_{page_number}_thumbnail.jpg"',
                     "X-Page-Number": str(page_number),
                     "X-Total-Pages": str(total_pages),
                     "X-Thumbnail-Type": "real"
@@ -5258,6 +5245,25 @@ async def manually_complete_recipient(
         
     await db.recipients.update_one({"_id": rid}, {"$set": update_recipient_data})
     recipient.update(update_recipient_data)
+
+    # Deduct 2 credits for Recipient Signing from document owner
+    try:
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        owner_id = document.get("owner_id")
+        if owner_id:
+            owner = await db.users.find_one({"_id": ObjectId(owner_id)})
+            if owner:
+                await CreditService.consume_credits(
+                    user_id=str(owner["_id"]),
+                    email=owner.get("email", ""),
+                    amount=CREDIT_COSTS.get("recipient_sign", 2),
+                    action="recipient_sign",
+                    reference_id=str(rid),
+                    description=f"Recipient Signing: {recipient.get('email', 'Recipient')} completed signing {document.get('title', 'Document')}"
+                )
+    except Exception as credit_err:
+        print(f"[CreditService] Recipient sign credit deduction notice: {credit_err}")
     
     # Progress workflow (Owner alert, sequential triggers, document finalization)
     flow_result = await advance_recipient_workflow(

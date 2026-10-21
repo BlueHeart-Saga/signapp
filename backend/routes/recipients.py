@@ -870,6 +870,18 @@ async def send_invites_to_recipients(
                     request
                 )
         
+        # Pure Credit Authorization & Deduction for Document Send & E-Signing (5 credits)
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        await CreditService.consume_credits(
+            user_id=str(current_user["id"]),
+            email=current_user.get("email", ""),
+            amount=CREDIT_COSTS.get("document_send", 5),
+            action="document_send",
+            reference_id=document_id,
+            description=f"Document Send & E-Signing: {document.get('title', 'Document')}"
+        )
+
         # Send invites in background - This processes first-level in sequential, or all in parallel
         background_tasks.add_task(
             send_bulk_invites,
@@ -970,7 +982,22 @@ async def send_reminder(
         
         if not document:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
+        # Check document status and expiration
+        doc_status = document.get("status")
+        if doc_status in ["completed", "expired", "voided", "declined"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot send reminder: Document is {doc_status}."
+            )
+
+        expires_at = document.get("expires_at")
+        if expires_at and isinstance(expires_at, datetime) and expires_at < datetime.utcnow():
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot send reminder: This document has expired."
+            )
+
         # Check action status based on role
         role = recipient.get("role", RecipientRole.SIGNER)
         if role == RecipientRole.SIGNER and recipient.get("status") == "signed":
@@ -994,6 +1021,18 @@ async def send_reminder(
                 detail="Cannot send reminder to a witness who has already witnessed"
             )
         
+        # Consume credits for Email Delivery (1 credit)
+        from services.credit_service import CreditService
+        from config.credit_costs import CREDIT_COSTS
+        await CreditService.consume_credits(
+            user_id=str(current_user["id"]),
+            email=current_user.get("email", ""),
+            amount=CREDIT_COSTS.get("email", 1),
+            action="email",
+            reference_id=recipient_id,
+            description=f"Email Delivery: Reminder to {recipient.get('email', 'recipient')}"
+        )
+
         # Send reminder in background
         background_tasks.add_task(
             send_reminder_email,

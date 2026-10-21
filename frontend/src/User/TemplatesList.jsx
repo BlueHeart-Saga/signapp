@@ -246,8 +246,18 @@ const UserTemplatesList = () => {
         return;
       }
 
+      const confirm = await showAlert.confirm(
+        "Use Template?",
+        `Create a new document from "${templateTitle}" and proceed to prepare recipients and signature fields?`,
+        "Yes, Use Template",
+        "Cancel"
+      );
+
+      if (!confirm.isConfirmed) return;
+
       setIsUploading(true);
       setUploadProgress(0);
+      showAlert.toast("info", `Preparing "${templateTitle}"...`);
 
       // Step 1: Download template file
       const res = await fetch(
@@ -280,6 +290,7 @@ const UserTemplatesList = () => {
       if (response && response.document) {
         const documentId = response.document.id || response.document._id;
         if (documentId) {
+          showAlert.toast("success", "Template imported! Preparing document for recipients...");
           navigate(`/user/prepare-send/${documentId}`, {
             state: {
               document: response.document,

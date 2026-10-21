@@ -240,7 +240,7 @@ const SuccessDialog = ({
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ 
+      {/* <DialogActions sx={{ 
         p: 3, 
         pt: 2,
         borderTop: 1,
@@ -293,7 +293,7 @@ const SuccessDialog = ({
         >
           My Documents
         </Button>
-      </DialogActions>
+      </DialogActions> */}
 
       {/* CSS Animations */}
       <style jsx global>{`

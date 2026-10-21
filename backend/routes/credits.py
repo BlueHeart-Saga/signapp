@@ -202,10 +202,36 @@ async def confirm_pack_purchase(
             description=f"Purchased {pack_name}"
         )
 
+        # Create official persistent invoice
+        invoice = None
+        try:
+            pack_price = pack["price"] if pack else 15.00
+            from services.invoice_service import InvoiceService
+            invoice = await InvoiceService.create_invoice(
+                user_email=user_email,
+                user_id=user_id,
+                items=[{
+                    "description": f"{credits_to_add:,} ESigniva Credits",
+                    "sub_description": f"Purchased {pack_name} • One-time credit top-up",
+                    "quantity": 1,
+                    "unit_price": f"${pack_price:.2f}",
+                    "amount": f"${pack_price:.2f}"
+                }],
+                subtotal=pack_price,
+                tax_amount=0.0,
+                total_amount=pack_price,
+                payment_reference=payment_intent_id,
+                payment_method="Stripe",
+                status="PAID"
+            )
+        except Exception as inv_err:
+            logger.error(f"Failed to create credit pack invoice: {inv_err}")
+
         return {
             "success": True,
             "message": f"Successfully added {credits_to_add} credits to your account!",
-            "new_balance": result["new_balance"]
+            "new_balance": result["new_balance"],
+            "invoice": invoice
         }
     except HTTPException:
         raise

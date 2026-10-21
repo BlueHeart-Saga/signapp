@@ -1148,7 +1148,7 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
   };
 
   // Handle AI template generation
-  const handleAITemplateGenerated = (documentId) => {
+  const handleAITemplateGenerated = (documentId, documentData) => {
     if (documentId) {
       setToast({
         open: true,
@@ -1159,8 +1159,18 @@ const AITemplateBrowser = ({ onTemplateSelect, onTemplateUse, open, onClose }) =
       // Close browser and navigate to prepare-send
       setTimeout(() => {
         onClose();
-        navigate(`/user/prepare-send/${documentId}`);
-      }, 1500);
+        navigate(`/user/prepare-send/${documentId}`, {
+          state: {
+            document: documentData || {
+              id: documentId,
+              filename: "AI_Document.pdf",
+              title: "AI Generated Document",
+              page_count: 1,
+              source: "ai_builder"
+            }
+          }
+        });
+      }, 1000);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -27,43 +27,58 @@ const RenameDialog = ({
   onRename,
   renaming = false
 }) => {
-  const [localName, setLocalName] = useState(documentName);
+  const [localName, setLocalName] = useState('');
+  const [initialName, setInitialName] = useState('');
   const [error, setError] = useState('');
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      setLocalName(documentName);
+    // Only initialize when dialog transitions from closed to open
+    if (open && !prevOpenRef.current) {
+      const clean = (documentName || '').replace(/\.pdf$/i, '').trim();
+      setLocalName(clean);
+      setInitialName(clean);
       setError('');
     }
+    prevOpenRef.current = open;
   }, [open, documentName]);
 
   const handleChange = (e) => {
     const value = (e.target.value || '').replace(/\.pdf$/i, '').slice(0, 60);
     setLocalName(value);
-    
+
     if (onDocumentNameChange) {
       onDocumentNameChange(value);
     }
-    
+
     if (error) setError('');
   };
 
+  const trimmedLocal = localName.trim();
+  const isUnchanged = trimmedLocal === initialName;
+  const isInvalid = !trimmedLocal;
+  const isSubmitDisabled = isInvalid || renaming || isUnchanged;
+
   const handleSubmit = () => {
-    if (!localName.trim()) {
+    const trimmed = localName.trim();
+    if (!trimmed) {
       setError('Document name cannot be empty');
       return;
     }
 
-    if (localName.length > 60) {
+    if (trimmed.length > 60) {
       setError('Document name cannot exceed 60 characters');
       return;
     }
 
-    onRename();
+    if (onRename) {
+      onRename(trimmed);
+    }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !renaming) {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !isSubmitDisabled) {
+      e.preventDefault();
       handleSubmit();
     }
   };
@@ -83,11 +98,12 @@ const RenameDialog = ({
         color: 'white',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        py: 1.75
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <EditIcon />
-          <Typography variant="h6">Rename Document</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Rename Document</Typography>
         </Box>
         <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
           <CloseIcon />
@@ -98,6 +114,7 @@ const RenameDialog = ({
         <Alert 
           severity="info" 
           sx={{ 
+            mt: 1,
             mb: 3,
             '& .MuiAlert-icon': { color: '#0f766e' }
           }}
@@ -105,11 +122,11 @@ const RenameDialog = ({
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
             <InfoIcon fontSize="small" sx={{ mt: 0.5 }} />
             <Box>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
                 This will rename the document file. Recipients will see the new name.
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                The .pdf extension will be added automatically if not included.
+                The .pdf extension will be maintained automatically.
               </Typography>
             </Box>
           </Box>
@@ -121,7 +138,7 @@ const RenameDialog = ({
           label="Document Name"
           value={localName}
           onChange={handleChange}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           error={!!error}
           helperText={error || `${localName.length}/60 characters`}
           placeholder="Enter document name"
@@ -129,8 +146,8 @@ const RenameDialog = ({
           size="medium"
           inputProps={{ maxLength: 60 }}
           InputProps={{
-            endAdornment: localName && (
-              <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+            endAdornment: (
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mr: 1, userSelect: 'none' }}>
                 .pdf
               </Typography>
             )
@@ -149,23 +166,17 @@ const RenameDialog = ({
             },
           }}
         />
-
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Typography variant="caption" color="text.secondary">
-            {localName.length}/255 characters
-          </Typography>
-        </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, borderTop: 1, borderColor: 'divider' }}>
+      <DialogActions sx={{ p: 2.5, px: 3, borderTop: 1, borderColor: 'divider' }}>
         <Button 
           onClick={onClose}
           disabled={renaming}
           sx={{ 
             minWidth: 100,
-            color: '#0f766e',
+            color: '#555',
             '&:hover': {
-              backgroundColor: 'rgba(13, 148, 136, 0.04)'
+              backgroundColor: 'rgba(0, 0, 0, 0.04)'
             }
           }}
         >
@@ -174,16 +185,17 @@ const RenameDialog = ({
         <Button 
           variant="contained" 
           onClick={handleSubmit}
-          disabled={!localName.trim() || renaming || localName === documentName}
-          startIcon={renaming ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <SaveIcon />}
+          disabled={isSubmitDisabled}
+          startIcon={renaming ? <CircularProgress size={18} sx={{ color: 'white' }} /> : <SaveIcon />}
           sx={{ 
             minWidth: 120,
             bgcolor: '#0f766e',
             '&:hover': {
-              bgcolor: '#0f766e'
+              bgcolor: '#0d655e'
             },
             '&.Mui-disabled': {
-              bgcolor: 'rgba(13, 148, 136, 0.3)'
+              bgcolor: 'rgba(15, 118, 110, 0.35)',
+              color: 'rgba(255, 255, 255, 0.7)'
             }
           }}
         >

@@ -12,10 +12,17 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Slider,
+  Paper,
+  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import ViewSidebarIcon from "@mui/icons-material/ViewSidebar";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { Document, Page, pdfjs } from "react-pdf";
 import {
   fetchPdfBlob,
@@ -26,6 +33,8 @@ import {
 
 pdfjs.GlobalWorkerOptions.workerSrc =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
 export default function SignedPreviewModal({
   open,
@@ -39,11 +48,14 @@ export default function SignedPreviewModal({
   const [pdfBlob, setPdfBlob] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [scale, setScale] = useState(1.0);
+  const [scale, setScale] = useState(1.05);
   const [files, setFiles] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePage, setActivePage] = useState(1);
   const [downloadAnchor, setDownloadAnchor] = useState(null);
 
   const containerRef = useRef(null);
+  const token = localStorage.getItem("token") || "";
 
   useEffect(() => {
     if (!open || !documentId) return;
@@ -54,6 +66,7 @@ export default function SignedPreviewModal({
       setError(null);
       setPdfBlob(null);
       setNumPages(null);
+      setActivePage(1);
 
       try {
         const blob = await fetchPdfBlob(url);
@@ -91,18 +104,22 @@ export default function SignedPreviewModal({
       });
   }, [open, documentId]);
 
-  function onDocumentLoadSuccess({ numPages }) {
-    setNumPages(numPages);
+  function onDocumentLoadSuccess({ numPages: count }) {
+    setNumPages(count);
   }
 
   const hasMultipleFiles = files && files.length > 1;
 
   const scrollToPage = (pageNum) => {
+    setActivePage(pageNum);
     const el = document.getElementById(`signed-page-${pageNum}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+
+  const handleZoomIn = () => setScale((s) => Math.min(Number((s + 0.15).toFixed(2)), 3.0));
+  const handleZoomOut = () => setScale((s) => Math.max(Number((s - 0.15).toFixed(2)), 0.6));
 
   return (
     <Dialog
@@ -114,11 +131,14 @@ export default function SignedPreviewModal({
         sx: {
           height: "92vh",
           maxHeight: "92vh",
-          borderRadius: "12px",
+          borderRadius: "14px",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         },
       }}
     >
+      {/* Top Header */}
       <DialogTitle
         sx={{
           display: "flex",
@@ -127,178 +147,365 @@ export default function SignedPreviewModal({
           borderBottom: "1px solid #e2e8f0",
           py: 1.5,
           px: 2.5,
+          bgcolor: "#ffffff",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+          <Tooltip title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
+            <IconButton
+              size="small"
+              onClick={() => setSidebarOpen((v) => !v)}
+              sx={{ color: sidebarOpen ? "#0f766e" : "#64748b" }}
+            >
+              <ViewSidebarIcon />
+            </IconButton>
+          </Tooltip>
+
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#0f172a" }}>
               {title || documentName || "Signed Document Preview"}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#0f766e", fontWeight: 600 }}>
+              ✓ Completed Signatures & Form Fields
             </Typography>
           </Box>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <IconButton
-            size="small"
-            onClick={() => setScale((s) => Math.max(s - 0.15, 0.5))}
-            disabled={scale <= 0.5}
-          >
-            -
-          </IconButton>
-          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 40, textAlign: "center" }}>
-            {Math.round(scale * 100)}%
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setScale((s) => Math.min(s + 0.15, 3.0))}
-            disabled={scale >= 3.0}
-          >
-            +
-          </IconButton>
-          <IconButton onClick={onClose} size="small" sx={{ ml: 1 }}>
+          <IconButton onClick={onClose} size="small" sx={{ color: "#64748b", "&:hover": { color: "#0f172a" } }}>
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
 
+      {/* Main Content Area: Sidebar + PDF Pages */}
       <DialogContent
         sx={{
           p: 0,
           position: "relative",
           overflow: "hidden",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           backgroundColor: "#f8fafc",
+          flex: 1,
         }}
       >
-        {/* Loading State */}
-        {loading && (
+        {/* ================= LEFT SIDEBAR (PAGES & THUMBNAILS) ================= */}
+        {sidebarOpen && numPages && numPages > 0 && (
           <Box
             sx={{
+              width: 220,
+              minWidth: 220,
+              borderRight: "1px solid #e2e8f0",
+              bgcolor: "#ffffff",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
               height: "100%",
-              gap: 2,
+              overflow: "hidden",
+              zIndex: 2,
             }}
           >
-            <CircularProgress sx={{ color: "#0f766e" }} />
-            <Typography variant="body2" color="text.secondary">
-              Loading signed document...
-            </Typography>
+            {/* Sidebar Title */}
+            <Box sx={{ p: 1.5, borderBottom: "1px solid #f1f5f9", bgcolor: "#f8fafc", display: "flex", alignItems: "center", gap: 1 }}>
+              <DescriptionIcon sx={{ fontSize: 18, color: "#0f766e" }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0f766e" }}>
+                Pages ({numPages})
+              </Typography>
+            </Box>
+
+            {/* Sidebar Pages Scroll List */}
+            <Box sx={{ flex: 1, overflowY: "auto", p: 1.5 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                {Array.from(new Array(numPages), (_, i) => {
+                  const pageNum = i + 1;
+                  const isActive = activePage === pageNum;
+
+                  const thumbImgUrl = documentId
+                    ? `${API_BASE_URL}/documents/${documentId}/pages/${pageNum}/thumbnail?width=200&height=280&token=${encodeURIComponent(token)}`
+                    : null;
+
+                  return (
+                    <Box
+                      key={`signed-thumb-page-${pageNum}`}
+                      onClick={() => scrollToPage(pageNum)}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": { transform: "scale(1.02)" },
+                      }}
+                    >
+                      <Paper
+                        elevation={isActive ? 3 : 1}
+                        sx={{
+                          width: "100%",
+                          aspectRatio: "1 / 1.414",
+                          bgcolor: "#fff",
+                          border: isActive ? "2px solid #0f766e" : "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          overflow: "hidden",
+                          position: "relative",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {thumbImgUrl ? (
+                          <img
+                            src={thumbImgUrl}
+                            alt={`Page ${pageNum}`}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : null}
+
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: 4,
+                            right: 4,
+                            bgcolor: isActive ? "#0f766e" : "rgba(15, 23, 42, 0.75)",
+                            color: "#fff",
+                            px: 0.8,
+                            py: 0.2,
+                            borderRadius: "4px",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {pageNum}
+                        </Box>
+                      </Paper>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 0.5,
+                          color: isActive ? "#0f766e" : "#64748b",
+                          fontWeight: isActive ? 700 : 500,
+                          fontSize: "11px",
+                        }}
+                      >
+                        Page {pageNum}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
           </Box>
         )}
 
-        {/* Error State */}
-        {error && !loading && (
+        {/* ================= MAIN PDF VIEWER ================= */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+          {/* Zoom and Page Info Toolbar */}
           <Box
             sx={{
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
               gap: 2,
-              p: 3,
+              px: 2,
+              py: 1,
+              backgroundColor: "#ffffff",
+              borderBottom: "1px solid #e2e8f0",
+              flexShrink: 0,
             }}
           >
-            <Typography color="error" variant="h6">
-              No signed version available
-            </Typography>
-            <Typography variant="body2" color="text.secondary" align="center">
-              This document hasn't been signed yet, or the signed version is not ready.
-            </Typography>
-          </Box>
-        )}
+            <IconButton onClick={handleZoomOut} disabled={scale <= 0.6} size="small">
+              <ZoomOutIcon />
+            </IconButton>
 
-        {/* PDF Viewer */}
-        {!loading && !error && pdfBlob && (
+            <Slider
+              value={scale}
+              min={0.6}
+              max={3}
+              step={0.1}
+              onChange={(_, v) => setScale(v)}
+              sx={{
+                width: 130,
+                color: "#0f766e",
+                "& .MuiSlider-thumb": { width: 14, height: 14 },
+              }}
+            />
+
+            <IconButton onClick={handleZoomIn} disabled={scale >= 3} size="small">
+              <ZoomInIcon />
+            </IconButton>
+
+            <Typography variant="body2" sx={{ color: "#475569", fontWeight: 600, minWidth: 45 }}>
+              {Math.round(scale * 100)}%
+            </Typography>
+
+            {numPages && numPages > 0 ? (
+              <Typography sx={{ ml: "auto" }} variant="body2" color="text.secondary">
+                Page {activePage} of {numPages}
+              </Typography>
+            ) : null}
+          </Box>
+
+          {/* PDF Pages Scroll View */}
           <Box
             ref={containerRef}
             sx={{
               flex: 1,
-              overflow: "auto",
-              p: 3,
+              overflowY: "auto",
+              px: { xs: 1, sm: 3 },
+              py: 3,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
             }}
           >
-            <Document file={pdfBlob} onLoadSuccess={onDocumentLoadSuccess} loading={null}>
-              {Array.from({ length: numPages || 0 }, (_, index) => {
-                const pageNum = index + 1;
+            {/* Loading State */}
+            {loading && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  gap: 2,
+                }}
+              >
+                <CircularProgress sx={{ color: "#0f766e" }} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading signed document...
+                </Typography>
+              </Box>
+            )}
 
-                return (
-                  <Box
-                    key={`signed_page_wrapper_${pageNum}`}
-                    id={`signed-page-${pageNum}`}
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      mb: 5,
-                      scrollMarginTop: "80px",
-                    }}
-                  >
-                    <Box sx={{ width: "fit-content" }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "center",
-                          mb: 1,
-                          userSelect: "none",
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
+            {/* Error State */}
+            {error && !loading && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  gap: 2,
+                  p: 3,
+                }}
+              >
+                <Typography color="error" variant="h6">
+                  No signed version available
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center">
+                  This document hasn't been signed yet, or the signed version is not ready.
+                </Typography>
+              </Box>
+            )}
+
+            {/* PDF Canvas Document */}
+            {!loading && !error && pdfBlob && (
+              <Document
+                file={pdfBlob}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={null}
+              >
+                {Array.from(new Array(numPages || 0), (_, index) => {
+                  const pageNum = index + 1;
+                  const pageFile = files?.find((f) => pageNum >= f.start_page && pageNum <= f.end_page);
+                  const currentFilename = pageFile?.filename || documentName || title || "Document";
+
+                  return (
+                    <Box
+                      key={`signed_page_wrapper_${pageNum}`}
+                      id={`signed-page-${pageNum}`}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        mb: 5,
+                        scrollMarginTop: "80px",
+                      }}
+                    >
+                      <Box sx={{ display: "inline-flex", flexDirection: "column", width: "fit-content", maxWidth: "100%" }}>
+                        {/* Page Top Label */}
+                        <Box
                           sx={{
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            color: "#64748b",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            width: "100%",
+                            mb: 1,
+                            px: 0.5,
+                            userSelect: "none",
+                            gap: 2,
                           }}
                         >
-                          Page {pageNum} of {numPages}
-                        </Typography>
-                      </Box>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              color: "#475569",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              maxWidth: 320,
+                            }}
+                            title={currentFilename}
+                          >
+                            📄 {currentFilename}
+                          </Typography>
 
-                      {/* Actual PDF Page Container */}
-                      <Box
-                        sx={{
-                          backgroundColor: "white",
-                          borderRadius: "4px",
-                          boxShadow: "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)",
-                          overflow: "hidden",
-                          border: "1px solid #e2e8f0",
-                        }}
-                      >
-                        <Page
-                          pageNumber={pageNum}
-                          scale={scale}
-                          renderTextLayer={true}
-                          renderAnnotationLayer={true}
-                          canvasBackground="white"
-                        />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              color: "#64748b",
+                            }}
+                          >
+                            Page {pageNum} of {numPages}
+                          </Typography>
+                        </Box>
+
+                        {/* Actual PDF Page Container */}
+                        <Box
+                          sx={{
+                            backgroundColor: "white",
+                            borderRadius: "4px",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)",
+                            overflow: "hidden",
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <Page
+                            pageNumber={pageNum}
+                            scale={scale}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            canvasBackground="white"
+                          />
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                );
-              })}
-            </Document>
+                  );
+                })}
+              </Document>
+            )}
           </Box>
-        )}
+        </Box>
       </DialogContent>
 
+      {/* Bottom Actions Toolbar */}
       <DialogActions
         sx={{
           p: 2,
           borderTop: "1px solid #e2e8f0",
           display: "flex",
           justifyContent: "space-between",
+          bgcolor: "#ffffff",
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          {numPages || 0} pages total {hasMultipleFiles && ` across ${files.length} separated files`}
+          {numPages || 0} pages total {hasMultipleFiles && `across ${files.length} separated files`}
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

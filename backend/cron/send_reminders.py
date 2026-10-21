@@ -22,19 +22,29 @@ async def send_reminders():
     reminder_docs = await db.documents.find({
         "reminder_period": {"$gt": 0},
         "next_reminder_at": {"$lte": now},
-        "status": {"$in": ["sent", "in_progress"]}
+        "status": {"$in": ["sent", "in_progress"]},
+        "$or": [
+            {"expires_at": None},
+            {"expires_at": {"$gt": now}}
+        ]
     }).to_list(length=1000)
 
     for doc in reminder_docs:
         doc_id = doc["_id"]
         reminder_period = doc.get("reminder_period", 0)
+
+        # Double check expiration in case expires_at was a string or edge case
+        expires_at = doc.get("expires_at")
+        if expires_at and isinstance(expires_at, datetime) and expires_at <= now:
+            print(f"[CRON] Skipping document {doc_id} because it has expired ({expires_at}).")
+            continue
         
         print(f"[CRON] Found document {doc_id} needing reminders.")
 
         # Find ALL recipients who haven't completed their action
         pending_recipients = await db.recipients.find({
             "document_id": doc_id,
-            "status": {"$nin": ["completed", "declined", "expired"]}
+            "status": {"$nin": ["completed", "signed", "declined", "expired"]}
         }).to_list(length=1000)
 
         for recipient in pending_recipients:

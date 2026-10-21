@@ -103,6 +103,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [helpGuideDialogOpen, setHelpGuideDialogOpen] = useState(false);
   const [canvasHeight, setCanvasHeight] = useState(1123); // Default A4 height
@@ -988,41 +989,43 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
   };
 
   // ==================== RENAME ====================
-  const handleRenameDocument = async () => {
-    if (!newDocumentName.trim() || !documentId) {
+  const handleOpenRenameDialog = useCallback(() => {
+    const currentName = (document?.filename || document?.title || newDocumentName || 'Untitled')
+      .replace(/\.pdf$/i, '')
+      .trim();
+    setNewDocumentName(currentName);
+    setRenameDialogOpen(true);
+  }, [document, newDocumentName]);
+
+  const handleRenameDocument = async (customName) => {
+    const nameToUse = (typeof customName === 'string' && customName.trim())
+      ? customName.trim()
+      : newDocumentName.trim();
+
+    if (!nameToUse || !documentId) {
       showSnackbar('Please enter a valid document name', 'error');
       return;
     }
 
     try {
-      setSaving(true);
+      setRenaming(true);
 
-      const filename = newDocumentName.trim().endsWith('.pdf')
-        ? newDocumentName.trim()
-        : `${newDocumentName.trim()}.pdf`;
+      const cleanBase = nameToUse.replace(/\.pdf$/i, '').trim();
+      const filename = `${cleanBase}.pdf`;
 
-      const response = await fetch(`${API_BASE_URL}/documents/${documentId}/rename`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ filename })
-      });
+      const data = await documentAPI.renameDocument(documentId, filename);
+      const updatedFilename = data?.filename || filename;
 
-      if (!response.ok) {
-        throw new Error('Failed to rename document');
-      }
-
-      setDocument(prev => prev ? { ...prev, filename } : null);
+      setDocument(prev => prev ? { ...prev, filename: updatedFilename, title: updatedFilename } : null);
+      setNewDocumentName(updatedFilename.replace(/\.pdf$/i, ''));
       setRenameDialogOpen(false);
       showSnackbar('Document renamed successfully!', 'success');
 
     } catch (error) {
       console.error('Error renaming document:', error);
-      showSnackbar('Failed to rename document', 'error');
+      showSnackbar(error.message || 'Failed to rename document', 'error');
     } finally {
-      setSaving(false);
+      setRenaming(false);
     }
   };
 
@@ -1204,35 +1207,52 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
 
           <Box sx={{ flexGrow: 1, minWidth: 0, mr: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, maxWidth: '100%' }}>
-              <Box sx={{ minWidth: 0, maxWidth: { xs: 160, sm: 260, md: 400, lg: 600 } }}>
-                <FilenameDisplay
-                  filename={document.filename || 'Untitled Document'}
-                  maxLength={35}
-                  tooltipPlacement="bottom-start"
+              <Tooltip title="Click to rename document" arrow placement="bottom">
+                <Box
+                  onClick={handleOpenRenameDialog}
                   sx={{
-                    fontSize: '1.25rem',
-                    fontWeight: 600,
-                    color: 'text.primary',
-                    lineHeight: 1.6,
+                    minWidth: 0,
+                    maxWidth: { xs: 160, sm: 260, md: 400, lg: 600 },
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    px: 0.5,
+                    py: 0.25,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'rgba(15, 118, 110, 0.08)'
+                    }
                   }}
-                />
-              </Box>
+                >
+                  <FilenameDisplay
+                    filename={document?.filename || document?.title || 'Untitled Document'}
+                    maxLength={35}
+                    tooltipPlacement="bottom-start"
+                    sx={{
+                      fontSize: '1.25rem',
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      lineHeight: 1.6,
+                    }}
+                  />
+                </Box>
+              </Tooltip>
 
-              <IconButton
-                size="small"
-                onClick={() => setRenameDialogOpen(true)}
-                title="Rename Document"
-                sx={{
-                  ml: 0.5,
-                  flexShrink: 0,
-                  color: '#0f766e',
-                  '&:hover': {
-                    backgroundColor: 'rgba(13, 148, 136, 0.04)'
-                  }
-                }}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
+              <Tooltip title="Rename Document" arrow placement="bottom">
+                <IconButton
+                  size="small"
+                  onClick={handleOpenRenameDialog}
+                  sx={{
+                    ml: 0.5,
+                    flexShrink: 0,
+                    color: '#0f766e',
+                    '&:hover': {
+                      backgroundColor: 'rgba(13, 148, 136, 0.08)'
+                    }
+                  }}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
 
               {autoSaveStatus.isSaving && <CircularProgress size={16} sx={{ ml: 1, color: '#0f766e' }} />}
 
@@ -1638,7 +1658,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         document={document}
         onRenameClick={() => {
           setFinishDialogOpen(false);
-          setTimeout(() => setRenameDialogOpen(true), 300);
+          setTimeout(() => handleOpenRenameDialog(), 200);
         }}
         getFieldValidationError={getFieldValidationError}
         getRecipientColor={getRecipientColor}
@@ -1665,7 +1685,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         documentName={newDocumentName}
         onDocumentNameChange={setNewDocumentName}
         onRename={handleRenameDocument}
-        renaming={saving}
+        renaming={renaming}
       />
 
       {/* Unsaved Changes Dialog */}

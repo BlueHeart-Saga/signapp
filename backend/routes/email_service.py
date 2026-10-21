@@ -70,28 +70,41 @@ class EsignivaSummaryEngine:
 
     @staticmethod
     async def _get_branding_data():
-        """Retrieve logo and platform name from DB/Azure"""
-        branding = await db.branding.find_one({})
+        """Retrieve logo and platform name from DB/Azure with local fallback"""
         logo_img = None
         platform_name = "Esigniva"
         tagline = "Secure Digital Signatures"
         
-        if branding:
-            platform_name = branding.get("platform_name", platform_name)
-            tagline = branding.get("tagline", tagline)
-            logo_path = branding.get("logo_file_path")
-            if logo_path:
-                try:
-                    logo_bytes = storage.download(logo_path)
-                    logo_img = ImageReader(io.BytesIO(logo_bytes))
-                except Exception as e:
-                    print(f"Error loading logo for PDF: {e}")
+        try:
+            branding = await db.branding.find_one({})
+            if branding:
+                platform_name = branding.get("platform_name") or platform_name
+                tagline = branding.get("tagline") or tagline
+                logo_path = branding.get("logo_file_path")
+                if logo_path:
+                    try:
+                        logo_bytes = storage.download(logo_path)
+                        logo_img = ImageReader(io.BytesIO(logo_bytes))
+                    except Exception as e:
+                        print(f"Error loading logo for PDF: {e}")
+        except Exception as e:
+            print(f"Error retrieving branding: {e}")
+        
+        # Fallback to local platform logo if storage logo is not set or failed
+        if not logo_img:
+            try:
+                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+                if os.path.exists(local_logo_path):
+                    logo_img = ImageReader(local_logo_path)
+            except Exception as e:
+                print(f"Error loading local fallback logo: {e}")
         
         return logo_img, platform_name, tagline
     
     @staticmethod
     def create_header(canvas, doc, title="DOCUMENT SUMMARY", envelope_id=None, logo_img=None, platform_name="Esigniva", tagline="Secure Digital Signatures"):
-        """Professional Header - Absolute positioning to avoid content overlap"""
+        """Professional Header - Perfectly aligned brand logo and name on the same lines"""
         canvas.saveState()
         
         PAGE_WIDTH, PAGE_HEIGHT = A4
@@ -106,35 +119,46 @@ class EsignivaSummaryEngine:
         canvas.setLineWidth(1.25)
         canvas.line(40, HEADER_BASE, PAGE_WIDTH - 40, HEADER_BASE)
 
-        # Dynamic Logo Positioning
+        # Ensure logo fallback if not provided
+        if not logo_img:
+            try:
+                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+                if os.path.exists(local_logo_path):
+                    logo_img = ImageReader(local_logo_path)
+            except Exception:
+                pass
+
+        # Dynamic Logo Positioning - Aligned on exact same lines as brand name & tagline
         text_x_offset = 40
         if logo_img:
             try:
-                logo_size = 35
-                canvas.drawImage(logo_img, 40, HEADER_BASE + 35, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
-                text_x_offset = 82
+                logo_size = 32
+                canvas.drawImage(logo_img, 40, HEADER_BASE + 40, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+                text_x_offset = 80
             except Exception as e:
                 text_x_offset = 40
 
-        # Branding
+        # Branding - Top of 'E' aligns with top of logo mark
         canvas.setFont("Helvetica-Bold", 18)
         canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.BLACK))
-        canvas.drawString(text_x_offset, HEADER_BASE + 55, platform_name)
+        canvas.drawString(text_x_offset, HEADER_BASE + 58, platform_name)
 
-        canvas.setFont("Helvetica", 7.5)
+        # Tagline - Bottom aligns with bottom of logo mark
+        canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
-        canvas.drawString(text_x_offset, HEADER_BASE + 42, tagline)
+        canvas.drawString(text_x_offset, HEADER_BASE + 44, tagline)
 
         # Document Title (Right)
         canvas.setFont("Helvetica-Bold", 14)
         canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.BLACK))
-        canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 55, title)
+        canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 58, title)
 
         # Envelope ID
         if envelope_id:
             canvas.setFont("Helvetica", 7.5)
             canvas.setFillColor(colors.HexColor(EsignivaSummaryEngine.GRAY_600))
-            canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 42, f"Envelope: {envelope_id}")
+            canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 44, f"Envelope: {envelope_id}")
 
         canvas.restoreState()
 
@@ -1077,27 +1101,46 @@ class EsignivaSummaryEngine:
         GRAY_BORDER = colors.HexColor("#E5E7EB")
         WHITE = colors.white
         
-        # 1. PREMIUM HEADER
-        c.setFillColor(TEAL)
-        c.rect(0, height - 80, width, 80, fill=1, stroke=0)
-        
-        # Platform Info
-        c.setFont("Helvetica-Bold", 24)
+        # 1. PREMIUM HEADER - Unified White Brand Header with Logo
+        HEADER_BASE = height - 95
         c.setFillColor(WHITE)
-        c.drawString(50, height - 45, "Esigniva")
+        c.rect(0, HEADER_BASE, width, 95, fill=1, stroke=0)
         
-        c.setFont("Helvetica", 9)
-        c.setFillColor(WHITE)
-        c.drawString(50, height - 60, "Official Document Completion Summary")
+        c.setStrokeColor(TEAL)
+        c.setLineWidth(1.25)
+        c.line(40, HEADER_BASE, width - 40, HEADER_BASE)
         
-        # Right Header - Status Badge
-        status = summary_data.get('document_status', 'Pending').upper()
-        c.setFont("Helvetica-Bold", 12)
-        c.drawRightString(width - 50, height - 45, "STATUS: " + status)
+        text_x_offset = 40
+        try:
+            from reportlab.lib.utils import ImageReader
+            import os
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+            if os.path.exists(local_logo_path):
+                logo_img = ImageReader(local_logo_path)
+                logo_size = 32
+                c.drawImage(logo_img, 40, HEADER_BASE + 40, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+                text_x_offset = 80
+        except Exception:
+            text_x_offset = 40
+            
+        c.setFont("Helvetica-Bold", 18)
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.drawString(text_x_offset, HEADER_BASE + 58, "Esigniva")
         
-        gen_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
         c.setFont("Helvetica", 8)
-        c.drawRightString(width - 50, height - 60, f"Generated: {gen_time}")
+        c.setFillColor(colors.HexColor("#4A4A4A"))
+        c.drawString(text_x_offset, HEADER_BASE + 44, "Secure Digital Signatures")
+        
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.drawRightString(width - 40, HEADER_BASE + 58, "DOCUMENT SUMMARY")
+        
+        env_id = summary_data.get('envelope_id')
+        if env_id:
+            c.setFont("Helvetica", 7.5)
+            c.setFillColor(colors.HexColor("#4A4A4A"))
+            c.drawRightString(width - 40, HEADER_BASE + 44, f"Envelope: {env_id}")
         
         # 2. ENVELOPE SUMMARY CARD
         card_y = height - 200
@@ -1282,7 +1325,7 @@ class EsignivaCertificateEngine:
     
     @staticmethod
     def create_header(canvas, doc, title="CERTIFICATE OF COMPLETION", envelope_id=None, logo_img=None, platform_name="Esigniva", tagline="Secure Digital Signatures"):
-        """Professional Header matching Summary Style with Absolute Positioning"""
+        """Professional Header matching Summary Style - Perfectly aligned brand logo and name on the same lines"""
         canvas.saveState()
         
         PAGE_WIDTH, PAGE_HEIGHT = A4
@@ -1297,34 +1340,45 @@ class EsignivaCertificateEngine:
         canvas.setLineWidth(1.25)
         canvas.line(40, HEADER_BASE, PAGE_WIDTH - 40, HEADER_BASE)
         
-        # Dynamic Logo Positioning
+        # Ensure logo fallback if not provided
+        if not logo_img:
+            try:
+                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+                if os.path.exists(local_logo_path):
+                    logo_img = ImageReader(local_logo_path)
+            except Exception:
+                pass
+
+        # Dynamic Logo Positioning - Aligned on exact same lines as brand name & tagline
         text_x_offset = 40
         if logo_img:
             try:
-                logo_size = 35
-                canvas.drawImage(logo_img, 40, HEADER_BASE + 35, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
-                text_x_offset = 82
+                logo_size = 32
+                canvas.drawImage(logo_img, 40, HEADER_BASE + 40, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+                text_x_offset = 80
             except Exception as e:
                 text_x_offset = 40
         
-        # Branding
-        canvas.setFont("Helvetica-Bold", 20)
+        # Branding - Top of 'E' aligns with top of logo mark
+        canvas.setFont("Helvetica-Bold", 18)
         canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
-        canvas.drawString(text_x_offset, HEADER_BASE + 55, platform_name)
+        canvas.drawString(text_x_offset, HEADER_BASE + 58, platform_name)
         
-        canvas.setFont("Helvetica", 7.5)
+        # Tagline - Bottom aligns with bottom of logo mark
+        canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
-        canvas.drawString(text_x_offset, HEADER_BASE + 42, tagline)
+        canvas.drawString(text_x_offset, HEADER_BASE + 44, tagline)
         
         # Certificate Title (Right)
-        canvas.setFont("Helvetica-Bold", 15)
+        canvas.setFont("Helvetica-Bold", 14)
         canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
-        canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 55, title)
+        canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 58, title)
         
         if envelope_id:
             canvas.setFont("Helvetica", 7.5)
             canvas.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
-            canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 42, f"Envelope: {envelope_id}")
+            canvas.drawRightString(PAGE_WIDTH - 40, HEADER_BASE + 44, f"Envelope: {envelope_id}")
         
         canvas.restoreState()
     
@@ -2021,16 +2075,46 @@ class EsignivaCertificateEngine:
         c.setFillColor(colors.HexColor(EsignivaCertificateEngine.WHITE))
         c.rect(0, 0, width, height, fill=1, stroke=0)
         
-        # Heading area
-        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY))
-        c.rect(0, height - 10, width, 10, fill=1, stroke=0)
+        # Heading area - Unified White Brand Header with Logo
+        HEADER_BASE = height - 95
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.WHITE))
+        c.rect(0, HEADER_BASE, width, 95, fill=1, stroke=0)
         
-        c.setFont("Helvetica-Bold", 24)
+        c.setStrokeColor(colors.HexColor(EsignivaCertificateEngine.BRAND_PRIMARY))
+        c.setLineWidth(1.25)
+        c.line(40, HEADER_BASE, width - 40, HEADER_BASE)
+        
+        text_x_offset = 40
+        try:
+            from reportlab.lib.utils import ImageReader
+            import os
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            local_logo_path = os.path.join(backend_dir, "static", "branding", "platform_logo.png")
+            if os.path.exists(local_logo_path):
+                logo_img = ImageReader(local_logo_path)
+                logo_size = 32
+                c.drawImage(logo_img, 40, HEADER_BASE + 40, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+                text_x_offset = 80
+        except Exception:
+            text_x_offset = 40
+            
+        c.setFont("Helvetica-Bold", 18)
         c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
-        c.drawString(60, height - 60, "Esigniva")
+        c.drawString(text_x_offset, HEADER_BASE + 58, "Esigniva")
         
-        c.setFont("Helvetica-Bold", 16)
-        c.drawRightString(width - 60, height - 60, "Certificate of Completion")
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
+        c.drawString(text_x_offset, HEADER_BASE + 44, "Secure Digital Signatures")
+        
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.HexColor(EsignivaCertificateEngine.BLACK))
+        c.drawRightString(width - 40, HEADER_BASE + 58, "CERTIFICATE OF COMPLETION")
+        
+        env_id = certificate_data.get('envelope_id')
+        if env_id:
+            c.setFont("Helvetica", 7.5)
+            c.setFillColor(colors.HexColor(EsignivaCertificateEngine.GRAY_600))
+            c.drawRightString(width - 40, HEADER_BASE + 44, f"Envelope: {env_id}")
         
         # Main info board
         box_y = height - 280

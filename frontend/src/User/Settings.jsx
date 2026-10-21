@@ -215,6 +215,7 @@ const Settings = () => {
       });
       const data = await response.json();
       setUser(data);
+      if (setAuthUser) setAuthUser(data);
 
       const defaultTz = data.time_zone || (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "Asia/Kolkata") || "Asia/Kolkata";
       const resolvedName = data.full_name || `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.name || data.username || "";
@@ -246,10 +247,20 @@ const Settings = () => {
       const rawPic = data.profile_picture || data.profile_image || data.picture || data.avatar_url || data.photo_url || data.avatar;
       if (rawPic) {
         if (typeof rawPic === "string") {
-          setPreviewUrl(rawPic);
+          const trimmed = rawPic.trim();
+          if (trimmed.startsWith("data:") || trimmed.startsWith("http:") || trimmed.startsWith("https:") || trimmed.startsWith("blob:")) {
+            setPreviewUrl(trimmed);
+          } else {
+            setPreviewUrl(`data:image/jpeg;base64,${trimmed}`);
+          }
           setImgError(false);
         } else if (rawPic.data) {
-          setPreviewUrl(`data:${rawPic.content_type || 'image/jpeg'};base64,${rawPic.data}`);
+          const b64 = typeof rawPic.data === "string" ? rawPic.data.trim() : "";
+          if (b64.startsWith("data:")) {
+            setPreviewUrl(b64);
+          } else {
+            setPreviewUrl(`data:${rawPic.content_type || 'image/jpeg'};base64,${b64}`);
+          }
           setImgError(false);
         } else {
           setPreviewUrl(null);
@@ -287,7 +298,7 @@ const Settings = () => {
   };
 
   const handleProfileUpdate = async (e) => {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
 
     // Client-side validation: ensure required fields are not empty
     const trimmedName = (profileForm.full_name || "").trim();
@@ -297,36 +308,39 @@ const Settings = () => {
     }
 
     const trimmedCompany = (profileForm.company || "").trim();
-    if (!trimmedCompany) {
-      showAlert.warning("Company Required", "Please enter your company or organization name.");
-      return;
-    }
-
     const trimmedJobTitle = (profileForm.job_title || "").trim();
-    if (!trimmedJobTitle) {
-      showAlert.warning("Job Title Required", "Please enter your professional job title.");
-      return;
-    }
 
-    const trimmedSignature = (profileForm.signature_text || "").trim();
-    if (!trimmedSignature) {
-      showAlert.warning("Signature Name Required", "Please enter your signature name.");
-      return;
-    }
+    const parts = trimmedName.split(" ");
+    const fn = profileForm.first_name?.trim() || parts[0] || "";
+    const ln = profileForm.last_name?.trim() || parts.slice(1).join(" ") || "";
 
-    const trimmedInitials = (profileForm.initials_text || "").trim();
-    if (!trimmedInitials) {
-      showAlert.warning("Initials Required", "Please enter your initials.");
-      return;
-    }
+    const trimmedSignature = (profileForm.signature_text || trimmedName || "User Signature").trim();
+    const fallbackInit = `${fn.charAt(0)}${ln.charAt(0) || fn.charAt(1) || ""}`.toUpperCase() || "US";
+    const trimmedInitials = (profileForm.initials_text || fallbackInit).trim();
+
+    // 0ms Optimistic Update: Immediately reflect new name and user profile in UI, AuthContext and Navbar!
+    const previousUser = user;
+    const optimisticUser = {
+      ...(user || {}),
+      full_name: trimmedName,
+      first_name: fn,
+      last_name: ln,
+      company: trimmedCompany,
+      job_title: trimmedJobTitle,
+      signature_text: trimmedSignature,
+      initials_text: trimmedInitials,
+      date_format: profileForm.date_format,
+      time_zone: profileForm.time_zone,
+      updated_at: new Date().toISOString()
+    };
+
+    setUser(optimisticUser);
+    if (setAuthUser) setAuthUser(optimisticUser);
+    window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: optimisticUser }));
 
     setLoading(true);
     try {
       const formData = new FormData();
-      const parts = trimmedName.split(" ");
-      const fn = profileForm.first_name?.trim() || parts[0] || "";
-      const ln = profileForm.last_name?.trim() || parts.slice(1).join(" ") || "";
-
       formData.append("full_name", trimmedName);
       formData.append("first_name", fn);
       formData.append("last_name", ln);
@@ -362,7 +376,7 @@ const Settings = () => {
 
       if (response.ok) {
         const updatedData = await response.json();
-        const updatedUser = updatedData.user;
+        const updatedUser = updatedData.user || optimisticUser;
 
         // Safely store user without crashing on localStorage quota
         try {
@@ -382,8 +396,7 @@ const Settings = () => {
         try {
           const storedRecent = localStorage.getItem("recent-user");
           const parsed = storedRecent ? JSON.parse(storedRecent) : {};
-          const safeName = updatedUser.full_name || `${updatedUser.first_name || ""} ${updatedUser.last_name || ""}`.trim() || parsed.full_name;
-          parsed.full_name = safeName;
+          parsed.full_name = trimmedName;
           if (updatedUser.email) parsed.email = updatedUser.email;
           localStorage.setItem("recent-user", JSON.stringify(parsed));
         } catch (e) {
@@ -430,9 +443,17 @@ const Settings = () => {
         showAlert.toast("success", "Profile updated successfully");
       } else {
         const errJson = await response.json().catch(() => ({}));
+        // Revert optimistic user
+        setUser(previousUser);
+        if (setAuthUser) setAuthUser(previousUser);
+        window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: previousUser }));
         showAlert.error("Profile Update Failed", errJson.detail || "Failed to update profile settings.");
       }
     } catch (error) {
+      // Revert optimistic user
+      setUser(previousUser);
+      if (setAuthUser) setAuthUser(previousUser);
+      window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: previousUser }));
       showAlert.error("Network Error", "An error occurred while updating profile. Please try again.");
     } finally {
       setLoading(false);
@@ -449,20 +470,31 @@ const Settings = () => {
 
     if (!confirmResult.isConfirmed) return;
 
-    const hasServerPic = Boolean(
-      user?.profile_picture || user?.profile_image || user?.picture || user?.avatar_url || user?.photo_url || user?.avatar
-    );
+    const previousUser = user;
+    const previousPreview = previewUrl;
 
-    // If user only selected an unsaved local file without previous server image
-    if (profilePic && !hasServerPic) {
-      setProfilePic(null);
-      setPreviewUrl(null);
-      setImgError(false);
-      setRemoveProfilePicFlag(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-      showAlert.toast("info", "Selected photo removed");
-      return;
-    }
+    // 0ms Optimistic clear so navbar immediately shows initial fallback
+    const clearedUser = {
+      ...(user || {}),
+      profile_picture: null,
+      profile_image: null,
+      picture: null,
+      avatar_url: null,
+      photo_url: null,
+      avatar: null,
+      updated_at: new Date().toISOString()
+    };
+
+    setUser(clearedUser);
+    setProfilePic(null);
+    setPreviewUrl(null);
+    setImgError(false);
+    setRemoveProfilePicFlag(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+    if (setAuthUser) setAuthUser(clearedUser);
+
+    // Broadcast immediately so Navbar reverts to initials in 0ms
+    window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: clearedUser }));
 
     setLoading(true);
     try {
@@ -476,15 +508,7 @@ const Settings = () => {
 
       const data = await response.json();
       if (response.ok) {
-        const updatedUser = data.user || {
-          ...user,
-          profile_picture: null,
-          profile_image: null,
-          picture: null,
-          avatar_url: null,
-          photo_url: null,
-          avatar: null,
-        };
+        const updatedUser = data.user || clearedUser;
 
         setUser(updatedUser);
         setProfilePic(null);
@@ -499,15 +523,20 @@ const Settings = () => {
           localStorage.setItem("user", JSON.stringify(updatedUser));
         } catch (e) {}
 
-        // Broadcast profile change across navbar and dashboards
+        // Broadcast confirmed change
         window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: updatedUser }));
         showAlert.toast("success", "Profile picture removed successfully");
       } else {
-        showAlert.error("Removal Failed", data.detail || "Unable to remove profile picture");
+        throw new Error(data.detail || "Unable to remove profile picture");
       }
     } catch (err) {
       console.error("Error removing profile picture:", err);
-      showAlert.error("Removal Error", "An error occurred while removing your profile picture");
+      // Revert optimistic clear
+      setUser(previousUser);
+      setPreviewUrl(previousPreview);
+      if (setAuthUser) setAuthUser(previousUser);
+      window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: previousUser }));
+      showAlert.error("Removal Error", err.message || "An error occurred while removing your profile picture");
     } finally {
       setLoading(false);
     }
@@ -751,22 +780,119 @@ const Settings = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        showAlert.warning("Invalid File Format", "Please select a valid image file (PNG, JPG, JPEG, WEBP).");
-        return;
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showAlert.warning("Invalid File Format", "Please select a valid image file (PNG, JPG, JPEG, WEBP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert.warning("File Too Large", "Profile picture must be under 5MB in size.");
+      return;
+    }
+
+    // 1. Create instant local blob URL for immediate 0ms preview
+    const localBlobUrl = URL.createObjectURL(file);
+    const previousPic = previewUrl;
+    const previousUser = user;
+
+    setProfilePic(file);
+    setPreviewUrl(localBlobUrl);
+    setImgError(false);
+    setRemoveProfilePicFlag(false);
+
+    // Immediate 0ms optimistic update for current page, AuthContext and Navbar broadcast
+    const optimisticUser = {
+      ...(user || {}),
+      profile_picture: localBlobUrl,
+      profile_image: localBlobUrl,
+      picture: localBlobUrl,
+      avatar_url: localBlobUrl,
+      photo_url: localBlobUrl,
+      avatar: localBlobUrl,
+      updated_at: new Date().toISOString()
+    };
+
+    setUser(optimisticUser);
+    if (setAuthUser) setAuthUser(optimisticUser);
+    window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: optimisticUser }));
+    showAlert.toast("info", "Updating profile picture...");
+
+    // 2. Automatically save immediately to the backend so user doesn't need to scroll and click Update
+    try {
+      const formData = new FormData();
+      const currentFullName = (profileForm.full_name || user?.full_name || user?.name || "User").trim();
+      const parts = currentFullName.split(" ");
+      const fn = profileForm.first_name?.trim() || parts[0] || "";
+      const ln = profileForm.last_name?.trim() || parts.slice(1).join(" ") || "";
+
+      formData.append("full_name", currentFullName);
+      formData.append("first_name", fn);
+      formData.append("last_name", ln);
+      if (profileForm.company) formData.append("company", profileForm.company.trim());
+      if (profileForm.job_title) formData.append("job_title", profileForm.job_title.trim());
+      if (profileForm.date_format) formData.append("date_format", profileForm.date_format);
+      if (profileForm.time_zone) formData.append("time_zone", profileForm.time_zone);
+      formData.append("profile_picture", file);
+
+      const response = await fetch(`${API_BASE_URL}/auth/update-profile`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const serverUser = resData.user || optimisticUser;
+
+        // Save safely to localStorage
+        try {
+          localStorage.setItem("user", JSON.stringify(serverUser));
+        } catch (e) {
+          try {
+            const safeUser = { ...serverUser };
+            delete safeUser.profile_picture;
+            delete safeUser.stamp_image;
+            localStorage.setItem("user", JSON.stringify(safeUser));
+          } catch (err) {}
+        }
+
+        setUser(serverUser);
+        if (setAuthUser) setAuthUser(serverUser);
+
+        // Parse profile picture from server response
+        const rawPic = serverUser.profile_picture || serverUser.profile_image || serverUser.picture || serverUser.avatar_url;
+        if (rawPic) {
+          if (typeof rawPic === "string") {
+            setPreviewUrl(rawPic);
+          } else if (rawPic.data) {
+            setPreviewUrl(`data:${rawPic.content_type || 'image/jpeg'};base64,${rawPic.data}`);
+          }
+        }
+
+        setProfilePic(null);
+        // Broadcast the final persisted user
+        window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: serverUser }));
+        showAlert.toast("success", "Profile picture updated successfully!");
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.detail || "Failed to upload profile picture");
       }
-      if (file.size > 5 * 1024 * 1024) {
-        showAlert.warning("File Too Large", "Profile picture must be under 5MB in size.");
-        return;
-      }
-      setProfilePic(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setImgError(false);
-      setRemoveProfilePicFlag(false);
-      showAlert.toast("success", "Photo selected! Click 'Update' at the bottom to save changes.");
+    } catch (err) {
+      console.error("Profile picture upload failed:", err);
+      // Revert optimistic update
+      setUser(previousUser);
+      setPreviewUrl(previousPic);
+      setProfilePic(null);
+      if (setAuthUser) setAuthUser(previousUser);
+      window.dispatchEvent(new CustomEvent("user_profile_updated", { detail: previousUser }));
+      showAlert.error("Upload Failed", err.message || "Failed to update profile picture. Please try again.");
+    } finally {
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
 
@@ -922,7 +1048,9 @@ const Settings = () => {
             <form onSubmit={handleProfileUpdate} className="profile-form-layout">
               {/* Signature Row */}
               <div className="form-row">
-                <label className="row-label">Signature and initial</label>
+                <label className="row-label">
+                  Signature and initial <span className="required-star">*</span>
+                </label>
                 <div className="row-input signature-container">
                   <div className="signature-preview-row">
                     <div className="signature-preview-box handwriting">
@@ -934,21 +1062,27 @@ const Settings = () => {
                   </div>
                   <div className="signature-inputs-row">
                     <div className="signature-name-field">
-                      <label>Signature Name</label>
+                      <label>
+                        Signature Name <span className="required-star">*</span>
+                      </label>
                       <input
                         type="text"
                         value={profileForm.signature_text}
                         placeholder={getSignatureText()}
+                        required
                         onChange={(e) => setProfileForm({ ...profileForm, signature_text: e.target.value })}
                         className="styled-input"
                       />
                     </div>
                     <div className="initials-field">
-                      <label>Initials</label>
+                      <label>
+                        Initials <span className="required-star">*</span>
+                      </label>
                       <input
                         type="text"
                         value={profileForm.initials_text}
                         placeholder={getInitialText()}
+                        required
                         onChange={(e) => setProfileForm({ ...profileForm, initials_text: e.target.value })}
                         className="styled-input"
                       />
@@ -1016,40 +1150,79 @@ const Settings = () => {
 
               {/* Name Row (Consolidated single field) */}
               <div className="form-row">
-                <label className="row-label">Name</label>
+                <label className="row-label">
+                  Name <span className="required-star">*</span>
+                </label>
                 <div className="row-input">
-                  <input
-                    type="text"
-                    value={profileForm.full_name}
-                    placeholder="Enter your name"
-                    required
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const parts = val.trim().split(" ");
-                      const fn = parts[0] || "";
-                      const ln = parts.slice(1).join(" ") || "";
-                      const sigText = val.trim() || "User Signature";
-                      const initText = `${fn.charAt(0)}${ln.charAt(0) || fn.charAt(1) || ""}`.toUpperCase() || "US";
-                      setProfileForm(prev => ({
-                        ...prev,
-                        full_name: val,
-                        first_name: fn,
-                        last_name: ln,
-                        signature_text: prev.signature_text ? prev.signature_text : sigText,
-                        initials_text: prev.initials_text ? prev.initials_text : initText
-                      }));
-                    }}
-                    className="styled-input"
-                  />
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%" }}>
+                    <input
+                      type="text"
+                      value={profileForm.full_name}
+                      placeholder="Enter your name"
+                      required
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleProfileUpdate(e);
+                        }
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const parts = val.trim().split(" ");
+                        const fn = parts[0] || "";
+                        const ln = parts.slice(1).join(" ") || "";
+                        const sigText = val.trim() || "User Signature";
+                        const initText = `${fn.charAt(0)}${ln.charAt(0) || fn.charAt(1) || ""}`.toUpperCase() || "US";
+                        setProfileForm(prev => ({
+                          ...prev,
+                          full_name: val,
+                          first_name: fn,
+                          last_name: ln,
+                          signature_text: prev.signature_text ? prev.signature_text : sigText,
+                          initials_text: prev.initials_text ? prev.initials_text : initText
+                        }));
+                      }}
+                      className="styled-input"
+                    />
+                    {profileForm.full_name?.trim() && profileForm.full_name.trim() !== (user?.full_name || "").trim() && (
+                      <button
+                        type="button"
+                        onClick={handleProfileUpdate}
+                        className="btn-quick-save"
+                        title="Save Name Change"
+                        style={{
+                          whiteSpace: "nowrap",
+                          padding: "8px 16px",
+                          background: "linear-gradient(135deg, #0f766e 0%, #0d9488 100%)",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontWeight: "600",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 6px rgba(15, 118, 110, 0.25)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <FaCheck size={12} /> Save Name
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="form-row">
-                <label className="row-label">Company</label>
+                <label className="row-label">
+                  Company
+                </label>
                 <div className="row-input">
                   <input
                     type="text"
                     value={profileForm.company}
+                    placeholder="Enter your company or organization"
                     onChange={(e) => setProfileForm({ ...profileForm, company: e.target.value })}
                     className="styled-input"
                   />
@@ -1057,11 +1230,14 @@ const Settings = () => {
               </div>
 
               <div className="form-row">
-                <label className="row-label">Job title</label>
+                <label className="row-label">
+                  Job title
+                </label>
                 <div className="row-input">
                   <input
                     type="text"
                     value={profileForm.job_title}
+                    placeholder="Enter your job title"
                     onChange={(e) => setProfileForm({ ...profileForm, job_title: e.target.value })}
                     className="styled-input"
                   />
@@ -1145,7 +1321,9 @@ const Settings = () => {
             </div>
             <form onSubmit={handlePasswordChange} className="profile-form-layout narrow-form">
               <div className="form-row">
-                <label className="row-label">Current Password</label>
+                <label className="row-label">
+                  Current Password <span className="required-star">*</span>
+                </label>
                 <div className="row-input" style={{ position: "relative" }}>
                   <input
                     type={showCurrentPassword ? "text" : "password"}
@@ -1168,7 +1346,9 @@ const Settings = () => {
               </div>
 
               <div className="form-row">
-                <label className="row-label">New Password</label>
+                <label className="row-label">
+                  New Password <span className="required-star">*</span>
+                </label>
                 <div className="row-input" style={{ position: "relative", flexDirection: "column", alignItems: "flex-start" }}>
                   <div style={{ position: "relative", width: "100%", maxWidth: "480px" }}>
                     <input
@@ -1234,7 +1414,9 @@ const Settings = () => {
               </div>
 
               <div className="form-row">
-                <label className="row-label">Confirm Password</label>
+                <label className="row-label">
+                  Confirm Password <span className="required-star">*</span>
+                </label>
                 <div className="row-input" style={{ position: "relative", flexDirection: "column", alignItems: "flex-start" }}>
                   <div style={{ position: "relative", width: "100%", maxWidth: "480px" }}>
                     <input
@@ -1858,6 +2040,12 @@ const Settings = () => {
           color: #666;
           flex-shrink: 0;
           padding-top: 10px;
+        }
+
+        .required-star {
+          color: #ef4444;
+          margin-left: 2px;
+          font-weight: 700;
         }
 
         .row-input {

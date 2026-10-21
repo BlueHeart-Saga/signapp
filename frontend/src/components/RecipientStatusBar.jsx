@@ -279,36 +279,57 @@ export default function DocumentRecipientStatus({
           )}
 
           {/* MANUAL REMINDER BUTTON */}
-          {!isCompleted && !isDeclined && documentStatus !== 'completed' && (
+          {!isCompleted && !isDeclined && (
             <Box sx={{ display: 'flex', alignItems: 'center', mt: -0.5 }}>
-              <Tooltip title="Send manual reminder" arrow>
-                <IconButton
-                  size="medium"
-                  onClick={() => handleSendReminder(recipient.id || recipient._id)}
-                  disabled={reminding}
-                  sx={{
-                    color: '#0f766e',
-                    border: '1px solid #ccfbf1',
-                    bgcolor: '#f0fdfa',
-                    '&:hover': {
-                      bgcolor: '#ccfbf1',
-                      borderColor: '#0f766e'
-                    },
-                    '&.Mui-disabled': {
-                      bgcolor: '#f9fafb',
-                      color: '#9ca3af'
-                    },
-                    transition: 'all 0.2s',
-                    width: 36,
-                    height: 36
-                  }}
-                >
-                  {reminding ? (
-                    <CircularProgress size={18} thickness={5} sx={{ color: '#0f766e' }} />
-                  ) : (
-                    <HiOutlinePaperAirplane size={18} style={{ transform: 'rotate(-45deg)', marginLeft: '2px', marginBottom: '2px' }} />
-                  )}
-                </IconButton>
+              <Tooltip
+                title={
+                  documentStatus === 'completed'
+                    ? "Cannot send reminder: Document is completed"
+                    : documentStatus === 'expired'
+                    ? "Cannot send reminder: Document has expired"
+                    : recipient.status === 'expired'
+                    ? "Cannot send reminder: Recipient has expired"
+                    : "Send manual reminder"
+                }
+                arrow
+              >
+                <span>
+                  <IconButton
+                    size="medium"
+                    onClick={() => handleSendReminder(recipient.id || recipient._id)}
+                    disabled={
+                      reminding ||
+                      documentStatus === 'completed' ||
+                      documentStatus === 'expired' ||
+                      recipient.status === 'expired'
+                    }
+                    sx={{
+                      color: '#0f766e',
+                      border: '1px solid #ccfbf1',
+                      bgcolor: '#f0fdfa',
+                      '&:hover': {
+                        bgcolor: '#ccfbf1',
+                        borderColor: '#0f766e'
+                      },
+                      '&.Mui-disabled': {
+                        bgcolor: '#f9fafb',
+                        color: '#9ca3af',
+                        borderColor: '#e2e8f0',
+                        cursor: 'not-allowed',
+                        pointerEvents: 'auto'
+                      },
+                      transition: 'all 0.2s',
+                      width: 36,
+                      height: 36
+                    }}
+                  >
+                    {reminding ? (
+                      <CircularProgress size={18} thickness={5} sx={{ color: '#0f766e' }} />
+                    ) : (
+                      <HiOutlinePaperAirplane size={18} style={{ transform: 'rotate(-45deg)', marginLeft: '2px', marginBottom: '2px' }} />
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
             </Box>
           )}

@@ -82,7 +82,21 @@ export default function Sidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const [brandName, setBrandName] = useState("Esigniva");
   const [logoUrl, setLogoUrl] = useState(null);
-  const [openSubmenus, setOpenSubmenus] = useState({ "/user/documents": true });
+  const [openSubmenus, setOpenSubmenus] = useState(() => {
+    const initial = {};
+    const pathname = window.location.pathname;
+    // Auto-open submenu matching current location pathname
+    Object.values(menuItems).flat().forEach(item => {
+      if (item.hasSubmenu && pathname.startsWith(item.path)) {
+        initial[item.path] = true;
+      }
+    });
+    // Default /user/documents to true if no other submenu was matched
+    if (Object.keys(initial).length === 0) {
+      initial["/user/documents"] = true;
+    }
+    return initial;
+  });
   const [hoveredPath, setHoveredPath] = useState(null);
 
   useEffect(() => {
@@ -112,8 +126,10 @@ export default function Sidebar({ collapsed, onToggle }) {
   }, []);
 
   const toggleSubmenu = (path, e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setOpenSubmenus(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
@@ -142,22 +158,41 @@ export default function Sidebar({ collapsed, onToggle }) {
       <nav className="esigniva-sidebar__nav">
         {items.map((item) => {
           const isParentActive = location.pathname.startsWith(item.path);
-          const isOpen = openSubmenus[item.path];
+          const isOpen = !!openSubmenus[item.path];
           const isHovered = hoveredPath === item.path;
-          const showSub = (isOpen && !collapsed) || isHovered;
+          // In expanded mode, showSub is strictly controlled by click (isOpen).
+          // In collapsed mode, showSub is triggered when hovering over the icon.
+          const showSub = collapsed ? isHovered : isOpen;
 
           if (item.hasSubmenu) {
             return (
               <div
                 key={item.path}
                 className="esigniva-sidebar__menu-group"
-                onMouseEnter={() => setHoveredPath(item.path)}
-                onMouseLeave={() => setHoveredPath(null)}
+                onMouseEnter={() => collapsed && setHoveredPath(item.path)}
+                onMouseLeave={() => collapsed && setHoveredPath(null)}
               >
                 <div
                   className={`esigniva-sidebar__link ${isParentActive ? "esigniva-sidebar__link--active" : ""}`}
-                  onClick={(e) => !collapsed && toggleSubmenu(item.path, e)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (collapsed && onToggle) {
+                      onToggle();
+                      setOpenSubmenus(prev => ({ ...prev, [item.path]: true }));
+                    } else {
+                      toggleSubmenu(item.path, e);
+                    }
+                  }}
                   title={collapsed ? item.name : ""}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleSubmenu(item.path, e);
+                    }
+                  }}
                 >
                   <span className="esigniva-sidebar__link-icon">{item.icon}</span>
                   {!collapsed && (
@@ -384,7 +419,19 @@ export default function Sidebar({ collapsed, onToggle }) {
           display: flex;
           align-items: center;
           color: #94a3b8;
-          transition: transform 0.2s;
+          transition: transform 0.2s ease;
+          pointer-events: none;
+        }
+
+        @keyframes submenuSlideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .esigniva-sidebar__submenu {
@@ -396,6 +443,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           gap: 1px;
           margin-top: 2px;
           margin-bottom: 8px;
+          animation: submenuSlideDown 0.18s ease-out;
         }
 
         .esigniva-sidebar__submenu--floating {
