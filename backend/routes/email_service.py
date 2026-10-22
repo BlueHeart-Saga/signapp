@@ -3692,17 +3692,18 @@ async def send_completed_document_to_recipients(document_id: str):
                 except Exception as e:
                     print(f"Warning: Header failed for automated email: {e}")
                     
-            try:
-                pdf_bytes = PDFEngine.apply_watermark(
-                    pdf_bytes,
-                    "SIGNED DOCUMENT",
-                    color="#4CAF50",
-                    opacity=0.1,
-                    font_size=48,
-                    angle=45
-                )
-            except Exception as e:
-                print(f"Warning: Watermark failed for automated email: {e}")
+            # Apply "SIGNED" watermark (Commented out currently per user requirement)
+            # try:
+            #     pdf_bytes = PDFEngine.apply_watermark(
+            #         pdf_bytes,
+            #         "SIGNED DOCUMENT",
+            #         color="#4CAF50",
+            #         opacity=0.1,
+            #         font_size=48,
+            #         angle=45
+            #     )
+            # except Exception as e:
+            #     print(f"Warning: Watermark failed for automated email: {e}")
             
         except Exception as e:
             print(f"❌ Error in dynamic rendering for email: {str(e)}")

@@ -1669,7 +1669,7 @@ const DocumentMainLayout = ({ documentId: propDocumentId, onBack }) => {
         open={successDialogOpen}
         onClose={() => setSuccessDialogOpen(false)}
         onNavigateToDashboard={() => {
-          window.location.href = '/user/dashboard';
+          window.location.href = '/user/documents?status=all';
         }}
         onNavigateToDocuments={() => {
           window.location.href = '/user/documents';

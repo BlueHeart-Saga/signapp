@@ -838,13 +838,15 @@ const FieldOverlay = React.memo(({
             return null;
         }
         if (typeof val === 'object') {
-            if (val.image) return val.image;
+            if (val.image && typeof val.image === 'string' && val.image.startsWith('data:image')) return val.image;
+            if (val.data && typeof val.data === 'string' && val.data.startsWith('data:image')) return val.data;
             if (val.value) {
                 if (typeof val.value === 'string' && val.value.startsWith('data:image')) {
                     return val.value;
                 }
-                if (typeof val.value === 'object' && val.value.image) {
-                    return val.value.image;
+                if (typeof val.value === 'object') {
+                    if (val.value.image && typeof val.value.image === 'string' && val.value.image.startsWith('data:image')) return val.value.image;
+                    if (val.value.data && typeof val.value.data === 'string' && val.value.data.startsWith('data:image')) return val.value.data;
                 }
             }
         }
@@ -871,6 +873,7 @@ const FieldOverlay = React.memo(({
     // Helper to extract text information for typed signatures
     const getSignatureTextInfo = useCallback(() => {
         if (!isSignatureField || !completed) return null;
+        if (field.type === 'stamp') return null;
         const val = fieldValues[field.id] || field.value;
         if (!val) return null;
 
@@ -950,6 +953,10 @@ const FieldOverlay = React.memo(({
             // Text-based form fields (email, date, textbox, dropdown, radio) are already stamped and displayed on the PDF document.
             // Do not show duplicate wrapped text inside the button; keep it transparent so document values show cleanly.
             if (isTextFormField) {
+                return "";
+            }
+
+            if (field.type === 'stamp') {
                 return "";
             }
 
@@ -1101,7 +1108,7 @@ const FieldOverlay = React.memo(({
                                 display: 'block'
                             }} 
                         />
-                    ) : (sigTextInfo ? sigTextInfo.text : displayValue)}
+                    ) : (sigTextInfo ? sigTextInfo.text : (completed && field.type === "stamp" ? "" : displayValue))}
                 </Box>
 
                 {/* Required indicator for incomplete fields */}
@@ -1613,6 +1620,13 @@ const SigningPage = () => {
     // Document History state
     const [historyData, setHistoryData] = useState(null);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [isFinished, setIsFinished] = useState(false);
+
+    const isDocumentOrRecipientCompleted = Boolean(
+        recipientInfo?.status === 'completed' ||
+        documentInfo?.status === 'completed' ||
+        isFinished
+    );
 
     // Generate recipient colors
     const generateRecipientColors = useCallback((fields) => {
@@ -1728,10 +1742,12 @@ const SigningPage = () => {
     const handleFinishConfirm = async () => {
         setFinishDialogOpen(false);
         setCompleting(true);
+        setIsFinished(true);
 
         try {
             // Call the manual completion endpoint
             const result = await apiService.completeSigning(recipientId);
+            setRecipientInfo(prev => ({ ...prev, status: 'completed' }));
             console.log('Completion result:', result);
 
             // Check if document is now completed
@@ -2226,8 +2242,8 @@ const SigningPage = () => {
     const handleAutofillAllFields = async () => {
         handleActionsMenuClose();
 
-        // Find all incomplete fields (not just signatures)
-        const incompleteFields = fields.filter(f => !f.completed_at);
+        // Find all incomplete fields sorted by natural document reading order
+        const incompleteFields = getIncompleteFields(fields, fieldValues);
 
         if (incompleteFields.length === 0) {
             showSnackbar('All fields are already completed', 'info');
@@ -2241,20 +2257,35 @@ const SigningPage = () => {
 
     const handleDeclineDocument = async () => {
         handleActionsMenuClose();
+        if (isDocumentOrRecipientCompleted) {
+            showSnackbar('This document has already been completed, so it cannot be declined.', 'warning');
+            return;
+        }
         setDeclineDialogOpen(true);
     };
 
     const handleConfirmDecline = async () => {
+        if (isDocumentOrRecipientCompleted) {
+            showSnackbar('This document has already been completed, so it cannot be declined.', 'warning');
+            setDeclineDialogOpen(false);
+            return;
+        }
         try {
             setCompleting(true);
-            // API call to decline document (should be implemented in backend)
             const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/decline`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reason: declineReason })
             });
 
-            if (!response.ok) throw new Error('Failed to decline document');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                const detail = errData?.detail || '';
+                if (detail.toLowerCase().includes('completed') || detail.toLowerCase().includes('not active') || response.status === 400) {
+                    throw new Error(detail || 'This document has already been completed, so it cannot be declined.');
+                }
+                throw new Error(detail || 'Failed to decline document');
+            }
 
             showSnackbar('Document declined successfully', 'info');
             setDeclineDialogOpen(false);
@@ -2268,15 +2299,28 @@ const SigningPage = () => {
 
     const handleSkipSigning = () => {
         handleActionsMenuClose();
+        if (isDocumentOrRecipientCompleted) {
+            showSnackbar('This document has already been completed, so it cannot be skipped.', 'info');
+            return;
+        }
         setSkipDialogOpen(true);
     };
 
     const handleAssignToSomeoneElse = () => {
         handleActionsMenuClose();
+        if (isDocumentOrRecipientCompleted) {
+            showSnackbar('This document has already been completed, so you cannot assign it to someone else.', 'warning');
+            return;
+        }
         setAssignDialogOpen(true);
     };
 
     const handleConfirmAssign = async () => {
+        if (isDocumentOrRecipientCompleted) {
+            showSnackbar('This document has already been completed, so you cannot assign it to someone else.', 'warning');
+            setAssignDialogOpen(false);
+            return;
+        }
         try {
             setCompleting(true);
             const response = await fetch(`${API_BASE_URL}/signing/recipient/${recipientId}/assign-to-others`, {
@@ -2289,7 +2333,14 @@ const SigningPage = () => {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to assign document');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                const detail = errData?.detail || '';
+                if (detail.toLowerCase().includes('completed') || detail.toLowerCase().includes('not active') || detail.toLowerCase().includes('delegate') || response.status === 400) {
+                    throw new Error(detail || 'This document has already been completed, so you cannot assign or delegate it to someone else.');
+                }
+                throw new Error(detail || 'Failed to assign document');
+            }
 
             showSnackbar(`Document assigned to ${assignEmail}`, 'success');
             setAssignDialogOpen(false);
@@ -2538,46 +2589,96 @@ const SigningPage = () => {
             let workingFields = updatedFields;
             let workingValues = updatedFieldValues;
 
-            // 🔥 CONTINUOUS SIGNING / AUTOFILL LOGIC
-            if (isQuickSignMode) {
+            // Explicit allowlist of field types supported by Intelligent Bulk-Autofill & QuickSign:
+            // Only Signature, Initials, Stamp, Email, and Date are permitted.
+            // All other field types (Textbox, Approval, Radio, Dropdown, Checkbox) are strictly disabled
+            // from bulk-autofill and require individual user interaction.
+            const BULK_AUTOFILL_ALLOWED_TYPES = new Set([
+                'signature',
+                'witness_signature',
+                'initials',
+                'stamp',
+                'mail',
+                'email',
+                'date'
+            ]);
 
-                // 1. Signature bulk-autofill logic (if applicable)
-                if (modalType === 'signature' || modalType === 'initials' || modalType === 'stamp') {
-                    const otherFields = updatedFields.filter(f =>
-                        !f.completed_at && !f.is_completed && !workingValues[f.id] &&
-                        f.id !== activeField.id &&
-                        f.type === modalType
+            let matchingCategoryLabel = '';
+            let otherMatchingFields = [];
+
+            if (BULK_AUTOFILL_ALLOWED_TYPES.has(modalType)) {
+                // Ensure only eligible, uncompleted fields assigned to current signer are matched
+                const isEligibleField = (f) => {
+                    const isSameField = f.id === activeField.id;
+                    const isAlreadyDone = f.completed_at || f.is_completed || !!workingValues[f.id];
+                    const isAssignedToSigner = !f.recipient_id || String(f.recipient_id) === String(recipientId);
+                    return !isSameField && !isAlreadyDone && isAssignedToSigner;
+                };
+
+                if (modalType === 'mail' || modalType === 'email') {
+                    matchingCategoryLabel = 'email';
+                    otherMatchingFields = updatedFields.filter(f =>
+                        isEligibleField(f) && (f.type === 'mail' || f.type === 'email')
                     );
-
-                    if (otherFields.length > 0) {
-                        showSnackbar(`Autofilling ${otherFields.length} other signature field(s)...`, 'info');
-
-                        await Promise.all(otherFields.map(field =>
-                            apiService.saveFieldValue(recipientId, field.id, valueToSave)
-                        ));
-
-                        // Update local fields state for bulk fill
-                        const bulkIds = new Set(otherFields.map(f => f.id));
-                        workingFields = updatedFields.map(f => {
-                            if (bulkIds.has(f.id)) {
-                                return {
-                                    ...f,
-                                    value: valueToSave,
-                                    completed_at: new Date().toISOString(),
-                                    is_completed: true
-                                };
-                            }
-                            return f;
-                        });
-                        setFields(workingFields);
-
-                        workingValues = { ...workingValues };
-                        bulkIds.forEach(id => { workingValues[id] = valueToSave; });
-                        setFieldValues(workingValues);
-                    }
+                } else if (modalType === 'date') {
+                    matchingCategoryLabel = 'date';
+                    otherMatchingFields = updatedFields.filter(f =>
+                        isEligibleField(f) && f.type === 'date'
+                    );
+                } else if (modalType === 'signature' || modalType === 'witness_signature') {
+                    matchingCategoryLabel = 'signature';
+                    otherMatchingFields = updatedFields.filter(f =>
+                        isEligibleField(f) && (f.type === 'signature' || f.type === 'witness_signature')
+                    );
+                } else if (modalType === 'initials') {
+                    matchingCategoryLabel = 'initials';
+                    otherMatchingFields = updatedFields.filter(f =>
+                        isEligibleField(f) && f.type === 'initials'
+                    );
+                } else if (modalType === 'stamp') {
+                    matchingCategoryLabel = 'stamp';
+                    otherMatchingFields = updatedFields.filter(f =>
+                        isEligibleField(f) && f.type === 'stamp'
+                    );
                 }
+            }
 
-                // 2. Find the next field to sign (after potential bulk fill)
+            if (otherMatchingFields.length > 0) {
+                showSnackbar(`Autofilling ${otherMatchingFields.length} other ${matchingCategoryLabel} field(s)...`, 'info');
+
+                try {
+                    await Promise.all(otherMatchingFields.map(field =>
+                        apiService.saveFieldValue(recipientId, field.id, valueToSave)
+                    ));
+
+                    // Update local fields state for bulk fill
+                    const bulkIds = new Set(otherMatchingFields.map(f => f.id));
+                    workingFields = updatedFields.map(f => {
+                        if (bulkIds.has(f.id)) {
+                            return {
+                                ...f,
+                                value: valueToSave,
+                                completed_at: new Date().toISOString(),
+                                is_completed: true
+                            };
+                        }
+                        return f;
+                    });
+                    setFields(workingFields);
+
+                    workingValues = { ...workingValues };
+                    bulkIds.forEach(id => { workingValues[id] = valueToSave; });
+                    setFieldValues(workingValues);
+
+                    // Silently refresh live document to stamp newly filled fields
+                    refreshLiveDocumentSilently();
+                } catch (bulkErr) {
+                    console.error('Bulk autofill error:', bulkErr);
+                }
+            }
+
+            if (isQuickSignMode) {
+                // Find the next field to sign (after potential bulk fill)
                 const nextIncomplete = findNextPendingField(workingFields, activeField.id, workingValues);
 
                 if (nextIncomplete) {
@@ -2593,7 +2694,6 @@ const SigningPage = () => {
                 }
             } else {
                 // Regular signing mode (Standard flow)
-                // 🎯 Automatically find next field, scroll to it, and highlight it!
                 const nextIncomplete = findNextPendingField(workingFields, activeField.id, workingValues);
 
                 if (nextIncomplete) {
@@ -2612,9 +2712,9 @@ const SigningPage = () => {
                         'info'
                     );
                 } else {
-                    // All fields complete!
+                    // All fields complete
                     setNextFieldId(null);
-                    showSnackbar('🎉 Awesome! All fields have been completed.', 'success');
+                    showSnackbar('Awesome! All fields have been completed.', 'success');
                     setTimeout(() => showFinishConfirmation(), 800);
                 }
             }
@@ -2994,6 +3094,55 @@ const SigningPage = () => {
                             {/* Update the finish button rendering */}
                             {/* Update the finish button rendering */}
 
+                            {/* Dedicated Quick Sign Button - Prominent single place */}
+                            {!progress.allRequiredCompleted && fields.some(f => !f.completed_at && !f.is_completed && !fieldValues[f.id]) && (
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={handleAutofillAllFields}
+                                    startIcon={<AutoFixHighIcon sx={{ fontSize: 16 }} />}
+                                    sx={{
+                                        background: 'linear-gradient(135deg, #0d9488 0%, #086b70 100%)',
+                                        color: '#ffffff',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        fontSize: '0.82rem',
+                                        px: { xs: 1.2, sm: 1.8 },
+                                        py: 0.55,
+                                        borderRadius: '7px',
+                                        boxShadow: '0 2px 8px rgba(13, 148, 136, 0.28)',
+                                        minWidth: 'auto',
+                                        whiteSpace: 'nowrap',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        '&:hover': {
+                                            background: 'linear-gradient(135deg, #0f766e 0%, #065458 100%)',
+                                            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.38)',
+                                            transform: 'translateY(-1px)'
+                                        }
+                                    }}
+                                >
+                                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Quick Sign</Box>
+                                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Quick</Box>
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            ml: 0.8,
+                                            px: 0.75,
+                                            py: 0.1,
+                                            fontSize: '0.72rem',
+                                            fontWeight: 700,
+                                            borderRadius: '10px',
+                                            bgcolor: 'rgba(255, 255, 255, 0.25)',
+                                            color: '#ffffff',
+                                            lineHeight: 1.3
+                                        }}
+                                    >
+                                        {fields.filter(f => !f.completed_at && !f.is_completed && !fieldValues[f.id]).length}
+                                    </Box>
+                                </Button>
+                            )}
+
                             {documentInfo?.status === 'completed' ? (
                                 <>
                                     {/* Document is completed - show completion info */}
@@ -3028,17 +3177,22 @@ const SigningPage = () => {
                                     <Button
                                         variant="contained"
                                         size="small"
-                                        // color={
-                                        //   recipientInfo.role === 'viewer' ? 'rgb(13, 148, 136)' :
-                                        //   recipientInfo.role === 'approver' ? 'success' : 'primary'
-                                        // }
-                                        sx={{ minWidth: { xs: 80, sm: 120 }, backgroundColor: 'rgb(13, 148, 136)', display: { xs: 'none', sm: 'inline-flex' } }}
+                                        sx={{
+                                            minWidth: { xs: 80, sm: 110 },
+                                            backgroundColor: progress.allRequiredCompleted ? 'rgb(13, 148, 136)' : '#64748b',
+                                            display: { xs: 'none', sm: 'inline-flex' },
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '0.82rem',
+                                            borderRadius: '7px',
+                                            '&:hover': {
+                                                backgroundColor: progress.allRequiredCompleted ? '#0b8278' : '#475569'
+                                            }
+                                        }}
                                         onClick={() => {
-                                            // If already completed, navigate to completion page
                                             if (recipientInfo?.status === 'completed') {
                                                 navigate(`/complete/${recipientId}`);
                                             } else {
-                                                // Otherwise show confirmation dialog
                                                 showFinishConfirmation();
                                             }
                                         }}
@@ -3064,100 +3218,70 @@ const SigningPage = () => {
                                 )
                             )}
 
-                            {/* More Actions Dropdown */}
-                            <Button
-                                variant="outlined"
-                                color="inherit"
-                                size="small"
-                                onClick={handleActionsMenuOpen}
-                                endIcon={<ExpandMoreIcon sx={{ fontSize: 18, display: { xs: 'none', sm: 'block' } }} />}
-                                sx={{
-                                    textTransform: 'none',
-                                    borderColor: '#e0e0e0',
-                                    color: '#555',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 500,
-                                    px: { xs: 1, sm: 1.5 },
-                                    minWidth: 'auto',
-                                    '&:hover': { bgcolor: '#f9f9f9', borderColor: '#d0d0d0' }
-                                }}
-                            >
-                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>More actions</Box>
-                                <MoreVertIcon sx={{ fontSize: 20, display: { xs: 'block', sm: 'none' } }} />
-                            </Button>
+                            {/* More Actions Dropdown - Hidden when document/recipient is completed or finishing */}
+                            {!isDocumentOrRecipientCompleted && !completing && (
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        color="inherit"
+                                        size="small"
+                                        onClick={handleActionsMenuOpen}
+                                        endIcon={<ExpandMoreIcon sx={{ fontSize: 18, display: { xs: 'none', sm: 'block' } }} />}
+                                        sx={{
+                                            textTransform: 'none',
+                                            borderColor: '#e0e0e0',
+                                            color: '#555',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 500,
+                                            px: { xs: 1, sm: 1.5 },
+                                            minWidth: 'auto',
+                                            '&:hover': { bgcolor: '#f9f9f9', borderColor: '#d0d0d0' }
+                                        }}
+                                    >
+                                        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>More actions</Box>
+                                        <MoreVertIcon sx={{ fontSize: 20, display: { xs: 'block', sm: 'none' } }} />
+                                    </Button>
 
-                            {/* Standalone Quick Sign Button for accessibility */}
-                            {/* Standalone Quick Sign Button for accessibility */}
-                            {!progress.allRequiredCompleted && fields.filter(f => !f.completed_at).length > 0 && (
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={handleAutofillAllFields}
-                                    startIcon={<AutoFixHighIcon sx={{ fontSize: 16 }} />}
-                                    sx={{
-                                        color: 'rgb(13, 148, 136)',
-                                        borderColor: 'rgba(13, 148, 136, 0.5)',
-                                        textTransform: 'none',
-                                        fontWeight: 500,
-                                        fontSize: '0.8rem',
-                                        px: 1.2,
-                                        minWidth: 'auto',
-                                        display: { xs: 'none', md: 'inline-flex' },
-                                        '&:hover': { borderColor: 'rgb(11, 130, 120)', bgcolor: 'rgba(13, 148, 136, 0.05)' }
-                                    }}
-                                >
-                                    Quick Sign ({fields.filter(f => !f.completed_at).length})
-                                </Button>
+                                    <Menu
+                                        anchorEl={actionsAnchor}
+                                        open={Boolean(actionsAnchor)}
+                                        onClose={handleActionsMenuClose}
+                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                        PaperProps={{
+                                            elevation: 3,
+                                            sx: { mt: 1, minWidth: 220, borderRadius: 1.5 }
+                                        }}
+                                    >
+                                        <MenuItem onClick={handleAssignToSomeoneElse}>
+                                            <ListItemIcon><AssignmentIndIcon fontSize="small" /></ListItemIcon>
+                                            <ListItemText primary="Assign to someone else" secondary="Delegate this document" />
+                                        </MenuItem>
+
+                                        <MenuItem onClick={() => { handleActionsMenuClose(); handleDownload('current'); }}>
+                                            <ListItemIcon><PrintIcon fontSize="small" /></ListItemIcon>
+                                            <ListItemText primary="Print and physically sign" secondary="Offline completion" />
+                                        </MenuItem>
+
+                                        <Divider sx={{ my: 0.5 }} />
+
+                                        <MenuItem onClick={handleOpenHistory}>
+                                            <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
+                                            <ListItemText primary="Document History" secondary="View audit logs" />
+                                        </MenuItem>
+
+                                        <MenuItem onClick={handleDeclineDocument} sx={{ color: 'error.main' }}>
+                                            <ListItemIcon><BlockIcon fontSize="small" color="error" /></ListItemIcon>
+                                            <ListItemText primary="Decline to sign" secondary="Reject the document" />
+                                        </MenuItem>
+
+                                        <MenuItem onClick={handleSkipSigning}>
+                                            <ListItemIcon><SkipNextIcon fontSize="small" /></ListItemIcon>
+                                            <ListItemText primary="Skip for now" secondary="Decide later" />
+                                        </MenuItem>
+                                    </Menu>
+                                </>
                             )}
-                            <Menu
-                                anchorEl={actionsAnchor}
-                                open={Boolean(actionsAnchor)}
-                                onClose={handleActionsMenuClose}
-                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                PaperProps={{
-                                    elevation: 3,
-                                    sx: { mt: 1, minWidth: 220, borderRadius: 1.5 }
-                                }}
-                            >
-                                {!progress.allRequiredCompleted && (
-                                    <MenuItem onClick={handleAutofillAllFields} sx={{ py: 1.5 }}>
-                                        <ListItemIcon><AutoFixHighIcon fontSize="small" sx={{ color: 'rgb(13, 148, 136)' }} /></ListItemIcon>
-                                        <ListItemText
-                                            primary="Quick Sign Wizard"
-                                            secondary="Complete all fields one by one automatically"
-                                            primaryTypographyProps={{ fontWeight: 'bold' }}
-                                        />
-                                    </MenuItem>
-                                )}
-
-                                <MenuItem onClick={handleAssignToSomeoneElse}>
-                                    <ListItemIcon><AssignmentIndIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary="Assign to someone else" secondary="Delegate this document" />
-                                </MenuItem>
-
-                                <MenuItem onClick={() => { handleActionsMenuClose(); handleDownload('current'); }}>
-                                    <ListItemIcon><PrintIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary="Print and physically sign" secondary="Offline completion" />
-                                </MenuItem>
-
-                                <Divider sx={{ my: 0.5 }} />
-
-                                <MenuItem onClick={handleOpenHistory}>
-                                    <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary="Document History" secondary="View audit logs" />
-                                </MenuItem>
-
-                                <MenuItem onClick={handleDeclineDocument} sx={{ color: 'error.main' }}>
-                                    <ListItemIcon><BlockIcon fontSize="small" color="error" /></ListItemIcon>
-                                    <ListItemText primary="Decline" secondary="Reject the document" />
-                                </MenuItem>
-
-                                <MenuItem onClick={handleSkipSigning}>
-                                    <ListItemIcon><SkipNextIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary="Skip for now" secondary="Decide later" />
-                                </MenuItem>
-                            </Menu>
                         </Box>
 
 

@@ -23,9 +23,11 @@ import {
   Person as PersonIcon,
   Schedule as ScheduleIcon,
   Info as InfoIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
 import FilenameDisplay from '../components/FilenameDisplay';
+import DocumentViewerModal from '../components/DocumentViewerModal';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:9000";
 
@@ -37,6 +39,7 @@ const DeclinedDocumentView = () => {
   const [recipientInfo, setRecipientInfo] = useState(null);
   const [declineDetails, setDeclineDetails] = useState(null);
   const [allRecipients, setAllRecipients] = useState([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   useEffect(() => {
     const fetchDeclinedDocument = async () => {
@@ -53,8 +56,15 @@ const DeclinedDocumentView = () => {
         
         const data = await response.json();
         
-        // Check if document is declined
-        if (data.document?.status !== 'declined' && data.signing_info?.document_status !== 'declined') {
+        // Check if document or recipient is declined
+        const isDeclined = 
+          data.document?.status === 'declined' ||
+          data.signing_info?.document_status === 'declined' ||
+          data.recipient?.status === 'declined' ||
+          Boolean(data.recipient?.declined_at) ||
+          data.signing_info?.terms_status === 'declined';
+
+        if (!isDeclined) {
           setError('This document is not declined.');
           setLoading(false);
           return;
@@ -64,10 +74,10 @@ const DeclinedDocumentView = () => {
         setRecipientInfo(data.recipient);
         
         // Get decline details
-        if (data.recipient?.declined_at) {
+        if (data.recipient?.declined_at || data.recipient?.status === 'declined') {
           setDeclineDetails({
-            declined_at: data.recipient.declined_at,
-            declined_by: data.recipient.name,
+            declined_at: data.recipient.declined_at || new Date().toISOString(),
+            declined_by: data.recipient.name || 'You',
             decline_reason: data.recipient.decline_reason || 'No reason provided',
             decline_ip: data.recipient.decline_ip,
             is_recipient_declined: true
@@ -107,8 +117,8 @@ const DeclinedDocumentView = () => {
   }, [recipientId]);
 
   const handleViewOriginalDocument = () => {
-    // View original document (without signatures)
-    window.open(`${API_BASE_URL}/signing/recipient/${recipientId}/download/original`, '_blank');
+    // Open preview in DocumentViewerModal
+    setViewerOpen(true);
   };
 
   const handleDownloadOriginal = () => {
@@ -317,7 +327,7 @@ const DeclinedDocumentView = () => {
             variant="contained"
             color="warning"
             fullWidth
-            startIcon={<DocumentIcon />}
+            startIcon={<VisibilityIcon />}
             onClick={handleViewOriginalDocument}
             sx={{ 
               py: 1.5,
@@ -405,6 +415,16 @@ const DeclinedDocumentView = () => {
           Note: Once a document is declined, it cannot be reactivated. A new document must be sent.
         </Typography>
       </Paper>
+
+      {/* Document Viewer Modal for in-page preview */}
+      <DocumentViewerModal
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        documentId={documentInfo?.id}
+        documentName={documentInfo?.filename}
+        title={documentInfo?.filename ? `Original: ${documentInfo.filename}` : 'Original Document'}
+        url={`${API_BASE_URL}/signing/recipient/${recipientId}/view/original`}
+      />
     </Container>
   );
 };

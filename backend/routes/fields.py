@@ -439,13 +439,36 @@ def normalize_field_value(field: Dict[str, Any]) -> Any:
     
     elif field_type == "stamp":
         # Stamp (image)
-        if isinstance(value, dict) and (value.get("image") or value.get("value")):
-            img_data = value.get("image") or value.get("value")
+        if isinstance(value, dict):
+            img_data = value.get("image") or value.get("data")
+            if not img_data and isinstance(value.get("value"), dict):
+                img_data = value["value"].get("image") or value["value"].get("data")
+            elif not img_data and isinstance(value.get("value"), str) and value.get("value").startswith("data:image"):
+                img_data = value.get("value")
+
             if isinstance(img_data, str) and img_data.startswith("data:image"):
-                return {"type": "image", "data": img_data}
-            return value # Return full dict for specialized stamp rendering if needed
-        elif isinstance(value, str) and value.startswith("data:image"):
-            return {"type": "image", "data": value}
+                res = {
+                    "type": "image",
+                    "data": img_data,
+                    "image": img_data
+                }
+                if value.get("text"): res["text"] = value["text"]
+                if value.get("color"): res["color"] = value["color"]
+                if value.get("shape"): res["shape"] = value["shape"]
+                return res
+            if value.get("text") and str(value.get("text")).strip() and str(value.get("text")).strip().upper() not in ["STAMP", "[STAMP]", "OFFICIAL STAMP"]:
+                return {
+                    "type": "text",
+                    "text": str(value.get("text")).strip(),
+                    "color": value.get("color", "#e53935"),
+                    "shape": value.get("shape", "circle")
+                }
+            return value
+        elif isinstance(value, str):
+            if value.startswith("data:image"):
+                return {"type": "image", "data": value, "image": value}
+            elif value.strip() and value.strip().upper() not in ["STAMP", "[STAMP]", "OFFICIAL STAMP"]:
+                return {"type": "text", "text": value.strip()}
         return ""
     
     elif field_type == "mail":

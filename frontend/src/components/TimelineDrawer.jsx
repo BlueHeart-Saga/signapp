@@ -61,6 +61,9 @@ import {
   exportRecipientsCsv,
   exportTimelineCsv,
   exportFieldsCsv,
+  exportRecipientsExcel,
+  exportTimelineExcel,
+  exportFieldsExcel,
   generateHtmlReport
 } from "../services/DocumentAPI";
 import { useNavigate } from "react-router-dom";
@@ -617,9 +620,9 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
   const handleExportAction = async (action) => {
     handleExportClose();
     const actionLabels = {
-      recipients: 'Recipients CSV',
-      timeline: 'Timeline CSV',
-      fields: 'Field Data CSV',
+      recipients: 'Recipients Excel',
+      timeline: 'Timeline Excel',
+      fields: 'Field Data Excel',
       report: 'Audit Report (HTML)'
     };
     const label = actionLabels[action] || 'Export';
@@ -627,9 +630,9 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
     showAlert.toast('info', `Preparing ${label}...`);
 
     try {
-      if (action === 'recipients') await exportRecipientsCsv(documentId);
-      else if (action === 'timeline') await exportTimelineCsv(documentId);
-      else if (action === 'fields') await exportFieldsCsv(documentId);
+      if (action === 'recipients') await exportRecipientsExcel(documentId);
+      else if (action === 'timeline') await exportTimelineExcel(documentId);
+      else if (action === 'fields') await exportFieldsExcel(documentId);
       else if (action === 'report') await generateHtmlReport(documentId);
 
       showAlert.toast('success', `${label} downloaded successfully.`);
@@ -688,25 +691,25 @@ export default function TimelineDrawer({ open, onClose, documentId, documentName
                   onClose={handleExportClose}
                   PaperProps={{
                     elevation: 3,
-                    sx: { minWidth: 200, mt: 1, borderRadius: 2 }
+                    sx: { minWidth: 220, mt: 1, borderRadius: 2 }
                   }}
                   transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                   anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                 >
                   <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.disabled', fontWeight: 600, textTransform: 'uppercase' }}>
-                    Export Options
+                    Export Spreadsheets
                   </Typography>
                   <MenuItem onClick={() => handleExportAction('timeline')}>
-                    <ListItemIcon><TimelineIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Export Timeline (CSV)" secondary="Full activity history" />
+                    <ListItemIcon><TimelineIcon fontSize="small" color="primary" /></ListItemIcon>
+                    <ListItemText primary="Export Timeline (Excel)" secondary="Professional activity spreadsheet" />
                   </MenuItem>
                   <MenuItem onClick={() => handleExportAction('recipients')}>
-                    <ListItemIcon><GroupIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Export Recipients (CSV)" secondary="Recipient status & details" />
+                    <ListItemIcon><GroupIcon fontSize="small" color="primary" /></ListItemIcon>
+                    <ListItemText primary="Export Recipients (Excel)" secondary="Signer metrics & status spreadsheet" />
                   </MenuItem>
                   <MenuItem onClick={() => handleExportAction('fields')}>
-                    <ListItemIcon><CheckCircleIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText primary="Export Field Data (CSV)" secondary="Values & completion status" />
+                    <ListItemIcon><CheckCircleIcon fontSize="small" color="primary" /></ListItemIcon>
+                    <ListItemText primary="Export Field Data (Excel)" secondary="Values & completion spreadsheet" />
                   </MenuItem>
                   <Divider />
                   <MenuItem onClick={() => handleExportAction('report')}>

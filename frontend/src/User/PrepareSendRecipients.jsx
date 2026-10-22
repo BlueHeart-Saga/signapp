@@ -68,7 +68,17 @@ function DocumentFilesPanel({ documentId, onPreview }) {
     })
       .then(res => res.json())
       .then(data => {
-        setFiles(Array.isArray(data) ? data : data.files || []);
+        const rawFiles = Array.isArray(data) ? data : data.files || [];
+        const unique = [];
+        const seenOrders = new Set();
+        for (const f of rawFiles) {
+          const ord = f.order ?? 1;
+          if (!seenOrders.has(ord)) {
+            seenOrders.add(ord);
+            unique.push(f);
+          }
+        }
+        setFiles(unique);
       })
       .catch(console.error);
   }, [documentId]);
@@ -727,7 +737,20 @@ export default function PrepareSendRecipients() {
         const data = await res.json();
         const serverFiles = Array.isArray(data) ? data : data.files || [];
         if (serverFiles.length > 0) {
-          setFiles(serverFiles);
+          // Deduplicate serverFiles by order and ID to prevent duplicate file cards
+          const uniqueFiles = [];
+          const seenOrders = new Set();
+          const seenIds = new Set();
+          for (const f of serverFiles) {
+            const ord = f.order ?? 1;
+            const fid = f.id;
+            if (!seenOrders.has(ord) && (!fid || !seenIds.has(fid))) {
+              seenOrders.add(ord);
+              if (fid) seenIds.add(fid);
+              uniqueFiles.push(f);
+            }
+          }
+          setFiles(uniqueFiles.length > 0 ? uniqueFiles : serverFiles);
         } else if (document?.filename || document?.title) {
           const name = document?.filename || document?.title || "Document.pdf";
           setFiles([{

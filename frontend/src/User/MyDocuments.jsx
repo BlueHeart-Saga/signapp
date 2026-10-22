@@ -380,45 +380,30 @@ export default function MyDocuments() {
   const filteredDocuments = React.useMemo(() => {
     let list = [...documents];
 
-    // Client-side instant search & date matching
+    // Client-side instant search: Search by filename, title, envelope_id, and format/extension (avoid date search)
     if (filters.search) {
       const s = filters.search.toLowerCase().trim();
+      const sClean = s.startsWith(".") ? s.slice(1) : s;
       list = list.filter((doc) => {
-        if (doc.filename?.toLowerCase().includes(s)) return true;
-        if (doc.title?.toLowerCase().includes(s)) return true;
-        if (doc.envelope_id?.toLowerCase().includes(s)) return true;
-        if (doc.owner_email?.toLowerCase().includes(s)) return true;
-        if (doc.status?.toLowerCase().includes(s)) return true;
+        const filename = (doc.filename || "").toLowerCase();
+        const title = (doc.title || "").toLowerCase();
+        const envelopeId = (doc.envelope_id || "").toLowerCase();
+        const ownerEmail = (doc.owner_email || "").toLowerCase();
 
-        // Date search across formatted representations
-        const datesToCheck = [
-          doc.last_accessed_at ? new Date(doc.last_accessed_at) : null,
-          doc.updated_at ? new Date(doc.updated_at) : null,
-          doc.uploaded_at ? new Date(doc.uploaded_at) : null,
-        ].filter(Boolean);
-
-        for (const d of datesToCheck) {
-          if (isNaN(d.getTime())) continue;
-          const localeStr = d.toLocaleDateString().toLowerCase();
-          const isoStr = d.toISOString().toLowerCase();
-          const fullStr = d.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          }).toLowerCase();
-          const monthLong = d.toLocaleDateString(undefined, { month: "long" }).toLowerCase();
-          const yearStr = d.getFullYear().toString();
-
-          if (
-            localeStr.includes(s) ||
-            isoStr.includes(s) ||
-            fullStr.includes(s) ||
-            monthLong.includes(s) ||
-            yearStr.includes(s)
-          ) {
-            return true;
-          }
+        // 1. Filename, title, envelope ID match
+        if (filename.includes(s) || title.includes(s) || envelopeId.includes(s) || ownerEmail.includes(s)) {
+          return true;
         }
+
+        // 2. Format / file extension matching (e.g. "pdf", ".pdf", "docx", ".docx", "png", "jpg")
+        const ext = filename.includes(".") ? filename.split(".").pop().toLowerCase() : "";
+        const fileType = (doc.file_type || doc.type || "").toLowerCase();
+        const mimeType = (doc.mime_type || "").toLowerCase();
+
+        if (ext && (ext === sClean || ext.includes(sClean))) return true;
+        if (fileType && (fileType === sClean || fileType.includes(sClean))) return true;
+        if (mimeType && mimeType.includes(sClean)) return true;
+
         return false;
       });
     }
@@ -2494,7 +2479,7 @@ export default function MyDocuments() {
               {/* Search Input */}
               <TextField
                 size="small"
-                placeholder="Search name, date (e.g. 2026, Oct, 10/20), envelope ID…"
+                placeholder="Search by filename or format (e.g. contract, .pdf, docx)..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 InputProps={{
@@ -2822,83 +2807,6 @@ export default function MyDocuments() {
                 </Box>
 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2.5 }}>
-                  {/* Order / Sort Option inside Filter */}
-                  <Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-                      <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                        Order / Sort By
-                      </Typography>
-                      {(filters.sortBy !== "last_used" || filters.sortOrder !== "desc") && (
-                        <Typography
-                          onClick={() => setFilters(prev => ({ ...prev, sortBy: "last_used", sortOrder: "desc" }))}
-                          sx={{ fontSize: "11px", fontWeight: 600, color: "#0F766E", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                        >
-                          Reset Order
-                        </Typography>
-                      )}
-                    </Box>
-
-                    <select
-                      value={`${filters.sortBy || "last_used"}_${filters.sortOrder || "desc"}`}
-                      onChange={(e) => {
-                        const [sb, so] = e.target.value.split("_");
-                        setFilters(prev => ({ ...prev, sortBy: sb, sortOrder: so }));
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "1px solid #E2E8F0",
-                        backgroundColor: "#F8FAFC",
-                        fontSize: "13px",
-                        color: "#334155",
-                        outline: "none",
-                        fontWeight: 500,
-                      }}
-                    >
-                      <option value="last_used_desc">Last Used: Newest first (Recently Active)</option>
-                      <option value="last_used_asc">Last Used: Oldest first</option>
-                      <option value="name_asc">Name: A to Z (Alphabetical)</option>
-                      <option value="name_desc">Name: Z to A (Reverse Alphabetical)</option>
-                      <option value="uploaded_at_desc">Uploaded Time: Newest first</option>
-                      <option value="uploaded_at_asc">Uploaded Time: Oldest first</option>
-                      <option value="size_desc">File Size: Largest first</option>
-                      <option value="size_asc">File Size: Smallest first</option>
-                    </select>
-
-                    {/* Quick Sort Chips */}
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-                      {[
-                        { label: "A-Z", sb: "name", so: "asc" },
-                        { label: "Z-A", sb: "name", so: "desc" },
-                        { label: "Last Used", sb: "last_used", so: "desc" },
-                        { label: "Uploaded Time", sb: "uploaded_at", so: "desc" },
-                        { label: "File Size", sb: "size", so: "desc" },
-                      ].map((preset, idx) => {
-                        const isSelected = filters.sortBy === preset.sb && filters.sortOrder === preset.so;
-                        return (
-                          <Chip
-                            key={idx}
-                            label={preset.label}
-                            size="small"
-                            onClick={() => setFilters(prev => ({ ...prev, sortBy: preset.sb, sortOrder: preset.so }))}
-                            sx={{
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              bgcolor: isSelected ? "#0F766E" : "#F1F5F9",
-                              color: isSelected ? "#FFFFFF" : "#475569",
-                              "&:hover": {
-                                bgcolor: isSelected ? "#115E59" : "#E2E8F0",
-                                color: isSelected ? "#FFFFFF" : "#0F766E",
-                              },
-                            }}
-                          />
-                        );
-                      })}
-                    </Box>
-                  </Box>
-
                   {/* Status Filter */}
                   <Box>
                     <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#64748B", mb: 0.75, textTransform: "uppercase", letterSpacing: "0.03em" }}>
@@ -3070,7 +2978,7 @@ export default function MyDocuments() {
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 1.5, borderTop: "1px solid #F1F5F9" }}>
                   <Button
                     size="small"
-                    onClick={() => setFilters({ search: "", status: "", source: "", startDate: "", endDate: "", sortBy: "last_used", sortOrder: "desc" })}
+                    onClick={() => setFilters(prev => ({ ...prev, status: "", source: "", startDate: "", endDate: "" }))}
                     sx={{
                       textTransform: "none",
                       fontSize: "12.5px",
@@ -3344,7 +3252,7 @@ export default function MyDocuments() {
                     }}
                   >
                     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
-                      <span>Last Active / Uploaded</span>
+                      <span>Uploaded</span>
                       {filters.sortBy === "last_used" || filters.sortBy === "uploaded_at" ? (
                         filters.sortOrder === "asc" ? (
                           <ArrowUpwardIcon sx={{ fontSize: 14 }} />

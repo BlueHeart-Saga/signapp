@@ -32,25 +32,29 @@ class PDFEngine:
     }
     
     @staticmethod
-    def decode_base64_image(b64_string: str) -> Optional[bytes]:
+    def decode_base64_image(b64_string: Any) -> Optional[bytes]:
         """Safely decode Base64 image data. Returns None if invalid."""
         try:
             if not b64_string:
                 return None
 
+            if isinstance(b64_string, bytes):
+                return b64_string
+
             # Must be string
             if not isinstance(b64_string, str):
                 return None
 
-            # Must look like image base64
-            if not b64_string.startswith("data:image"):
-                return None
+            b64_clean = b64_string.strip()
 
-            # Split header
-            try:
-                header, data = b64_string.split(",", 1)
-            except ValueError:
-                return None
+            # Split header if present
+            if b64_clean.startswith("data:image"):
+                try:
+                    header, data = b64_clean.split(",", 1)
+                except ValueError:
+                    return None
+            else:
+                data = b64_clean
 
             # Remove whitespace
             data = re.sub(r"\s+", "", data)
@@ -1424,142 +1428,100 @@ class PDFEngine:
 
     @staticmethod
     def _apply_stamp_field(page, rect, value, field):
-        """Apply stamp field with proper sizing."""
-        is_completed = field.get("_render_completed", False)
+        """Apply stamp field with proper sizing, high-definition crop, and clean rendering."""
+        is_completed = (
+            field.get("_render_completed", False) or 
+            field.get("is_completed", False) or 
+            bool(field.get("completed_at"))
+        )
         
-        if not value:
-            # Draw empty stamp only in preview mode
-            if not field.get("is_placeholder", False):
+        # Check passed value first, then fallback to field's stored value
+        actual_val = value if value not in [None, ""] else field.get("value")
+        
+        # Try to extract image, text, and properties
+        image_data = None
+        stamp_text = ""
+        stamp_color = "#e53935"
+        stamp_shape = "circle"
+
+        # Unwrap nested dicts if value is doubly wrapped
+        unwrapped = actual_val
+        while isinstance(unwrapped, dict) and "value" in unwrapped and isinstance(unwrapped["value"], (dict, str)):
+            if "image" in unwrapped or ("data" in unwrapped and unwrapped.get("type") == "image"):
+                break
+            unwrapped = unwrapped["value"]
+
+        if isinstance(unwrapped, dict):
+            if "color" in unwrapped:
+                stamp_color = unwrapped["color"]
+            if "shape" in unwrapped:
+                stamp_shape = unwrapped["shape"]
+            if "text" in unwrapped:
+                stamp_text = unwrapped["text"]
+
+            # Try to get raw image from any recognized key
+            raw_img = unwrapped.get("image") or unwrapped.get("data")
+            if not raw_img and isinstance(unwrapped.get("value"), (str, bytes)):
+                raw_img = unwrapped.get("value")
+
+            if isinstance(raw_img, bytes):
+                image_data = raw_img
+            elif isinstance(raw_img, str) and (raw_img.startswith("data:image") or len(raw_img) > 100):
+                image_data = PDFEngine.decode_base64_image(raw_img)
+
+            if not stamp_text and isinstance(unwrapped.get("value"), str) and not unwrapped.get("value").startswith("data:image"):
+                stamp_text = unwrapped.get("value")
+
+        elif isinstance(unwrapped, str):
+            if unwrapped.startswith("data:image"):
+                image_data = PDFEngine.decode_base64_image(unwrapped)
+            else:
+                stamp_text = unwrapped
+        elif isinstance(unwrapped, bytes):
+            image_data = unwrapped
+
+        # 1. High-resolution transparent image stamp (PNG from canvas or upload)
+        if image_data:
+            try:
+                opt_png = PDFEngine._crop_and_optimize_signature_image(image_data)
+                page.insert_image(
+                    rect,
+                    stream=opt_png,
+                    keep_proportion=True,
+                    overlay=True
+                )
                 return
-                
+            except Exception as e:
+                print(f"Error applying stamp image: {e}")
+
+        # 2. Text-based stamp (e.g. APPROVED, PAID) if custom text is provided
+        clean_text = str(stamp_text).strip() if stamp_text else ""
+        if clean_text and clean_text.upper() not in ["STAMP", "[STAMP]", "OFFICIAL STAMP"]:
+            PDFEngine._draw_text_stamp(page, rect, clean_text, stamp_color, stamp_shape)
+            return
+
+        # 3. If field is completed, NEVER draw placeholder or fallback "STAMP" words on completed document
+        if is_completed:
+            return
+
+        # 4. Only draw empty dashed placeholder in preview/builder mode
+        if field.get("is_placeholder", False):
             page.draw_rect(
                 rect,
                 color=(0.8, 0, 0),
-                width=2,
+                width=1.5,
                 dashes=[3, 3],
                 overlay=True
             )
-            
             page.insert_textbox(
                 rect,
                 "STAMP",
-                fontsize=min(14, rect.height * 0.6),
+                fontsize=min(12, rect.height * 0.5),
                 fontname="Helvetica-Bold",
                 color=(0.8, 0, 0),
                 align=1,
                 overlay=True
             )
-            return
-        
-        # Try to apply as image
-        image_data = None
-        stamp_text = ""
-        stamp_color = "#e53935"
-        stamp_shape = "circle"
-        
-        if isinstance(value, dict):
-            # Extract stamp properties from the value dict
-            if "image" in value:
-                image_data = value["image"]
-                if isinstance(image_data, str) and image_data.startswith("data:image"):
-                    # Extract base64 data from data URL
-                    import base64
-                    if "base64," in image_data:
-                        image_data = image_data.split("base64,")[1]
-                    try:
-                        image_data = base64.b64decode(image_data)
-                    except:
-                        image_data = None
-            
-            if "text" in value:
-                stamp_text = value["text"]
-            
-            if "color" in value:
-                stamp_color = value["color"]
-            
-            if "shape" in value:
-                stamp_shape = value["shape"]
-            
-            # Also check if value is nested in 'value' key
-            elif "value" in value and isinstance(value["value"], dict):
-                nested = value["value"]
-                if "image" in nested:
-                    image_data = nested["image"]
-                if "text" in nested:
-                    stamp_text = nested["text"]
-                if "color" in nested:
-                    stamp_color = nested["color"]
-        
-        elif isinstance(value, str):
-            # Try to decode as base64 image
-            if value.startswith("data:image"):
-                import base64
-                try:
-                    if "base64," in value:
-                        image_data = value.split("base64,")[1]
-                        image_data = base64.b64decode(image_data)
-                    else:
-                        image_data = base64.b64decode(value)
-                except:
-                    image_data = None
-            else:
-                # Treat as stamp text
-                stamp_text = value
-        
-        if image_data:
-            try:
-                # Open and process the image
-                img = Image.open(BytesIO(image_data)).convert("RGBA")
-                
-                # Calculate target dimensions
-                target_width = rect.width
-                target_height = rect.height
-                
-                # Calculate scaling to fit within field while maintaining aspect ratio
-                img_width, img_height = img.size
-                scale = min(target_width / img_width, target_height / img_height)
-                
-                new_width = int(img_width * scale)
-                new_height = int(img_height * scale)
-                
-                # Resize the image
-                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                
-                # Calculate position to center the image
-                x_offset = int((target_width - new_width) / 2)
-                y_offset = int((target_height - new_height) / 2)
-                
-                # Create a new transparent image with the target size
-                result_img = Image.new("RGBA", (int(target_width), int(target_height)), (255, 255, 255, 0))
-                
-                # Paste the resized image onto the transparent background
-                result_img.paste(img, (x_offset, y_offset), img if img.mode == 'RGBA' else None)
-                
-                # Convert to bytes
-                buf = BytesIO()
-                result_img.save(buf, format="PNG")
-                
-                # Insert image into PDF
-                page.insert_image(
-                    rect,
-                    stream=buf.getvalue(),
-                    keep_proportion=False,
-                    overlay=True
-                )
-                
-            except Exception as e:
-                print(f"Error applying stamp image: {e}")
-                # Fallback to text stamp
-                PDFEngine._draw_text_stamp(page, rect, stamp_text or "STAMP", stamp_color, stamp_shape)
-        
-        elif stamp_text:
-            # Draw text-based stamp
-            PDFEngine._draw_text_stamp(page, rect, stamp_text, stamp_color, stamp_shape)
-        
-        else:
-            # Draw default stamp
-            PDFEngine._draw_text_stamp(page, rect, "STAMP", "#e53935", "circle")
-
     @staticmethod
     def _draw_text_stamp(page, rect, text, color="#e53935", shape="circle"):
         """Helper to draw text-based stamp."""
@@ -1809,7 +1771,7 @@ class PDFEngine:
         total_pages = len(pdf)
         
         # Filter out completed fields - we don't want placeholders for completed fields
-        incomplete_fields = [f for f in fields if not f.get("is_completed", False)]
+        incomplete_fields = [f for f in fields if not (f.get("is_completed", False) or bool(f.get("completed_at")))]
         
         # If there are no incomplete fields, return original PDF
         if not incomplete_fields:
@@ -1953,7 +1915,7 @@ class PDFEngine:
         for field in fields:
             try:
                 # Skip completed fields for placeholder rendering
-                if field.get("is_completed", False):
+                if field.get("is_completed", False) or bool(field.get("completed_at")):
                     continue
                     
                 # Use helper function
@@ -2319,59 +2281,16 @@ class PDFEngine:
     @staticmethod
     def apply_audit_footer(
         pdf_bytes: bytes,
-        signer_email: str,
-        ip: str,
-        timestamp: str,
+        signer_email: str = "",
+        ip: str = "",
+        timestamp: str = None,
         footer_text: str = None  # Add optional footer_text parameter
     ) -> bytes:
-        """Add audit footer to each page."""
-        pdf = PDFEngine.open_pdf(pdf_bytes)
-        
-        for page in pdf:
-            rect = page.rect
-            margin = 20
-            footer_height = 30
-            
-            footer_rect = fitz.Rect(
-                rect.x0 + margin,
-                rect.y1 - footer_height,
-                rect.x1 - margin,
-                rect.y1 - 5
-            )
-            
-            # Use custom footer_text if provided, otherwise use default
-            if footer_text:
-                display_text = footer_text
-            else:
-                display_text = (
-                    f"Digitally signed by: {signer_email} | "
-                    f"IP: {ip} | "
-                    f"Timestamp: {timestamp}"
-                )
-            
-            # Add separator line
-            page.draw_line(
-                fitz.Point(rect.x0 + margin, rect.y1 - footer_height - 5),
-                fitz.Point(rect.x1 - margin, rect.y1 - footer_height - 5),
-                color=(0.7, 0.7, 0.7),
-                width=0.5,
-                overlay=True
-            )
-            
-            # Add footer text
-            page.insert_textbox(
-                footer_rect,
-                display_text,
-                fontsize=8,
-                fontname="Helvetica",
-                color=(0.5, 0.5, 0.5),
-                align=1,  # Center
-                overlay=True
-            )
-        
-        result = pdf.tobytes(clean=True)
-        pdf.close()
-        return result
+        """
+        Audit footer on document PDF pages has been disabled to keep documents clean.
+        Returns the original pdf_bytes unmodified without stamping bottom divider or audit text.
+        """
+        return pdf_bytes
     
     @staticmethod
     def finalize_document(

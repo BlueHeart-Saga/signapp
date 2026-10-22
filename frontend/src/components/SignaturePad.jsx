@@ -2521,9 +2521,52 @@ const EnhancedSignaturePad = ({
     }
   };
 
+  const handleClear = () => {
+    switch (fieldType) {
+      case 'signature':
+      case 'witness_signature':
+      case 'initials':
+        clearCanvas();
+        setTextInput('');
+        setUploadedImage(null);
+        break;
+      case 'textbox':
+        setTextInput('');
+        break;
+      case 'date':
+        setSelectedDate(null);
+        break;
+      case 'checkbox':
+        setCheckboxValue(false);
+        break;
+      case 'radio':
+        setRadioValue('');
+        break;
+      case 'dropdown':
+        setDropdownValue('');
+        break;
+      case 'attachment':
+        setAttachmentFile(null);
+        break;
+      case 'approval':
+        setApprovalValue(false);
+        break;
+      case 'mail':
+        setEmailInput('');
+        break;
+      case 'stamp':
+        setStampText('');
+        setUploadedImage(null);
+        break;
+      default:
+        break;
+    }
+    setCurrentValue(null);
+  };
+
   return (
-    <Box sx={{ width: '100%', maxWidth: 800, margin: 'auto' }}>
-      <Paper elevation={3} sx={{ p: 3, border: `2px solid ${FIELD_CONFIG[fieldType]?.color || '#e0e0e0'}`, borderRadius: 2 }}>
+    <>
+      <DialogContent dividers sx={{ p: { xs: 2, sm: 3 }, overflowY: 'auto' }}>
         {isLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
             <CircularProgress />
@@ -2536,77 +2579,92 @@ const EnhancedSignaturePad = ({
           </Alert>
         )}
 
-        {renderContent()}
+        <Box sx={{ width: '100%', maxWidth: 800, margin: 'auto' }}>
+          {renderContent()}
+        </Box>
+      </DialogContent>
 
-        <Divider sx={{ my: 3 }} />
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          bgcolor: '#f8fafc',
+          borderTop: '1px solid #e2e8f0',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 1.5
+        }}
+      >
+        <Button
+          variant="outlined"
+          color="inherit"
+          onClick={handleClear}
+          startIcon={<ClearIcon />}
+          sx={{
+            color: '#64748b',
+            borderColor: '#cbd5e1',
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            borderRadius: '8px',
+            px: 2.5,
+            py: 0.8,
+            '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' }
+          }}
+        >
+          Clear
+        </Button>
 
-        {/* Action Buttons */}
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                switch (fieldType) {
-                  case 'signature':
-                  case 'witness_signature':
-                  case 'initials':
-                    clearCanvas();
-                    setTextInput('');
-                    setUploadedImage(null);
-                    break;
-                  case 'textbox':
-                    setTextInput('');
-                    break;
-                  case 'date':
-                    setSelectedDate(null);
-                    break;
-                  case 'checkbox':
-                    setCheckboxValue(false);
-                    break;
-                  case 'radio':
-                    setRadioValue('');
-                    break;
-                  case 'dropdown':
-                    setDropdownValue('');
-                    break;
-                  case 'attachment':
-                    setAttachmentFile(null);
-                    break;
-                  case 'approval':
-                    setApprovalValue(false);
-                    break;
-                  case 'mail':
-                    setEmailInput('');
-                    break;
-                  case 'stamp':
-                    setStampText('');
-                    setUploadedImage(null);
-                    break;
-                }
-                setCurrentValue(null);
-              }}
-              startIcon={<ClearIcon />}
-              fullWidth
-              size="large"
-            >
-              Clear
-            </Button>
-          </Grid>
-          <Grid item xs={6}>
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              startIcon={<SaveIcon />}
-              disabled={isSaveDisabled()}
-              fullWidth
-              size="large"
-            >
-              Save
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-    </Box>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          <Button
+            onClick={onClose}
+            variant="outlined"
+            sx={{
+              color: '#475569',
+              borderColor: '#cbd5e1',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              borderRadius: '8px',
+              px: 2.5,
+              py: 0.8,
+              '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' }
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            startIcon={<SaveIcon />}
+            disabled={isSaveDisabled()}
+            sx={{
+              bgcolor: 'rgb(13, 148, 136)',
+              color: '#ffffff',
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              borderRadius: '8px',
+              px: 3.5,
+              py: 0.8,
+              boxShadow: '0 2px 8px rgba(13, 148, 136, 0.25)',
+              '&:hover': {
+                bgcolor: 'rgb(11, 130, 120)',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.35)'
+              },
+              '&.Mui-disabled': {
+                bgcolor: '#e2e8f0',
+                color: '#94a3b8'
+              }
+            }}
+          >
+            Save
+          </Button>
+        </Box>
+      </DialogActions>
+    </>
   );
 };
 
@@ -2663,39 +2721,34 @@ export const EnhancedSignaturePadModal = ({
       maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { maxHeight: '90vh', overflow: 'auto' }
+        sx: {
+          borderRadius: 2.5,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }
       }}
     >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
-            {getModalTitle()}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+      <DialogTitle sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" fontWeight="bold">
+          {getModalTitle()}
+        </Typography>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent>
-        <EnhancedSignaturePad
-          onSave={handleModalSave}
-          onClose={onClose}
-          existingSignature={existingSignature}
-          recipientData={recipientData}
-          fieldType={fieldType}
-          fieldLabel={fieldLabel}
-          fieldOptions={fieldOptions}
-          fieldWidth={fieldWidth}
-          fieldHeight={fieldHeight}
-        />
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose} variant="outlined">
-          Cancel
-        </Button>
-      </DialogActions>
+      <EnhancedSignaturePad
+        onSave={handleModalSave}
+        onClose={onClose}
+        existingSignature={existingSignature}
+        recipientData={recipientData}
+        fieldType={fieldType}
+        fieldLabel={fieldLabel}
+        fieldOptions={fieldOptions}
+        fieldWidth={fieldWidth}
+        fieldHeight={fieldHeight}
+      />
     </Dialog>
   );
 };

@@ -19,6 +19,10 @@ from typing import List, Dict, Any, Optional
 import traceback
 
 import re
+import os
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from storage import storage
 from database import db
 from .auth import get_current_user
@@ -57,7 +61,7 @@ ROLE_COLORS = {
 # ======================
 
 def format_datetime_csv(dt_val) -> str:
-    """Format datetime cleanly for CSV spreadsheet export."""
+    """Format datetime cleanly for CSV spreadsheet export (ISO standard for Excel/Sheets)."""
     if not dt_val:
         return "N/A"
     if isinstance(dt_val, str):
@@ -66,8 +70,100 @@ def format_datetime_csv(dt_val) -> str:
         except Exception:
             return dt_val
     if hasattr(dt_val, "strftime"):
-        return dt_val.strftime("%Y-%m-%d %H:%M:%S UTC")
+        return dt_val.strftime("%Y-%m-%d %H:%M:%S")
     return str(dt_val)
+
+def clean_csv_cell(val: any, max_len: int = 500) -> str:
+    """Clean and normalize a string cell for CSV to prevent multi-line wrap and layout collapse."""
+    if val is None:
+        return "N/A"
+    val_str = str(val).strip()
+    if not val_str:
+        return "N/A"
+    # Replace newlines with space or pipe to keep every row on a single line
+    cleaned = re.sub(r'[\r\n]+', ' | ', val_str)
+    # Collapse multiple spaces
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    if len(cleaned) > max_len:
+        cleaned = cleaned[:max_len - 3] + "..."
+    return cleaned
+
+def parse_user_agent_simple(ua: str) -> str:
+    """Parse raw user agent string into concise, human-readable browser and OS for spreadsheet cells."""
+    if not ua or ua in ("N/A", "unknown", "N/A"):
+        return "System"
+    ua_lower = str(ua).lower()
+    
+    os_name = "Unknown OS"
+    if "windows nt 10" in ua_lower:
+        os_name = "Windows 10/11"
+    elif "windows nt" in ua_lower or "windows" in ua_lower:
+        os_name = "Windows"
+    elif "iphone" in ua_lower:
+        os_name = "iOS (iPhone)"
+    elif "ipad" in ua_lower:
+        os_name = "iPadOS"
+    elif "macintosh" in ua_lower or "mac os" in ua_lower:
+        os_name = "macOS"
+    elif "android" in ua_lower:
+        os_name = "Android"
+    elif "linux" in ua_lower:
+        os_name = "Linux"
+        
+    browser_name = "Browser"
+    if "edg/" in ua_lower or "edge/" in ua_lower:
+        browser_name = "Edge"
+    elif "chrome/" in ua_lower and "edg/" not in ua_lower:
+        browser_name = "Chrome"
+    elif "safari/" in ua_lower and "chrome/" not in ua_lower:
+        browser_name = "Safari"
+    elif "firefox/" in ua_lower:
+        browser_name = "Firefox"
+    elif "opera" in ua_lower or "opr/" in ua_lower:
+        browser_name = "Opera"
+        
+    return f"{browser_name} ({os_name})"
+
+def format_field_value_for_csv(ftype: str, val: any, is_completed: bool) -> str:
+    """Format field values safely without dumping raw JSON dicts or base64 data into CSV cells."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return "[Pending Input]" if not is_completed else "[Empty]"
+    
+    ftype = str(ftype or "").lower()
+    
+    if isinstance(val, dict):
+        if ftype == "stamp":
+            stamp_text = val.get("text") or (val.get("value") if isinstance(val.get("value"), str) and not val.get("value").startswith("data:") else None)
+            return f"[Stamp: {stamp_text.strip()}]" if stamp_text else "[Stamp: Applied]"
+        if ftype in ("signature", "initials"):
+            sig_name = val.get("text") or val.get("name")
+            return f"[Signed: {sig_name.strip()}]" if sig_name else f"[Captured {ftype.capitalize()}]"
+        if val.get("value") is not None:
+            return format_field_value_for_csv(ftype, val["value"], is_completed)
+        if val.get("text"):
+            return clean_csv_cell(val["text"])
+        return "[Completed]"
+    
+    val_str = str(val).strip()
+    if ftype in ("signature", "initials"):
+        if val_str.startswith("data:image"):
+            return f"[Captured {ftype.capitalize()}]"
+        return f"[Signed: {val_str}]"
+    if ftype == "stamp":
+        if val_str.startswith("data:image"):
+            return "[Stamp: Applied]"
+        return f"[Stamp: {val_str}]"
+    if ftype == "checkbox":
+        if val in (True, "true", "True", "checked", "1", 1):
+            return "Checked (True)"
+        elif is_completed:
+            return "Unchecked (False)"
+        return "[Pending Selection]"
+    if ftype == "radio":
+        return f"Selected: {val_str}" if val_str else "[Pending Selection]"
+    if val_str.startswith("data:image"):
+        return "[Attached Image]"
+    return clean_csv_cell(val_str)
 
 def format_datetime_html(dt_val) -> str:
     """Format datetime with month name and seconds for HTML audit report."""
@@ -545,18 +641,43 @@ async def get_brand_logo_html() -> tuple:
     platform_name = branding.get("platform_name") or "Esigniva"
     tagline = branding.get("tagline") or "Secure Digital Document Signing"
     
-    logo_html = None
+    logo_img_html = None
     if branding.get("logo_file_path"):
         try:
             image_bytes = storage.download(branding["logo_file_path"])
             content_type = branding.get("logo_content_type") or "image/png"
             b64_img = base64.b64encode(image_bytes).decode("utf-8")
-            logo_html = f'<img src="data:{content_type};base64,{b64_img}" alt="{platform_name}" class="brand-img" />'
+            logo_img_html = f'<img src="data:{content_type};base64,{b64_img}" alt="{platform_name}" class="brand-img" />'
         except Exception as e:
             print(f"Error fetching branding logo: {e}")
-            logo_html = None
+            logo_img_html = None
+    if not logo_img_html:
+        # Check local branding logo files as reliable fallback
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        local_candidates = [
+            branding.get("logo_path"),
+            os.path.join(backend_dir, "static", "branding", "platform_logo.png"),
+            "static/branding/platform_logo.png"
+        ]
+        for candidate in local_candidates:
+            if candidate and os.path.exists(candidate):
+                try:
+                    with open(candidate, "rb") as img_f:
+                        b64_img = base64.b64encode(img_f.read()).decode("utf-8")
+                        logo_img_html = f'<img src="data:image/png;base64,{b64_img}" alt="{platform_name}" class="brand-img" />'
+                        break
+                except Exception as e:
+                    print(f"Error reading local logo {candidate}: {e}")
     
-    if not logo_html:
+    if logo_img_html:
+        logo_html = f'''<div class="brand-badge">
+            {logo_img_html}
+            <div class="brand-text-block">
+                <div class="brand-title">{platform_name}</div>
+                <div class="brand-sub">{tagline}</div>
+            </div>
+        </div>'''
+    else:
         logo_html = f'''<div class="brand-badge">
             <div class="brand-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -564,13 +685,215 @@ async def get_brand_logo_html() -> tuple:
                     <polyline points="9 12 11 14 15 10"/>
                 </svg>
             </div>
-            <div>
+            <div class="brand-text-block">
                 <div class="brand-title">{platform_name}</div>
                 <div class="brand-sub">{tagline}</div>
             </div>
         </div>'''
         
     return logo_html, platform_name, tagline
+
+
+def categorize_event(evt: dict) -> str:
+    """Categorize a timeline event for clear reporting in CSV and Excel spreadsheets."""
+    act = str(evt.get("action") or evt.get("type") or "").lower()
+    title = str(evt.get("title") or "").lower()
+    comb = act + " " + title
+    if any(k in comb for k in ["upload", "create", "rename", "convert"]):
+        return "Document Creation"
+    if any(k in comb for k in ["send", "sent", "invite", "reminder"]):
+        return "Envelope Communication"
+    if any(k in comb for k in ["view", "preview", "open", "access"]):
+        return "Access & Viewing"
+    if any(k in comb for k in ["otp", "auth", "verify", "code", "terms"]):
+        return "Authentication & Consent"
+    if any(k in comb for k in ["sign", "field", "initial", "form", "fill", "completed_field"]):
+        return "Signature & Fields"
+    if any(k in comb for k in ["complete", "final"]):
+        return "Envelope Completion"
+    if any(k in comb for k in ["decline", "void", "reject", "cancel"]):
+        return "Decline & Revocation"
+    if any(k in comb for k in ["download", "export", "report", "summary"]):
+        return "Export & Evidence"
+    return "System Activity"
+
+def field_sort_key(f: dict) -> tuple:
+    """Sort key to order fields sequentially by page, vertical coordinate, then horizontal."""
+    try:
+        p = int(f.get("page", 1))
+    except (ValueError, TypeError):
+        p = 1
+    try:
+        y = float(f.get("y", 0))
+    except (ValueError, TypeError):
+        y = 0.0
+    try:
+        x = float(f.get("x", 0))
+    except (ValueError, TypeError):
+        x = 0.0
+    return (p, y, x)
+
+def build_styled_excel_workbook(
+    sheet_title: str,
+    headers: List[str],
+    rows: List[List[Any]],
+    date_col_indices: Optional[set] = None,
+    status_col_indices: Optional[set] = None,
+    numeric_col_indices: Optional[set] = None
+) -> bytes:
+    """
+    Build a world-class, premium executive Excel spreadsheet (.xlsx):
+    - Corporate brand teal header (#086B70) with bold white text.
+    - Alternating row styling (pure white and subtle executive slate-50 gray #F8FAFC).
+    - Single-line readable text with wrap_text=False on all cells.
+    - Soft executive status badges (completed green, pending amber, declined red).
+    - Clean date formatting with slate-gray typography.
+    - Generous column padding and smart minimum widths so no words clip or truncate.
+    - Sticky frozen header row and visible native gridlines.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = str(sheet_title or "Report")[:31]
+    ws.sheet_properties.tabColor = "086B70"
+    ws.views.sheetView[0].showGridLines = True
+
+    date_col_indices = set(date_col_indices or [])
+    status_col_indices = set(status_col_indices or [])
+    numeric_col_indices = set(numeric_col_indices or [])
+
+    # Header Styling
+    header_fill = PatternFill(start_color="086B70", end_color="086B70", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    header_border = Border(
+        left=Side(style="thin", color="064E52"),
+        right=Side(style="thin", color="064E52"),
+        top=Side(style="thin", color="064E52"),
+        bottom=Side(style="medium", color="032C2E")
+    )
+
+    ws.append(headers)
+    ws.row_dimensions[1].height = 28
+
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = header_border
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+
+    # Data Rows Styling
+    thin_border = Border(
+        left=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+        top=Side(style="thin", color="E2E8F0"),
+        bottom=Side(style="thin", color="E2E8F0")
+    )
+
+    zebra_even = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    zebra_odd = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+
+    status_pill_styles = {
+        "success": (
+            PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid"),
+            Font(name="Segoe UI", size=10, bold=True, color="166534")
+        ),
+        "warning": (
+            PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid"),
+            Font(name="Segoe UI", size=10, bold=True, color="92400E")
+        ),
+        "danger": (
+            PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid"),
+            Font(name="Segoe UI", size=10, bold=True, color="991B1B")
+        ),
+        "info": (
+            PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid"),
+            Font(name="Segoe UI", size=10, bold=True, color="075985")
+        ),
+        "neutral": (
+            PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"),
+            Font(name="Segoe UI", size=10, color="64748B")
+        )
+    }
+
+    for r_idx, row_data in enumerate(rows, start=2):
+        ws.append(row_data)
+        ws.row_dimensions[r_idx].height = 22
+        is_odd = (r_idx % 2 == 1)
+        row_fill = zebra_odd if is_odd else zebra_even
+
+        for c_idx, cell in enumerate(ws[r_idx], start=1):
+            cell.border = thin_border
+            val_str = str(cell.value or "").strip()
+            val_lower = val_str.lower()
+
+            is_status = (c_idx in status_col_indices) or (val_lower in {
+                "completed", "signed", "verified", "accepted", "yes",
+                "pending", "in progress", "not required", "waiting", "draft",
+                "declined", "voided", "expired", "rejected", "no",
+                "signer", "approver", "viewer", "witness"
+            })
+
+            if is_status and val_str and val_str != "N/A":
+                if val_lower in {"completed", "signed", "verified", "accepted", "yes"}:
+                    st_fill, st_font = status_pill_styles["success"]
+                elif val_lower in {"pending", "in progress", "not required", "waiting", "draft"}:
+                    st_fill, st_font = status_pill_styles["warning"]
+                elif val_lower in {"declined", "voided", "expired", "rejected", "no"}:
+                    st_fill, st_font = status_pill_styles["danger"]
+                elif val_lower in {"signer", "approver", "viewer", "witness"}:
+                    st_fill, st_font = status_pill_styles["info"]
+                else:
+                    st_fill, st_font = status_pill_styles["neutral"]
+                cell.fill = st_fill
+                cell.font = st_font
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+            elif c_idx in date_col_indices:
+                cell.fill = row_fill
+                cell.font = Font(name="Segoe UI", size=10, color="334155")
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+            elif c_idx in numeric_col_indices:
+                cell.fill = row_fill
+                cell.font = Font(name="Segoe UI", size=10, color="1E293B")
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+            else:
+                cell.fill = row_fill
+                cell.font = Font(name="Segoe UI", size=10, color="1E293B")
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=False)
+
+    # Auto-fit Column Widths with generous word spacing
+    for col in ws.columns:
+        col_letter = get_column_letter(col[0].column)
+        hdr_text = str(col[0].value or "")
+        max_len = 0
+        for cell in col:
+            s = str(cell.value or "")
+            if len(s) > max_len:
+                max_len = len(s)
+        w = max(max_len + 5, 14)
+        if "Envelope ID" in hdr_text:
+            w = max(w, 34)
+        elif "Document Name" in hdr_text:
+            w = max(w, 30)
+        elif "Email" in hdr_text:
+            w = max(w, 28)
+        elif "Activity Details" in hdr_text or "Recorded Value" in hdr_text or "Decline Reason" in hdr_text:
+            w = max(w, 36)
+        elif "Action / Title" in hdr_text or "Event Category" in hdr_text:
+            w = max(w, 28)
+        elif "Timestamp" in hdr_text or "Date" in hdr_text or "At (UTC)" in hdr_text:
+            w = max(w, 22)
+        elif "Coordinates" in hdr_text or "Dimensions" in hdr_text:
+            w = max(w, 20)
+        elif "Field ID" in hdr_text:
+            w = max(w, 28)
+        ws.column_dimensions[col_letter].width = min(w, 65)
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
 
 # ======================
 # CSV EXPORT ENDPOINTS
@@ -582,7 +905,7 @@ async def export_recipients_csv(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    """Export recipients data as professional CSV spreadsheet with metadata block and UTF-8 BOM."""
+    """Export recipients data as professional, clean CSV spreadsheet with UTF-8 BOM."""
     doc = await get_document_with_owner(document_id, current_user)
     data = await get_complete_document_data(document_id)
     
@@ -592,33 +915,13 @@ async def export_recipients_csv(
     output = StringIO()
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
     
-    # Metadata Header Block
     doc_name = doc.get("filename") or "Untitled Document"
     envelope_id = doc.get("envelope_id") or str(doc["_id"])
     doc_status = str(doc.get("status") or "draft").upper()
-    stats = data.get("statistics", {})
     
-    writer.writerow(["ESIGNIVA DIGITAL TRANSACTION PLATFORM - RECIPIENT AUDIT ROSTER"])
-    writer.writerow(["Document Name:", doc_name])
-    writer.writerow(["Envelope ID:", envelope_id])
-    writer.writerow(["Document Status:", doc_status])
-    writer.writerow(["Report Generated (UTC):", format_datetime_csv(datetime.utcnow())])
+    # Table Column Headers - Standard professional row 1 layout
     writer.writerow([
-        "Total Recipients:", stats.get("total_recipients", 0),
-        "Completed:", stats.get("completed_recipients", 0),
-        "Pending:", stats.get("pending_recipients", 0),
-        "Declined:", stats.get("declined_recipients", 0)
-    ])
-    writer.writerow([
-        "Recipient Completion Rate:", stats.get("completion_rate", "0%"),
-        "Signing Duration:", stats.get("signing_duration", "N/A"),
-        "Average Time / Recipient:", stats.get("average_time_per_recipient", "N/A")
-    ])
-    writer.writerow([])  # Blank separator line
-    
-    # Table Column Headers
-    writer.writerow([
-        "Order",
+        "Signing Order",
         "Recipient Name",
         "Email Address",
         "Role",
@@ -633,7 +936,10 @@ async def export_recipients_csv(
         "First Viewed (UTC)",
         "Signed At (UTC)",
         "Declined At (UTC)",
-        "Decline Reason"
+        "Decline Reason",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
     ])
     
     # Recipient Rows
@@ -641,12 +947,12 @@ async def export_recipients_csv(
         r_stats = recipient.get("statistics", {})
         writer.writerow([
             recipient.get("signing_order", 1),
-            recipient.get("name", "Unknown"),
-            recipient.get("email", ""),
+            clean_csv_cell(recipient.get("name") or "Unknown Signer"),
+            clean_csv_cell(recipient.get("email") or "N/A"),
             str(recipient.get("role", "signer")).replace("_", " ").title(),
             str(recipient.get("status", "pending")).capitalize(),
-            "Verified (Yes)" if recipient.get("otp_verified") else "No",
-            "Accepted (Yes)" if recipient.get("terms_accepted") else "No",
+            "Verified" if recipient.get("otp_verified") else "Not Required",
+            "Accepted" if recipient.get("terms_accepted") else "Pending",
             r_stats.get("completed_fields", 0),
             r_stats.get("total_fields", 0),
             r_stats.get("completion_rate", "0%"),
@@ -655,7 +961,10 @@ async def export_recipients_csv(
             format_datetime_csv(recipient.get("viewed_at")),
             format_datetime_csv(recipient.get("signed_at")),
             format_datetime_csv(recipient.get("declined_at")),
-            recipient.get("decline_reason") or "N/A"
+            clean_csv_cell(recipient.get("decline_reason") or "N/A"),
+            clean_csv_cell(doc_name),
+            clean_csv_cell(envelope_id),
+            clean_csv_cell(doc_status)
         ])
     
     csv_bytes = b'\xef\xbb\xbf' + output.getvalue().encode("utf-8")
@@ -701,31 +1010,22 @@ async def export_timeline_csv(
     envelope_id = doc.get("envelope_id") or str(doc["_id"])
     doc_status = str(doc.get("status") or "draft").upper()
     timeline_events = data.get("timeline_events", [])
-    stats = data.get("statistics", {})
     
-    # Metadata Header Block
-    writer.writerow(["ESIGNIVA DIGITAL TRANSACTION PLATFORM - COMPLETE AUDIT TIMELINE"])
-    writer.writerow(["Document Name:", doc_name])
-    writer.writerow(["Envelope ID:", envelope_id])
-    writer.writerow(["Document Status:", doc_status])
-    writer.writerow(["Report Generated (UTC):", format_datetime_csv(datetime.utcnow())])
-    writer.writerow(["Total Recorded Events:", len(timeline_events)])
-    writer.writerow(["Overall Signing Duration:", stats.get("signing_duration", "N/A")])
-    writer.writerow(["Compliance Verification:", "E-SIGN Act (15 U.S.C. § 7001) & UETA Compliant Audit Trail"])
-    writer.writerow([])  # Blank separator
-    
-    # Column Headers
+    # Column Headers - Standard professional row 1 layout
     writer.writerow([
         "Event #",
         "Timestamp (UTC)",
         "Event Category",
         "Action / Title",
-        "Description / Activity Details",
+        "Activity Details",
         "Actor Name",
         "Actor Email",
         "Actor Role",
         "IP Address",
-        "Client / User Agent"
+        "Browser & Device",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
     ])
     
     def categorize_event(evt):
@@ -765,13 +1065,16 @@ async def export_timeline_csv(
             idx,
             format_datetime_csv(event.get("timestamp")),
             categorize_event(event),
-            event.get("title") or event.get("action") or "Activity Event",
-            event.get("description") or "—",
-            actor_name,
-            actor_email,
-            actor_role,
-            ip_addr,
-            user_agent
+            clean_csv_cell(event.get("title") or event.get("action") or "Activity Event"),
+            clean_csv_cell(event.get("description") or "N/A"),
+            clean_csv_cell(actor_name),
+            clean_csv_cell(actor_email),
+            clean_csv_cell(actor_role),
+            clean_csv_cell(ip_addr),
+            parse_user_agent_simple(user_agent),
+            clean_csv_cell(doc_name),
+            clean_csv_cell(envelope_id),
+            clean_csv_cell(doc_status)
         ])
     
     csv_bytes = b'\xef\xbb\xbf' + output.getvalue().encode("utf-8")
@@ -815,38 +1118,24 @@ async def export_fields_csv(
     envelope_id = doc.get("envelope_id") or str(doc["_id"])
     doc_status = str(doc.get("status") or "draft").upper()
     
-    total_fields = len(fields)
-    completed_fields = len([f for f in fields if f.get("completed_at") or (f.get("value") is not None and str(f.get("value")).strip() != "")])
-    completion_rate = f"{(completed_fields / total_fields * 100):.1f}%" if total_fields > 0 else "0.0%"
-    
-    # Metadata Header Block
-    writer.writerow(["ESIGNIVA DIGITAL TRANSACTION PLATFORM - FIELD DATA & VALUES AUDIT"])
-    writer.writerow(["Document Name:", doc_name])
-    writer.writerow(["Envelope ID:", envelope_id])
-    writer.writerow(["Document Status:", doc_status])
-    writer.writerow(["Report Generated (UTC):", format_datetime_csv(datetime.utcnow())])
-    writer.writerow([
-        "Total Form Fields:", total_fields,
-        "Completed Fields:", completed_fields,
-        "Field Completion Rate:", completion_rate
-    ])
-    writer.writerow([])  # Blank separator
-    
-    # Column Headers
+    # Column Headers - Standard professional row 1 layout
     writer.writerow([
         "Field #",
-        "Page",
+        "Page #",
         "Field Type",
-        "Field Label / Identifier",
+        "Field Label",
         "Assigned Recipient",
         "Recipient Email",
         "Required",
         "Field Status",
-        "Recorded Value / Input State",
+        "Recorded Value",
         "Completed At (UTC)",
-        "Position Coordinates (X, Y)",
+        "Coordinates (X, Y)",
         "Dimensions (W x H)",
-        "Field ID"
+        "Field ID",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
     ])
     
     # Pre-fetch recipients for fast mapping
@@ -854,7 +1143,11 @@ async def export_fields_csv(
     recipients_map = {str(r["_id"]): r for r in recipients}
     
     if not fields:
-        writer.writerow(["—", "—", "—", "No form or signature fields configured for this document", "—", "—", "—", "—", "—", "—", "—", "—", "—"])
+        writer.writerow([
+            1, 1, "Notice", "No form or signature fields configured for this document",
+            "N/A", "N/A", "No", "N/A", "N/A", "N/A", "(0, 0)", "0 x 0", "N/A",
+            clean_csv_cell(doc_name), clean_csv_cell(envelope_id), clean_csv_cell(doc_status)
+        ])
     else:
         def field_sort_key(f):
             try:
@@ -881,32 +1174,6 @@ async def export_fields_csv(
             val = field.get("value")
             is_completed = bool(field.get("completed_at")) or (val is not None and str(val).strip() != "")
             
-            # Format field values safely for spreadsheet cells (prevent base64 overflow)
-            if ftype in ("signature", "initials"):
-                if val:
-                    val_str = str(val).strip()
-                    if val_str.startswith("data:image"):
-                        display_val = f"[Captured {ftype.capitalize()} Image]"
-                    else:
-                        display_val = f"[Signed: {val_str}]"
-                else:
-                    display_val = "[Unsigned]"
-            elif ftype == "checkbox":
-                if val in (True, "true", "True", "checked", "1", 1):
-                    display_val = "Checked (True)"
-                elif is_completed:
-                    display_val = "Unchecked (False)"
-                else:
-                    display_val = "[Pending Selection]"
-            elif val is not None and str(val).strip() != "":
-                val_str = str(val).strip()
-                if len(val_str) > 1000:
-                    display_val = val_str[:1000] + "... (truncated)"
-                else:
-                    display_val = val_str
-            else:
-                display_val = "[Empty]" if is_completed else "[Pending Input]"
-            
             # Position and dimensions
             pos_str = f"({field.get('x', 0)}, {field.get('y', 0)})"
             dim_str = f"{field.get('width', 0)} x {field.get('height', 0)}"
@@ -915,16 +1182,19 @@ async def export_fields_csv(
                 idx,
                 field.get("page", 1),
                 ftype.replace("_", " ").title(),
-                field.get("label") or field.get("name") or f"{ftype}_{idx}",
-                recipient.get("name", "Unassigned") if recipient else "Unassigned",
-                recipient.get("email", "—") if recipient else "—",
-                "Yes" if field.get("required", True) else "Optional (No)",
+                clean_csv_cell(field.get("label") or field.get("name") or f"{ftype}_{idx}"),
+                clean_csv_cell(recipient.get("name", "Unassigned") if recipient else "Unassigned"),
+                clean_csv_cell(recipient.get("email", "N/A") if recipient else "N/A"),
+                "Yes" if field.get("required", True) else "No",
                 "Completed" if is_completed else "Pending",
-                display_val,
+                format_field_value_for_csv(ftype, val, is_completed),
                 format_datetime_csv(field.get("completed_at")),
                 pos_str,
                 dim_str,
-                str(field["_id"])
+                str(field["_id"]),
+                clean_csv_cell(doc_name),
+                clean_csv_cell(envelope_id),
+                clean_csv_cell(doc_status)
             ])
     
     csv_bytes = b'\xef\xbb\xbf' + output.getvalue().encode("utf-8")
@@ -937,7 +1207,7 @@ async def export_fields_csv(
         document_id,
         current_user,
         "export_fields_csv",
-        {"fields_count": total_fields},
+        {"fields_count": len(fields)},
         request
     )
     
@@ -950,9 +1220,300 @@ async def export_fields_csv(
         }
     )
 
+
 # ======================
-# HTML REPORT ENDPOINT
+# EXCEL EXPORT ENDPOINTS
 # ======================
+
+@router.get("/{document_id}/summary/recipients-excel")
+async def export_recipients_excel(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Export recipients data as premium formatted Excel (.xlsx) spreadsheet with professional styling."""
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail="Document data not found")
+        
+    doc_name = doc.get("filename") or "Untitled Document"
+    envelope_id = doc.get("envelope_id") or str(doc["_id"])
+    doc_status = str(doc.get("status") or "draft").upper()
+    
+    headers = [
+        "Signing Order",
+        "Recipient Name",
+        "Email Address",
+        "Role",
+        "Status",
+        "OTP Verified",
+        "Terms Accepted",
+        "Fields Completed",
+        "Total Fields",
+        "Completion Rate",
+        "Turnaround Time",
+        "Date Added (UTC)",
+        "First Viewed (UTC)",
+        "Signed At (UTC)",
+        "Declined At (UTC)",
+        "Decline Reason",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
+    ]
+    
+    rows = []
+    for recipient in data.get("recipients", []):
+        r_stats = recipient.get("statistics", {})
+        rows.append([
+            recipient.get("signing_order", 1),
+            clean_csv_cell(recipient.get("name") or "Unknown Signer"),
+            clean_csv_cell(recipient.get("email") or "N/A"),
+            str(recipient.get("role", "signer")).replace("_", " ").title(),
+            str(recipient.get("status", "pending")).capitalize(),
+            "Verified" if recipient.get("otp_verified") else "Not Required",
+            "Accepted" if recipient.get("terms_accepted") else "Pending",
+            r_stats.get("completed_fields", 0),
+            r_stats.get("total_fields", 0),
+            r_stats.get("completion_rate", "0%"),
+            r_stats.get("signing_time", "N/A"),
+            format_datetime_csv(recipient.get("added_at")),
+            format_datetime_csv(recipient.get("viewed_at")),
+            format_datetime_csv(recipient.get("signed_at")),
+            format_datetime_csv(recipient.get("declined_at")),
+            clean_csv_cell(recipient.get("decline_reason") or "N/A"),
+            clean_csv_cell(doc_name),
+            clean_csv_cell(envelope_id),
+            clean_csv_cell(doc_status)
+        ])
+        
+    excel_bytes = build_styled_excel_workbook(
+        sheet_title="Recipients Overview",
+        headers=headers,
+        rows=rows,
+        date_col_indices={12, 13, 14, 15},
+        status_col_indices={4, 5, 6, 7, 19},
+        numeric_col_indices={1, 8, 9, 10}
+    )
+    
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', doc_name.rsplit('.', 1)[0])
+    filename = f"recipients_{clean_name}_{envelope_id}.xlsx"
+    
+    await _log_event(
+        document_id,
+        current_user,
+        "export_recipients_excel",
+        {"recipients_count": len(data.get("recipients", []))},
+        request
+    )
+    
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
+@router.get("/{document_id}/summary/timeline-excel")
+async def export_timeline_excel(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Export complete chronological timeline audit trail as premium formatted Excel (.xlsx) spreadsheet."""
+    doc = await get_document_with_owner(document_id, current_user)
+    data = await get_complete_document_data(document_id)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail="Document data not found")
+        
+    doc_name = doc.get("filename") or "Untitled Document"
+    envelope_id = doc.get("envelope_id") or str(doc["_id"])
+    doc_status = str(doc.get("status") or "draft").upper()
+    timeline_events = data.get("timeline_events", [])
+    
+    headers = [
+        "Event #",
+        "Timestamp (UTC)",
+        "Event Category",
+        "Action / Title",
+        "Activity Details",
+        "Actor Name",
+        "Actor Email",
+        "Actor Role",
+        "IP Address",
+        "Browser & Device",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
+    ]
+    
+    rows = []
+    for idx, event in enumerate(timeline_events, start=1):
+        actor = event.get("actor") or {}
+        metadata = event.get("metadata") or {}
+        
+        actor_name = actor.get("name") or (actor.get("email", "").split("@")[0] if actor.get("email") else "System")
+        actor_email = actor.get("email") or "system@esigniva.com"
+        actor_role = str(actor.get("role") or event.get("role") or "System").replace("_", " ").title()
+        
+        ip_addr = metadata.get("ip") or event.get("ip_address") or "N/A"
+        user_agent = metadata.get("user_agent") or event.get("user_agent") or "N/A"
+        
+        rows.append([
+            idx,
+            format_datetime_csv(event.get("timestamp")),
+            categorize_event(event),
+            clean_csv_cell(event.get("title") or event.get("action") or "Activity Event"),
+            clean_csv_cell(event.get("description") or "N/A"),
+            clean_csv_cell(actor_name),
+            clean_csv_cell(actor_email),
+            clean_csv_cell(actor_role),
+            clean_csv_cell(ip_addr),
+            parse_user_agent_simple(user_agent),
+            clean_csv_cell(doc_name),
+            clean_csv_cell(envelope_id),
+            clean_csv_cell(doc_status)
+        ])
+        
+    excel_bytes = build_styled_excel_workbook(
+        sheet_title="Timeline Audit Trail",
+        headers=headers,
+        rows=rows,
+        date_col_indices={2},
+        status_col_indices={13},
+        numeric_col_indices={1}
+    )
+    
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', doc_name.rsplit('.', 1)[0])
+    filename = f"timeline_{clean_name}_{envelope_id}.xlsx"
+    
+    await _log_event(
+        document_id,
+        current_user,
+        "export_timeline_excel",
+        {"events_count": len(timeline_events)},
+        request
+    )
+    
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
+@router.get("/{document_id}/summary/fields-excel")
+async def export_fields_excel(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Export document fields data and values as premium formatted Excel (.xlsx) spreadsheet."""
+    doc = await get_document_with_owner(document_id, current_user)
+    
+    fields = await db.signature_fields.find({"document_id": ObjectId(document_id)}).to_list(length=2000)
+    
+    doc_name = doc.get("filename") or "Untitled Document"
+    envelope_id = doc.get("envelope_id") or str(doc["_id"])
+    doc_status = str(doc.get("status") or "draft").upper()
+    
+    headers = [
+        "Field #",
+        "Page #",
+        "Field Type",
+        "Field Label",
+        "Assigned Recipient",
+        "Recipient Email",
+        "Required",
+        "Field Status",
+        "Recorded Value",
+        "Completed At (UTC)",
+        "Coordinates (X, Y)",
+        "Dimensions (W x H)",
+        "Field ID",
+        "Document Name",
+        "Envelope ID",
+        "Document Status"
+    ]
+    
+    recipients = await db.recipients.find({"document_id": ObjectId(document_id)}).to_list(length=1000)
+    recipients_map = {str(r["_id"]): r for r in recipients}
+    
+    rows = []
+    if not fields:
+        rows.append([
+            1, 1, "Notice", "No form or signature fields configured for this document",
+            "N/A", "N/A", "No", "N/A", "N/A", "N/A", "(0, 0)", "0 x 0", "N/A",
+            clean_csv_cell(doc_name), clean_csv_cell(envelope_id), clean_csv_cell(doc_status)
+        ])
+    else:
+        sorted_fields = sorted(fields, key=field_sort_key)
+        for idx, field in enumerate(sorted_fields, start=1):
+            rec_id = str(field.get("recipient_id") or "")
+            recipient = recipients_map.get(rec_id)
+            
+            ftype = str(field.get("type") or "text").lower()
+            val = field.get("value")
+            is_completed = bool(field.get("completed_at")) or (val is not None and str(val).strip() != "")
+            
+            pos_str = f"({field.get('x', 0)}, {field.get('y', 0)})"
+            dim_str = f"{field.get('width', 0)} x {field.get('height', 0)}"
+            
+            rows.append([
+                idx,
+                field.get("page", 1),
+                ftype.replace("_", " ").title(),
+                clean_csv_cell(field.get("label") or field.get("name") or f"{ftype}_{idx}"),
+                clean_csv_cell(recipient.get("name", "Unassigned") if recipient else "Unassigned"),
+                clean_csv_cell(recipient.get("email", "N/A") if recipient else "N/A"),
+                "Yes" if field.get("required", True) else "No",
+                "Completed" if is_completed else "Pending",
+                format_field_value_for_csv(ftype, val, is_completed),
+                format_datetime_csv(field.get("completed_at")),
+                pos_str,
+                dim_str,
+                str(field["_id"]),
+                clean_csv_cell(doc_name),
+                clean_csv_cell(envelope_id),
+                clean_csv_cell(doc_status)
+            ])
+            
+    excel_bytes = build_styled_excel_workbook(
+        sheet_title="Document Field Data",
+        headers=headers,
+        rows=rows,
+        date_col_indices={10},
+        status_col_indices={7, 8, 16},
+        numeric_col_indices={1, 2}
+    )
+    
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', doc_name.rsplit('.', 1)[0])
+    filename = f"field_data_{clean_name}_{envelope_id}.xlsx"
+    
+    await _log_event(
+        document_id,
+        current_user,
+        "export_fields_excel",
+        {"fields_count": len(fields)},
+        request
+    )
+    
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
 
 @router.get("/{document_id}/summary/html")
 async def generate_html_report(
@@ -1058,7 +1619,7 @@ async def generate_html_report(
     recipients_html_rows = ""
     for r in recipients:
         r_name = r.get("name") or "Unknown Signer"
-        r_email = r.get("email") or "—"
+        r_email = r.get("email") or "N/A"
         r_role = str(r.get("role") or "Signer").replace("_", " ").title()
         r_status = str(r.get("status") or "pending").lower()
         
@@ -1070,8 +1631,8 @@ async def generate_html_report(
         f_total = r_stats.get("total_fields", 0)
         pct = (f_comp / f_total * 100) if f_total > 0 else (100 if r_status == "completed" else 0)
         
-        otp_badge = '<span class="sec-badge sec-badge-success"><i class="bi bi-shield-check"></i> Verified</span>' if r.get("otp_verified") else '<span class="sec-badge sec-badge-muted">—</span>'
-        terms_badge = '<span class="sec-badge sec-badge-success"><i class="bi bi-check-circle"></i> Accepted</span>' if r.get("terms_accepted") else '<span class="sec-badge sec-badge-muted">—</span>'
+        otp_badge = '<span class="sec-badge sec-badge-success"><i class="bi bi-shield-check"></i> Verified</span>' if r.get("otp_verified") else '<span class="sec-badge sec-badge-muted">N/A</span>'
+        terms_badge = '<span class="sec-badge sec-badge-success"><i class="bi bi-check-circle"></i> Accepted</span>' if r.get("terms_accepted") else '<span class="sec-badge sec-badge-muted">N/A</span>'
         
         avatar_initial = r_name[0].upper() if r_name else "?"
         
@@ -1242,7 +1803,13 @@ async def generate_html_report(
         .brand-badge {{
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+        }}
+        
+        .brand-text-block {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }}
         
         .brand-icon {{

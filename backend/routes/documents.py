@@ -1295,7 +1295,7 @@ def guard_document_active(doc):
 
 def apply_status_watermark(pdf_bytes: bytes, status: str) -> bytes:
     watermark_text = {
-        "draft": "DRAFT",
+        # "draft": "DRAFT",  # Avoided currently per user requirement
         "expired": "EXPIRED",
         "declined": "DECLINED",
         "voided": "VOID"
@@ -1837,13 +1837,13 @@ def create_form_field_data(field: dict, printable_value) -> dict:
 def apply_status_watermark(pdf_bytes: bytes, status: str) -> bytes:
     """Apply status-based watermark."""
     watermark_text = {
-        "draft": "DRAFT",
+        # "draft": "DRAFT",  # Avoided currently per user requirement
         "expired": "EXPIRED",
         "declined": "DECLINED",
         "voided": "VOIDED",
         "sent": "IN PROGRESS",
         "in_progress": "IN PROGRESS",
-        "completed": "COMPLETED"
+        # "completed": "COMPLETED"  # Avoided currently per user requirement
     }.get(status)
     
     if watermark_text:
@@ -1963,6 +1963,10 @@ async def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, docu
                 # Fallback to direct extraction
                 if isinstance(field_value, dict):
                     image_data = field_value.get("image") or field_value.get("data")
+                    if not image_data and isinstance(field_value.get("value"), dict):
+                        image_data = field_value["value"].get("image") or field_value["value"].get("data")
+                    elif not image_data and isinstance(field_value.get("value"), str) and field_value.get("value").startswith("data:image"):
+                        image_data = field_value.get("value")
                 elif isinstance(field_value, str) and field_value.startswith("data:image"):
                     image_data = field_value
             
@@ -1998,7 +2002,7 @@ async def apply_completed_fields_to_pdf(pdf_bytes: bytes, document_id: str, docu
                 elif isinstance(field_value, str) and not field_value.startswith("data:image"):
                     text_content = field_value
 
-                if text_content and str(text_content).strip():
+                if text_content and str(text_content).strip() and str(text_content).strip().upper() not in ["STAMP", "[STAMP]", "OFFICIAL STAMP"]:
                     font_fam = field_value.get("font_family") if isinstance(field_value, dict) else "Dancing Script"
                     font_col = field_value.get("font_color") if isinstance(field_value, dict) else "#000000"
                     signatures.append({
@@ -2271,18 +2275,35 @@ async def process_document_upload_task(
         
         await db.documents.update_one({"_id": doc_oid}, {"$set": final_updates})
         
-        # Also insert entry into document_files for consistency
-        await db.document_files.insert_one({
-            "document_id": doc_oid,
-            "file_path": pdf_file_path,
-            "thumbnail_path": preview_thumb_path,
-            "page_thumbnails": page_thumbnail_refs,
-            "filename": filename,
-            "page_count": page_count,
-            "order": 1,
-            "uploaded_at": datetime.utcnow(),
-            "source": "original"
-        })
+        # Safely upsert entry into document_files (prevents race condition duplicates)
+        existing_file = await db.document_files.find_one({"document_id": doc_oid, "order": 1})
+        if not existing_file:
+            existing_file = await db.document_files.find_one({"document_id": doc_oid})
+
+        if existing_file:
+            await db.document_files.update_one(
+                {"_id": existing_file["_id"]},
+                {"$set": {
+                    "file_path": pdf_file_path,
+                    "thumbnail_path": preview_thumb_path,
+                    "page_thumbnails": page_thumbnail_refs,
+                    "filename": filename,
+                    "page_count": page_count,
+                    "source": "original"
+                }}
+            )
+        else:
+            await db.document_files.insert_one({
+                "document_id": doc_oid,
+                "file_path": pdf_file_path,
+                "thumbnail_path": preview_thumb_path,
+                "page_thumbnails": page_thumbnail_refs,
+                "filename": filename,
+                "page_count": page_count,
+                "order": 1,
+                "uploaded_at": datetime.utcnow(),
+                "source": "original"
+            })
 
         # Log event
         log_metadata = {
@@ -2589,6 +2610,45 @@ async def list_files(document_id: str, current_user: dict = Depends(get_current_
         {"document_id": doc_oid}
     ).sort("order", 1).to_list(length=None)
 
+    # Deduplicate files by order (clean up any race-condition or orphaned duplicate records)
+    if files:
+        order_groups = {}
+        for f in files:
+            ord_val = f.get("order", 1)
+            order_groups.setdefault(ord_val, []).append(f)
+
+        cleaned_files = []
+        duplicates_to_delete = []
+
+        def file_preference_key(item):
+            score = 0
+            if item.get("source") == "original":
+                score += 20
+            if item.get("page_thumbnails"):
+                score += 10
+            if item.get("thumbnail_path"):
+                score += 5
+            return score
+
+        for ord_val in sorted(order_groups.keys()):
+            group = order_groups[ord_val]
+            if len(group) > 1:
+                group.sort(key=file_preference_key, reverse=True)
+                best_file = group[0]
+                cleaned_files.append(best_file)
+                for dup in group[1:]:
+                    duplicates_to_delete.append(dup["_id"])
+            else:
+                cleaned_files.append(group[0])
+
+        if duplicates_to_delete:
+            try:
+                await db.document_files.delete_many({"_id": {"$in": duplicates_to_delete}})
+            except Exception as e:
+                logger.warning(f"Error deleting duplicate document files: {e}")
+
+        files = cleaned_files
+
     # Fallback: if no files exist in document_files, inspect db.documents and auto-seed primary record
     if not files:
         doc = await db.documents.find_one({"_id": doc_oid})
@@ -2604,6 +2664,8 @@ async def list_files(document_id: str, current_user: dict = Depends(get_current_
                 fallback_filename += ".pdf"
 
             page_count = doc.get("page_count", 1) or 1
+            is_processing = doc.get("status") == "processing"
+
             new_file_record = {
                 "document_id": doc_oid,
                 "file_path": file_path or "",
@@ -2613,9 +2675,15 @@ async def list_files(document_id: str, current_user: dict = Depends(get_current_
                 "uploaded_at": doc.get("uploaded_at") or datetime.utcnow(),
                 "source": doc.get("source", "upload")
             }
-            res_ins = await db.document_files.insert_one(new_file_record)
-            new_file_record["_id"] = res_ins.inserted_id
-            files = [new_file_record]
+
+            # If document is actively processing, return transient file without creating duplicate stub
+            if is_processing:
+                new_file_record["_id"] = doc_oid
+                files = [new_file_record]
+            else:
+                res_ins = await db.document_files.insert_one(new_file_record)
+                new_file_record["_id"] = res_ins.inserted_id
+                files = [new_file_record]
 
     current_page = 1
     response = []
@@ -3780,44 +3848,20 @@ async def list_documents_paged(
 
     and_conditions = []
 
-    # Text / Date search
+    # Text & Format search (filename, title, envelope_id, file extension, and format)
     if search and search.strip():
         s = search.strip()
+        clean_ext = s.lstrip(".")
         search_or = [
             {"filename": {"$regex": re.escape(s), "$options": "i"}},
             {"title": {"$regex": re.escape(s), "$options": "i"}},
             {"envelope_id": {"$regex": re.escape(s), "$options": "i"}},
             {"owner_email": {"$regex": re.escape(s), "$options": "i"}},
             {"status": {"$regex": re.escape(s), "$options": "i"}},
+            {"file_type": {"$regex": re.escape(clean_ext), "$options": "i"}},
+            {"filename": {"$regex": rf"\.{re.escape(clean_ext)}$", "$options": "i"}},
             {"common_message": {"$regex": re.escape(s), "$options": "i"}}
         ]
-        # If search query looks like a year/month/date (e.g. 2026, 2026-10, 2026-10-20)
-        try:
-            if re.match(r"^\d{4}(-\d{2}){0,2}$", s):
-                if len(s) == 4:
-                    s_year = int(s)
-                    dt_start = datetime(s_year, 1, 1)
-                    dt_end = datetime(s_year, 12, 31, 23, 59, 59)
-                elif len(s) == 7:
-                    parts = s.split("-")
-                    s_year, s_month = int(parts[0]), int(parts[1])
-                    dt_start = datetime(s_year, s_month, 1)
-                    # Next month start minus 1 second
-                    if s_month == 12:
-                        dt_end = datetime(s_year + 1, 1, 1) - timedelta(seconds=1)
-                    else:
-                        dt_end = datetime(s_year, s_month + 1, 1) - timedelta(seconds=1)
-                else:
-                    parts = s.split("-")
-                    s_year, s_month, s_day = int(parts[0]), int(parts[1]), int(parts[2])
-                    dt_start = datetime(s_year, s_month, s_day, 0, 0, 0)
-                    dt_end = datetime(s_year, s_month, s_day, 23, 59, 59)
-                
-                search_or.append({"uploaded_at": {"$gte": dt_start, "$lte": dt_end}})
-                search_or.append({"updated_at": {"$gte": dt_start, "$lte": dt_end}})
-        except Exception:
-            pass
-
         and_conditions.append({"$or": search_or})
 
     # Explicit Date Range Filter
@@ -5990,9 +6034,9 @@ async def view_field_preview(
             highlight_incomplete=highlight_incomplete
         )
     
-    # Add preview watermark
-    if doc.get("status") == "draft":
-        pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "FIELD PREVIEW")
+    # Add preview watermark (Commented out currently per user requirement)
+    # if doc.get("status") == "draft":
+    #     pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, "FIELD PREVIEW")
     
     filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_field_preview.pdf"
     
@@ -6116,14 +6160,19 @@ async def decline_document(
     if not recipient:
         raise HTTPException(403, "Not authorized")
 
-    if recipient["status"] in ["completed", "declined", "expired"]:
+    if recipient["status"] == "completed":
+        raise HTTPException(400, "This document has already been completed, so it cannot be declined.")
+    if recipient["status"] in ["declined", "expired"]:
         raise HTTPException(400, "Cannot decline at this stage")
 
     doc = await db.documents.find_one({"_id": recipient["document_id"]})
     guard_document_active(doc)
 
+    if doc.get("status") == "completed":
+        raise HTTPException(400, "This document has already been completed, so it cannot be declined.")
+
     if doc["status"] not in ["sent", "in_progress"]:
-        raise HTTPException(400, "Document is not active")
+        raise HTTPException(400, "Document is not active and cannot be declined.")
 
     now = datetime.utcnow()
 
@@ -7199,18 +7248,18 @@ async def download_signed_document_owner(
         # APPLY COMPLETED FIELDS (CRITICAL FIX)
         pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
         
-        # Apply "SIGNED" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",
-                opacity=0.1,
-                font_size=48,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
+        # Apply "SIGNED" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "SIGNED DOCUMENT",
+        #         color="#4CAF50",
+        #         opacity=0.1,
+        #         font_size=48,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark: {str(e)}")
         
         # Add envelope header if exists
         envelope_id = doc.get("envelope_id")
@@ -7313,18 +7362,18 @@ async def download_signed_file_owner(
         sub_doc.close()
         full_doc.close()
 
-        # Apply minimal watermark if signed
-        try:
-            sub_bytes = PDFEngine.apply_watermark(
-                sub_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",
-                opacity=0.1,
-                font_size=42,
-                angle=45
-            )
-        except Exception:
-            pass
+        # Apply minimal watermark if signed (Commented out currently per user requirement)
+        # try:
+        #     sub_bytes = PDFEngine.apply_watermark(
+        #         sub_bytes,
+        #         "SIGNED DOCUMENT",
+        #         color="#4CAF50",
+        #         opacity=0.1,
+        #         font_size=42,
+        #         angle=45
+        #     )
+        # except Exception:
+        #     pass
 
         clean_fname = sub_file.get("filename", "subdocument.pdf")
         if not clean_fname.lower().endswith(".pdf"):
@@ -7383,18 +7432,18 @@ async def download_original_document_owner(
             print(f"Error reading PDF: {str(e)}")
             raise HTTPException(404, "PDF file not found in storage")
         
-        # Apply "ORIGINAL" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "ORIGINAL UNSIGNED COPY",
-                color="#666666",
-                opacity=0.1,
-                font_size=36,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
+        # Apply "ORIGINAL" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "ORIGINAL UNSIGNED COPY",
+        #         color="#666666",
+        #         opacity=0.1,
+        #         font_size=36,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark: {str(e)}")
         
         # Add envelope header if exists
         envelope_id = doc.get("envelope_id")

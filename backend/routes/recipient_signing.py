@@ -115,6 +115,9 @@ def serialize_recipient(recipient):
         "terms_declined": recipient.get("terms_declined", False),
         "terms_declined_at": recipient.get("terms_declined_at"),
         "terms_decline_reason": recipient.get("terms_decline_reason"),
+        "declined_at": recipient.get("declined_at").isoformat() + "Z" if recipient.get("declined_at") else None,
+        "decline_reason": recipient.get("decline_reason"),
+        "decline_ip": recipient.get("decline_ip"),
         "added_at": recipient.get("added_at", datetime.utcnow()).isoformat()
     }
     
@@ -173,7 +176,10 @@ async def serialize_document(document):
         "page_count": document.get("page_count", 1),
         "envelope_id": document.get("envelope_id"),
         "files": file_list,
-        "files_count": len(file_list)
+        "files_count": len(file_list),
+        "declined_at": document.get("declined_at").isoformat() + "Z" if document.get("declined_at") else None,
+        "declined_by": document.get("declined_by"),
+        "decline_reason": document.get("decline_reason")
     }
 
 async def get_recipient_for_signing(recipient_id: str, allow_voided=False):
@@ -385,14 +391,16 @@ async def get_signing_info(recipient_id: str):
         
         # Handle other terminal statuses
         terminal_statuses = ["declined", "expired", "deleted"]
-        if doc_status in terminal_statuses:
+        if doc_status in terminal_statuses or recipient.get("status") in ["declined", "expired"]:
+            effective_status = doc_status if doc_status in terminal_statuses else recipient.get("status")
             return {
                 "recipient": serialize_recipient(recipient),
                 "document": await serialize_document(document),
                 "signing_info": {
-                    "document_status": doc_status,
+                    "document_status": effective_status,
                     "can_sign_now": False,
-                    "message": f"Document is {doc_status}"
+                    "message": f"Document is {effective_status}",
+                    "recipient_status": recipient.get("status")
                 }
             }
         
@@ -1002,8 +1010,8 @@ async def get_live_document_for_recipient(recipient_id: str, request: Request):
         watermark_config = {
             "sent": ("LIVE PREVIEW - AWAITING SIGNATURES", "#1E88E5"),
             "in_progress": ("LIVE PREVIEW - IN PROGRESS", "#FF9800"),
-            "completed": ("SIGNED COPY", "#4CAF50"),
-            "draft": ("DRAFT PREVIEW", "#757575")
+            # "completed": ("SIGNED COPY", "#4CAF50"),  # Avoided currently per user requirement
+            # "draft": ("DRAFT PREVIEW", "#757575")      # Avoided currently per user requirement
         }
         
         watermark_text, watermark_color = watermark_config.get(
@@ -1129,15 +1137,7 @@ async def view_voided_document(
             position="bottom"
         )
         
-        # Add audit info footer
-        audit_text = f"Viewed voided document by {recipient.get('email')} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
-        pdf_bytes = PDFEngine.apply_audit_footer(
-            pdf_bytes,
-            recipient.get("email", "unknown"),
-            request.client.host if request.client else "0.0.0.0",
-            datetime.utcnow().isoformat(),
-            footer_text=audit_text
-        )
+        # Audit info footer has been removed per requirement
         
         # Create filename
         original_filename = document.get("filename", "document")
@@ -1571,10 +1571,19 @@ async def get_recipient_signed_preview(
             field_value = field.get("value")
             
             if field_type in IMAGE_FIELDS:
-                if field_value and isinstance(field_value, dict) and field_value.get("image"):
+                img_val = None
+                if isinstance(field_value, dict):
+                    img_val = field_value.get("image") or field_value.get("data")
+                    if not img_val and isinstance(field_value.get("value"), dict):
+                        img_val = field_value["value"].get("image") or field_value["value"].get("data")
+                    elif not img_val and isinstance(field_value.get("value"), str) and field_value.get("value").startswith("data:image"):
+                        img_val = field_value.get("value")
+                elif isinstance(field_value, str) and field_value.startswith("data:image"):
+                    img_val = field_value
+                if img_val:
                     signatures.append({
                         "field_id": field["id"],
-                        "image": field_value["image"],
+                        "image": img_val,
                         "page": field.get("page", 0),
                         # Pass coordinates directly from field data
                         "x": field.get("x"),
@@ -1632,13 +1641,7 @@ async def get_recipient_signed_preview(
                 enriched_fields  # Pass all field data for coordinate lookup
             )
         
-        # Add audit footer
-        pdf_bytes = PDFEngine.apply_audit_footer(
-            pdf_bytes,
-            recipient.get("email", "unknown"),
-            request.client.host if request and request.client else "0.0.0.0",
-            datetime.utcnow().isoformat()
-        )
+        # Audit footer has been removed per requirement
         
         # Create filename with envelope ID if available
         filename_base = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_recipient_preview"
@@ -2697,6 +2700,10 @@ async def finalize_document(document_id: ObjectId, request: Request = None, back
             image_data = None
             if isinstance(f.get("value"), dict):
                 image_data = f.get("value").get("image") or f.get("value").get("data")
+                if not image_data and isinstance(f.get("value").get("value"), dict):
+                    image_data = f.get("value")["value"].get("image") or f.get("value")["value"].get("data")
+                elif not image_data and isinstance(f.get("value").get("value"), str) and f.get("value").get("value").startswith("data:image"):
+                    image_data = f.get("value")["value"]
             elif isinstance(f.get("value"), str) and f.get("value").startswith("data:image"):
                 image_data = f.get("value")
                 
@@ -2718,7 +2725,7 @@ async def finalize_document(document_id: ObjectId, request: Request = None, back
         pdf_bytes=pdf_bytes,
         signatures=signatures,
         fields=all_form_fields,
-        add_footer=True,
+        add_footer=False,
         signer_email="system@esigniva.ai",
         ip=request.client.host if request and request.client else "system",
         timestamp=datetime.utcnow().isoformat(),
@@ -2899,12 +2906,13 @@ async def preview_with_signatures(
         # Apply watermark based on status
         if doc["status"] != "completed":
             status_text = {
-                "draft": "DRAFT PREVIEW",
+                # "draft": "DRAFT PREVIEW",  # Avoided currently per user requirement
                 "sent": "IN PROGRESS",
                 "in_progress": "IN PROGRESS"
-            }.get(doc["status"], "PREVIEW")
+            }.get(doc["status"])
             
-            pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, status_text)
+            if status_text:
+                pdf_bytes = PDFEngine.apply_watermark(pdf_bytes, status_text)
         
         filename = f"{doc['filename'].rsplit('.', 1)[0]}_preview.pdf"
         
@@ -3015,11 +3023,17 @@ async def decline_document(
         raise HTTPException(404, "Recipient not found")
     
     if recipient.get("status") == "completed":
-        raise HTTPException(400, "Completed recipient cannot decline")
+        raise HTTPException(400, "This document has already been completed, so it cannot be declined.")
     
     document = await db.documents.find_one({"_id": recipient["document_id"]})
+    if not document:
+        raise HTTPException(404, "Document not found")
+        
+    if document.get("status") == "completed":
+        raise HTTPException(400, "This document has already been completed, so it cannot be declined.")
+
     if document.get("status") not in ["sent", "in_progress"]:
-        raise HTTPException(400, "Document is not active")
+        raise HTTPException(400, "This document is not active and cannot be declined.")
     
     # Mark recipient as declined
     await db.recipients.update_one(
@@ -3041,20 +3055,36 @@ async def decline_document(
         status="declined"
     )
     
-    # Mark document as declined if all recipients decline
-    # Or finalize if some completed and others (like this one) declined
-    all_recipients = await db.recipients.find({"document_id": recipient["document_id"]}).to_list(length=1000)
-    none_pending = all(r.get("status") in ["completed", "declined"] for r in all_recipients)
-    any_completed = any(r.get("status") == "completed" for r in all_recipients)
-    all_declined = all(r.get("status") == "declined" for r in all_recipients)
+    now = datetime.utcnow()
+    
+    # Also mark the document as declined because a required signatory has declined
+    await db.documents.update_one(
+        {"_id": recipient["document_id"]},
+        {"$set": {
+            "status": "declined",
+            "declined_at": now,
+            "declined_by": recipient.get("name") or recipient.get("email"),
+            "decline_reason": decline_request.reason
+        }}
+    )
 
-    if all_declined:
-        await db.documents.update_one({"_id": recipient["document_id"]}, {"$set": {"status": "declined", "declined_at": datetime.utcnow()}})
-        await _log_event(str(recipient["document_id"]), recipient, "document_voided", {"reason": "All recipients declined"}, request)
-    elif any_completed and none_pending:
-        # Finalize because everyone has taken action (some signed, some declined)
-        from .recipient_signing import finalize_document # Import inside to avoid circular if needed
-        await finalize_document(recipient["document_id"], request=request)
+    # Expire any other pending recipients who have not taken action yet
+    await db.recipients.update_many(
+        {
+            "document_id": recipient["document_id"],
+            "_id": {"$ne": rid},
+            "status": {"$nin": ["completed", "declined"]}
+        },
+        {"$set": {"status": "expired", "expired_at": now}}
+    )
+
+    await _log_event(
+        str(recipient["document_id"]),
+        recipient,
+        "document_declined",
+        {"reason": decline_request.reason, "declined_by": recipient.get("name") or recipient.get("email")},
+        request
+    )
     
     return {"message": "Document declined successfully"}
 
@@ -3084,15 +3114,18 @@ async def assign_document_to_others(
         raise HTTPException(404, "Recipient not found")
 
     if recipient.get("status") == "completed":
-        raise HTTPException(400, "Completed recipient cannot delegate")
+        raise HTTPException(400, "This document has already been completed, so you cannot assign or delegate it to someone else.")
 
     doc_id = recipient["document_id"]
     document = await db.documents.find_one({"_id": doc_id})
     if not document:
         raise HTTPException(404, "Document not found")
 
+    if document.get("status") == "completed":
+        raise HTTPException(400, "This document has already been completed, so you cannot assign or delegate it to someone else.")
+
     if document.get("status") not in ["sent", "in_progress"]:
-        raise HTTPException(400, "Document is not active for delegation")
+        raise HTTPException(400, "This document is not active for delegation")
 
     # Store old info for audit history
     old_info = {
@@ -3434,18 +3467,18 @@ async def email_signed_document(
             except Exception as e:
                 print(f"Warning: Could not apply envelope header to email: {str(e)}")
 
-        # 3. Apply "SIGNED" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",
-                opacity=0.1,
-                font_size=48,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark to email: {str(e)}")
+        # 3. Apply "SIGNED" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "SIGNED DOCUMENT",
+        #         color="#4CAF50",
+        #         opacity=0.1,
+        #         font_size=48,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark to email: {str(e)}")
 
         from .email_service import send_document_completion_email
         
@@ -3560,31 +3593,20 @@ async def download_signed_document(
             except Exception as e:
                 print(f"Warning: Could not apply envelope header: {str(e)}")
         
-        # Apply "SIGNED" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",  # Professional green
-                opacity=0.1,
-                font_size=48,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
+        # Apply "SIGNED" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "SIGNED DOCUMENT",
+        #         color="#4CAF50",  # Professional green
+        #         opacity=0.1,
+        #         font_size=48,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark: {str(e)}")
         
-        # Add download timestamp footer (Audit Evidence)
-        try:
-            client_ip = request.client.host if request.client else "0.0.0.0"
-            pdf_bytes = PDFEngine.apply_audit_footer(
-                pdf_bytes,
-                recipient.get("email", "unknown"),
-                client_ip,
-                datetime.utcnow().isoformat(),
-                footer_text=f"Downloaded by: {recipient.get('email')} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply audit footer: {str(e)}")
+        # Audit footer has been removed per requirement
         
         # Determine filename
         original_filename = document.get("filename", "signed_document.pdf")
@@ -3686,18 +3708,18 @@ async def download_recipient_signed_subfile(
         sub_doc.close()
         full_doc.close()
 
-        # Apply minimal watermark
-        try:
-            sub_bytes = PDFEngine.apply_watermark(
-                sub_bytes,
-                "SIGNED DOCUMENT",
-                color="#4CAF50",
-                opacity=0.1,
-                font_size=42,
-                angle=45
-            )
-        except Exception:
-            pass
+        # Apply minimal watermark (Commented out currently per user requirement)
+        # try:
+        #     sub_bytes = PDFEngine.apply_watermark(
+        #         sub_bytes,
+        #         "SIGNED DOCUMENT",
+        #         color="#4CAF50",
+        #         opacity=0.1,
+        #         font_size=42,
+        #         angle=45
+        #     )
+        # except Exception:
+        #     pass
 
         safe_name = sub_file.get("filename", "subdocument.pdf")
         if not safe_name.lower().endswith(".pdf"):
@@ -3869,18 +3891,18 @@ async def download_signed_document_with_passkey(
             pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, str(recipient["document_id"]), document)
 
         
-        # Apply "PASSWORD PROTECTED" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "PASSWORD PROTECTED",
-                color="#FF9800",  # Orange color
-                opacity=0.15,
-                font_size=36,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
+        # Apply "PASSWORD PROTECTED" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "PASSWORD PROTECTED",
+        #         color="#FF9800",  # Orange color
+        #         opacity=0.15,
+        #         font_size=36,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark: {str(e)}")
         
         # Add envelope header if exists
         envelope_id = document.get("envelope_id")
@@ -3960,14 +3982,16 @@ async def download_signed_document_with_passkey(
         raise HTTPException(500, "Internal server error while downloading protected document")
 
 
+@router.get("/recipient/{recipient_id}/view/original")
 @router.get("/recipient/{recipient_id}/download/original")
 async def download_original_document(
     recipient_id: str,
-    request: Request
+    request: Request,
+    view: bool = Query(False, description="Set to true to view inline instead of download attachment")
 ):
     """
-    Download original (unsigned) document.
-    Called from the dropdown menu.
+    Download or view original (unsigned) document.
+    Supports inline viewing or attachment downloading.
     """
     try:
         # Validate recipient ID
@@ -3998,18 +4022,18 @@ async def download_original_document(
         if not pdf_bytes:
             raise HTTPException(404, "Original PDF not found")
         
-        # Apply "ORIGINAL" watermark
-        try:
-            pdf_bytes = PDFEngine.apply_watermark(
-                pdf_bytes,
-                "ORIGINAL UNSIGNED COPY",
-                color="#666666",  # Gray color
-                opacity=0.1,
-                font_size=36,
-                angle=45
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply watermark: {str(e)}")
+        # Apply "ORIGINAL" watermark (Commented out currently per user requirement)
+        # try:
+        #     pdf_bytes = PDFEngine.apply_watermark(
+        #         pdf_bytes,
+        #         "ORIGINAL UNSIGNED COPY",
+        #         color="#666666",  # Gray color
+        #         opacity=0.1,
+        #         font_size=36,
+        #         angle=45
+        #     )
+        # except Exception as e:
+        #     print(f"Warning: Could not apply watermark: {str(e)}")
         
         # Add envelope header if exists
         envelope_id = document.get("envelope_id")
@@ -4023,18 +4047,7 @@ async def download_original_document(
             except Exception as e:
                 print(f"Warning: Could not apply envelope header: {str(e)}")
         
-        # Add audit footer
-        try:
-            client_ip = request.client.host if request.client else "0.0.0.0"
-            pdf_bytes = PDFEngine.apply_audit_footer(
-                pdf_bytes,
-                recipient.get("email", "unknown"),
-                client_ip,
-                datetime.utcnow().isoformat(),
-                footer_text=f"Original document downloaded by: {recipient.get('email', 'unknown')}"
-            )
-        except Exception as e:
-            print(f"Warning: Could not apply audit footer: {str(e)}")
+        # Audit footer has been removed per requirement
         
         # Create filename
         original_filename = document.get("filename", "document.pdf")
@@ -4057,12 +4070,16 @@ async def download_original_document(
         except Exception as e:
             print(f"Warning: Could not log event: {str(e)}")
         
+        # Determine content disposition (inline for preview, attachment for download)
+        is_inline = view or ("view" in request.url.path)
+        content_disposition = "inline" if is_inline else "attachment"
+
         # Return streaming response
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Disposition": f'{content_disposition}; filename="{filename}"',
                 "Content-Length": str(len(pdf_bytes)),
                 "X-Document-Status": document.get("status", "unknown"),
                 "X-Download-Type": "original",

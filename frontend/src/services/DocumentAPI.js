@@ -408,17 +408,30 @@ const authenticatedDownload = async (url, defaultFilename) => {
   }
 };
 
-// Export & Reports
+// Export & Reports (Premium Excel .xlsx & Audit Reports)
+export const exportRecipientsExcel = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/recipients-excel`, `recipients_${docId}.xlsx`);
+};
+
+export const exportTimelineExcel = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/timeline-excel`, `timeline_${docId}.xlsx`);
+};
+
+export const exportFieldsExcel = async (docId) => {
+  return authenticatedDownload(`/documents/${docId}/summary/fields-excel`, `fields_${docId}.xlsx`);
+};
+
+// Aliases for CSV exports to directly download the premium Excel sheets
 export const exportRecipientsCsv = async (docId) => {
-  return authenticatedDownload(`/documents/${docId}/summary/recipients-csv`, `recipients_${docId}.csv`);
+  return exportRecipientsExcel(docId);
 };
 
 export const exportTimelineCsv = async (docId) => {
-  return authenticatedDownload(`/documents/${docId}/summary/timeline-csv`, `timeline_${docId}.csv`);
+  return exportTimelineExcel(docId);
 };
 
 export const exportFieldsCsv = async (docId) => {
-  return authenticatedDownload(`/documents/${docId}/summary/fields-csv`, `fields_${docId}.csv`);
+  return exportFieldsExcel(docId);
 };
 
 export const generateHtmlReport = async (docId) => {
@@ -428,10 +441,12 @@ export const generateHtmlReport = async (docId) => {
 
 export async function fetchPdfBlob(url) {
   const token = localStorage.getItem("token");
+  const headers = {};
+  if (token && token !== "null" && token !== "undefined") {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const res = await fetch(url, { headers });
 
   if (!res.ok) {
     const text = await res.text();

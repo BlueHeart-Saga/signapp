@@ -1,76 +1,129 @@
-# 🖋️ Esigniva: User Guide & Helpful Tips
+<div align="center">
 
-Welcome to **Esigniva**! We’ve built this platform to make your document signing process as smooth, secure, and fast as possible. Whether you’re sending a simple contract or a complex multi-party agreement, this guide will walk you through the process step-by-step.
+**Esigniva Enterprise Documentation Suite**
 
----
+[Overview](README.md) • [Security](SECURITY.md) • [Architecture](ARCHITECTURE.md) • [System Docs](SYSTEM_DOCUMENTATION.md) • [API Reference](API_DOCUMENTATION.md) • [Deployment](DEPLOYMENT.md) • [Testing](TESTING.md) • [User Guide](USER_GUIDE.md) • [Contributing](CONTRIBUTING.md) • [Changelog](CHANGELOG.md) • [License](LICENSE.md)
 
-## 🌟 Quick Start: The 5-Step Flow
-
-Getting a document signed is easy. Here is how the magic happens:
-
-### 1️⃣ Upload Your Document
-*   **Locally:** Upload any PDF or Word document directly from your computer.
-*   **From the Cloud:** Connect your **Google Drive, Dropbox, or OneDrive** to pull files in seconds.
-*   **Use a Template:** Use one of your saved templates for repetitive documents like NDAs or Invoices.
-*   **AI magic:** Ask our AI to generate a document for you based on a simple prompt!
-
-### 2️⃣ Tag Your Fields (The "Drag-and-Drop" phase)
-Now, decide where people need to sign or enter information.
-*   **Signature & Initials:** The most common fields for legal binding.
-*   **Text Boxes:** Great for names, addresses, or custom notes.
-*   **Date Fields:** Automatically fill in today's date or let the signer choose.
-*   **Checkboxes & Dropdowns:** Perfect for options and multiple-choice selections.
-*   **AI Auto-Tag:** Click the "AI Assist" button, and we'll try to find the signature lines for you!
-
-### 3️⃣ Choose Your Signers
-Tell us who needs to see the document and in what order.
-*   **Signers:** People who need to sign or fill fields.
-*   **Approvers:** People who just need to review and "Approve" without signing.
-*   **Viewers:** People who get a copy for their records but don't need to do anything.
-*   **Signing Order:** You can decide if everyone gets it at once, or if Person A must sign before Person B is notified.
-
-### 4️⃣ Send & Track
-Once you hit **Send**, we take over.
-*   **Automated Emails:** We find your signers and send them a secure link.
-*   **Real-time Tracking:** Watch your dashboard to see who has opened the document, who is currently signing, and who hasn't started yet.
-*   **Reminders:** Forgetful signers? Send a friendly "nudge" with one click.
-
-### 5️⃣ Receive Your Final Package
-Once everyone has signed:
-*   **Instant Notification:** You’ll get an email immediately.
-*   **The Final Copy:** A secure, watermarked PDF that is legally binding.
-*   **Certificate of Completion:** We include a "Digital Fingerprint" record that proves exactly who signed, when, and from where.
+</div>
 
 ---
 
-## 🛠️ Handy Features to Know
+# Esigniva Platform User & Administrator Guide
 
-### 🔒 Safety First (OTP)
-Want extra security? Enable **Email OTP (One-Time Password)**. Your signer will have to enter a code sent to their email before they can even see the document.
+<div align="center">
 
-### 🤖 AI Summary
-Tired of reading 50-page contracts? Use our **AI Summary** feature to get a 1-paragraph breakdown of the most important terms before you sign.
+[![User Guide](https://img.shields.io/badge/Guide-User_and_Administrator_Manual-086B70?style=for-the-badge)](USER_GUIDE.md)
+[![Document Builder](https://img.shields.io/badge/Editor-Drag_and_Drop_Canvas-0D9488?style=for-the-badge)](USER_GUIDE.md)
+[![Signer Roles](https://img.shields.io/badge/Roles-Signer_%7C_Approver_%7C_Viewer-086B70?style=for-the-badge)](USER_GUIDE.md)
+[![Admin Control](https://img.shields.io/badge/Administration-Enterprise_Console-0D9488?style=for-the-badge)](USER_GUIDE.md)
 
-### 📱 Sign Anywhere
-Esigniva works perfectly on **Smartphones and Tablets**. Your recipients can sign with their finger or a stylus while on the go.
-
-### 🗃️ Management
-Organize your documents into folders, archive old ones, and keep your workspace tidy from the **My Documents** dashboard.
+</div>
 
 ---
 
-## ❓ Frequently Asked Questions
-
-**Is my data safe?**
-Absolutely. We use industry-standard encryption for both your documents and your personal information.
-
-**Can I cancel a document after sending it?**
-Yes! You can "Void" a document at any time before it is fully signed if you notice a mistake.
-
-**What if a signer declines?**
-If a signer refuses to sign, the process stops, and you will be notified immediately with their reason for declining.
+> [!NOTE]
+> Esigniva allows guest signers to review and sign envelopes without registering an account. All signatures are legally binding under the **US ESIGN Act**, **UETA**, and **EU eIDAS**.
 
 ---
 
-*Happy Signing!*
-**The Esigniva Team** ❤️
+## 1. The 5-Step Envelope Lifecycle
+
+```mermaid
+flowchart LR
+    A[1. Ingest<br/>Upload / Cloud / AI] --> B[2. Tag<br/>Canvas Fields]
+    B --> C[3. Route<br/>Recipients & Order]
+    C --> D[4. Track<br/>Real-time Status]
+    D --> E[5. Seal<br/>Audit Certificate]
+```
+
+### Step 1: Upload & Prepare Documents
+- **Local Uploads:** Upload any `.pdf`, `.docx`, or `.png/.jpg` file. Word documents are converted automatically to PDFs.
+- **Multi-File Envelope Merging:** Upload multiple documents simultaneously. The system combines them into a single continuous envelope.
+- **Cloud Connect:** Import directly from **Google Drive, Dropbox, Box, or Microsoft OneDrive**.
+- **AI Document Generator:** Enter a natural language prompt to generate an agreement template instantly.
+
+### Step 2: Canvas Builder & Field Placement
+1. Select a recipient from the recipient dropdown.
+2. Drag desired fields onto the canvas:
+   - **Signature & Initials:** Legally binding drawn, typed, or uploaded signatures.
+   - **Text Fields:** Names, addresses, job titles, or custom notes.
+   - **Date Fields:** Formatted dates (defaults to signature execution date).
+   - **Checkboxes & Dropdowns:** Choice selections and confirmation gates.
+3. Click **AI Assist (Auto-Tag)** to automatically detect signature zones and place fields.
+
+### Step 3: Recipient Orchestration & Signing Order
+- **Assign Roles:**
+  - `Signer`: Must fill required fields and sign.
+  - `Approver`: Reviews the document and clicks "Approve" (no signature fields required).
+  - `Viewer`: Receives a final sealed copy for archival purposes.
+- **Configure Signing Topology:**
+  - **Parallel:** All signers receive invitations simultaneously and can sign in any order.
+  - **Sequential:** Strict order enforcement (Signer 1 completes before Signer 2 is notified).
+- **Two-Factor Email OTP:** Enable OTP per recipient. The signer must enter a 6-digit code delivered to their inbox before viewing the document.
+
+### Step 4: Tracking & Envelope Management
+Monitor active envelopes from your **My Documents** dashboard:
+- **Statuses:** `Draft`, `Sent`, `In Progress`, `Completed`, `Declined`, `Voided`, and `Expired`.
+- **Actions:**
+  - **Send Reminder:** Sends an automated reminder notification email to pending signers.
+  - **Void Envelope:** Cancels an active signing session if changes are needed.
+  - **Audit History:** Inspect real-time timeline events (opened, viewed, signed).
+
+### Step 5: Finalization & Audit Certificate
+Once the final recipient signs:
+- All parties receive an automated completion email.
+- The document is permanently flattened and digitally sealed with a SHA-256 cryptographic checksum.
+- Includes a formal **Certificate of Completion** recording signer identities, IP addresses, timestamps, and legal disclosures.
+
+---
+
+## 2. Recipient Signing Experience (Guest Signers)
+
+Recipients do not need an Esigniva account to sign documents:
+
+1. **Accessing the Envelope:** The recipient clicks the secure link in their email invitation.
+2. **Security Verification (If enabled):** The signer enters the 6-digit Email OTP sent to their address.
+3. **Legal Disclosure (ERSD):** The signer reviews and accepts the Electronic Record and Signature Disclosure.
+4. **Interactive Navigation:** The interface guides the signer through every required field.
+5. **Adopting a Signature:**
+   - **Draw:** Draw with a mouse, finger, or stylus on touchscreen devices.
+   - **Type:** Choose from high-fidelity typography styles.
+   - **Upload:** Upload an existing signature image file.
+6. **Submit:** Click "Finish". A signed copy and audit certificate are immediately made available for download.
+
+---
+
+## 3. Subscriptions, Credits & Invoicing
+
+- Manage account plans from **Settings → Subscription**.
+- Each plan includes a monthly envelope quota. If your team exhausts its quota, purchase additional **Signing Credits** with instant activation.
+- Download vector PDF invoices generated via ReportLab containing your corporate billing address and tax/GST registration numbers from your billing dashboard.
+
+---
+
+## 4. Enterprise Administration Console
+
+<details>
+<summary><b>Click to View Enterprise Administration Console Capabilities</b></summary>
+
+<br/>
+
+Users with the `admin` role have access to the **Admin Control Center**:
+- **User Management:** View all registered users, verify account statuses, and manage role assignments.
+- **Dynamic Branding:** Update the organization logo, primary brand color, and portal favicon across all signers' interfaces.
+- **Global Marketing Banners:** Publish system-wide announcements or maintenance notices.
+- **Complaint & Feedback Portal:** Review, triage, and resolve complaints submitted by signers.
+- **Envelope Inspection:** Audit organization-wide envelope volumes and compliance logs.
+
+</details>
+
+---
+
+<div align="center">
+
+**Esigniva Technologies** • Enterprise Electronic Signature Platform  
+[Repository](https://github.com/BlueHeart-Saga/signapp) • [Security Policy](SECURITY.md) • [Terms of Use](LICENSE.md) • [Contact Support](mailto:support@esigniva.com)
+
+<sub>Copyright © 2026 Esigniva Technologies. All rights reserved.</sub>
+
+</div>

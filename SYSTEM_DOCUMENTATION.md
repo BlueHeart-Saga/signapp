@@ -1,93 +1,93 @@
-# Esigniva: Enterprise Systems Documentation
+<div align="center">
+
+**Esigniva Enterprise Documentation Suite**
+
+[Overview](README.md) • [Security](SECURITY.md) • [Architecture](ARCHITECTURE.md) • [System Docs](SYSTEM_DOCUMENTATION.md) • [API Reference](API_DOCUMENTATION.md) • [Deployment](DEPLOYMENT.md) • [Testing](TESTING.md) • [User Guide](USER_GUIDE.md) • [Contributing](CONTRIBUTING.md) • [Changelog](CHANGELOG.md) • [License](LICENSE.md)
+
+</div>
+
+---
+
+# Esigniva Enterprise Systems Documentation
+
+<div align="center">
+
+[![FastAPI Core](https://img.shields.io/badge/System-FastAPI_Enterprise_Core-086B70?style=for-the-badge)](SYSTEM_DOCUMENTATION.md)
+[![Storage](https://img.shields.io/badge/Storage-Azure_Blob_%7C_MongoDB-0D9488?style=for-the-badge)](SYSTEM_DOCUMENTATION.md)
+[![Rendering](https://img.shields.io/badge/Renderers-LibreOffice_%7C_PyMuPDF-086B70?style=for-the-badge)](SYSTEM_DOCUMENTATION.md)
+[![Invoicing](https://img.shields.io/badge/Invoicing-ReportLab_Vector-0D9488?style=for-the-badge)](SYSTEM_DOCUMENTATION.md)
+
+</div>
+
+---
+
+> [!NOTE]
+> For deep-dive architectural diagrams, coordinate translation formulas, and database indexing schemas, consult the dedicated [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
 
 ## 1. System Overview
-Esigniva is a high-performance, enterprise-grade electronic signature platform designed for secure, legally binding document workflows. The system integrates advanced AI capabilities with robust file management and multi-cloud interoperability.
+
+**Esigniva** is a high-performance, enterprise-grade electronic signature platform designed for secure, legally binding document workflows. The system integrates advanced AI capabilities with robust file management and multi-cloud interoperability.
 
 ### Technical Core
-- **Backend Architecture:** FastAPI (Python 3.11) with Asynchronous I/O.
-- **Frontend Architecture:** React 19 with Material UI (MUI) Enterprise styling.
-- **Data Persistence:** MongoDB (NoSQL) for high-scale document metadata.
-- **File Intelligence:** LibreOffice for multi-format conversion and PyMuPDF for granular PDF manipulation.
-- **AI Engine:** Cohere/OpenAI integration for semantic document analysis and workflow automation.
+- **Backend Architecture:** FastAPI (Python 3.11) with Asynchronous I/O and connection pooling.
+- **Frontend Architecture:** React 19 with Material UI (MUI) Enterprise styling and React Konva.
+- **Data Persistence:** MongoDB (NoSQL) for high-scale document metadata and audit logs.
+- **File Intelligence:** Headless LibreOffice for multi-format conversion and PyMuPDF (`fitz`) for granular PDF manipulation and flattening.
+- **Vector Document Engine:** ReportLab for enterprise invoice and receipt PDF generation.
+- **AI Engine:** Cohere/OpenAI integration for semantic document analysis, summary extraction, and template automation.
 
 ---
 
-## 2. The Document Lifecycle (The "SafeFlow")
+## 2. Module Architecture
 
-### Phase 1: Preparation & Ingestion
-Users can initialize the signing process through multiple channels:
-- **Local Import:** Direct upload of PDF, DOCX, and Images.
-- **Cloud Connect:** Native hooks for **Google Drive, Dropbox, Box, and OneDrive**.
-- **Template Engine:** Start from pre-defined enterprise templates or AI-generated structures.
-- **AI Assist:** Auto-parsing of document text to suggest field placements (signatures, dates, names).
+<details>
+<summary><b>Click to View Backend Routes & Service Mapping Matrix</b></summary>
 
-### Phase 2: Orchestration (Document Builder)
-The **Document Builder** represents the platform's core interaction layer:
-- **Field Placement:** Drag-and-drop toolkit containing Signatures, Initials, Date, Textboxes, Checkboxes, and Dropdowns.
-- **Advanced Field Logic:** Tooltip hints, mandatory/optional flags, and role-specific validation.
-- **Asset Assembly:** Merge multiple files into a single unified "Envelope" for signing.
+<br/>
 
-### Phase 3: Recipient & Workflow Design
-Define the "Who" and "How" of the signing process:
-- **Role Ecosystem:** Support for Signers, Approvers (review-only), Witnesses, Viewers, and Form Fillers.
-- **Signing Topology:**
-    - **Sequential:** Strict order enforcement (Signer A must sign before Signer B is notified).
-    - **Parallel:** Everyone receives the document simultaneously.
-- **Security Layers:** Multi-factor authentication via **Email OTP** and private access codes.
+| Module Name | File Location | Key Functions |
+| :--- | :--- | :--- |
+| Authentication & Identity | `routes/auth.py` | JWT token issuance, password hashing, OAuth callbacks |
+| Document Management | `routes/documents.py` | Envelope CRUD, multi-file merging, voiding, trashed items |
+| Recipient Engine | `routes/recipients.py` | Signing order sequencing, recipient role assignment |
+| Recipient Signing | `routes/recipient_signing.py` | Live signing session, ERSD gating, signature adoption |
+| Recipient OTP | `routes/recipient_otp.py` | 6-digit challenge code generation and verification |
+| Field Coordinates | `routes/fields.py` | Normalized coordinate placement and validation |
+| Invoicing Service | `services/invoice_service.py` | Atomic sequence generator, ReportLab vector PDF builder |
+| Subscription & Billing | `routes/subscription.py` | Stripe checkout session creation, webhook reconciliation |
+| Credits Subsystem | `routes/credits.py` | Signing credit balance checking and purchase tracking |
+| Audit & Timeline | `routes/audit.py` | SHA-256 certificate generation, IP and user-agent logging |
+| Admin Controls | `routes/admin_control.py` | Dynamic logos, banners, tenant settings, complaint triage |
+| Cloud Integrations | `routes/{box,dropbox,google_drive,onedrive}.py` | Native cloud storage pickers and file import handlers |
 
-### Phase 4: The Live Signing Experience
-A high-fidelity, responsive interface for recipients:
-- **Legal Compliance:** Mandatory acceptance of Electronic Record and Signature Disclosure (ERSD).
-- **Responsive Canvas:** Pixel-perfect rendering of fields across mobile and desktop devices.
-- **Signature Creation:** Draw signatures, upload images, or choose from high-quality typography-based signatures.
-
-### Phase 5: finalization & Distribution
-Once the final signer completes their task:
-- **Digital Sealing:** The PDF is locked and watermarked with audit-compliant identifiers.
-- **Certificate of Completion:** A secondary PDF is generated containing the full digital audit trail (IPs, Timestamps, Event IDs).
-- **Smart Distribution:** Owners and recipients receive a secure ZIP package containing the signed document and certificate.
+</details>
 
 ---
 
-## 3. Module Architecture
+## 3. Storage & Infrastructure
 
-###  Authentication & Identity (auth.py)
-Uses **JWT (JSON Web Tokens)** for stateless, secure session management. Supports standard login, registration, and OAuth-based sessions for cloud imports.
-
-### 📁 Document Management (documents.py)
-Handles the full CRUD lifecycle of envelopes. Manages document statuses: `draft`, `sent`, `in_progress`, `completed`, `declined`, `voided`, and `expired`.
-
-### 👥 Recipient Engine (recipients.py / recipient_signing.py)
-Manages the state and progress of each signer. Includes complex logic for "Signing Order" enforcement and "OTP Verification" cycles.
-
-### 🤖 AI Intelligence Hub (aidoc.py / template_generator.py)
-Interfaces with LLMs to:
-- Generate document content from natural language prompts.
-- Analyze uploaded documents to extract key entities.
-- Automatically build workflows based on document context.
-
-### 💳 Subscription & Billing (subscription.py)
-Integrated with **Stripe** for usage-based billing, enterprise tiers, and feature gating. Manages quotas for documents per month and team member seats.
-
-### 📊 Audit & Logging (audit.py / recipient_logs.py)
-Every single interaction is logged. This module ensures compliance by recording views, clicks, field completions, and status transitions with verified IP addresses.
-
-### ⚙️ Admin Control Center (admin_control.py)
-Enterprise-level dashboard for:
-- Managing organization-wide settings.
-- Monitoring system health and document volumes.
-- Controlling marketing banners and global logos.
-
----
-
-## 4. Storage & Infrastructure
-- **Azure Blob Storage:** Secure, redundant storage for all original and signed PDF assets.
-- **LibreOffice Engine:** Headless document converter running in a dedicated container environment.
+- **Azure Blob Storage:** Secure, redundant storage for original assets and finalized signed envelopes.
+- **LibreOffice Engine:** Headless document converter executing within a Debian-slim container environment.
 - **Email Delivery:** High-availability SMTP service with template-based notification routing.
+- **Distributed Locking:** MongoDB-backed atomic distributed locks (`automated_tasks_lock`) for automated reminder and expiration cron tasks.
 
 ---
 
-## 5. Security & Compliance
-- **Data at Rest:** All sensitive metadata is stored in MongoDB with industry-standard encryption.
+## 4. Security & Compliance
+
+- **Data at Rest:** All sensitive metadata is stored in MongoDB with AES-256 encryption.
 - **Data in Transit:** Secured via TLS 1.3 across all endpoints.
-- **E-Sign Compliance:** Adheres to the requirements of the U.S. ESIGN Act and UETA standards.
+- **E-Sign Compliance:** Adheres to the statutory requirements of the U.S. ESIGN Act, UETA, and EU eIDAS regulations.
+
+---
+
+<div align="center">
+
+**Esigniva Technologies** • Enterprise Electronic Signature Platform  
+[Repository](https://github.com/BlueHeart-Saga/signapp) • [Security Policy](SECURITY.md) • [Terms of Use](LICENSE.md) • [Contact Support](mailto:support@esigniva.com)
+
+<sub>Copyright © 2026 Esigniva Technologies. All rights reserved.</sub>
+
+</div>
