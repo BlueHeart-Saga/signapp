@@ -423,6 +423,7 @@ const UserDashboard = () => {
   };
 
   const getStatusBadge = (status) => {
+    const norm = (status || '').replace('-', '_').toLowerCase().trim();
     const badges = {
       draft: {
         bg: 'signapp-badge-bg-grey',
@@ -474,7 +475,7 @@ const UserDashboard = () => {
       }
     };
 
-    return badges[status] || badges.draft;
+    return badges[norm] || badges.draft;
   };
 
   // Document action handlers
@@ -1264,7 +1265,9 @@ const UserDashboard = () => {
                   </div>
                 ) : (
                   displayedActivities.map((activity) => {
-                    const statusBadge = getStatusBadge(activity.status);
+                    const normStatus = (activity.status || activity.documentData?.status || '').replace('-', '_').toLowerCase().trim();
+                    const isDraft = normStatus === 'draft';
+                    const statusBadge = getStatusBadge(normStatus);
                     return (
                       <div key={activity.id} className="ss-ra-item-row">
                         <div className="ss-ra-item-content">
@@ -1304,7 +1307,7 @@ const UserDashboard = () => {
                           </div>
 
                           <div className="ss-ra-item-action-buttons">
-                            {activity.status === 'draft' && (
+                            {isDraft && (
                               <button
                                 className="ss-ra-btn-primary-action"
                                 onClick={() => handlePrepareSend(activity.documentId, activity.title)}
@@ -1365,19 +1368,21 @@ const UserDashboard = () => {
                                     <span>View Timeline</span>
                                   </button>
 
-                                  <button
-                                    className="ss-ra-dropdown-item"
-                                    onClick={() => handleViewSignedPreview(activity.documentId, activity.title)}
-                                  >
-                                    <Eye size={16} />
-                                    <span>Signed Preview</span>
-                                  </button>
+                                  {!isDraft && (
+                                    <button
+                                      className="ss-ra-dropdown-item"
+                                      onClick={() => handleViewSignedPreview(activity.documentId, activity.title)}
+                                    >
+                                      <Eye size={16} />
+                                      <span>Signed Preview</span>
+                                    </button>
+                                  )}
 
-                                  {['draft', 'sent', 'in_progress'].includes(activity.status) && (
+                                  {['draft', 'sent', 'in_progress'].includes(normStatus) && (
                                     <>
                                       <div className="ss-ra-dropdown-divider" />
 
-                                      {activity.status === 'draft' && (
+                                      {isDraft && (
                                         <>
                                           <button
                                             className="ss-ra-dropdown-item"
@@ -1405,7 +1410,7 @@ const UserDashboard = () => {
                                         </>
                                       )}
 
-                                      {['sent', 'in_progress'].includes(activity.status) && (
+                                      {['sent', 'in_progress'].includes(normStatus) && (
                                         <button
                                           className="ss-ra-dropdown-item"
                                           onClick={() => handleSendReminder(activity.documentId, activity.title)}
@@ -1435,7 +1440,7 @@ const UserDashboard = () => {
                                     </>
                                   )}
 
-                                  {activity.status === 'voided' && (
+                                  {normStatus === 'voided' && (
                                     <>
                                       <div className="ss-ra-dropdown-divider" />
                                       <button
@@ -1455,7 +1460,7 @@ const UserDashboard = () => {
                                     </>
                                   )}
 
-                                  {activity.status === 'deleted' && (
+                                  {normStatus === 'deleted' && (
                                     <>
                                       <div className="ss-ra-dropdown-divider" />
                                       <button

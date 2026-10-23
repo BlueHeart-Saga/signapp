@@ -3187,12 +3187,28 @@ export default function MyDocuments() {
           </Box>
         ) : (
           <TableContainer sx={{ overflowX: "auto" }}>
-            <Table sx={{ minWidth: 720 }}>
+            <Table sx={{ minWidth: 920, width: "100%", tableLayout: "auto" }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: "#F8FAFC" }}>
-                  <TableCell sx={{ py: 1.75, px: 2.5, width: 60, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+                <TableRow sx={{ bgcolor: "#F8FAFC", "& th": { verticalAlign: "middle" } }}>
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      pl: 3,
+                      pr: 1.5,
+                      width: 70,
+                      minWidth: 70,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     S.No
                   </TableCell>
+
                   <TableCell
                     onClick={() => {
                       setFilters(prev => ({
@@ -3203,7 +3219,8 @@ export default function MyDocuments() {
                     }}
                     sx={{
                       py: 1.75,
-                      px: 3,
+                      px: 2.5,
+                      minWidth: 260,
                       fontSize: "11.5px",
                       fontWeight: 700,
                       color: filters.sortBy === "name" ? "#0F766E" : "#64748B",
@@ -3212,6 +3229,7 @@ export default function MyDocuments() {
                       borderBottom: "1px solid #E2E8F0",
                       cursor: "pointer",
                       userSelect: "none",
+                      whiteSpace: "nowrap",
                       "&:hover": { color: "#0F766E" },
                     }}
                   >
@@ -3228,6 +3246,7 @@ export default function MyDocuments() {
                       )}
                     </Box>
                   </TableCell>
+
                   <TableCell
                     onClick={() => {
                       setFilters(prev => {
@@ -3240,6 +3259,8 @@ export default function MyDocuments() {
                     sx={{
                       py: 1.75,
                       px: 2.5,
+                      width: 170,
+                      minWidth: 160,
                       fontSize: "11.5px",
                       fontWeight: 700,
                       color: filters.sortBy === "last_used" || filters.sortBy === "uploaded_at" ? "#0F766E" : "#64748B",
@@ -3248,6 +3269,7 @@ export default function MyDocuments() {
                       borderBottom: "1px solid #E2E8F0",
                       cursor: "pointer",
                       userSelect: "none",
+                      whiteSpace: "nowrap",
                       "&:hover": { color: "#0F766E" },
                     }}
                   >
@@ -3264,18 +3286,66 @@ export default function MyDocuments() {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      px: 2.5,
+                      width: 145,
+                      minWidth: 135,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Source
                   </TableCell>
-                  <TableCell sx={{ py: 1.75, px: 2.5, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+
+                  <TableCell
+                    sx={{
+                      py: 1.75,
+                      px: 2.5,
+                      width: 145,
+                      minWidth: 135,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Status
                   </TableCell>
-                  <TableCell align="right" sx={{ py: 1.75, px: 3, fontSize: "11.5px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E2E8F0" }}>
+
+                  <TableCell
+                    align="right"
+                    sx={{
+                      py: 1.75,
+                      pl: 2,
+                      pr: 3,
+                      width: 210,
+                      minWidth: 200,
+                      fontSize: "11.5px",
+                      fontWeight: 700,
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      borderBottom: "1px solid #E2E8F0",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Actions
                   </TableCell>
                 </TableRow>
               </TableHead>
-              <TableBody>
+
+              <TableBody sx={{ "& td": { verticalAlign: "middle" } }}>
                 {filteredDocuments.map((doc, index) => {
                   const formatted = formatDate(doc.uploaded_at);
                   const isDraft = doc.status === "draft";
@@ -3292,13 +3362,23 @@ export default function MyDocuments() {
                       }}
                     >
                       {/* S.No */}
-                      <TableCell sx={{ py: 2, px: 2.5, width: 60, whiteSpace: "nowrap" }}>
+                      <TableCell
+                        sx={{
+                          py: 1.75,
+                          pl: 3,
+                          pr: 1.5,
+                          width: 70,
+                          minWidth: 70,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         <Typography sx={{ fontSize: "12.5px", fontWeight: 600, color: "#64748B" }}>
                           {serialNumber}
                         </Typography>
                       </TableCell>
+
                       {/* Document Name */}
-                      <TableCell sx={{ py: 2, px: 3, maxWidth: { xs: 150, sm: 220, md: 320, lg: 420 }, minWidth: 0 }}>
+                      <TableCell sx={{ py: 1.75, px: 2.5, minWidth: 260 }}>
                         <Box
                           sx={{
                             display: "flex",
@@ -3325,8 +3405,8 @@ export default function MyDocuments() {
                                 fontFamily: '"Inter", sans-serif',
                                 fontWeight: 600,
                                 color: "#0F172A",
-                                fontSize: "14px",
-                                lineHeight: 1.5,
+                                fontSize: "13.5px",
+                                lineHeight: 1.4,
                                 cursor: "pointer",
                                 transition: "color 0.15s ease",
                                 "&:hover": {
@@ -3338,7 +3418,7 @@ export default function MyDocuments() {
 
                             <Typography
                               sx={{
-                                fontSize: "12px",
+                                fontSize: "11.5px",
                                 color: "#94A3B8",
                                 fontWeight: 500,
                                 mt: 0.3,
@@ -3364,12 +3444,12 @@ export default function MyDocuments() {
                       </TableCell>
 
                       {/* Last Active / Uploaded */}
-                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                      <TableCell sx={{ py: 1.75, px: 2.5, width: 170, minWidth: 160, whiteSpace: "nowrap" }}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
-                          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#1E293B" }}>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#1E293B", lineHeight: 1.4 }}>
                             {doc.updated_at ? formatDate(doc.updated_at).date : formatted.date}
                           </Typography>
-                          <Typography sx={{ fontSize: "11px", color: "#94A3B8" }}>
+                          <Typography sx={{ fontSize: "11px", color: "#94A3B8", lineHeight: 1.4 }}>
                             {doc.updated_at && doc.updated_at !== doc.uploaded_at
                               ? `Active ${formatDate(doc.updated_at).time}`
                               : `Uploaded ${formatted.time}`}
@@ -3378,18 +3458,18 @@ export default function MyDocuments() {
                       </TableCell>
 
                       {/* Source */}
-                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                      <TableCell sx={{ py: 1.75, px: 2.5, width: 145, minWidth: 135, whiteSpace: "nowrap" }}>
                         {renderSourceBadge(doc.source)}
                       </TableCell>
 
                       {/* Status */}
-                      <TableCell sx={{ py: 2, px: 2.5, whiteSpace: "nowrap" }}>
+                      <TableCell sx={{ py: 1.75, px: 2.5, width: 145, minWidth: 135, whiteSpace: "nowrap" }}>
                         <StatusChip status={doc.status} />
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell align="right" sx={{ py: 2, px: 3, whiteSpace: "nowrap" }}>
-                        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                      <TableCell align="right" sx={{ py: 1.75, pl: 2, pr: 3, width: 210, minWidth: 200, whiteSpace: "nowrap" }}>
+                        <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
                           {isDraft ? (
                             <Button
                               variant="contained"
@@ -3640,7 +3720,7 @@ export default function MyDocuments() {
               />
             </MenuItem>
 
-            {actionMenuDoc.status === "draft" && (
+            {(actionMenuDoc.status || "").toLowerCase().trim() === "draft" && (
               <MenuItem
                 onClick={() => {
                   const doc = actionMenuDoc;
@@ -3713,30 +3793,32 @@ export default function MyDocuments() {
               />
             </MenuItem>
 
-            <MenuItem
-              onClick={() => {
-                const doc = actionMenuDoc;
-                setActionMenuAnchorEl(null);
-                setActiveDocId(doc.id);
-                setActiveDocument(doc);
-                setSignedOpen(true);
-              }}
-              sx={{
-                fontSize: "13px",
-                py: 1,
-                gap: 1.5,
-                color: "#334155",
-                "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
-                <PreviewIcon fontSize="small" className="text-slate-400" />
-              </ListItemIcon>
-              <ListItemText
-                primary="Signed Preview"
-                primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
-              />
-            </MenuItem>
+            {(actionMenuDoc.status || "").toLowerCase().trim() !== "draft" && (
+              <MenuItem
+                onClick={() => {
+                  const doc = actionMenuDoc;
+                  setActionMenuAnchorEl(null);
+                  setActiveDocId(doc.id);
+                  setActiveDocument(doc);
+                  setSignedOpen(true);
+                }}
+                sx={{
+                  fontSize: "13px",
+                  py: 1,
+                  gap: 1.5,
+                  color: "#334155",
+                  "&:hover": { bgcolor: "#f8fafc", color: "#0f766e" },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: "auto", color: "inherit" }}>
+                  <PreviewIcon fontSize="small" className="text-slate-400" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Signed Preview"
+                  primaryTypographyProps={{ fontSize: "13px", fontWeight: 500 }}
+                />
+              </MenuItem>
+            )}
 
             {actionMenuDoc.status === "completed" && (
               <MenuItem

@@ -5088,18 +5088,35 @@ async def download_signed(
     if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
-    # Load base PDF from Azure
-    pdf_path = doc.get("pdf_file_path")
-    if not pdf_path:
-        raise HTTPException(404, "PDF not found")
-    
-    try:
-        pdf_bytes = storage.download(pdf_path)
-    except Exception as e:
-        print(f"Error reading PDF: {str(e)}")
-        raise HTTPException(404, "PDF file not found in storage")
-    
-    # APPLY COMPLETED FIELDS (CRITICAL FIX)
+    name = doc["filename"].rsplit(".", 1)[0]
+    filename = f"{name}_signed.pdf"
+
+    # Priority 1: If document is completed and has signed_pdf_path, use it directly
+    signed_pdf_path = doc.get("signed_pdf_path")
+    if doc.get("status") == "completed" and signed_pdf_path:
+        try:
+            pdf_bytes = storage.download(signed_pdf_path)
+            if pdf_bytes and len(pdf_bytes) > 100:
+                await _log_event(
+                    document_id,
+                    current_user,
+                    "download_signed_or_current_pdf",
+                    {
+                        "used_signed_version": True,
+                        "envelope_id": doc.get("envelope_id")
+                    },
+                    request=request
+                )
+                return StreamingResponse(
+                    io.BytesIO(pdf_bytes),
+                    media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+                )
+        except Exception as e:
+            print(f"Error reading signed_pdf_path for download: {e}")
+
+    # Priority 2: Load base PDF (multi-file merged in order) and apply completed fields
+    pdf_bytes = await load_document_pdf(doc, document_id)
     pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, document_id, doc)
     
     # Add envelope header
@@ -5110,9 +5127,6 @@ async def download_signed(
             envelope_id=envelope_id,
             color="#000000"
         )
-
-    name = doc["filename"].rsplit(".", 1)[0]
-    filename = f"{name}_signed.pdf"
 
     await _log_event(
         document_id,
@@ -5856,18 +5870,41 @@ async def view_signed_preview(
     if not is_owner and not is_recipient and not is_admin:
         raise HTTPException(403, "Not authorized")
 
-    # Load base PDF (exact same canonical source as download_signed)
-    pdf_path = doc.get("pdf_file_path")
-    if pdf_path:
-        try:
-            pdf_bytes = storage.download(pdf_path)
-        except Exception as e:
-            print(f"Error reading PDF from storage, falling back to load_document_pdf: {str(e)}")
-            pdf_bytes = await load_document_pdf(doc, doc_id)
-    else:
-        pdf_bytes = await load_document_pdf(doc, doc_id)
+    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_signed_preview.pdf"
 
-    # APPLY COMPLETED FIELDS (CRITICAL FIX: Uses exact same engine as download_signed)
+    # Priority 1: If document is completed and has signed_pdf_path, return it directly
+    # This guarantees 100% exact fidelity with the final signed document
+    signed_pdf_path = doc.get("signed_pdf_path")
+    if doc.get("status") == "completed" and signed_pdf_path:
+        try:
+            pdf_bytes = storage.download(signed_pdf_path)
+            if pdf_bytes and len(pdf_bytes) > 100:
+                await _log_event(
+                    doc_id,
+                    user,
+                    "view_signed_preview",
+                    {
+                        "envelope_id": doc.get("envelope_id"),
+                        "source": "signed_pdf_path"
+                    },
+                    request
+                )
+                return StreamingResponse(
+                    io.BytesIO(pdf_bytes),
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f'inline; filename="{filename}"',
+                        "Cache-Control": "no-cache"
+                    }
+                )
+        except Exception as e:
+            print(f"Error reading signed_pdf_path for preview: {e}")
+
+    # Priority 2: Load base PDF using load_document_pdf
+    # This correctly handles multi-file envelope merging in exact page order
+    pdf_bytes = await load_document_pdf(doc, doc_id)
+
+    # APPLY COMPLETED FIELDS onto properly merged document
     pdf_bytes = await apply_completed_fields_to_pdf(pdf_bytes, doc_id, doc)
 
     # Apply minimal envelope header if present
@@ -5878,8 +5915,6 @@ async def view_signed_preview(
             envelope_id=envelope_id,
             color="#000000"
         )
-
-    filename = f"{doc.get('filename', 'document').rsplit('.', 1)[0]}_signed_preview.pdf"
 
     await _log_event(
         doc_id,

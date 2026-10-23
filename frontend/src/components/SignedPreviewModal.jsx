@@ -29,6 +29,7 @@ import {
   getDocumentFiles,
   downloadDocument,
   downloadSubDocument,
+  signedPreviewUrl,
 } from "../services/DocumentAPI";
 
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -45,6 +46,7 @@ export default function SignedPreviewModal({
   url,
 }) {
   const [numPages, setNumPages] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -61,17 +63,23 @@ export default function SignedPreviewModal({
     if (!open || !documentId) return;
 
     let cancel = false;
+    let objectUrl = null;
+
     async function load() {
       setLoading(true);
       setError(null);
       setPdfBlob(null);
+      setPdfUrl(null);
       setNumPages(null);
       setActivePage(1);
 
       try {
-        const blob = await fetchPdfBlob(url);
+        const targetUrl = url || signedPreviewUrl(documentId);
+        const blob = await fetchPdfBlob(targetUrl);
         if (cancel) return;
         setPdfBlob(blob);
+        objectUrl = URL.createObjectURL(blob);
+        setPdfUrl(objectUrl);
       } catch (err) {
         if (!cancel) {
           setError(err);
@@ -86,6 +94,7 @@ export default function SignedPreviewModal({
 
     return () => {
       cancel = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [open, documentId, url]);
 
@@ -125,7 +134,7 @@ export default function SignedPreviewModal({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
+      maxWidth="xl"
       fullWidth
       PaperProps={{
         sx: {
@@ -347,6 +356,7 @@ export default function SignedPreviewModal({
           </Box>
 
           {/* PDF Pages Scroll View */}
+          {/* PDF Pages Scroll View */}
           <Box
             ref={containerRef}
             sx={{
@@ -354,9 +364,6 @@ export default function SignedPreviewModal({
               overflowY: "auto",
               px: { xs: 1, sm: 3 },
               py: 3,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
             }}
           >
             {/* Loading State */}
@@ -401,9 +408,9 @@ export default function SignedPreviewModal({
             )}
 
             {/* PDF Canvas Document */}
-            {!loading && !error && pdfBlob && (
+            {!loading && !error && pdfUrl && (
               <Document
-                file={pdfBlob}
+                file={pdfUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
                 loading={null}
               >
@@ -421,7 +428,7 @@ export default function SignedPreviewModal({
                         flexDirection: "column",
                         alignItems: "center",
                         mb: 5,
-                        scrollMarginTop: "80px",
+                        scrollMarginTop: "90px",
                       }}
                     >
                       <Box sx={{ display: "inline-flex", flexDirection: "column", width: "fit-content", maxWidth: "100%" }}>
@@ -469,7 +476,9 @@ export default function SignedPreviewModal({
                         {/* Actual PDF Page Container */}
                         <Box
                           sx={{
-                            backgroundColor: "white",
+                            display: "flex",
+                            justifyContent: "center",
+                            backgroundColor: "#fff",
                             borderRadius: "4px",
                             boxShadow: "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)",
                             overflow: "hidden",
@@ -479,9 +488,8 @@ export default function SignedPreviewModal({
                           <Page
                             pageNumber={pageNum}
                             scale={scale}
-                            renderTextLayer={true}
-                            renderAnnotationLayer={true}
-                            canvasBackground="white"
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
                           />
                         </Box>
                       </Box>
